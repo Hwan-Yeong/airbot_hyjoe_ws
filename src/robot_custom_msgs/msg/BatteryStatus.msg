@@ -1,0 +1,9 @@
+uint8 battery_percentage
+float64 battery_voltage
+float64 battery_current
+uint8 battery_temperature_1
+uint8 battery_temperature_2
+uint8 battery_stat_1
+uint8 battery_stat_2
+uint8 battery_stat_3
+uint8 battery_stat_4

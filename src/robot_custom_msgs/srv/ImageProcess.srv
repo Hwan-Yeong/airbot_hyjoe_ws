@@ -1,0 +1,3 @@
+float64[] coordinates  # Request: Array of coordinates
+---
+bool success            # Response: True if image processing succeeds

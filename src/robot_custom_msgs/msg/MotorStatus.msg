@@ -1,0 +1,5 @@
+float32 motor_rpm_left
+float32 motor_rpm_right
+uint16 motor_current_left
+uint16 motor_current_right
+uint16 motor_type
