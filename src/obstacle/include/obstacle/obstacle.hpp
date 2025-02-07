@@ -50,6 +50,7 @@ private:
 
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
+    std::string target_frame;
     bool use_tof_map_pointcloud;
     bool use_tof_1D;
     bool use_tof_left;

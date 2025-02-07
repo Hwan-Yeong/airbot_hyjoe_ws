@@ -1,7 +1,6 @@
 #include "obstacle/sensor_to_pointcloud.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-#define USE_MAP_FRAME false // True: Map Frame, False: Robot Frame
 #define USE_1D_TOF_LOG false
 #define USE_Multi_TOF_LOG false
 #define USE_Camera_LOG false
@@ -56,18 +55,15 @@ SensorToPointCloud::SensorToPointCloud(float robot_radius = 0.3,
     tof_bot_col_4_xy_sine_ = std::sin(-tof_bot_fov_ang_*(3.0/8.0)*M_PI/180.0);
 
     camera_bbox_array = vision_msgs::msg::BoundingBox2DArray();
-#if 0
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"), "cosine sine 초기화 완료: %f | %f %f %f %f | %f %f %f %f",
-                tof_bot_fov_ang_,
-                tof_bot_col_1_xy_cosine_, tof_bot_col_2_xy_cosine_,
-                tof_bot_col_3_xy_cosine_, tof_bot_col_4_xy_cosine_,
-                tof_bot_col_1_xy_sine_, tof_bot_col_2_xy_sine_,
-                tof_bot_col_3_xy_sine_, tof_bot_col_4_xy_sine_);
-#endif
 }
 
 SensorToPointCloud::~SensorToPointCloud()
 {
+}
+
+void SensorToPointCloud::updateTargetFrame(std::string &updated_frame)
+{
+    target_frame = updated_frame;
 }
 
 void SensorToPointCloud::updateRobotPose(tPose &pose)
@@ -82,14 +78,16 @@ void SensorToPointCloud::updateRobotPose(tPose &pose)
 
 sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofTopToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
-    tPoint point_on_robot_frame;
+    tPoint point_on_robot_frame, point_on_map_frame;
     point_on_robot_frame.x = tof_top_sensor_frame_x_translate_ + msg->top * tof_top_sensor_frame_pitch_cosine_;
     point_on_robot_frame.y = tof_top_sensor_frame_y_translate_;
     point_on_robot_frame.z = tof_tof_sensor_frame_z_translate_ + msg->top * tof_top_sensor_frame_pitch_sine_;
-#if USE_MAP_FRAME
-    std::vector<tPoint> points_on_map_frame = transformRobot2GlobalFrame(point_on_robot_frame);
-    tPoint point_on_map_frame = points_on_map_frame.front();
-#endif
+
+    if (target_frame == "map") {
+        std::vector<tPoint> points_on_map_frame = transformRobot2GlobalFrame(point_on_robot_frame);
+        point_on_map_frame = points_on_map_frame.front();
+    }
+
 #if USE_1D_TOF_LOG
     RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
         "[1D ToF]==============================================");
@@ -100,21 +98,24 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofTopToPointCloud
     RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
         "X, Y, Z: %f, %f, %f",
         point_on_robot_frame.x, point_on_robot_frame.y, point_on_robot_frame.z);
-#if USE_MAP_FRAME
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
-        "[Map Frame]");
-    for (auto point : point_on_map_frame) {
+    if (target_frame == "map") {
         RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
-            "X, Y, Z: %f, %f, %f",
-            point.x, point.y, point.z);
+            "[Map Frame]");
+        for (auto point : point_on_map_frame) {
+            RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+                "X, Y, Z: %f, %f, %f",
+                point.x, point.y, point.z);
+        }
     }
 #endif
-#endif
-#if USE_MAP_FRAME
-    return createTofTopPointCloud2Message(point_on_map_frame);
-#else
-    return createTofTopPointCloud2Message(point_on_robot_frame);
-#endif
+    if (target_frame == "map") {
+        return createTofTopPointCloud2Message(point_on_map_frame);
+    } else if (target_frame == "base_link") {
+        return createTofTopPointCloud2Message(point_on_robot_frame);
+    } else {
+        RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Select Wrong Target Frame: %s", target_frame.c_str());
+        return sensor_msgs::msg::PointCloud2();
+    }
 }
 
 sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofBotToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side)
@@ -133,16 +134,16 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofBotToPointCloud
     case TOF_SIDE::LEFT:
         multi_tof_points_on_sensor_frame = transformTofMsg2PointsOnSensorFrame(multi_tof_bot_left);
         multi_tof_points_on_robot_frame = transformTofSensor2RobotFrame(multi_tof_points_on_sensor_frame, true);
-#if USE_MAP_FRAME
-        multi_tof_points_on_map_frame = transformRobot2GlobalFrame(multi_tof_points_on_robot_frame);
-#endif
+        if (target_frame == "map") {
+            multi_tof_points_on_map_frame = transformRobot2GlobalFrame(multi_tof_points_on_robot_frame);
+        }
         break;
     case TOF_SIDE::RIGHT:
         multi_tof_points_on_sensor_frame = transformTofMsg2PointsOnSensorFrame(multi_tof_bot_right);
         multi_tof_points_on_robot_frame = transformTofSensor2RobotFrame(multi_tof_points_on_sensor_frame, false);
-#if USE_MAP_FRAME
-        multi_tof_points_on_map_frame = transformRobot2GlobalFrame(multi_tof_points_on_robot_frame);
-#endif
+        if (target_frame == "map") {
+            multi_tof_points_on_map_frame = transformRobot2GlobalFrame(multi_tof_points_on_robot_frame);
+        }
         break;
     case TOF_SIDE::BOTH:
         multi_left_tof_points_on_sensor_frame = transformTofMsg2PointsOnSensorFrame(multi_tof_bot_left);
@@ -155,9 +156,9 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofBotToPointCloud
         multi_tof_points_on_robot_frame.insert(multi_tof_points_on_robot_frame.end(), 
                                           multi_right_tof_points_on_robot_frame.begin(), 
                                           multi_right_tof_points_on_robot_frame.end());
-#if USE_MAP_FRAME
-        multi_tof_points_on_map_frame = transformRobot2GlobalFrame(multi_tof_points_on_robot_frame);
-#endif
+        if (target_frame == "map") {
+            multi_tof_points_on_map_frame = transformRobot2GlobalFrame(multi_tof_points_on_robot_frame);
+        }
         break;
     default:
         break;
@@ -182,24 +183,27 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofBotToPointCloud
             "X, Y, Z: %f, %f, %f",
             point.x, point.y, point.z);
     }
-#if USE_MAP_FRAME
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
-        "================================================");
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
-        "[Map Frame] Points Size: %zu, Mode: %d",
-        multi_tof_points_on_map_frame.size(), static_cast<int>(side));
-    for (auto point : multi_tof_points_on_map_frame) {
+    if (target_frame == "map") {
         RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
-            "X, Y, Z: %f, %f, %f",
-            point.x, point.y, point.z);
+            "================================================");
+        RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+            "[Map Frame] Points Size: %zu, Mode: %d",
+            multi_tof_points_on_map_frame.size(), static_cast<int>(side));
+        for (auto point : multi_tof_points_on_map_frame) {
+            RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+                "X, Y, Z: %f, %f, %f",
+                point.x, point.y, point.z);
+        }
     }
 #endif
-#endif
-#if USE_MAP_FRAME
-    return createTofBotPointCloud2Message(multi_tof_points_on_map_frame);
-#else
-    return createTofBotPointCloud2Message(multi_tof_points_on_robot_frame);
-#endif
+    if (target_frame == "map") {
+        return createTofBotPointCloud2Message(multi_tof_points_on_map_frame);
+    } else if (target_frame == "base_link") {
+        return createTofBotPointCloud2Message(multi_tof_points_on_robot_frame);
+    } else {
+        RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Select Wrong Target Frame: %s", target_frame.c_str());
+        return sensor_msgs::msg::PointCloud2();
+    }
 }
 
 sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofBotRowToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, ROW_NUMBER row)
@@ -348,11 +352,7 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::createTofBotPointCloud2Message
     }
 
     msg.header.stamp = rclcpp::Clock().now();
-#if USE_MAP_FRAME
-    msg.header.frame_id = "map";
-#else
-    msg.header.frame_id = "base_link";
-#endif
+    msg.header.frame_id = target_frame;
 
     msg.height = 1;
     msg.width = points.size();                  // 입력받은 points의 개수
@@ -514,11 +514,7 @@ vision_msgs::msg::BoundingBox2DArray SensorToPointCloud::createBoundingBoxMessag
 #endif
 
     bbox_array.header.stamp = rclcpp::Clock().now();
-#if USE_MAP_FRAME
-    bbox_array.header.frame_id = "map";
-#else
-    bbox_array.header.frame_id = "base_link";
-#endif
+    bbox_array.header.frame_id = target_frame;
 
     std::vector<robot_custom_msgs::msg::AIData> objects(msg->data_array.begin(), msg->data_array.end());
     for (const auto &obj : objects)
@@ -535,19 +531,21 @@ vision_msgs::msg::BoundingBox2DArray SensorToPointCloud::createBoundingBoxMessag
             point_on_robot_frame.x = point_on_sensor_frame.x + camera_sensor_frame_x_translate_;
             point_on_robot_frame.y = point_on_sensor_frame.y + camera_sensor_frame_y_translate_;
             point_on_robot_frame.z = point_on_sensor_frame.z + camera_sensor_frame_z_translate_;
-#if USE_MAP_FRAME
-            tPoint point_on_global_frame;
-            const float robotCosine = std::cos(robotPose.orientation.yaw);
-            const float robotSine = std::sin(robotPose.orientation.yaw);
-            point_on_global_frame.x = point_on_robot_frame.x*robotCosine - point_on_robot_frame.y*robotSine + robotPose.position.x;
-            point_on_global_frame.y = point_on_robot_frame.x*robotSine + point_on_robot_frame.y*robotCosine + robotPose.position.y;
-            point_on_global_frame.z = point_on_robot_frame.z + robotPose.position.z;
-            bbox.center.position.x = point_on_global_frame.x;
-            bbox.center.position.y = point_on_global_frame.y;
-#else
-            bbox.center.position.x = point_on_robot_frame.x;
-            bbox.center.position.y = point_on_robot_frame.y;
-#endif
+            if (target_frame == "map") {    
+                tPoint point_on_global_frame;
+                const float robotCosine = std::cos(robotPose.orientation.yaw);
+                const float robotSine = std::sin(robotPose.orientation.yaw);
+                point_on_global_frame.x = point_on_robot_frame.x*robotCosine - point_on_robot_frame.y*robotSine + robotPose.position.x;
+                point_on_global_frame.y = point_on_robot_frame.x*robotSine + point_on_robot_frame.y*robotCosine + robotPose.position.y;
+                point_on_global_frame.z = point_on_robot_frame.z + robotPose.position.z;
+                bbox.center.position.x = point_on_global_frame.x;
+                bbox.center.position.y = point_on_global_frame.y;
+            } else if (target_frame == "base_link") {
+                bbox.center.position.x = point_on_robot_frame.x;
+                bbox.center.position.y = point_on_robot_frame.y;
+            } else {
+                RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Select Wrong Target Frame: %s", target_frame.c_str());
+            }
             bbox.center.theta = 0.0;
             bbox.size_x = obj.height;
             bbox.size_y = obj.width;

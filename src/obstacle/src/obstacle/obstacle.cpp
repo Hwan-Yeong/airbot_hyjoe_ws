@@ -32,6 +32,7 @@ Obstacle::Obstacle()
                        camera_sensor_frame_y_translate,
                        camera_sensor_frame_z_translate)
 {
+    this->declare_parameter("target_frame","base_link");
     this->declare_parameter("use_tof_map_pointcloud",false);
     this->declare_parameter("use_tof_1D",false);
     this->declare_parameter("use_tof_left",false);
@@ -43,6 +44,7 @@ Obstacle::Obstacle()
     this->declare_parameter("camera_number_of_object",0);
     this->declare_parameter("pointcloud_publish_rate_ms",0);
 
+    this->get_parameter("target_frame", target_frame);
     this->get_parameter("use_tof_map_pointcloud", use_tof_map_pointcloud);
     this->get_parameter("use_tof_1D", use_tof_1D);
     this->get_parameter("use_tof_left", use_tof_left);
@@ -94,6 +96,8 @@ Obstacle::Obstacle()
 
     auto publish_rate = std::max(pointcloud_publish_rate_ms, 1) * 1ms; // pointcloud_publish_rate_ms = 0 예외처리
     poincloud_publish_timer_ = this->create_wall_timer(publish_rate,std::bind(&Obstacle::publisherMonitor, this));
+
+    sensorToPointCloud.updateTargetFrame(target_frame);
 }
 
 Obstacle::~Obstacle()
@@ -203,11 +207,14 @@ void Obstacle::tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg)
             }
         }
     }
-    tPose pose;
-    pose.position.x = msg->robot_x;
-    pose.position.y = msg->robot_y;
-    pose.orientation.yaw = msg->robot_angle;
-    sensorToPointCloud.updateRobotPose(pose);
+
+    if (target_frame == "map") {
+        tPose pose;
+        pose.position.x = msg->robot_x;
+        pose.position.y = msg->robot_y;
+        pose.orientation.yaw = msg->robot_angle;
+        sensorToPointCloud.updateRobotPose(pose);
+    }
     isTofUpdating = true;
 }
 
@@ -216,18 +223,20 @@ void Obstacle::cameraCallback(const robot_custom_msgs::msg::AIDataArray::SharedP
     if (use_camera_map_pointcloud) {
         pc_camera_msg = sensorToPointCloud.getConvertedCameraToPointCloud(msg, camera_pointcloud_resolution_m, camera_number_of_object);
     }
-    tPose pose;
-    pose.position.x = msg->robot_x;
-    pose.position.y = msg->robot_y;
-    pose.orientation.yaw = msg->robot_angle;
-    sensorToPointCloud.updateRobotPose(pose);
-    isCameraUpdating = true;
-#if 1
+
     vision_msgs::msg::BoundingBox2DArray bbox_msg = sensorToPointCloud.getCameraBoundingBoxMessage();
     visualization_msgs::msg::MarkerArray marker_msg = bboxArrayToMarkerArray(bbox_msg);
     bbox_array_camera_pub_->publish(bbox_msg);
     marker_array_camera_pub_->publish(marker_msg);
-#endif
+
+    if (target_frame == "map") {
+        tPose pose;
+        pose.position.x = msg->robot_x;
+        pose.position.y = msg->robot_y;
+        pose.orientation.yaw = msg->robot_angle;
+        sensorToPointCloud.updateRobotPose(pose);
+    }
+    isCameraUpdating = true;
 }
 
 void Obstacle::lineLaserCallback(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg)
@@ -236,9 +245,16 @@ void Obstacle::lineLaserCallback(const robot_custom_msgs::msg::LineLaserData::Sh
         pc_line_laser_msg = sensorToPointCloud.getConvertedLineLaserToPointCloud(msg);
     }
 
+    // Line Laser에 amcl pose 추가되면 필요
+    // if (target_frame == "map") {
+    //     tPose pose;
+    //     pose.position.x = msg->robot_x;
+    //     pose.position.y = msg->robot_y;
+    //     pose.orientation.yaw = msg->robot_angle;
+    //     sensorToPointCloud.updateRobotPose(pose);
+    // }
     isLineLaserUpdating = true;
 }
-
 
 visualization_msgs::msg::MarkerArray Obstacle::bboxArrayToMarkerArray(const vision_msgs::msg::BoundingBox2DArray msg)
 {

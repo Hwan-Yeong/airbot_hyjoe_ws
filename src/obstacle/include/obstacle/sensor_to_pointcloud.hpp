@@ -73,8 +73,7 @@ public:
                        float camera_sensor_frame_z_translate);
     ~SensorToPointCloud();
 
-    tPose robotPose;
-
+    void updateTargetFrame(std::string &updated_frame);
     void updateRobotPose(tPose &pose);
     sensor_msgs::msg::PointCloud2 getConvertedTofTopToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     sensor_msgs::msg::PointCloud2 getConvertedTofBotToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side);
@@ -84,6 +83,9 @@ public:
     vision_msgs::msg::BoundingBox2DArray getCameraBoundingBoxMessage();
 
 private:
+    tPose robotPose;
+    std::string target_frame;
+
     float robot_radius_;
     float tof_top_sensor_frame_x_translate_;
     float tof_top_sensor_frame_y_translate_;
