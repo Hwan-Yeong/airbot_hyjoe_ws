@@ -11,7 +11,7 @@ SensorToPointCloud::SensorToPointCloud(float robot_radius = 0.3,
                                        float tof_tof_sensor_frame_z_translate = 0.56513,
                                        float tof_top_sensor_frame_pitch_ang = 33,
                                        float tof_bot_sensor_frame_x_translate = 0.145,
-                                       float tof_bot_sensor_frame_y_translate = 0.07645,
+                                       float tof_bot_sensor_frame_y_translate = 0.076,
                                        float tof_bot_sensor_frame_z_translate = 0.03,
                                        float tof_bot_sensor_frame_yaw_ang = 27.8,
                                        float tof_bot_fov_ang = 45,
@@ -235,10 +235,10 @@ std::vector<tPoint> SensorToPointCloud::transformTofMsg2PointsOnSensorFrame(std:
     constexpr int ROWS = 4;
     constexpr int COLS = 4;
 
-    const double xy_cosine[COLS] = {tof_bot_col_1_xy_cosine_, tof_bot_col_2_xy_cosine_,
-                                    tof_bot_col_3_xy_cosine_, tof_bot_col_4_xy_cosine_};
-    const double xy_sine[COLS] = {tof_bot_col_1_xy_sine_, tof_bot_col_2_xy_sine_,
-                                  tof_bot_col_3_xy_sine_, tof_bot_col_4_xy_sine_};
+    const double xy_cosine[COLS] = {tof_bot_col_4_xy_cosine_, tof_bot_col_3_xy_cosine_,
+                                    tof_bot_col_2_xy_cosine_, tof_bot_col_1_xy_cosine_};
+    const double xy_sine[COLS] = {tof_bot_col_4_xy_sine_, tof_bot_col_3_xy_sine_,
+                                  tof_bot_col_2_xy_sine_, tof_bot_col_1_xy_sine_};
     const double z_sine[ROWS] = {tof_bot_row_1_z_sine_, tof_bot_row_2_z_sine_,
                                  tof_bot_row_3_z_sine_, tof_bot_row_4_z_sine_};
     
@@ -247,7 +247,7 @@ std::vector<tPoint> SensorToPointCloud::transformTofMsg2PointsOnSensorFrame(std:
             int index = row * COLS + col;
             if (input_tof_dist[index] > 0.001) { // 0 값은 무시 (계산 안함)
                 tPoint p;
-                p.x = input_tof_dist[index] * xy_cosine[col];
+                p.x = input_tof_dist[index];
                 p.y = input_tof_dist[index] * xy_sine[col];
                 p.z = input_tof_dist[index] * z_sine[row];
                 points.push_back(p);
@@ -280,22 +280,27 @@ std::vector<tPoint> SensorToPointCloud::transformTofSensor2RobotFrame(const std:
     std::vector<tPoint> points;
     tPoint p;
 
+    double rotate_ang_left = 15.0;
+    double cosine_left = std::cos(rotate_ang_left*M_PI/180);
+    double sine_left = std::sin(rotate_ang_left*M_PI/180);
+    double rotate_ang_right = 15.0;
+    double cosine_right = std::cos(-rotate_ang_right*M_PI/180);
+    double sine_right = std::sin(-rotate_ang_right*M_PI/180);
+
     for (const auto& point : input_points) {
-        p.z = point.z;
-
         if (left) {
-            p.x = point.x * tof_left_sensor_frame_yaw_cosine_ - point.y * tof_left_sensor_frame_yaw_sine_;
-            p.y = point.x * tof_left_sensor_frame_yaw_sine_ + point.y * tof_left_sensor_frame_yaw_cosine_;
-            p.y += tof_bot_sensor_frame_y_translate_;
+            // p.x = point.x * tof_left_sensor_frame_yaw_cosine_ - point.y * tof_left_sensor_frame_yaw_sine_ + tof_bot_sensor_frame_x_translate_;
+            // p.y = point.x * tof_left_sensor_frame_yaw_sine_ + point.y * tof_left_sensor_frame_yaw_cosine_ + tof_bot_sensor_frame_y_translate_;
+            p.x = point.x * cosine_left - point.y * sine_left   + tof_bot_sensor_frame_x_translate_;
+            p.y = point.x * sine_left   + point.y * cosine_left + tof_bot_sensor_frame_y_translate_;
+            p.z = point.z + tof_bot_sensor_frame_z_translate_;
         } else {
-            p.x = point.x * tof_right_sensor_frame_yaw_cosine_ - point.y * tof_right_sensor_frame_yaw_sine_;
-            p.y = point.x * tof_right_sensor_frame_yaw_sine_ + point.y * tof_right_sensor_frame_yaw_cosine_;
-            p.y -= tof_bot_sensor_frame_y_translate_;
+            // p.x = point.x * tof_right_sensor_frame_yaw_cosine_ - point.y * tof_right_sensor_frame_yaw_sine_ + tof_bot_sensor_frame_x_translate_;
+            // p.y = point.x * tof_right_sensor_frame_yaw_sine_ + point.y * tof_right_sensor_frame_yaw_cosine_ - tof_bot_sensor_frame_y_translate_;
+            p.x = point.x * cosine_right - point.y * sine_right   + tof_bot_sensor_frame_x_translate_;
+            p.y = point.x * sine_right   + point.y * cosine_right - tof_bot_sensor_frame_y_translate_;
+            p.z = point.z + tof_bot_sensor_frame_z_translate_;
         }
-
-        p.x += tof_bot_sensor_frame_x_translate_;
-        p.z += tof_bot_sensor_frame_z_translate_;
-
         points.push_back(p);
     }
 
@@ -347,7 +352,7 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::createTofBotPointCloud2Message
     sensor_msgs::msg::PointCloud2 msg;
 
     if (points.empty()) {
-        RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Input data is empty!");
+        // RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Input data is empty!");
         return msg;
     }
 
@@ -415,11 +420,11 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::createCameraPointCloud2Message
     sensor_msgs::msg::PointCloud2 cloud_msg;
 
     if (input_bbox_array.boxes.empty()) {
-        RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Input data is empty!");
+        // RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Input data is empty!");
         return cloud_msg;
     }
     if (resolution <= 0) {
-        RCLCPP_ERROR(rclcpp::get_logger("SensorToPointCloud"), "Invalid resolution: %f", resolution);
+        // RCLCPP_ERROR(rclcpp::get_logger("SensorToPointCloud"), "Invalid resolution: %f", resolution);
         return cloud_msg;
     }
 
@@ -502,7 +507,7 @@ vision_msgs::msg::BoundingBox2DArray SensorToPointCloud::createBoundingBoxMessag
     auto bbox_array = vision_msgs::msg::BoundingBox2DArray();
 
     if (msg->data_array.empty() || msg->num == 0) {
-        RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Input data is empty!");
+        // RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Input data is empty!");
         return bbox_array;
     }
 
