@@ -1,11 +1,11 @@
-#include "obstacle/sensor_to_pointcloud.hpp"
+#include "sensor_to_pointcloud/pointcloud.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 #define USE_1D_TOF_LOG false
 #define USE_Multi_TOF_LOG false
 #define USE_Camera_LOG false
 
-SensorToPointCloud::SensorToPointCloud(float robot_radius = 0.3,
+PointCloud::PointCloud(float robot_radius = 0.3,
                                        float tof_top_sensor_frame_x_translate = 0.0942,
                                        float tof_top_sensor_frame_y_translate = 0.0,
                                        float tof_tof_sensor_frame_z_translate = 0.56513,
@@ -57,26 +57,26 @@ SensorToPointCloud::SensorToPointCloud(float robot_radius = 0.3,
     camera_bbox_array = vision_msgs::msg::BoundingBox2DArray();
 }
 
-SensorToPointCloud::~SensorToPointCloud()
+PointCloud::~PointCloud()
 {
 }
 
-void SensorToPointCloud::updateTargetFrame(std::string &updated_frame)
+void PointCloud::updateTargetFrame(std::string &updated_frame)
 {
     target_frame = updated_frame;
 }
 
-void SensorToPointCloud::updateRobotPose(tPose &pose)
+void PointCloud::updateRobotPose(tPose &pose)
 {
     robotPose = pose;
 #if 0
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+    RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
         "AMCL UPDATE! [x,y]: [%f,%f]",
         robotPose.position.x, robotPose.position.y);
 #endif
 }
 
-sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofTopToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg)
+sensor_msgs::msg::PointCloud2 PointCloud::getConvertedTofTopToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
     tPoint point_on_robot_frame, point_on_map_frame;
     point_on_robot_frame.x = tof_top_sensor_frame_x_translate_ + msg->top * tof_top_sensor_frame_pitch_cosine_;
@@ -89,20 +89,20 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofTopToPointCloud
     }
 
 #if USE_1D_TOF_LOG
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+    RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
         "[1D ToF]==============================================");
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+    RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
         "Raw: %f", msg->top);
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+    RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
         "[Robot Frame]");
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+    RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
         "X, Y, Z: %f, %f, %f",
         point_on_robot_frame.x, point_on_robot_frame.y, point_on_robot_frame.z);
     if (target_frame == "map") {
-        RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+        RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
             "[Map Frame]");
         for (auto point : point_on_map_frame) {
-            RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+            RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
                 "X, Y, Z: %f, %f, %f",
                 point.x, point.y, point.z);
         }
@@ -113,12 +113,12 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofTopToPointCloud
     } else if (target_frame == "base_link") {
         return createTofTopPointCloud2Message(point_on_robot_frame);
     } else {
-        RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Select Wrong Target Frame: %s", target_frame.c_str());
+        RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Select Wrong Target Frame: %s", target_frame.c_str());
         return sensor_msgs::msg::PointCloud2();
     }
 }
 
-sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofBotToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side)
+sensor_msgs::msg::PointCloud2 PointCloud::getConvertedTofBotToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side)
 {
     std::vector<tPoint> multi_tof_points_on_sensor_frame;
     std::vector<tPoint> multi_left_tof_points_on_sensor_frame;
@@ -164,33 +164,33 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofBotToPointCloud
         break;
     }
 #if USE_Multi_TOF_LOG
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+    RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
         "[Multi ToF]==============================================");
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+    RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
         "[Sensor Frame] Points Size: %zu, Mode: %d",
         multi_tof_points_on_sensor_frame.size(), static_cast<int>(side));
     for (auto point : multi_tof_points_on_sensor_frame) {
-        RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+        RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
             "X, Y, Z: %f, %f, %f",
             point.x, point.y, point.z);
     }
 
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+    RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
         "[Robot Frame] Points Size: %zu, Mode: %d",
         multi_tof_points_on_robot_frame.size(), static_cast<int>(side));
     for (auto point : multi_tof_points_on_robot_frame) {
-        RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+        RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
             "X, Y, Z: %f, %f, %f",
             point.x, point.y, point.z);
     }
     if (target_frame == "map") {
-        RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+        RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
             "================================================");
-        RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+        RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
             "[Map Frame] Points Size: %zu, Mode: %d",
             multi_tof_points_on_map_frame.size(), static_cast<int>(side));
         for (auto point : multi_tof_points_on_map_frame) {
-            RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+            RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
                 "X, Y, Z: %f, %f, %f",
                 point.x, point.y, point.z);
         }
@@ -201,34 +201,34 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofBotToPointCloud
     } else if (target_frame == "base_link") {
         return createTofBotPointCloud2Message(multi_tof_points_on_robot_frame);
     } else {
-        RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Select Wrong Target Frame: %s", target_frame.c_str());
+        RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Select Wrong Target Frame: %s", target_frame.c_str());
         return sensor_msgs::msg::PointCloud2();
     }
 }
 
-sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedTofBotRowToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, ROW_NUMBER row)
+sensor_msgs::msg::PointCloud2 PointCloud::getConvertedTofBotRowToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, ROW_NUMBER row)
 {
     return sensor_msgs::msg::PointCloud2();
 }
 
-sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedCameraToPointCloud(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg, float pc_resolution, int number_of_object)
+sensor_msgs::msg::PointCloud2 PointCloud::getConvertedCameraToPointCloud(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg, float pc_resolution, int number_of_object)
 {
     vision_msgs::msg::BoundingBox2DArray bbox_array = createBoundingBoxMessage(msg);
     setCameraBoundingBoxMessage(bbox_array);
     return createCameraPointCloud2Message(bbox_array, pc_resolution);
 }
 
-sensor_msgs::msg::PointCloud2 SensorToPointCloud::getConvertedLineLaserToPointCloud(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg)
+sensor_msgs::msg::PointCloud2 PointCloud::getConvertedLineLaserToPointCloud(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg)
 {
     return sensor_msgs::msg::PointCloud2();
 }
 
-vision_msgs::msg::BoundingBox2DArray SensorToPointCloud::getCameraBoundingBoxMessage()
+vision_msgs::msg::BoundingBox2DArray PointCloud::getCameraBoundingBoxMessage()
 {
     return camera_bbox_array;
 }
 
-std::vector<tPoint> SensorToPointCloud::transformTofMsg2PointsOnSensorFrame(std::vector<double> input_tof_dist)
+std::vector<tPoint> PointCloud::transformTofMsg2PointsOnSensorFrame(std::vector<double> input_tof_dist)
 {
     std::vector<tPoint> points;
 
@@ -258,7 +258,7 @@ std::vector<tPoint> SensorToPointCloud::transformTofMsg2PointsOnSensorFrame(std:
     return points;
 }
 
-std::vector<tPoint> SensorToPointCloud::transformCameraMsg2PointsOnSensorFrame(std::vector<robot_custom_msgs::msg::AIData> input_camera_objs)
+std::vector<tPoint> PointCloud::transformCameraMsg2PointsOnSensorFrame(std::vector<robot_custom_msgs::msg::AIData> input_camera_objs)
 {
     std::vector<tPoint> points;
     tPoint point;
@@ -275,15 +275,17 @@ std::vector<tPoint> SensorToPointCloud::transformCameraMsg2PointsOnSensorFrame(s
  * @ Param
  * ### left = true, right = false
  */
-std::vector<tPoint> SensorToPointCloud::transformTofSensor2RobotFrame(const std::vector<tPoint>& input_points, bool left)
+std::vector<tPoint> PointCloud::transformTofSensor2RobotFrame(const std::vector<tPoint>& input_points, bool left)
 {
     std::vector<tPoint> points;
     tPoint p;
 
     double rotate_ang_left = 15.0;
+    double rotate_ang_right = 15.0;
+
     double cosine_left = std::cos(rotate_ang_left*M_PI/180);
     double sine_left = std::sin(rotate_ang_left*M_PI/180);
-    double rotate_ang_right = 15.0;
+
     double cosine_right = std::cos(-rotate_ang_right*M_PI/180);
     double sine_right = std::sin(-rotate_ang_right*M_PI/180);
 
@@ -307,7 +309,7 @@ std::vector<tPoint> SensorToPointCloud::transformTofSensor2RobotFrame(const std:
     return points;
 }
 
-std::vector<tPoint> SensorToPointCloud::transformCameraSensor2RobotFrame(const std::vector<tPoint>& input_points)
+std::vector<tPoint> PointCloud::transformCameraSensor2RobotFrame(const std::vector<tPoint>& input_points)
 {
     std::vector<tPoint> points;
     tPoint p;
@@ -323,7 +325,7 @@ std::vector<tPoint> SensorToPointCloud::transformCameraSensor2RobotFrame(const s
     return points;
 }
 
-std::vector<tPoint> SensorToPointCloud::transformRobot2GlobalFrame(const std::vector<tPoint>& input_points)
+std::vector<tPoint> PointCloud::transformRobot2GlobalFrame(const std::vector<tPoint>& input_points)
 {
     std::vector<tPoint> global_points;
     tPoint global_point;
@@ -338,7 +340,7 @@ std::vector<tPoint> SensorToPointCloud::transformRobot2GlobalFrame(const std::ve
     return global_points;
 }
 
-std::vector<tPoint> SensorToPointCloud::transformRobot2GlobalFrame(const tPoint& input_point)
+std::vector<tPoint> PointCloud::transformRobot2GlobalFrame(const tPoint& input_point)
 {
     std::vector<tPoint> points = {input_point};
     return transformRobot2GlobalFrame(points);
@@ -347,12 +349,12 @@ std::vector<tPoint> SensorToPointCloud::transformRobot2GlobalFrame(const tPoint&
 /**
  * ## Convert Multi ToF Data
  */
-sensor_msgs::msg::PointCloud2 SensorToPointCloud::createTofBotPointCloud2Message(const std::vector<tPoint>& points)
+sensor_msgs::msg::PointCloud2 PointCloud::createTofBotPointCloud2Message(const std::vector<tPoint>& points)
 {
     sensor_msgs::msg::PointCloud2 msg;
 
     if (points.empty()) {
-        // RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Input data is empty!");
+        // RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Input data is empty!");
         return msg;
     }
 
@@ -398,7 +400,7 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::createTofBotPointCloud2Message
         std::memcpy(data_ptr + 8, &z, sizeof(float));    // z
         data_ptr += msg.point_step;
     }
-    // RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"), "Msg Data Size: %zu", msg.data.size());
+    // RCLCPP_INFO(rclcpp::get_logger("PointCloud"), "Msg Data Size: %zu", msg.data.size());
 
     return msg;
 }
@@ -406,7 +408,7 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::createTofBotPointCloud2Message
 /**
  * ## Convert 1D ToF Data
  */
-sensor_msgs::msg::PointCloud2 SensorToPointCloud::createTofTopPointCloud2Message(const tPoint& intpu_point)
+sensor_msgs::msg::PointCloud2 PointCloud::createTofTopPointCloud2Message(const tPoint& intpu_point)
 {
     std::vector<tPoint> points = {intpu_point};
     return createTofBotPointCloud2Message(points);
@@ -415,16 +417,16 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::createTofTopPointCloud2Message
 /**
  * ## Convert Camera Data
  */
-sensor_msgs::msg::PointCloud2 SensorToPointCloud::createCameraPointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution) 
+sensor_msgs::msg::PointCloud2 PointCloud::createCameraPointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution) 
 {
     sensor_msgs::msg::PointCloud2 cloud_msg;
 
     if (input_bbox_array.boxes.empty()) {
-        // RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Input data is empty!");
+        // RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Input data is empty!");
         return cloud_msg;
     }
     if (resolution <= 0) {
-        // RCLCPP_ERROR(rclcpp::get_logger("SensorToPointCloud"), "Invalid resolution: %f", resolution);
+        // RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "Invalid resolution: %f", resolution);
         return cloud_msg;
     }
 
@@ -478,17 +480,17 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::createCameraPointCloud2Message
             for (int j = 0; j < point_size_y; ++j) {
 
                 if ((ptr - cloud_msg.data.data()) + cloud_msg.point_step > max_size) {
-                    RCLCPP_ERROR(rclcpp::get_logger("SensorToPointCloud"), "####################################");
-                    RCLCPP_ERROR(rclcpp::get_logger("SensorToPointCloud"), "##### Memory overflow detected! ####");
-                    RCLCPP_ERROR(rclcpp::get_logger("SensorToPointCloud"), "############## IGNORE! #############");
-                    RCLCPP_ERROR(rclcpp::get_logger("SensorToPointCloud"), "####################################");
+                    RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "####################################");
+                    RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "##### Memory overflow detected! ####");
+                    RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "############## IGNORE! #############");
+                    RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "####################################");
                     return cloud_msg;
                 }
 
                 float x = (center_x - size_x/2) + i*resolution;
                 float y = (center_y - size_y/2) + j*resolution;
                 float z = 0.0f;
-                // RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"), "x, y, z: %f, %f, %f", x, y, z);
+                // RCLCPP_INFO(rclcpp::get_logger("PointCloud"), "x, y, z: %f, %f, %f", x, y, z);
                 memcpy(ptr, &x, sizeof(float));
                 memcpy(ptr + 4, &y, sizeof(float));
                 memcpy(ptr + 8, &z, sizeof(float));
@@ -497,24 +499,24 @@ sensor_msgs::msg::PointCloud2 SensorToPointCloud::createCameraPointCloud2Message
         }
     }
 #if USE_Camera_LOG
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"), "Complete to make PointCloud2 | resolution: %f, total_points: %zu", resolution, total_points);
+    RCLCPP_INFO(rclcpp::get_logger("PointCloud"), "Complete to make PointCloud2 | resolution: %f, total_points: %zu", resolution, total_points);
 #endif
     return cloud_msg;
 }
 
-vision_msgs::msg::BoundingBox2DArray SensorToPointCloud::createBoundingBoxMessage(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg)
+vision_msgs::msg::BoundingBox2DArray PointCloud::createBoundingBoxMessage(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg)
 {
     auto bbox_array = vision_msgs::msg::BoundingBox2DArray();
 
     if (msg->data_array.empty() || msg->num == 0) {
-        // RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Input data is empty!");
+        // RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Input data is empty!");
         return bbox_array;
     }
 
 #if USE_Camera_LOG
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+    RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
         "[Camera]==============================================");
-    RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+    RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
         "[BBox] Number of Objects: %d", msg->num);
 #endif
 
@@ -549,21 +551,21 @@ vision_msgs::msg::BoundingBox2DArray SensorToPointCloud::createBoundingBoxMessag
                 bbox.center.position.x = point_on_robot_frame.x;
                 bbox.center.position.y = point_on_robot_frame.y;
             } else {
-                RCLCPP_WARN(rclcpp::get_logger("SensorToPointCloud"), "Select Wrong Target Frame: %s", target_frame.c_str());
+                RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Select Wrong Target Frame: %s", target_frame.c_str());
             }
             bbox.center.theta = 0.0;
             bbox.size_x = obj.height;
             bbox.size_y = obj.width;
 #if USE_Camera_LOG
-        RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+        RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
             "[Sensor Frame] Object ID: %d",obj.id);
-        RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+        RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
             "X, Y, Z: %f, %f, %f",
             point_on_sensor_frame.x, point_on_sensor_frame.y, point_on_sensor_frame.z);
 
-        RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+        RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
             "[Robot Frame] Object ID: %d",obj.id);
-        RCLCPP_INFO(rclcpp::get_logger("SensorToPointCloud"),
+        RCLCPP_INFO(rclcpp::get_logger("PointCloud"),
             "X, Y, Z: %f, %f, %f",
             point_on_robot_frame.x, point_on_robot_frame.y, point_on_robot_frame.z);
 #endif
@@ -574,7 +576,7 @@ vision_msgs::msg::BoundingBox2DArray SensorToPointCloud::createBoundingBoxMessag
     return bbox_array;
 }
 
-void SensorToPointCloud::setCameraBoundingBoxMessage(vision_msgs::msg::BoundingBox2DArray bbox_array)
+void PointCloud::setCameraBoundingBoxMessage(vision_msgs::msg::BoundingBox2DArray bbox_array)
 {
     camera_bbox_array = bbox_array;
 }

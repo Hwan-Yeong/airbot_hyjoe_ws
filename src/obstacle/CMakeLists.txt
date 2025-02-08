@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(obstacle)
+project(sensor_to_pointcloud)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -24,9 +24,9 @@ include_directories(
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-add_executable(obstacle src/node.cpp src/obstacle/obstacle.cpp src/obstacle/sensor_to_pointcloud.cpp)
+add_executable(sensor_to_pointcloud src/node.cpp src/sensor_to_pointcloud/sensor_to_pointcloud.cpp src/sensor_to_pointcloud/pointcloud.cpp)
 
-ament_target_dependencies(obstacle 
+ament_target_dependencies(sensor_to_pointcloud 
   rclcpp 
   sensor_msgs 
   robot_custom_msgs
@@ -37,7 +37,7 @@ ament_target_dependencies(obstacle
   visualization_msgs
 )
 
-install(TARGETS obstacle
+install(TARGETS sensor_to_pointcloud
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/${PROJECT_NAME}/

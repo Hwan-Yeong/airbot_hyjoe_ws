@@ -1,5 +1,5 @@
-#ifndef __SENSOR_TO_POINTCLOUD_HPP__
-#define __SENSOR_TO_POINTCLOUD_HPP__
+#ifndef __POINTCLOUD_HPP__
+#define __POINTCLOUD_HPP__
 
 #include <cmath>
 #include <vector>
@@ -55,10 +55,10 @@ struct tPose
 };
 
 
-class SensorToPointCloud
+class PointCloud
 {
 public:
-    SensorToPointCloud(float robot_radius,
+    PointCloud(float robot_radius,
                        float tof_top_sensor_frame_x_translate,
                        float tof_top_sensor_frame_y_translate,
                        float tof_tof_sensor_frame_z_translate,
@@ -71,7 +71,7 @@ public:
                        float camera_sensor_frame_x_translate,
                        float camera_sensor_frame_y_translate,
                        float camera_sensor_frame_z_translate);
-    ~SensorToPointCloud();
+    ~PointCloud();
 
     void updateTargetFrame(std::string &updated_frame);
     void updateRobotPose(tPose &pose);
@@ -134,4 +134,4 @@ private:
     void setCameraBoundingBoxMessage(vision_msgs::msg::BoundingBox2DArray bbox_array);
 };
 
-#endif  // SENSOR_TO_POINTCLOUD_HPP
+#endif  // POINTCLOUD_HPP

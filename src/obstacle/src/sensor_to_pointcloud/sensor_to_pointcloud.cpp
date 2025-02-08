@@ -1,4 +1,4 @@
-#include "obstacle/obstacle.hpp"
+#include "sensor_to_pointcloud/sensor_to_pointcloud.hpp"
 
 using namespace std::chrono_literals;
 
@@ -16,9 +16,9 @@ float camera_sensor_frame_x_translate = 0.15473; //[meter]
 float camera_sensor_frame_y_translate = 0.0; //[meter]
 float camera_sensor_frame_z_translate = 0.5331; //[meter]
 
-Obstacle::Obstacle()
-    : rclcpp::Node("obstacle"),
-    sensorToPointCloud(robot_radius,
+SensoeToPointcloud::SensoeToPointcloud()
+    : rclcpp::Node("sensor_to_pointcloud"),
+    pointCloud(robot_radius,
                        tof_top_sensor_frame_x_translate,
                        tof_top_sensor_frame_y_translate,
                        tof_tof_sensor_frame_z_translate,
@@ -61,50 +61,50 @@ Obstacle::Obstacle()
     isLineLaserUpdating = false;
 
     tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
-        "tof_data", 10, std::bind(&Obstacle::tofCallback, this, std::placeholders::_1));
+        "tof_data", 10, std::bind(&SensoeToPointcloud::tofCallback, this, std::placeholders::_1));
 
     camera_sub_ = this->create_subscription<robot_custom_msgs::msg::AIDataArray>(
-        "camera_data", 10, std::bind(&Obstacle::cameraCallback, this, std::placeholders::_1));
+        "camera_data", 10, std::bind(&SensoeToPointcloud::cameraCallback, this, std::placeholders::_1));
     
     line_laser_sub_ = this->create_subscription<robot_custom_msgs::msg::LineLaserData>(
-        "line_laser_data", 10, std::bind(&Obstacle::lineLaserCallback, this, std::placeholders::_1));
+        "line_laser_data", 10, std::bind(&SensoeToPointcloud::lineLaserCallback, this, std::placeholders::_1));
     
     if (use_tof_map_pointcloud) {
-        pc_tof_1d_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("obstacle/tof/mono", 10);
-        pc_tof_multi_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("obstacle/tof/multi", 10);
+        pc_tof_1d_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/mono", 10);
+        pc_tof_multi_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi", 10);
         if (tof_debug_mode) {
-            pc_tof_left_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("obstacle/debug/tof/left/row_1", 10);
-            pc_tof_left_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("obstacle/debug/tof/left/row_2", 10);
-            pc_tof_left_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("obstacle/debug/tof/left/row_3", 10);
-            pc_tof_left_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("obstacle/debug/tof/left/row_4", 10);
-            pc_tof_right_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("obstacle/debug/tof/right/row_1", 10);
-            pc_tof_right_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("obstacle/debug/tof/right/row_2", 10);
-            pc_tof_right_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("obstacle/debug/tof/right/row_3", 10);
-            pc_tof_right_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("obstacle/debug/tof/right/row_4", 10);
+            pc_tof_left_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/left/row_1", 10);
+            pc_tof_left_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/left/row_2", 10);
+            pc_tof_left_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/left/row_3", 10);
+            pc_tof_left_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/left/row_4", 10);
+            pc_tof_right_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/right/row_1", 10);
+            pc_tof_right_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/right/row_2", 10);
+            pc_tof_right_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/right/row_3", 10);
+            pc_tof_right_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/right/row_4", 10);
         }
     }
 
     if (use_camera_map_pointcloud) {
-        pc_camera_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("obstacle/camera_object", 10);
-        bbox_array_camera_pub_ = this->create_publisher<vision_msgs::msg::BoundingBox2DArray>("obstacle/camera/bbox", 10);
-        marker_array_camera_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("obstacle/camera/marker", 10);
+        pc_camera_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/camera_object", 10);
+        bbox_array_camera_pub_ = this->create_publisher<vision_msgs::msg::BoundingBox2DArray>("sensor_to_pointcloud/camera/bbox", 10);
+        marker_array_camera_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("sensor_to_pointcloud/camera/marker", 10);
     }
 
     if (use_line_laser_map_pointcloud) {
-        pc_line_laser_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("obstacle/line_laser", 10);
+        pc_line_laser_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/line_laser", 10);
     }
 
     auto publish_rate = std::max(pointcloud_publish_rate_ms, 1) * 1ms; // pointcloud_publish_rate_ms = 0 예외처리
-    poincloud_publish_timer_ = this->create_wall_timer(publish_rate,std::bind(&Obstacle::publisherMonitor, this));
+    poincloud_publish_timer_ = this->create_wall_timer(publish_rate,std::bind(&SensoeToPointcloud::publisherMonitor, this));
 
-    sensorToPointCloud.updateTargetFrame(target_frame);
+    pointCloud.updateTargetFrame(target_frame);
 }
 
-Obstacle::~Obstacle()
+SensoeToPointcloud::~SensoeToPointcloud()
 {
 }
 
-void Obstacle::publisherMonitor()
+void SensoeToPointcloud::publisherMonitor()
 {
 #if 0 // 동작 확인용 로그
     RCLCPP_INFO(this->get_logger(), "[PARAM] ToF : %d, Camera: %d, 2LL: %d", use_tof_map_pointcloud, use_camera_map_pointcloud, use_line_laser_map_pointcloud);
@@ -181,29 +181,29 @@ void Obstacle::publisherMonitor()
     }
 }
 
-void Obstacle::tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg)
+void SensoeToPointcloud::tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
     if (use_tof_map_pointcloud) {
         if (use_tof_1D) {
-            pc_tof_1d_msg = sensorToPointCloud.getConvertedTofTopToPointCloud(msg);
+            pc_tof_1d_msg = pointCloud.getConvertedTofTopToPointCloud(msg);
         }
         if (use_tof_left || use_tof_right) {
             TOF_SIDE side = (use_tof_left && use_tof_right) ? TOF_SIDE::BOTH : 
                             (use_tof_left ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
-            pc_tof_multi_msg = sensorToPointCloud.getConvertedTofBotToPointCloud(msg, side);
+            pc_tof_multi_msg = pointCloud.getConvertedTofBotToPointCloud(msg, side);
         }
         if (tof_debug_mode) {
             if (use_tof_left) {
-                pc_tof_left_row1_msg = sensorToPointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::LEFT, ROW_NUMBER::FIRST);
-                pc_tof_left_row2_msg = sensorToPointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::LEFT, ROW_NUMBER::SECOND);
-                pc_tof_left_row3_msg = sensorToPointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::LEFT, ROW_NUMBER::THIRD);
-                pc_tof_left_row4_msg = sensorToPointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::LEFT, ROW_NUMBER::FOURTH);
+                pc_tof_left_row1_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::LEFT, ROW_NUMBER::FIRST);
+                pc_tof_left_row2_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::LEFT, ROW_NUMBER::SECOND);
+                pc_tof_left_row3_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::LEFT, ROW_NUMBER::THIRD);
+                pc_tof_left_row4_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::LEFT, ROW_NUMBER::FOURTH);
             }
             if (use_tof_right) {
-                pc_tof_right_row1_msg = sensorToPointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::RIGHT, ROW_NUMBER::FIRST);
-                pc_tof_right_row2_msg = sensorToPointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::RIGHT, ROW_NUMBER::SECOND);
-                pc_tof_right_row3_msg = sensorToPointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::RIGHT, ROW_NUMBER::THIRD);
-                pc_tof_right_row4_msg = sensorToPointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::RIGHT, ROW_NUMBER::FOURTH);
+                pc_tof_right_row1_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::RIGHT, ROW_NUMBER::FIRST);
+                pc_tof_right_row2_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::RIGHT, ROW_NUMBER::SECOND);
+                pc_tof_right_row3_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::RIGHT, ROW_NUMBER::THIRD);
+                pc_tof_right_row4_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::RIGHT, ROW_NUMBER::FOURTH);
             }
         }
     }
@@ -213,18 +213,18 @@ void Obstacle::tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg)
         pose.position.x = msg->robot_x;
         pose.position.y = msg->robot_y;
         pose.orientation.yaw = msg->robot_angle;
-        sensorToPointCloud.updateRobotPose(pose);
+        pointCloud.updateRobotPose(pose);
     }
     isTofUpdating = true;
 }
 
-void Obstacle::cameraCallback(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg)
+void SensoeToPointcloud::cameraCallback(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg)
 {
     if (use_camera_map_pointcloud) {
-        pc_camera_msg = sensorToPointCloud.getConvertedCameraToPointCloud(msg, camera_pointcloud_resolution_m, camera_number_of_object);
+        pc_camera_msg = pointCloud.getConvertedCameraToPointCloud(msg, camera_pointcloud_resolution_m, camera_number_of_object);
     }
 
-    vision_msgs::msg::BoundingBox2DArray bbox_msg = sensorToPointCloud.getCameraBoundingBoxMessage();
+    vision_msgs::msg::BoundingBox2DArray bbox_msg = pointCloud.getCameraBoundingBoxMessage();
     visualization_msgs::msg::MarkerArray marker_msg = bboxArrayToMarkerArray(bbox_msg);
     bbox_array_camera_pub_->publish(bbox_msg);
     marker_array_camera_pub_->publish(marker_msg);
@@ -234,15 +234,15 @@ void Obstacle::cameraCallback(const robot_custom_msgs::msg::AIDataArray::SharedP
         pose.position.x = msg->robot_x;
         pose.position.y = msg->robot_y;
         pose.orientation.yaw = msg->robot_angle;
-        sensorToPointCloud.updateRobotPose(pose);
+        pointCloud.updateRobotPose(pose);
     }
     isCameraUpdating = true;
 }
 
-void Obstacle::lineLaserCallback(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg)
+void SensoeToPointcloud::lineLaserCallback(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg)
 {
     if (use_line_laser_map_pointcloud) {
-        pc_line_laser_msg = sensorToPointCloud.getConvertedLineLaserToPointCloud(msg);
+        pc_line_laser_msg = pointCloud.getConvertedLineLaserToPointCloud(msg);
     }
 
     // Line Laser에 amcl pose 추가되면 필요
@@ -251,12 +251,13 @@ void Obstacle::lineLaserCallback(const robot_custom_msgs::msg::LineLaserData::Sh
     //     pose.position.x = msg->robot_x;
     //     pose.position.y = msg->robot_y;
     //     pose.orientation.yaw = msg->robot_angle;
-    //     sensorToPointCloud.updateRobotPose(pose);
+    //     pointCloud.updateRobotPose(pose);
     // }
     isLineLaserUpdating = true;
 }
 
-visualization_msgs::msg::MarkerArray Obstacle::bboxArrayToMarkerArray(const vision_msgs::msg::BoundingBox2DArray msg)
+// 검증 안됨
+visualization_msgs::msg::MarkerArray SensoeToPointcloud::bboxArrayToMarkerArray(const vision_msgs::msg::BoundingBox2DArray msg)
 {
     visualization_msgs::msg::MarkerArray marker_array;
 

@@ -1,9 +1,9 @@
-#ifndef __OBSTACLE_HPP__
-#define __OBSTACLE_HPP__
+#ifndef __SENSOR_TO_POINTCLOUD__
+#define __SENSOR_TO_POINTCLOUD__
 
 #include <chrono>
 #include "rclcpp/rclcpp.hpp"
-#include "obstacle/sensor_to_pointcloud.hpp"
+#include "sensor_to_pointcloud/pointcloud.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
@@ -20,14 +20,14 @@
 #include <builtin_interfaces/msg/time.hpp>
 
 
-class Obstacle : public rclcpp::Node
+class SensoeToPointcloud : public rclcpp::Node
 {
 public:
-    Obstacle();
-    ~Obstacle();
+    SensoeToPointcloud();
+    ~SensoeToPointcloud();
 
 private:
-    SensorToPointCloud sensorToPointCloud;
+    PointCloud pointCloud;
 
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::AIDataArray>::SharedPtr camera_sub_;
@@ -86,4 +86,4 @@ private:
     visualization_msgs::msg::MarkerArray bboxArrayToMarkerArray(const vision_msgs::msg::BoundingBox2DArray msg);
 };
 
-#endif
+#endif // SENSOR_TO_POINTCLOUD

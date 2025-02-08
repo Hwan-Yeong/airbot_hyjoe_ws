@@ -17,10 +17,10 @@ def generate_launch_description():
 
     return LaunchDescription([
          Node(
-             package='obstacle',
-             executable='obstacle',
+             package='sensor_to_pointcloud',
+             executable='sensor_to_pointcloud',
              output='screen',
-             name='obstacle',
+             name='sensor_to_pointcloud',
              parameters=[
                 {"target_frame": "base_link"},
 
