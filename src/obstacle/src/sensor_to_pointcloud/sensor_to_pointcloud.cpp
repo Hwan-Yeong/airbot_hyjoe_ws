@@ -2,35 +2,37 @@
 
 using namespace std::chrono_literals;
 
-float robot_radius = 0.3; //[meter]
-float tof_top_sensor_frame_x_translate = 0.0942; //[meter]
-float tof_top_sensor_frame_y_translate = 0.0;  //[meter]
-float tof_tof_sensor_frame_z_translate = 0.56513; //[meter]
-float tof_top_sensor_frame_pitch_ang = 33;  //[deg]
-float tof_bot_sensor_frame_x_translate = 0.145; //[meter]
-float tof_bot_sensor_frame_y_translate = 0.07645; //[meter]
-float tof_bot_sensor_frame_z_translate = 0.03; //[meter]
-float tof_bot_sensor_frame_yaw_ang = 27.8;  //[deg]
-float tof_bot_fov_ang = 45;  //[deg]
-float camera_sensor_frame_x_translate = 0.15473; //[meter]
-float camera_sensor_frame_y_translate = 0.0; //[meter]
-float camera_sensor_frame_z_translate = 0.5331; //[meter]
+float robot_radius = 0.3;                           //[meter]
+float tof_top_sensor_frame_x_translate = 0.0942;    //[meter]
+float tof_top_sensor_frame_y_translate = 0.0;       //[meter]
+float tof_tof_sensor_frame_z_translate = 0.56513;   //[meter]
+float tof_top_sensor_frame_pitch_ang = 33;          //[deg]
+float tof_bot_sensor_frame_x_translate = 0.145;     //[meter]
+float tof_bot_sensor_frame_y_translate = 0.07645;   //[meter]
+float tof_bot_sensor_frame_z_translate = 0.03;      //[meter]
+float tof_bot_left_sensor_frame_yaw_ang = 15.0;     //[deg]
+float tof_bot_rihgt_sensor_frame_yaw_ang = -15.0;   //[deg]
+float tof_bot_fov_ang = 45;                         //[deg]
+float camera_sensor_frame_x_translate = 0.15473;    //[meter]
+float camera_sensor_frame_y_translate = 0.0;        //[meter]
+float camera_sensor_frame_z_translate = 0.5331;     //[meter]
 
 SensoeToPointcloud::SensoeToPointcloud()
     : rclcpp::Node("sensor_to_pointcloud"),
     pointCloud(robot_radius,
-                       tof_top_sensor_frame_x_translate,
-                       tof_top_sensor_frame_y_translate,
-                       tof_tof_sensor_frame_z_translate,
-                       tof_top_sensor_frame_pitch_ang,
-                       tof_bot_sensor_frame_x_translate,
-                       tof_bot_sensor_frame_y_translate,
-                       tof_bot_sensor_frame_z_translate,
-                       tof_bot_sensor_frame_yaw_ang,
-                       tof_bot_fov_ang,
-                       camera_sensor_frame_x_translate,
-                       camera_sensor_frame_y_translate,
-                       camera_sensor_frame_z_translate)
+               tof_top_sensor_frame_x_translate,
+               tof_top_sensor_frame_y_translate,
+               tof_tof_sensor_frame_z_translate,
+               tof_top_sensor_frame_pitch_ang,
+               tof_bot_sensor_frame_x_translate,
+               tof_bot_sensor_frame_y_translate,
+               tof_bot_sensor_frame_z_translate,
+               tof_bot_left_sensor_frame_yaw_ang,
+               tof_bot_rihgt_sensor_frame_yaw_ang,
+               tof_bot_fov_ang,
+               camera_sensor_frame_x_translate,
+               camera_sensor_frame_y_translate,
+               camera_sensor_frame_z_translate)
 {
     this->declare_parameter("target_frame","base_link");
     this->declare_parameter("use_tof_map_pointcloud",false);
@@ -268,21 +270,19 @@ visualization_msgs::msg::MarkerArray SensoeToPointcloud::bboxArrayToMarkerArray(
         marker.id = id++;
         marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
         marker.action = visualization_msgs::msg::Marker::ADD;
-        marker.pose.orientation.w = 1.0; // Quaternion for no rotation
+        marker.pose.orientation.w = 1.0;
         marker.scale.x = 0.5; // Line thickness
         marker.color.r = 1.0; // Red
         marker.color.g = 0.0;
         marker.color.b = 0.0;
         marker.color.a = 1.0; // Opaque
 
-        // Bounding box corners
         geometry_msgs::msg::Point p1, p2, p3, p4;
         p1.x = bbox.center.position.x - bbox.size_x/2; p1.y = bbox.center.position.y - bbox.size_y/2; p1.z = 0.0;
         p2.x = bbox.center.position.x + bbox.size_x/2; p2.y = bbox.center.position.y - bbox.size_y/2; p2.z = 0.0;
         p3.x = bbox.center.position.x + bbox.size_x/2; p3.y = bbox.center.position.y + bbox.size_y/2; p3.z = 0.0;
         p4.x = bbox.center.position.x - bbox.size_x/2; p4.y = bbox.center.position.y + bbox.size_y/2; p4.z = 0.0;
 
-        // Connect the corners to form the bounding box lines
         marker.points.push_back(p1);
         marker.points.push_back(p2);
         marker.points.push_back(p3);

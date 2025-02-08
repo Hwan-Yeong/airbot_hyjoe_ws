@@ -59,18 +59,19 @@ class PointCloud
 {
 public:
     PointCloud(float robot_radius,
-                       float tof_top_sensor_frame_x_translate,
-                       float tof_top_sensor_frame_y_translate,
-                       float tof_tof_sensor_frame_z_translate,
-                       float tof_top_sensor_frame_pitch_ang,
-                       float tof_bot_sensor_frame_x_translate,
-                       float tof_bot_sensor_frame_y_translate,
-                       float tof_bot_sensor_frame_z_translate,
-                       float tof_bot_sensor_frame_yaw_ang,
-                       float tof_bot_fov_ang,
-                       float camera_sensor_frame_x_translate,
-                       float camera_sensor_frame_y_translate,
-                       float camera_sensor_frame_z_translate);
+               float tof_top_sensor_frame_x_translate,
+               float tof_top_sensor_frame_y_translate,
+               float tof_tof_sensor_frame_z_translate,
+               float tof_top_sensor_frame_pitch_ang,
+               float tof_bot_sensor_frame_x_translate,
+               float tof_bot_sensor_frame_y_translate,
+               float tof_bot_sensor_frame_z_translate,
+               float tof_bot_left_sensor_frame_yaw_ang,
+               float tof_bot_rihgt_sensor_frame_yaw_ang,
+               float tof_bot_fov_ang,
+               float camera_sensor_frame_x_translate,
+               float camera_sensor_frame_y_translate,
+               float camera_sensor_frame_z_translate);
     ~PointCloud();
 
     void updateTargetFrame(std::string &updated_frame);

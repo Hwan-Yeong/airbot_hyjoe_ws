@@ -6,19 +6,19 @@
 #define USE_Camera_LOG false
 
 PointCloud::PointCloud(float robot_radius = 0.3,
-                                       float tof_top_sensor_frame_x_translate = 0.0942,
-                                       float tof_top_sensor_frame_y_translate = 0.0,
-                                       float tof_tof_sensor_frame_z_translate = 0.56513,
-                                       float tof_top_sensor_frame_pitch_ang = 33,
-                                       float tof_bot_sensor_frame_x_translate = 0.145,
-                                       float tof_bot_sensor_frame_y_translate = 0.076,
-                                       float tof_bot_sensor_frame_z_translate = 0.03,
-                                       float tof_bot_left_sensor_frame_yaw_ang = 15.0,
-                                       float tof_bot_rihgt_sensor_frame_yaw_ang = -15.0,
-                                       float tof_bot_fov_ang = 45,
-                                       float camera_sensor_frame_x_translate = 0.15473,
-                                       float camera_sensor_frame_y_translate = 0.0,
-                                       float camera_sensor_frame_z_translate = 0.5331)
+                       float tof_top_sensor_frame_x_translate = 0.0942,
+                       float tof_top_sensor_frame_y_translate = 0.0,
+                       float tof_tof_sensor_frame_z_translate = 0.56513,
+                       float tof_top_sensor_frame_pitch_ang = 33,
+                       float tof_bot_sensor_frame_x_translate = 0.145,
+                       float tof_bot_sensor_frame_y_translate = 0.076,
+                       float tof_bot_sensor_frame_z_translate = 0.03,
+                       float tof_bot_left_sensor_frame_yaw_ang = 15.0,
+                       float tof_bot_right_sensor_frame_yaw_ang = -15.0,
+                       float tof_bot_fov_ang = 45,
+                       float camera_sensor_frame_x_translate = 0.15473,
+                       float camera_sensor_frame_y_translate = 0.0,
+                       float camera_sensor_frame_z_translate = 0.5331)
     : robot_radius_(robot_radius),
       tof_top_sensor_frame_x_translate_(tof_top_sensor_frame_x_translate),
       tof_top_sensor_frame_y_translate_(tof_top_sensor_frame_y_translate),
@@ -28,7 +28,7 @@ PointCloud::PointCloud(float robot_radius = 0.3,
       tof_bot_sensor_frame_y_translate_(tof_bot_sensor_frame_y_translate),
       tof_bot_sensor_frame_z_translate_(tof_bot_sensor_frame_z_translate),
       tof_bot_left_sensor_frame_yaw_ang_(tof_bot_left_sensor_frame_yaw_ang),
-      tof_bot_rihgt_sensor_frame_yaw_ang_(tof_bot_rihgt_sensor_frame_yaw_ang),
+      tof_bot_right_sensor_frame_yaw_ang_(tof_bot_right_sensor_frame_yaw_ang),
       tof_bot_fov_ang_(tof_bot_fov_ang),
       camera_sensor_frame_x_translate_(camera_sensor_frame_x_translate),
       camera_sensor_frame_y_translate_(camera_sensor_frame_y_translate),
@@ -39,8 +39,8 @@ PointCloud::PointCloud(float robot_radius = 0.3,
 
     tof_left_sensor_frame_yaw_cosine_ = std::cos(tof_bot_left_sensor_frame_yaw_ang_*M_PI/180);
     tof_left_sensor_frame_yaw_sine_ = std::sin(tof_bot_left_sensor_frame_yaw_ang_*M_PI/180);
-    tof_right_sensor_frame_yaw_cosine_ = std::cos(tof_bot_rihgt_sensor_frame_yaw_ang_*M_PI/180);
-    tof_right_sensor_frame_yaw_sine_ = std::sin(tof_bot_rihgt_sensor_frame_yaw_ang_*M_PI/180);
+    tof_right_sensor_frame_yaw_cosine_ = std::cos(tof_bot_right_sensor_frame_yaw_ang_*M_PI/180);
+    tof_right_sensor_frame_yaw_sine_ = std::sin(tof_bot_right_sensor_frame_yaw_ang_*M_PI/180);
 
     tof_bot_row_1_z_sine_ = std::sin(tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
     tof_bot_row_2_z_sine_ = std::sin(tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);

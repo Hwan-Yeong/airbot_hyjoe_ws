@@ -22,7 +22,7 @@ def generate_launch_description():
              output='screen',
              name='sensor_to_pointcloud',
              parameters=[
-                {"target_frame": "base_link"},
+                {"target_frame": "base_link"}, # "map" or "base_link"
 
                 {"use_tof_map_pointcloud": True},
                 {"use_tof_1D": True},
