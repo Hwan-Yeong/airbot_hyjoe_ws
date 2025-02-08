@@ -13,7 +13,8 @@ PointCloud::PointCloud(float robot_radius = 0.3,
                                        float tof_bot_sensor_frame_x_translate = 0.145,
                                        float tof_bot_sensor_frame_y_translate = 0.076,
                                        float tof_bot_sensor_frame_z_translate = 0.03,
-                                       float tof_bot_sensor_frame_yaw_ang = 27.8,
+                                       float tof_bot_left_sensor_frame_yaw_ang = 15.0,
+                                       float tof_bot_rihgt_sensor_frame_yaw_ang = -15.0,
                                        float tof_bot_fov_ang = 45,
                                        float camera_sensor_frame_x_translate = 0.15473,
                                        float camera_sensor_frame_y_translate = 0.0,
@@ -26,33 +27,34 @@ PointCloud::PointCloud(float robot_radius = 0.3,
       tof_bot_sensor_frame_x_translate_(tof_bot_sensor_frame_x_translate),
       tof_bot_sensor_frame_y_translate_(tof_bot_sensor_frame_y_translate),
       tof_bot_sensor_frame_z_translate_(tof_bot_sensor_frame_z_translate),
-      tof_bot_sensor_frame_yaw_ang_(tof_bot_sensor_frame_yaw_ang),
+      tof_bot_left_sensor_frame_yaw_ang_(tof_bot_left_sensor_frame_yaw_ang),
+      tof_bot_rihgt_sensor_frame_yaw_ang_(tof_bot_rihgt_sensor_frame_yaw_ang),
       tof_bot_fov_ang_(tof_bot_fov_ang),
       camera_sensor_frame_x_translate_(camera_sensor_frame_x_translate),
       camera_sensor_frame_y_translate_(camera_sensor_frame_y_translate),
       camera_sensor_frame_z_translate_(camera_sensor_frame_z_translate)
 {
-    tof_top_sensor_frame_pitch_cosine_ = std::cos(tof_top_sensor_frame_pitch_ang_*M_PI/180.0);
-    tof_top_sensor_frame_pitch_sine_ = std::sin(tof_top_sensor_frame_pitch_ang_*M_PI/180.0);
+    tof_top_sensor_frame_pitch_cosine_ = std::cos(tof_top_sensor_frame_pitch_ang_*M_PI/180);
+    tof_top_sensor_frame_pitch_sine_ = std::sin(tof_top_sensor_frame_pitch_ang_*M_PI/180);
 
-    tof_left_sensor_frame_yaw_cosine_ = std::cos(tof_bot_sensor_frame_yaw_ang_*M_PI/180.0);
-    tof_left_sensor_frame_yaw_sine_ = std::sin(tof_bot_sensor_frame_yaw_ang_*M_PI/180.0);
-    tof_right_sensor_frame_yaw_cosine_ = std::cos(-tof_bot_sensor_frame_yaw_ang_*M_PI/180.0);
-    tof_right_sensor_frame_yaw_sine_ = std::sin(-tof_bot_sensor_frame_yaw_ang_*M_PI/180.0);
+    tof_left_sensor_frame_yaw_cosine_ = std::cos(tof_bot_left_sensor_frame_yaw_ang_*M_PI/180);
+    tof_left_sensor_frame_yaw_sine_ = std::sin(tof_bot_left_sensor_frame_yaw_ang_*M_PI/180);
+    tof_right_sensor_frame_yaw_cosine_ = std::cos(tof_bot_rihgt_sensor_frame_yaw_ang_*M_PI/180);
+    tof_right_sensor_frame_yaw_sine_ = std::sin(tof_bot_rihgt_sensor_frame_yaw_ang_*M_PI/180);
 
     tof_bot_row_1_z_sine_ = std::sin(tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
     tof_bot_row_2_z_sine_ = std::sin(tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
     tof_bot_row_3_z_sine_ = std::sin(-tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
     tof_bot_row_4_z_sine_ = std::sin(-tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
 
-    tof_bot_col_1_xy_cosine_ = std::cos(tof_bot_fov_ang_*(3.0/8.0)*M_PI/180.0);
-    tof_bot_col_1_xy_sine_ = std::sin(tof_bot_fov_ang_*(3.0/8.0)*M_PI/180.0);
-    tof_bot_col_2_xy_cosine_ = std::cos(tof_bot_fov_ang_*(1.0/8.0)*M_PI/180.0);
-    tof_bot_col_2_xy_sine_ = std::sin(tof_bot_fov_ang_*(1.0/8.0)*M_PI/180.0);
-    tof_bot_col_3_xy_cosine_ = std::cos(-tof_bot_fov_ang_*(1.0/8.0)*M_PI/180.0);
-    tof_bot_col_3_xy_sine_ = std::sin(-tof_bot_fov_ang_*(1.0/8.0)*M_PI/180.0);
-    tof_bot_col_4_xy_cosine_ = std::cos(-tof_bot_fov_ang_*(3.0/8.0)*M_PI/180.0);
-    tof_bot_col_4_xy_sine_ = std::sin(-tof_bot_fov_ang_*(3.0/8.0)*M_PI/180.0);
+    tof_bot_col_1_xy_cosine_ = std::cos(tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
+    tof_bot_col_2_xy_cosine_ = std::cos(tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
+    tof_bot_col_3_xy_cosine_ = std::cos(-tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
+    tof_bot_col_4_xy_cosine_ = std::cos(-tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
+    tof_bot_col_1_xy_sine_ = std::sin(tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
+    tof_bot_col_2_xy_sine_ = std::sin(tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
+    tof_bot_col_3_xy_sine_ = std::sin(-tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
+    tof_bot_col_4_xy_sine_ = std::sin(-tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
 
     camera_bbox_array = vision_msgs::msg::BoundingBox2DArray();
 }
@@ -280,27 +282,14 @@ std::vector<tPoint> PointCloud::transformTofSensor2RobotFrame(const std::vector<
     std::vector<tPoint> points;
     tPoint p;
 
-    double rotate_ang_left = 15.0;
-    double rotate_ang_right = 15.0;
-
-    double cosine_left = std::cos(rotate_ang_left*M_PI/180);
-    double sine_left = std::sin(rotate_ang_left*M_PI/180);
-
-    double cosine_right = std::cos(-rotate_ang_right*M_PI/180);
-    double sine_right = std::sin(-rotate_ang_right*M_PI/180);
-
     for (const auto& point : input_points) {
         if (left) {
-            // p.x = point.x * tof_left_sensor_frame_yaw_cosine_ - point.y * tof_left_sensor_frame_yaw_sine_ + tof_bot_sensor_frame_x_translate_;
-            // p.y = point.x * tof_left_sensor_frame_yaw_sine_ + point.y * tof_left_sensor_frame_yaw_cosine_ + tof_bot_sensor_frame_y_translate_;
-            p.x = point.x * cosine_left - point.y * sine_left   + tof_bot_sensor_frame_x_translate_;
-            p.y = point.x * sine_left   + point.y * cosine_left + tof_bot_sensor_frame_y_translate_;
+            p.x = point.x * tof_left_sensor_frame_yaw_cosine_ - point.y * tof_left_sensor_frame_yaw_sine_ + tof_bot_sensor_frame_x_translate_;
+            p.y = point.x * tof_left_sensor_frame_yaw_sine_ + point.y * tof_left_sensor_frame_yaw_cosine_ + tof_bot_sensor_frame_y_translate_;
             p.z = point.z + tof_bot_sensor_frame_z_translate_;
         } else {
-            // p.x = point.x * tof_right_sensor_frame_yaw_cosine_ - point.y * tof_right_sensor_frame_yaw_sine_ + tof_bot_sensor_frame_x_translate_;
-            // p.y = point.x * tof_right_sensor_frame_yaw_sine_ + point.y * tof_right_sensor_frame_yaw_cosine_ - tof_bot_sensor_frame_y_translate_;
-            p.x = point.x * cosine_right - point.y * sine_right   + tof_bot_sensor_frame_x_translate_;
-            p.y = point.x * sine_right   + point.y * cosine_right - tof_bot_sensor_frame_y_translate_;
+            p.x = point.x * tof_right_sensor_frame_yaw_cosine_ - point.y * tof_right_sensor_frame_yaw_sine_ + tof_bot_sensor_frame_x_translate_;
+            p.y = point.x * tof_right_sensor_frame_yaw_sine_ + point.y * tof_right_sensor_frame_yaw_cosine_ - tof_bot_sensor_frame_y_translate_;
             p.z = point.z + tof_bot_sensor_frame_z_translate_;
         }
         points.push_back(p);

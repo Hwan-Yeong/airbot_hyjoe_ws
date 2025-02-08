@@ -94,7 +94,8 @@ private:
     float tof_bot_sensor_frame_x_translate_;
     float tof_bot_sensor_frame_y_translate_;
     float tof_bot_sensor_frame_z_translate_;
-    float tof_bot_sensor_frame_yaw_ang_;
+    float tof_bot_left_sensor_frame_yaw_ang_;
+    float tof_bot_right_sensor_frame_yaw_ang_;
     float tof_bot_fov_ang_;
     float camera_sensor_frame_x_translate_;
     float camera_sensor_frame_y_translate_;
@@ -111,12 +112,12 @@ private:
     double tof_bot_row_3_z_sine_;
     double tof_bot_row_4_z_sine_;
     double tof_bot_col_1_xy_cosine_;
-    double tof_bot_col_1_xy_sine_;
     double tof_bot_col_2_xy_cosine_;
-    double tof_bot_col_2_xy_sine_;
     double tof_bot_col_3_xy_cosine_;
-    double tof_bot_col_3_xy_sine_;
     double tof_bot_col_4_xy_cosine_;
+    double tof_bot_col_1_xy_sine_;
+    double tof_bot_col_2_xy_sine_;
+    double tof_bot_col_3_xy_sine_;
     double tof_bot_col_4_xy_sine_;
 
     vision_msgs::msg::BoundingBox2DArray camera_bbox_array;
