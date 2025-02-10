@@ -208,6 +208,7 @@ sensor_msgs::msg::PointCloud2 PointCloud::getConvertedTofBotToPointCloud(const r
     }
 }
 
+// TODO
 sensor_msgs::msg::PointCloud2 PointCloud::getConvertedTofBotRowToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, ROW_NUMBER row)
 {
     return sensor_msgs::msg::PointCloud2();
@@ -220,6 +221,7 @@ sensor_msgs::msg::PointCloud2 PointCloud::getConvertedCameraToPointCloud(const r
     return createCameraPointCloud2Message(bbox_array, pc_resolution);
 }
 
+// TODO
 sensor_msgs::msg::PointCloud2 PointCloud::getConvertedLineLaserToPointCloud(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg)
 {
     return sensor_msgs::msg::PointCloud2();
@@ -237,10 +239,10 @@ std::vector<tPoint> PointCloud::transformTofMsg2PointsOnSensorFrame(std::vector<
     constexpr int ROWS = 4;
     constexpr int COLS = 4;
 
-    const double xy_cosine[COLS] = {tof_bot_col_4_xy_cosine_, tof_bot_col_3_xy_cosine_,
-                                    tof_bot_col_2_xy_cosine_, tof_bot_col_1_xy_cosine_};
-    const double xy_sine[COLS] = {tof_bot_col_4_xy_sine_, tof_bot_col_3_xy_sine_,
-                                  tof_bot_col_2_xy_sine_, tof_bot_col_1_xy_sine_};
+    const double xy_cosine[COLS] = {tof_bot_col_1_xy_cosine_, tof_bot_col_2_xy_cosine_,
+                                    tof_bot_col_3_xy_cosine_, tof_bot_col_4_xy_cosine_};
+    const double xy_sine[COLS] = {tof_bot_col_1_xy_sine_, tof_bot_col_2_xy_sine_,
+                                  tof_bot_col_3_xy_sine_, tof_bot_col_4_xy_sine_};
     const double z_sine[ROWS] = {tof_bot_row_1_z_sine_, tof_bot_row_2_z_sine_,
                                  tof_bot_row_3_z_sine_, tof_bot_row_4_z_sine_};
     
@@ -469,10 +471,8 @@ sensor_msgs::msg::PointCloud2 PointCloud::createCameraPointCloud2Message(const v
             for (int j = 0; j < point_size_y; ++j) {
 
                 if ((ptr - cloud_msg.data.data()) + cloud_msg.point_step > max_size) {
-                    RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "####################################");
-                    RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "##### Memory overflow detected! ####");
                     RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "############## IGNORE! #############");
-                    RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "####################################");
+                    RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "##### Memory overflow detected! ####");
                     return cloud_msg;
                 }
 
