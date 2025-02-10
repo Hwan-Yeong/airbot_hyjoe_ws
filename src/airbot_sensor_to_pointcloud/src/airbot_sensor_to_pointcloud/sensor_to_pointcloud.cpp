@@ -1,4 +1,4 @@
-#include "sensor_to_pointcloud/sensor_to_pointcloud.hpp"
+#include "airbot_sensor_to_pointcloud/sensor_to_pointcloud.hpp"
 
 using namespace std::chrono_literals;
 
@@ -18,7 +18,7 @@ float camera_sensor_frame_y_translate = 0.0;        //[meter]
 float camera_sensor_frame_z_translate = 0.5331;     //[meter]
 
 SensoeToPointcloud::SensoeToPointcloud()
-    : rclcpp::Node("sensor_to_pointcloud"),
+    : rclcpp::Node("airbot_sensor_to_pointcloud"),
     pointCloud(robot_radius,
                tof_top_sensor_frame_x_translate,
                tof_top_sensor_frame_y_translate,

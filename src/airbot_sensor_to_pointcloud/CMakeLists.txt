@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(sensor_to_pointcloud)
+project(airbot_sensor_to_pointcloud)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -24,7 +24,11 @@ include_directories(
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-add_executable(sensor_to_pointcloud src/node.cpp src/sensor_to_pointcloud/sensor_to_pointcloud.cpp src/sensor_to_pointcloud/pointcloud.cpp)
+add_executable(sensor_to_pointcloud
+  src/node.cpp
+  src/airbot_sensor_to_pointcloud/sensor_to_pointcloud.cpp
+  src/airbot_sensor_to_pointcloud/pointcloud.cpp
+)
 
 ament_target_dependencies(sensor_to_pointcloud 
   rclcpp 
