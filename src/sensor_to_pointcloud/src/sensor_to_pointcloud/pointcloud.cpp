@@ -42,19 +42,15 @@ PointCloud::PointCloud(float robot_radius = 0.3,
     tof_right_sensor_frame_yaw_cosine_ = std::cos(tof_bot_right_sensor_frame_yaw_ang_*M_PI/180);
     tof_right_sensor_frame_yaw_sine_ = std::sin(tof_bot_right_sensor_frame_yaw_ang_*M_PI/180);
 
-    tof_bot_row_1_z_sine_ = std::sin(tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
-    tof_bot_row_2_z_sine_ = std::sin(tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
-    tof_bot_row_3_z_sine_ = std::sin(-tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
-    tof_bot_row_4_z_sine_ = std::sin(-tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
+    tof_bot_row_1_z_tan_ = std::tan(tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
+    tof_bot_row_2_z_tan_ = std::tan(tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
+    tof_bot_row_3_z_tan_ = std::tan(-tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
+    tof_bot_row_4_z_tan_ = std::tan(-tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
 
-    tof_bot_col_1_xy_cosine_ = std::cos(tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
-    tof_bot_col_2_xy_cosine_ = std::cos(tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
-    tof_bot_col_3_xy_cosine_ = std::cos(-tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
-    tof_bot_col_4_xy_cosine_ = std::cos(-tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
-    tof_bot_col_1_xy_sine_ = std::sin(tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
-    tof_bot_col_2_xy_sine_ = std::sin(tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
-    tof_bot_col_3_xy_sine_ = std::sin(-tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
-    tof_bot_col_4_xy_sine_ = std::sin(-tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
+    tof_bot_col_1_xy_tan_ = std::tan(tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
+    tof_bot_col_2_xy_tan_ = std::tan(tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
+    tof_bot_col_3_xy_tan_ = std::tan(-tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
+    tof_bot_col_4_xy_tan_ = std::tan(-tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
 
     camera_bbox_array = vision_msgs::msg::BoundingBox2DArray();
 }
@@ -239,12 +235,10 @@ std::vector<tPoint> PointCloud::transformTofMsg2PointsOnSensorFrame(std::vector<
     constexpr int ROWS = 4;
     constexpr int COLS = 4;
 
-    const double xy_cosine[COLS] = {tof_bot_col_1_xy_cosine_, tof_bot_col_2_xy_cosine_,
-                                    tof_bot_col_3_xy_cosine_, tof_bot_col_4_xy_cosine_};
-    const double xy_sine[COLS] = {tof_bot_col_1_xy_sine_, tof_bot_col_2_xy_sine_,
-                                  tof_bot_col_3_xy_sine_, tof_bot_col_4_xy_sine_};
-    const double z_sine[ROWS] = {tof_bot_row_1_z_sine_, tof_bot_row_2_z_sine_,
-                                 tof_bot_row_3_z_sine_, tof_bot_row_4_z_sine_};
+    const double xy_sine[COLS] = {tof_bot_col_4_xy_tan_, tof_bot_col_3_xy_tan_,
+                                  tof_bot_col_2_xy_tan_, tof_bot_col_1_xy_tan_};
+    const double z_sine[ROWS] = {tof_bot_row_1_z_tan_, tof_bot_row_2_z_tan_,
+                                 tof_bot_row_3_z_tan_, tof_bot_row_4_z_tan_};
     
     for (int row = 0; row < ROWS; ++row) {
         for (int col = 0; col < COLS; ++col) {

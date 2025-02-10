@@ -108,18 +108,14 @@ private:
     double tof_left_sensor_frame_yaw_sine_;
     double tof_right_sensor_frame_yaw_cosine_;
     double tof_right_sensor_frame_yaw_sine_;
-    double tof_bot_row_1_z_sine_;
-    double tof_bot_row_2_z_sine_;
-    double tof_bot_row_3_z_sine_;
-    double tof_bot_row_4_z_sine_;
-    double tof_bot_col_1_xy_cosine_;
-    double tof_bot_col_2_xy_cosine_;
-    double tof_bot_col_3_xy_cosine_;
-    double tof_bot_col_4_xy_cosine_;
-    double tof_bot_col_1_xy_sine_;
-    double tof_bot_col_2_xy_sine_;
-    double tof_bot_col_3_xy_sine_;
-    double tof_bot_col_4_xy_sine_;
+    double tof_bot_row_1_z_tan_;
+    double tof_bot_row_2_z_tan_;
+    double tof_bot_row_3_z_tan_;
+    double tof_bot_row_4_z_tan_;
+    double tof_bot_col_1_xy_tan_;
+    double tof_bot_col_2_xy_tan_;
+    double tof_bot_col_3_xy_tan_;
+    double tof_bot_col_4_xy_tan_;
 
     vision_msgs::msg::BoundingBox2DArray camera_bbox_array;
 
