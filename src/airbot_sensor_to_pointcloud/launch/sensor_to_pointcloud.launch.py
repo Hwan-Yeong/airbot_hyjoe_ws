@@ -28,7 +28,7 @@ def generate_launch_description():
                 {"use_tof_1D": True},
                 {"use_tof_left": True},
                 {"use_tof_right": True},
-                {"tof_debug_mode": False},
+                {"tof_debug_mode": True},
                 {"use_camera_map_pointcloud": True},
                 {"use_line_laser_map_pointcloud": False},
 

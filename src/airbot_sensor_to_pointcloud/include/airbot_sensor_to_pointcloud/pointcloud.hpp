@@ -77,8 +77,7 @@ public:
     void updateTargetFrame(std::string &updated_frame);
     void updateRobotPose(tPose &pose);
     sensor_msgs::msg::PointCloud2 getConvertedTofTopToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg);
-    sensor_msgs::msg::PointCloud2 getConvertedTofBotToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side);
-    sensor_msgs::msg::PointCloud2 getConvertedTofBotRowToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, ROW_NUMBER row);
+    sensor_msgs::msg::PointCloud2 getConvertedTofBotToPointCloud(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, bool debug = false, ROW_NUMBER row = ROW_NUMBER::FIRST);
     sensor_msgs::msg::PointCloud2 getConvertedCameraToPointCloud(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg, float pc_resolution, int number_of_object);
     sensor_msgs::msg::PointCloud2 getConvertedLineLaserToPointCloud(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg);
     vision_msgs::msg::BoundingBox2DArray getCameraBoundingBoxMessage();
@@ -117,14 +116,16 @@ private:
     double tof_bot_col_3_xy_tan_;
     double tof_bot_col_4_xy_tan_;
 
+    std::vector<bool> zero_dist_index = std::vector<bool>(false);
     vision_msgs::msg::BoundingBox2DArray camera_bbox_array;
 
-    std::vector<tPoint> transformTofMsg2PointsOnSensorFrame(std::vector<double> input_tof_dist);
+    std::vector<tPoint> transformTofMsg2PointsOnSensorFrame(std::vector<double> input_tof_dist, bool isBothSide);
     std::vector<tPoint> transformCameraMsg2PointsOnSensorFrame(std::vector<robot_custom_msgs::msg::AIData> input_camera_objs);
     std::vector<tPoint> transformTofSensor2RobotFrame(const std::vector<tPoint> &input_points, bool left);
     std::vector<tPoint> transformCameraSensor2RobotFrame(const std::vector<tPoint> &input_points);
     std::vector<tPoint> transformRobot2GlobalFrame(const std::vector<tPoint> &input_points);
     std::vector<tPoint> transformRobot2GlobalFrame(const tPoint &input_point);
+    std::vector<tPoint> filterPoints(const std::vector<tPoint> &input_points);
     sensor_msgs::msg::PointCloud2 createTofTopPointCloud2Message(const tPoint &point);
     sensor_msgs::msg::PointCloud2 createTofBotPointCloud2Message(const std::vector<tPoint> &points);
     sensor_msgs::msg::PointCloud2 createCameraPointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution);

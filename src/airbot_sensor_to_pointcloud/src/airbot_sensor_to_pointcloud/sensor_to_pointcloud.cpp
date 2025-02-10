@@ -75,14 +75,14 @@ SensoeToPointcloud::SensoeToPointcloud()
         pc_tof_1d_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/mono", 10);
         pc_tof_multi_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi", 10);
         if (tof_debug_mode) {
-            pc_tof_left_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/left/row_1", 10);
-            pc_tof_left_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/left/row_2", 10);
-            pc_tof_left_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/left/row_3", 10);
-            pc_tof_left_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/left/row_4", 10);
-            pc_tof_right_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/right/row_1", 10);
-            pc_tof_right_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/right/row_2", 10);
-            pc_tof_right_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/right/row_3", 10);
-            pc_tof_right_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/debug/tof/right/row_4", 10);
+            pc_tof_left_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/left/row_1", 10);
+            pc_tof_left_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/left/row_2", 10);
+            pc_tof_left_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/left/row_3", 10);
+            pc_tof_left_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/left/row_4", 10);
+            pc_tof_right_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/right/row_1", 10);
+            pc_tof_right_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/right/row_2", 10);
+            pc_tof_right_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/right/row_3", 10);
+            pc_tof_right_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/right/row_4", 10);
         }
     }
 
@@ -192,20 +192,20 @@ void SensoeToPointcloud::tofCallback(const robot_custom_msgs::msg::TofData::Shar
         if (use_tof_left || use_tof_right) {
             TOF_SIDE side = (use_tof_left && use_tof_right) ? TOF_SIDE::BOTH : 
                             (use_tof_left ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
-            pc_tof_multi_msg = pointCloud.getConvertedTofBotToPointCloud(msg, side);
+            pc_tof_multi_msg = pointCloud.getConvertedTofBotToPointCloud(msg, side, false);
         }
         if (tof_debug_mode) {
             if (use_tof_left) {
-                pc_tof_left_row1_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::LEFT, ROW_NUMBER::FIRST);
-                pc_tof_left_row2_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::LEFT, ROW_NUMBER::SECOND);
-                pc_tof_left_row3_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::LEFT, ROW_NUMBER::THIRD);
-                pc_tof_left_row4_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::LEFT, ROW_NUMBER::FOURTH);
+                pc_tof_left_row1_msg = pointCloud.getConvertedTofBotToPointCloud(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::FIRST);
+                pc_tof_left_row2_msg = pointCloud.getConvertedTofBotToPointCloud(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::SECOND);
+                pc_tof_left_row3_msg = pointCloud.getConvertedTofBotToPointCloud(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::THIRD);
+                pc_tof_left_row4_msg = pointCloud.getConvertedTofBotToPointCloud(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::FOURTH);
             }
             if (use_tof_right) {
-                pc_tof_right_row1_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::RIGHT, ROW_NUMBER::FIRST);
-                pc_tof_right_row2_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::RIGHT, ROW_NUMBER::SECOND);
-                pc_tof_right_row3_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::RIGHT, ROW_NUMBER::THIRD);
-                pc_tof_right_row4_msg = pointCloud.getConvertedTofBotRowToPointCloud(msg, TOF_SIDE::RIGHT, ROW_NUMBER::FOURTH);
+                pc_tof_right_row1_msg = pointCloud.getConvertedTofBotToPointCloud(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FIRST);
+                pc_tof_right_row2_msg = pointCloud.getConvertedTofBotToPointCloud(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::SECOND);
+                pc_tof_right_row3_msg = pointCloud.getConvertedTofBotToPointCloud(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::THIRD);
+                pc_tof_right_row4_msg = pointCloud.getConvertedTofBotToPointCloud(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FOURTH);
             }
         }
     }
