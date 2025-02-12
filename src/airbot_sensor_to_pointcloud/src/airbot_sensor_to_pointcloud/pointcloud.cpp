@@ -193,13 +193,21 @@ sensor_msgs::msg::PointCloud2 PointCloud::updateBotTofPointCloudMsg(const robot_
     }
 }
 
-sensor_msgs::msg::PointCloud2 PointCloud::updateCameraPointCloudMsg(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg, float pc_resolution)
+vision_msgs::msg::BoundingBox2DArray PointCloud::updateCameraBoundingBoxMsg(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg, std::vector<long int> class_id_list, int th_confidence, bool direction)
 {
-    setCameraBoundingBoxMessage(boundingbox_generator_->generateBoundingBoxMessage(msg,
-                                                                                   target_frame,
-                                                                                   robot_pose_,
-                                                                                   camera_translation_));
-    return pointcloud_generator_->generateCameraPointCloud2Message(camera_bbox_array,
+    camera_bbox_array = boundingbox_generator_->generateBoundingBoxMessage(msg,
+                                                                           target_frame,
+                                                                           robot_pose_,
+                                                                           camera_translation_,
+                                                                           class_id_list,
+                                                                           th_confidence,
+                                                                           direction);
+    return camera_bbox_array;
+}
+
+sensor_msgs::msg::PointCloud2 PointCloud::updateCameraPointCloudMsg(vision_msgs::msg::BoundingBox2DArray msg, float pc_resolution)
+{
+    return pointcloud_generator_->generateCameraPointCloud2Message(msg,
                                                                    pc_resolution);
 }
 
@@ -207,11 +215,6 @@ sensor_msgs::msg::PointCloud2 PointCloud::updateCameraPointCloudMsg(const robot_
 sensor_msgs::msg::PointCloud2 PointCloud::updateLineLaserPointCloudMsg(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg)
 {
     return sensor_msgs::msg::PointCloud2();
-}
-
-vision_msgs::msg::BoundingBox2DArray PointCloud::updateCameraBoundingBoxMsg()
-{
-    return camera_bbox_array;
 }
 
 std::vector<tPoint> PointCloud::transformTofMsg2PointsOnSensorFrame(std::vector<double> input_tof_dist, bool isBothSide)
@@ -265,9 +268,4 @@ std::vector<tPoint> PointCloud::filterPoints(const std::vector<tPoint> &input_po
         }
     }
     return filtered_points;
-}
-
-void PointCloud::setCameraBoundingBoxMessage(vision_msgs::msg::BoundingBox2DArray bbox_array)
-{
-    camera_bbox_array = bbox_array;
 }

@@ -45,6 +45,9 @@ SensoeToPointcloud::SensoeToPointcloud()
     this->declare_parameter("use_camera_map_pointcloud",false);
     this->declare_parameter("use_line_laser_map_pointcloud",false);
     this->declare_parameter("camera_pointcloud_resolution_m",0.0);
+    this->declare_parameter("camera_target_class_id_list",std::vector<long int>());
+    this->declare_parameter("camera_confidence_threshold",0);
+    this->declare_parameter("camera_object_direction",false);
     this->declare_parameter("pointcloud_publish_rate_ms",0);
 
     // Set Parameters
@@ -57,6 +60,9 @@ SensoeToPointcloud::SensoeToPointcloud()
     this->get_parameter("use_camera_map_pointcloud", use_camera_map_pointcloud);
     this->get_parameter("use_line_laser_map_pointcloud", use_line_laser_map_pointcloud);
     this->get_parameter("camera_pointcloud_resolution_m", camera_pointcloud_resolution_m);
+    this->get_parameter("camera_target_class_id_list", camera_target_class_id_list);
+    this->get_parameter("camera_confidence_threshold", camera_confidence_threshold);
+    this->get_parameter("camera_object_direction", camera_object_direction);
     this->get_parameter("pointcloud_publish_rate_ms", pointcloud_publish_rate_ms);
 
     // Update Parameters
@@ -231,8 +237,8 @@ void SensoeToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::AIDataArr
     }
 
     if (use_camera_map_pointcloud) {
-        pc_camera_msg = pointCloud.updateCameraPointCloudMsg(msg, camera_pointcloud_resolution_m);
-        bbox_msg = pointCloud.updateCameraBoundingBoxMsg();
+        bbox_msg = pointCloud.updateCameraBoundingBoxMsg(msg, camera_target_class_id_list, camera_confidence_threshold, camera_object_direction);
+        pc_camera_msg = pointCloud.updateCameraPointCloudMsg(bbox_msg, camera_pointcloud_resolution_m);
     }
 
     isCameraUpdating = true;

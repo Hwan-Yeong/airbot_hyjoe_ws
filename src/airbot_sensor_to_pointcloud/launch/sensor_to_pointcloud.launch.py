@@ -11,7 +11,21 @@ from launch.conditions import IfCondition
 from launch_ros.actions import Node
 from launch.substitutions import ThisLaunchFileDir
 
-
+##############################
+### Camera Object Class ID ###
+# 0: cable
+# 1: carpet
+# 2: clothes
+# 3: liquid
+# 4: non_obstacle
+# 5: obstacle
+# 6: poop
+# 7: scale
+# 8: threshold
+# 9: person
+# 10: dog
+# 11: cat
+##############################
 
 def generate_launch_description():
 
@@ -33,6 +47,10 @@ def generate_launch_description():
                 {"use_line_laser_map_pointcloud": False},
 
                 {"camera_pointcloud_resolution_m": 0.05},
+                {"camera_target_class_id_list": [1, 5, 6]},
+                {"camera_confidence_threshold": 55}, # range:[1,100]
+                {"camera_object_direction": True}, # 정방향(CCW+):True, 역방향(CW+):False
+
                 {"pointcloud_publish_rate_ms": 100},
             ]
         ),

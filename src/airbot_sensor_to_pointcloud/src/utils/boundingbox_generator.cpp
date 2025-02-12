@@ -12,7 +12,10 @@ BoundingBoxGenerator::~BoundingBoxGenerator()
 vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMessage(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg,
                                                                                       std::string frame,
                                                                                       tPose robot_pose,
-                                                                                      tPoint translation)
+                                                                                      tPoint translation,
+                                                                                      std::vector<long int> class_id_list,
+                                                                                      int th_confidence,
+                                                                                      bool direction)
 {
     auto bbox_array = vision_msgs::msg::BoundingBox2DArray();
 
@@ -29,31 +32,42 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
     const double robot_sin = std::sin(robot_pose.orientation.yaw);
     for (const auto &obj : objects)
     {
-        if (obj.height >= 0.0 && obj.width >= 0.0) {
-            auto bbox = vision_msgs::msg::BoundingBox2D();
+        auto it = std::find(class_id_list.begin(), class_id_list.end(), static_cast<long int>(obj.id));
+        if (it != class_id_list.end() && static_cast<int>(obj.score) >= th_confidence) { // data filtering with "class id", "confidencd score"
+            if (obj.height >= 0.0 && obj.width >= 0.0) {
+                auto bbox = vision_msgs::msg::BoundingBox2D();
 
-            tPoint point_on_sensor_frame, point_on_robot_frame;
+                tPoint point_on_sensor_frame, point_on_robot_frame;
 
-            point_on_sensor_frame.x = obj.distance * std::cos(obj.theta) + obj.height/2;
-            point_on_sensor_frame.y = obj.distance * std::sin(obj.theta);
-            // point_on_sensor_frame.z = -translation.z;
+                if (direction) {
+                    point_on_sensor_frame.x = obj.distance * std::cos(obj.theta) + obj.height/2;
+                    point_on_sensor_frame.y = obj.distance * std::sin(obj.theta);
+                } else {
+                    point_on_sensor_frame.x = obj.distance * std::cos(-obj.theta) + obj.height/2;
+                    point_on_sensor_frame.y = obj.distance * std::sin(-obj.theta);
+                }
+                // point_on_sensor_frame.z = -translation.z;
 
-            point_on_robot_frame.x = point_on_sensor_frame.x + translation.x;
-            point_on_robot_frame.y = point_on_sensor_frame.y + translation.y;
-            // point_on_robot_frame.z = point_on_sensor_frame.z + translation.z;
-            if (frame == "map") {    
-                bbox.center.position.x = point_on_robot_frame.x*robot_cos - point_on_robot_frame.y*robot_sin + robot_pose.position.x;
-                bbox.center.position.y = point_on_robot_frame.x*robot_sin + point_on_robot_frame.y*robot_cos + robot_pose.position.y;
-            } else if (frame == "base_link") {
-                bbox.center.position.x = point_on_robot_frame.x;
-                bbox.center.position.y = point_on_robot_frame.y;
-            } else {
-                RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Select Wrong Target Frame: %s", frame.c_str());
+                point_on_robot_frame.x = point_on_sensor_frame.x + translation.x;
+                point_on_robot_frame.y = point_on_sensor_frame.y + translation.y;
+                // point_on_robot_frame.z = point_on_sensor_frame.z + translation.z;
+                if (frame == "map") {    
+                    bbox.center.position.x = point_on_robot_frame.x*robot_cos - point_on_robot_frame.y*robot_sin + robot_pose.position.x;
+                    bbox.center.position.y = point_on_robot_frame.x*robot_sin + point_on_robot_frame.y*robot_cos + robot_pose.position.y;
+                } else if (frame == "base_link") {
+                    bbox.center.position.x = point_on_robot_frame.x;
+                    bbox.center.position.y = point_on_robot_frame.y;
+                } else {
+                    RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Select Wrong Target Frame: %s", frame.c_str());
+                }
+                bbox.center.theta = 0.0;
+                bbox.size_x = obj.height;
+                bbox.size_y = obj.width;
+                bbox_array.boxes.push_back(bbox);
             }
-            bbox.center.theta = 0.0;
-            bbox.size_x = obj.height;
-            bbox.size_y = obj.width;
-            bbox_array.boxes.push_back(bbox);
+        } else {
+            // RCLCPP_INFO(rclcpp::get_logger("BoundingBoxGenerator"),
+            //             "[Camera Filtered Data] ID: %d, SCORE: %d", static_cast<long int>(obj.id), static_cast<int>(obj.score));
         }
     }
 

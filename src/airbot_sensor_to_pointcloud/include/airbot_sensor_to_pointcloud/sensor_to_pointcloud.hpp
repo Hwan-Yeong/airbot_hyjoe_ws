@@ -58,6 +58,9 @@ private:
     bool use_camera_map_pointcloud;
     bool use_line_laser_map_pointcloud;
     float camera_pointcloud_resolution_m;
+    std::vector<long int> camera_target_class_id_list;
+    int camera_confidence_threshold;
+    bool camera_object_direction;
     int pointcloud_publish_rate_ms;
 
     sensor_msgs::msg::PointCloud2 pc_tof_1d_msg;

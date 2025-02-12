@@ -40,9 +40,9 @@ public:
     void updateRobotPose(tPose &pose);
     sensor_msgs::msg::PointCloud2 updateTopTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     sensor_msgs::msg::PointCloud2 updateBotTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, bool isShowRow = false, ROW_NUMBER row = ROW_NUMBER::FIRST);
-    sensor_msgs::msg::PointCloud2 updateCameraPointCloudMsg(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg, float pc_resolution);
+    vision_msgs::msg::BoundingBox2DArray updateCameraBoundingBoxMsg(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg, std::vector<long int> class_id_list, int th_confidence, bool direction);
+    sensor_msgs::msg::PointCloud2 updateCameraPointCloudMsg(vision_msgs::msg::BoundingBox2DArray msg, float pc_resolution);
     sensor_msgs::msg::PointCloud2 updateLineLaserPointCloudMsg(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg);
-    vision_msgs::msg::BoundingBox2DArray updateCameraBoundingBoxMsg();
 
 private:
     std::shared_ptr<FrameConverter> frame_converter_;
@@ -76,7 +76,6 @@ private:
 
     std::vector<tPoint> transformTofMsg2PointsOnSensorFrame(std::vector<double> input_tof_dist, bool isBothSide);
     std::vector<tPoint> filterPoints(const std::vector<tPoint> &input_points);
-    void setCameraBoundingBoxMessage(vision_msgs::msg::BoundingBox2DArray bbox_array);
 };
 
 #endif  // POINTCLOUD_HPP

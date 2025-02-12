@@ -19,7 +19,10 @@ public:
     vision_msgs::msg::BoundingBox2DArray generateBoundingBoxMessage(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg,
                                                                     std::string frame,
                                                                     tPose robot_pose,
-                                                                    tPoint translation);
+                                                                    tPoint translation,
+                                                                    std::vector<long int> class_id_list,
+                                                                    int th_confidence,
+                                                                    bool direction);
 
 private:
 };
