@@ -46,7 +46,6 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_camera_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_line_laser_pub_;
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr bbox_array_camera_pub_;
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_array_camera_pub_;
 
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
@@ -59,7 +58,6 @@ private:
     bool use_camera_map_pointcloud;
     bool use_line_laser_map_pointcloud;
     float camera_pointcloud_resolution_m;
-    int camera_number_of_object;
     int pointcloud_publish_rate_ms;
 
     sensor_msgs::msg::PointCloud2 pc_tof_1d_msg;
@@ -73,6 +71,8 @@ private:
     sensor_msgs::msg::PointCloud2 pc_tof_right_row3_msg;
     sensor_msgs::msg::PointCloud2 pc_tof_right_row4_msg;
     sensor_msgs::msg::PointCloud2 pc_camera_msg;
+    vision_msgs::msg::BoundingBox2DArray bbox_msg;
+    visualization_msgs::msg::MarkerArray marker_msg;
     sensor_msgs::msg::PointCloud2 pc_line_laser_msg;
 
     bool isTofUpdating;
@@ -80,10 +80,9 @@ private:
     bool isLineLaserUpdating;
 
     void publisherMonitor();
-    void tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg);
-    void cameraCallback(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg);
-    void lineLaserCallback(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg);
-    visualization_msgs::msg::MarkerArray bboxArrayToMarkerArray(const vision_msgs::msg::BoundingBox2DArray msg);
+    void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
+    void cameraMsgUpdate(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg);
+    void linelaserMsgUpdate(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg);
 };
 
 #endif // SENSOR_TO_POINTCLOUD

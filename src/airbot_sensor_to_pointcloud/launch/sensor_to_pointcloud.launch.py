@@ -33,8 +33,6 @@ def generate_launch_description():
                 {"use_line_laser_map_pointcloud": False},
 
                 {"camera_pointcloud_resolution_m": 0.05},
-                {"camera_number_of_object": 0},
-
                 {"pointcloud_publish_rate_ms": 100},
             ]
         ),

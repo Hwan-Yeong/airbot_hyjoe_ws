@@ -28,6 +28,9 @@ add_executable(sensor_to_pointcloud
   src/node.cpp
   src/airbot_sensor_to_pointcloud/sensor_to_pointcloud.cpp
   src/airbot_sensor_to_pointcloud/pointcloud.cpp
+  src/utils/frame_converter.cpp
+  src/utils/pointcloud_generator.cpp
+  src/utils/boundingbox_generator.cpp
 )
 
 ament_target_dependencies(sensor_to_pointcloud 
