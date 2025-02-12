@@ -8,7 +8,6 @@
 #include "robot_custom_msgs/msg/tof_data.hpp"
 #include "robot_custom_msgs/msg/ai_data.hpp"
 #include "robot_custom_msgs/msg/ai_data_array.hpp"
-#include "robot_custom_msgs/msg/line_laser_data.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <geometry_msgs/msg/point32.hpp>
@@ -42,7 +41,6 @@ public:
     sensor_msgs::msg::PointCloud2 updateBotTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, bool isShowRow = false, ROW_NUMBER row = ROW_NUMBER::FIRST);
     vision_msgs::msg::BoundingBox2DArray updateCameraBoundingBoxMsg(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg, std::vector<long int> class_id_list, int th_confidence, bool direction);
     sensor_msgs::msg::PointCloud2 updateCameraPointCloudMsg(vision_msgs::msg::BoundingBox2DArray msg, float pc_resolution);
-    sensor_msgs::msg::PointCloud2 updateLineLaserPointCloudMsg(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg);
 
 private:
     std::shared_ptr<FrameConverter> frame_converter_;

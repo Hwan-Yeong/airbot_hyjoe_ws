@@ -44,7 +44,6 @@ def generate_launch_description():
                 {"use_tof_right": True},
                 {"tof_debug_mode": True},
                 {"use_camera_map_pointcloud": True},
-                {"use_line_laser_map_pointcloud": False},
 
                 {"camera_pointcloud_resolution_m": 0.05},
                 {"camera_target_class_id_list": [1, 5, 6]},

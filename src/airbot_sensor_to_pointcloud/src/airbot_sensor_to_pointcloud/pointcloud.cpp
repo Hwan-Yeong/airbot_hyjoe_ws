@@ -211,12 +211,6 @@ sensor_msgs::msg::PointCloud2 PointCloud::updateCameraPointCloudMsg(vision_msgs:
                                                                    pc_resolution);
 }
 
-// TODO
-sensor_msgs::msg::PointCloud2 PointCloud::updateLineLaserPointCloudMsg(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg)
-{
-    return sensor_msgs::msg::PointCloud2();
-}
-
 std::vector<tPoint> PointCloud::transformTofMsg2PointsOnSensorFrame(std::vector<double> input_tof_dist, bool isBothSide)
 {
     std::vector<tPoint> points;

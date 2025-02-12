@@ -43,7 +43,6 @@ SensoeToPointcloud::SensoeToPointcloud()
     this->declare_parameter("use_tof_right",false);
     this->declare_parameter("tof_debug_mode",false);
     this->declare_parameter("use_camera_map_pointcloud",false);
-    this->declare_parameter("use_line_laser_map_pointcloud",false);
     this->declare_parameter("camera_pointcloud_resolution_m",0.0);
     this->declare_parameter("camera_target_class_id_list",std::vector<long int>());
     this->declare_parameter("camera_confidence_threshold",0);
@@ -58,7 +57,6 @@ SensoeToPointcloud::SensoeToPointcloud()
     this->get_parameter("use_tof_right", use_tof_right);
     this->get_parameter("tof_debug_mode", tof_debug_mode);
     this->get_parameter("use_camera_map_pointcloud", use_camera_map_pointcloud);
-    this->get_parameter("use_line_laser_map_pointcloud", use_line_laser_map_pointcloud);
     this->get_parameter("camera_pointcloud_resolution_m", camera_pointcloud_resolution_m);
     this->get_parameter("camera_target_class_id_list", camera_target_class_id_list);
     this->get_parameter("camera_confidence_threshold", camera_confidence_threshold);
@@ -71,15 +69,12 @@ SensoeToPointcloud::SensoeToPointcloud()
     // Msg Update Flags
     isTofUpdating = false;
     isCameraUpdating = false;
-    isLineLaserUpdating = false;
 
     // Msg Subscribers
     tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
         "tof_data", 10, std::bind(&SensoeToPointcloud::tofMsgUpdate, this, std::placeholders::_1));
     camera_sub_ = this->create_subscription<robot_custom_msgs::msg::AIDataArray>(
         "camera_data", 10, std::bind(&SensoeToPointcloud::cameraMsgUpdate, this, std::placeholders::_1));
-    line_laser_sub_ = this->create_subscription<robot_custom_msgs::msg::LineLaserData>(
-        "line_laser_data", 10, std::bind(&SensoeToPointcloud::linelaserMsgUpdate, this, std::placeholders::_1));
     
     // Msg Publishers
     if (use_tof_map_pointcloud) {
@@ -99,9 +94,6 @@ SensoeToPointcloud::SensoeToPointcloud()
     if (use_camera_map_pointcloud) {
         pc_camera_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/camera_object", 10);
         bbox_array_camera_pub_ = this->create_publisher<vision_msgs::msg::BoundingBox2DArray>("sensor_to_pointcloud/camera/bbox", 10);
-    }
-    if (use_line_laser_map_pointcloud) {
-        pc_line_laser_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/line_laser", 10);
     }
 
     // Monitor Timer
@@ -145,11 +137,6 @@ void SensoeToPointcloud::publisherMonitor()
             marker_msg = visualization_msgs::msg::MarkerArray(); //clear
         }
     }
-    if (!isLineLaserUpdating) {
-        if (use_line_laser_map_pointcloud) {
-            pc_line_laser_msg = sensor_msgs::msg::PointCloud2(); //clear
-        }
-    }
 
     // publish pointCloud Data
     if (use_tof_map_pointcloud && isTofUpdating) { // ToF
@@ -180,11 +167,6 @@ void SensoeToPointcloud::publisherMonitor()
         pc_camera_pub_->publish(pc_camera_msg);
         bbox_array_camera_pub_->publish(bbox_msg);
         isCameraUpdating = false;
-    }
-
-    if (use_line_laser_map_pointcloud && isLineLaserUpdating) { // Line Laser
-        pc_line_laser_pub_->publish(pc_line_laser_msg);
-        isLineLaserUpdating = false;
     }
 }
 
@@ -242,22 +224,4 @@ void SensoeToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::AIDataArr
     }
 
     isCameraUpdating = true;
-}
-
-void SensoeToPointcloud::linelaserMsgUpdate(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg)
-{
-    // Line Laser에 amcl pose 추가되면 필요
-    // if (target_frame == "map") {
-    //     tPose pose;
-    //     pose.position.x = msg->robot_x;
-    //     pose.position.y = msg->robot_y;
-    //     pose.orientation.yaw = msg->robot_angle;
-    //     pointCloud.updateRobotPose(pose);
-    // }
-    
-    if (use_line_laser_map_pointcloud) {
-        pc_line_laser_msg = pointCloud.updateLineLaserPointCloudMsg(msg);
-    }
-
-    isLineLaserUpdating = true;
 }
