@@ -77,7 +77,6 @@ private:
 
     bool isTofUpdating;
     bool isCameraUpdating;
-    bool isLineLaserUpdating;
 
     void publisherMonitor();
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);

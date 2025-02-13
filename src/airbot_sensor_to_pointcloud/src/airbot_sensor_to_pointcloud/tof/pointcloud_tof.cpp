@@ -231,7 +231,7 @@ std::vector<tPoint> PointCloudTof::filterPoints(const std::vector<tPoint> &input
 {
     std::vector<tPoint> filtered_points;
 
-    for (int i=0; i<zero_dist_index.size(); ++i) {
+    for (size_t i=0; i<zero_dist_index.size(); ++i) {
         if (!zero_dist_index[i]) {
             filtered_points.push_back(input_points[i]);
         }
