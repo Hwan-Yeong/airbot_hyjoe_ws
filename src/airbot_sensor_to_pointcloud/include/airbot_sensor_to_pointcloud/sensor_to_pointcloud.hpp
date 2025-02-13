@@ -3,7 +3,8 @@
 
 #include <chrono>
 #include "rclcpp/rclcpp.hpp"
-#include "airbot_sensor_to_pointcloud/pointcloud.hpp"
+#include "airbot_sensor_to_pointcloud/camera/pointcloud_camera.hpp"
+#include "airbot_sensor_to_pointcloud/tof/pointcloud_tof.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
@@ -26,7 +27,8 @@ public:
     ~SensoeToPointcloud();
 
 private:
-    PointCloud pointCloud;
+    PointCloudCamera point_cloud_camera_;
+    PointCloudTof point_cloud_tof_;
 
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::AIDataArray>::SharedPtr camera_sub_;
@@ -80,7 +82,6 @@ private:
     void publisherMonitor();
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void cameraMsgUpdate(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg);
-    void linelaserMsgUpdate(const robot_custom_msgs::msg::LineLaserData::SharedPtr msg);
 };
 
 #endif // SENSOR_TO_POINTCLOUD

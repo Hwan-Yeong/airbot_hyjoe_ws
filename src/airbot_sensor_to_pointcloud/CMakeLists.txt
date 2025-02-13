@@ -27,7 +27,8 @@ add_definitions(${PCL_DEFINITIONS})
 add_executable(sensor_to_pointcloud
   src/node.cpp
   src/airbot_sensor_to_pointcloud/sensor_to_pointcloud.cpp
-  src/airbot_sensor_to_pointcloud/pointcloud.cpp
+  src/airbot_sensor_to_pointcloud/tof/pointcloud_tof.cpp
+  src/airbot_sensor_to_pointcloud/camera/pointcloud_camera.cpp
   src/utils/frame_converter.cpp
   src/utils/pointcloud_generator.cpp
   src/utils/boundingbox_generator.cpp

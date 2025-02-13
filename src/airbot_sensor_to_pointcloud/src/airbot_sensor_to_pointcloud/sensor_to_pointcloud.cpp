@@ -2,8 +2,7 @@
 
 using namespace std::chrono_literals;
 
-// Robot/Sensor Pose Specification
-double robot_radius = 0.3;                           //[meter]
+// Robot, Sensor Geometric Specification
 double tof_top_sensor_frame_x_translate = 0.0942;    //[meter]
 double tof_top_sensor_frame_y_translate = 0.0;       //[meter]
 double tof_tof_sensor_frame_z_translate = 0.56513;   //[meter]
@@ -20,20 +19,19 @@ double camera_sensor_frame_z_translate = 0.5331;     //[meter]
 
 SensoeToPointcloud::SensoeToPointcloud()
     : rclcpp::Node("airbot_sensor_to_pointcloud"),
-    pointCloud(robot_radius,
-               tof_top_sensor_frame_x_translate,
-               tof_top_sensor_frame_y_translate,
-               tof_tof_sensor_frame_z_translate,
-               tof_top_sensor_frame_pitch_ang,
-               tof_bot_sensor_frame_x_translate,
-               tof_bot_sensor_frame_y_translate,
-               tof_bot_sensor_frame_z_translate,
-               tof_bot_left_sensor_frame_yaw_ang,
-               tof_bot_rihgt_sensor_frame_yaw_ang,
-               tof_bot_fov_ang,
-               camera_sensor_frame_x_translate,
-               camera_sensor_frame_y_translate,
-               camera_sensor_frame_z_translate)
+    point_cloud_tof_(tof_top_sensor_frame_x_translate,
+                     tof_top_sensor_frame_y_translate,
+                     tof_tof_sensor_frame_z_translate,
+                     tof_top_sensor_frame_pitch_ang,
+                     tof_bot_sensor_frame_x_translate,
+                     tof_bot_sensor_frame_y_translate,
+                     tof_bot_sensor_frame_z_translate,
+                     tof_bot_left_sensor_frame_yaw_ang,
+                     tof_bot_rihgt_sensor_frame_yaw_ang,
+                     tof_bot_fov_ang),
+    point_cloud_camera_(camera_sensor_frame_x_translate,
+                        camera_sensor_frame_y_translate,
+                        camera_sensor_frame_z_translate)
 {
     // Declare Parameters
     this->declare_parameter("target_frame","base_link");
@@ -64,7 +62,8 @@ SensoeToPointcloud::SensoeToPointcloud()
     this->get_parameter("pointcloud_publish_rate_ms", pointcloud_publish_rate_ms);
 
     // Update Parameters
-    pointCloud.updateTargetFrame(target_frame);
+    point_cloud_tof_.updateTargetFrame(target_frame);
+    point_cloud_camera_.updateTargetFrame(target_frame);
 
     // Msg Update Flags
     isTofUpdating = false;
@@ -177,30 +176,30 @@ void SensoeToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
         pose.position.x = msg->robot_x;
         pose.position.y = msg->robot_y;
         pose.orientation.yaw = msg->robot_angle;
-        pointCloud.updateRobotPose(pose);
+        point_cloud_tof_.updateRobotPose(pose);
     }
 
     if (use_tof_map_pointcloud) {
         if (use_tof_1D) {
-            pc_tof_1d_msg = pointCloud.updateTopTofPointCloudMsg(msg);
+            pc_tof_1d_msg = point_cloud_tof_.updateTopTofPointCloudMsg(msg);
         }
         if (use_tof_left || use_tof_right) {
             TOF_SIDE side = (use_tof_left && use_tof_right) ? TOF_SIDE::BOTH : 
                             (use_tof_left ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
-            pc_tof_multi_msg = pointCloud.updateBotTofPointCloudMsg(msg, side, false);
+            pc_tof_multi_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, side, false);
         }
         if (tof_debug_mode) {
             if (use_tof_left) {
-                pc_tof_left_row1_msg = pointCloud.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::FIRST);
-                pc_tof_left_row2_msg = pointCloud.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::SECOND);
-                pc_tof_left_row3_msg = pointCloud.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::THIRD);
-                pc_tof_left_row4_msg = pointCloud.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::FOURTH);
+                pc_tof_left_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::FIRST);
+                pc_tof_left_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::SECOND);
+                pc_tof_left_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::THIRD);
+                pc_tof_left_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::FOURTH);
             }
             if (use_tof_right) {
-                pc_tof_right_row1_msg = pointCloud.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FIRST);
-                pc_tof_right_row2_msg = pointCloud.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::SECOND);
-                pc_tof_right_row3_msg = pointCloud.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::THIRD);
-                pc_tof_right_row4_msg = pointCloud.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FOURTH);
+                pc_tof_right_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FIRST);
+                pc_tof_right_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::SECOND);
+                pc_tof_right_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::THIRD);
+                pc_tof_right_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FOURTH);
             }
         }
     }
@@ -215,12 +214,12 @@ void SensoeToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::AIDataArr
         pose.position.x = msg->robot_x;
         pose.position.y = msg->robot_y;
         pose.orientation.yaw = msg->robot_angle;
-        pointCloud.updateRobotPose(pose);
+        point_cloud_camera_.updateRobotPose(pose);
     }
 
     if (use_camera_map_pointcloud) {
-        bbox_msg = pointCloud.updateCameraBoundingBoxMsg(msg, camera_target_class_id_list, camera_confidence_threshold, camera_object_direction);
-        pc_camera_msg = pointCloud.updateCameraPointCloudMsg(bbox_msg, camera_pointcloud_resolution_m);
+        bbox_msg = point_cloud_camera_.updateCameraBoundingBoxMsg(msg, camera_target_class_id_list, camera_confidence_threshold, camera_object_direction);
+        pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_msg, camera_pointcloud_resolution_m);
     }
 
     isCameraUpdating = true;
