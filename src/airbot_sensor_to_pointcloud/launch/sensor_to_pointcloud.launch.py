@@ -38,12 +38,13 @@ def generate_launch_description():
              parameters=[
                 {"target_frame": "base_link"}, # "map" or "base_link"
 
-                {"use_tof_map_pointcloud": True},
+                {"use_tof_pointcloud": True},
                 {"use_tof_1D": True},
                 {"use_tof_left": True},
                 {"use_tof_right": True},
                 {"tof_debug_mode": True},
-                {"use_camera_map_pointcloud": True},
+                {"use_camera_pointcloud": True},
+                {"use_cliff_pointcloud": True},
 
                 {"camera_pointcloud_resolution_m": 0.05},
                 {"camera_target_class_id_list": [1, 5, 6]},

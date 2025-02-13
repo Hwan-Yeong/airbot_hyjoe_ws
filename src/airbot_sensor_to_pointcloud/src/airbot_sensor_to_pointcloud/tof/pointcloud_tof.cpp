@@ -40,8 +40,7 @@ PointCloudTof::~PointCloudTof()
 }
 
 /**
- * @ Description
- * ### 노드 초기화 시점에, 파라미터로 받은 frame_id로 업데이트
+ * @brief ### 노드 초기화 시점에, 파라미터로 받은 frame_id로 업데이트
  */
 void PointCloudTof::updateTargetFrame(std::string &updated_frame)
 {
@@ -49,8 +48,7 @@ void PointCloudTof::updateTargetFrame(std::string &updated_frame)
 }
 
 /**
- * @ Description
- * ### Callback 받은 시점에, topic에 찍힌 robot_pose로 업데이트
+ * @brief ### Callback 받은 시점에, topic에 찍힌 robot_pose로 업데이트
  */
 void PointCloudTof::updateRobotPose(tPose &pose)
 {
@@ -68,11 +66,9 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateTopTofPointCloudMsg(const rob
     if (target_frame_ == "map") {
         std::vector<tPoint> points_on_map_frame = frame_converter_->transformRobot2GlobalFrame(points_on_robot_frame,
                                                                                                robot_pose_);
-        return pointcloud_generator_->generateTofPointCloud2Message(points_on_map_frame,
-                                                                    target_frame_);
+        return pointcloud_generator_->generatePointCloud2Message(points_on_map_frame, target_frame_);
     } else if (target_frame_ == "base_link") {
-        return pointcloud_generator_->generateTofPointCloud2Message(points_on_robot_frame,
-                                                                    target_frame_);
+        return pointcloud_generator_->generatePointCloud2Message(points_on_robot_frame, target_frame_);
     } else {
         RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Select Wrong Target Frame: %s", target_frame_.c_str());
         return sensor_msgs::msg::PointCloud2();
@@ -174,12 +170,10 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
 
     if (target_frame_ == "map") {
         std::vector<tPoint> filtered_tof_points = filterPoints(multi_tof_points_on_map_frame);
-        return pointcloud_generator_->generateTofPointCloud2Message(filtered_tof_points,
-                                                                    target_frame_);
+        return pointcloud_generator_->generatePointCloud2Message(filtered_tof_points, target_frame_);
     } else if (target_frame_ == "base_link") {
         std::vector<tPoint> filtered_tof_points = filterPoints(multi_tof_points_on_robot_frame);
-        return pointcloud_generator_->generateTofPointCloud2Message(filtered_tof_points,
-                                                                    target_frame_);
+        return pointcloud_generator_->generatePointCloud2Message(filtered_tof_points, target_frame_);
     } else {
         RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Select Wrong Target Frame: %s", target_frame_.c_str());
         return sensor_msgs::msg::PointCloud2();

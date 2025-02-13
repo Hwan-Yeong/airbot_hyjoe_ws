@@ -15,8 +15,7 @@ PointCloudCamera::~PointCloudCamera()
 }
 
 /**
- * @ Description
- * ### 노드 초기화 시점에, 파라미터로 받은 frame_id로 업데이트
+ * @brief ### 노드 초기화 시점에, 파라미터로 받은 frame_id로 업데이트
  */
 void PointCloudCamera::updateTargetFrame(std::string &updated_frame)
 {
@@ -24,8 +23,7 @@ void PointCloudCamera::updateTargetFrame(std::string &updated_frame)
 }
 
 /**
- * @ Description
- * ### Callback 받은 시점에, topic에 찍힌 robot_pose로 업데이트
+ * @brief ### Callback 받은 시점에, topic에 찍힌 robot_pose로 업데이트
  */
 void PointCloudCamera::updateRobotPose(tPose &pose)
 {
@@ -46,6 +44,5 @@ vision_msgs::msg::BoundingBox2DArray PointCloudCamera::updateCameraBoundingBoxMs
 
 sensor_msgs::msg::PointCloud2 PointCloudCamera::updateCameraPointCloudMsg(vision_msgs::msg::BoundingBox2DArray msg, float pc_resolution)
 {
-    return pointcloud_generator_->generateCameraPointCloud2Message(msg,
-                                                                   pc_resolution);
+    return pointcloud_generator_->generatePointCloud2Message(msg, pc_resolution);
 }

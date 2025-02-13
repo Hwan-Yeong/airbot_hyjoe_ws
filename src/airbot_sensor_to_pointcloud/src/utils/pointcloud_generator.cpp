@@ -10,10 +10,10 @@ PointCloudGenerator::~PointCloudGenerator()
 }
 
 /**
- * ## Convert ToF Data
+ * @input: std::vector<tPoint>
+ * ### Convert ToF, Cliff(IR) Data
  */
-sensor_msgs::msg::PointCloud2 PointCloudGenerator::generateTofPointCloud2Message(const std::vector<tPoint> &points,
-                                                                                 std::string frame)
+sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(const std::vector<tPoint> &points, std::string frame)
 {
     sensor_msgs::msg::PointCloud2 msg;
 
@@ -70,10 +70,10 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generateTofPointCloud2Message
 }
 
 /**
- * ## Convert Camera Data
+ * @input: vision_msgs::msg::BoundingBox2DArray
+ * ### Convert Camera Data
  */
-sensor_msgs::msg::PointCloud2 PointCloudGenerator::generateCameraPointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array,
-                                                                                    float resolution)
+sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution)
 {
     sensor_msgs::msg::PointCloud2 msg;
 
