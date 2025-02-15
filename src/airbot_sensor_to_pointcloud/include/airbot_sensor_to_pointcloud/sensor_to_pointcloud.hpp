@@ -64,7 +64,16 @@ private:
     std::vector<std::string> camera_param_raw_vector;
     std::map<int, int> camera_class_id_confidence_th;
     bool camera_object_direction;
-    int pointcloud_publish_rate_ms;
+    int publish_rate_1d_tof;
+    int publish_rate_multi_tof;
+    int publish_rate_row_tof;
+    int publish_rate_camera;
+    int publish_rate_cliff;
+    int publish_cnt_1d_tof;
+    int publish_cnt_multi_tof;
+    int publish_cnt_row_tof;
+    int publish_cnt_camera;
+    int publish_cnt_cliff;
 
     sensor_msgs::msg::PointCloud2 pc_tof_1d_msg;
     sensor_msgs::msg::PointCloud2 pc_tof_multi_msg;

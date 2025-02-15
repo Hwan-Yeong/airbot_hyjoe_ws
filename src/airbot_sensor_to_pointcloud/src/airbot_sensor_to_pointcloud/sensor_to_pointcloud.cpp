@@ -43,31 +43,39 @@ SensorToPointcloud::SensorToPointcloud()
 {
     // Declare Parameters
     this->declare_parameter("target_frame","base_link");
-    this->declare_parameter("use_tof_pointcloud",false);
-    this->declare_parameter("use_tof_1D",false);
-    this->declare_parameter("use_tof_left",false);
-    this->declare_parameter("use_tof_right",false);
-    this->declare_parameter("tof_debug_mode",false);
-    this->declare_parameter("use_camera_pointcloud",false);
-    this->declare_parameter("use_cliff_pointcloud",false);
-    this->declare_parameter("camera_pointcloud_resolution_m",0.0);
-    this->declare_parameter("camera_class_id_confidence_th",std::vector<std::string>());
-    this->declare_parameter("camera_object_direction",false);
-    this->declare_parameter("pointcloud_publish_rate_ms",0);
+    this->declare_parameter("use.tof",false);
+    this->declare_parameter("use.tof.1D",false);
+    this->declare_parameter("use.tof.left",false);
+    this->declare_parameter("use.tof.right",false);
+    this->declare_parameter("use.tof.row",false);
+    this->declare_parameter("use.camera",false);
+    this->declare_parameter("use.cliff",false);
+    this->declare_parameter("camera.pointcloud_resolution",0.05);
+    this->declare_parameter("camera.class_id_confidence_th",std::vector<std::string>());
+    this->declare_parameter("camera.object_direction",false);
+    this->declare_parameter("publish.rate_ms.tof_1d",100);
+    this->declare_parameter("publish.rate_ms.tof_multi",100);
+    this->declare_parameter("publish.rate_ms.tof_row",100);
+    this->declare_parameter("publish.rate_ms.camera",100);
+    this->declare_parameter("publish.rate_ms.cliff",100);
 
     // Set Parameters
     this->get_parameter("target_frame", target_frame);
-    this->get_parameter("use_tof_pointcloud", use_tof_pointcloud);
-    this->get_parameter("use_tof_1D", use_tof_1D);
-    this->get_parameter("use_tof_left", use_tof_left);
-    this->get_parameter("use_tof_right", use_tof_right);
-    this->get_parameter("tof_debug_mode", tof_debug_mode);
-    this->get_parameter("use_camera_pointcloud", use_camera_pointcloud);
-    this->get_parameter("use_cliff_pointcloud", use_cliff_pointcloud);
-    this->get_parameter("camera_pointcloud_resolution_m", camera_pointcloud_resolution_m);
-    this->get_parameter("camera_class_id_confidence_th", camera_param_raw_vector);
-    this->get_parameter("camera_object_direction", camera_object_direction);
-    this->get_parameter("pointcloud_publish_rate_ms", pointcloud_publish_rate_ms);
+    this->get_parameter("use.tof", use_tof_pointcloud);
+    this->get_parameter("use.tof.1D", use_tof_1D);
+    this->get_parameter("use.tof.left", use_tof_left);
+    this->get_parameter("use.tof.right", use_tof_right);
+    this->get_parameter("use.tof.row", tof_debug_mode);
+    this->get_parameter("use.camera", use_camera_pointcloud);
+    this->get_parameter("use.cliff", use_cliff_pointcloud);
+    this->get_parameter("camera.pointcloud_resolution", camera_pointcloud_resolution_m);
+    this->get_parameter("camera.class_id_confidence_th", camera_param_raw_vector);
+    this->get_parameter("camera.object_direction", camera_object_direction);
+    this->get_parameter("publish.rate_ms.tof_1d", publish_rate_1d_tof);
+    this->get_parameter("publish.rate_ms.tof_multi", publish_rate_multi_tof);
+    this->get_parameter("publish.rate_ms.tof_row", publish_rate_row_tof);
+    this->get_parameter("publish.rate_ms.camera", publish_rate_camera);
+    this->get_parameter("publish.rate_ms.cliff", publish_rate_cliff);
 
     // Update Parameters
     point_cloud_tof_.updateTargetFrame(target_frame);
@@ -96,30 +104,49 @@ SensorToPointcloud::SensorToPointcloud()
     
     // Msg Publishers
     if (use_tof_pointcloud) {
-        pc_tof_1d_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/mono", 10);
-        pc_tof_multi_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi", 10);
+        pc_tof_1d_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+            "sensor_to_pointcloud/tof/mono", 10);
+        pc_tof_multi_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+            "sensor_to_pointcloud/tof/multi", 10);
         if (tof_debug_mode) {
-            pc_tof_left_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/left/row_1", 10);
-            pc_tof_left_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/left/row_2", 10);
-            pc_tof_left_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/left/row_3", 10);
-            pc_tof_left_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/left/row_4", 10);
-            pc_tof_right_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/right/row_1", 10);
-            pc_tof_right_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/right/row_2", 10);
-            pc_tof_right_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/right/row_3", 10);
-            pc_tof_right_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/tof/multi/right/row_4", 10);
+            pc_tof_left_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                "sensor_to_pointcloud/tof/multi/left/row_1", 10);
+            pc_tof_left_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                "sensor_to_pointcloud/tof/multi/left/row_2", 10);
+            pc_tof_left_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                "sensor_to_pointcloud/tof/multi/left/row_3", 10);
+            pc_tof_left_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                "sensor_to_pointcloud/tof/multi/left/row_4", 10);
+            pc_tof_right_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                "sensor_to_pointcloud/tof/multi/right/row_1", 10);
+            pc_tof_right_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                "sensor_to_pointcloud/tof/multi/right/row_2", 10);
+            pc_tof_right_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                "sensor_to_pointcloud/tof/multi/right/row_3", 10);
+            pc_tof_right_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                "sensor_to_pointcloud/tof/multi/right/row_4", 10);
         }
     }
     if (use_camera_pointcloud) {
-        pc_camera_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/camera_object", 10);
-        bbox_array_camera_pub_ = this->create_publisher<vision_msgs::msg::BoundingBox2DArray>("sensor_to_pointcloud/camera/bbox", 10);
+        pc_camera_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+            "sensor_to_pointcloud/camera_object", 10);
+        bbox_array_camera_pub_ = this->create_publisher<vision_msgs::msg::BoundingBox2DArray>(
+            "sensor_to_pointcloud/camera/bbox", 10);
     }
     if (use_cliff_pointcloud) {
-        pc_cliff_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("sensor_to_pointcloud/cliff", 10);
+        pc_cliff_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+            "sensor_to_pointcloud/cliff", 10);
     }
 
+    publish_cnt_1d_tof = 0;
+    publish_cnt_multi_tof = 0;
+    publish_cnt_row_tof = 0;
+    publish_cnt_camera = 0;
+    publish_cnt_cliff = 0;
+
     // Monitor Timer
-    auto publish_rate = std::max(pointcloud_publish_rate_ms, 1) * 1ms; // pointcloud_publish_rate_ms = 0 예외처리
-    poincloud_publish_timer_ = this->create_wall_timer(publish_rate,std::bind(&SensorToPointcloud::publisherMonitor, this));
+    poincloud_publish_timer_ = this->create_wall_timer(
+        10ms, std::bind(&SensorToPointcloud::publisherMonitor, this));
 }
 
 SensorToPointcloud::~SensorToPointcloud()
@@ -128,6 +155,12 @@ SensorToPointcloud::~SensorToPointcloud()
 
 void SensorToPointcloud::publisherMonitor()
 {
+    publish_cnt_1d_tof += 10;
+    publish_cnt_multi_tof += 10;
+    publish_cnt_row_tof += 10;
+    publish_cnt_camera += 10;
+    publish_cnt_cliff += 10;
+
     // msg Reset
     if (!isTofUpdating) {
         if (use_tof_1D) {
@@ -167,36 +200,57 @@ void SensorToPointcloud::publisherMonitor()
     // publish pointCloud Data
     if (use_tof_pointcloud && isTofUpdating) { // ToF
         if (use_tof_1D) {
-            pc_tof_1d_pub_->publish(pc_tof_1d_msg);
+            if (publish_cnt_1d_tof >= publish_rate_1d_tof) {
+                pc_tof_1d_pub_->publish(pc_tof_1d_msg);
+                publish_cnt_1d_tof = 0;
+            }
         }
         if (use_tof_left || use_tof_right) {
-            pc_tof_multi_pub_->publish(pc_tof_multi_msg);
+            if (publish_cnt_multi_tof >= publish_rate_multi_tof) {
+                pc_tof_multi_pub_->publish(pc_tof_multi_msg);
+                publish_cnt_multi_tof = 0;
+            }
         }
         if (tof_debug_mode) {
-            if (use_tof_left) {
-                pc_tof_left_row1_pub_->publish(pc_tof_left_row1_msg);
-                pc_tof_left_row2_pub_->publish(pc_tof_left_row2_msg);
-                pc_tof_left_row3_pub_->publish(pc_tof_left_row3_msg);
-                pc_tof_left_row4_pub_->publish(pc_tof_left_row4_msg);
-            }
-            if (use_tof_right) {
-                pc_tof_right_row1_pub_->publish(pc_tof_right_row1_msg);
-                pc_tof_right_row2_pub_->publish(pc_tof_right_row2_msg);
-                pc_tof_right_row3_pub_->publish(pc_tof_right_row3_msg);
-                pc_tof_right_row4_pub_->publish(pc_tof_right_row4_msg);
+            if (publish_cnt_row_tof >= publish_rate_row_tof) {
+                if (use_tof_left) {
+                    pc_tof_left_row1_pub_->publish(pc_tof_left_row1_msg);
+                    pc_tof_left_row2_pub_->publish(pc_tof_left_row2_msg);
+                    pc_tof_left_row3_pub_->publish(pc_tof_left_row3_msg);
+                    pc_tof_left_row4_pub_->publish(pc_tof_left_row4_msg);
+                }
+                if (use_tof_right) {
+                    pc_tof_right_row1_pub_->publish(pc_tof_right_row1_msg);
+                    pc_tof_right_row2_pub_->publish(pc_tof_right_row2_msg);
+                    pc_tof_right_row3_pub_->publish(pc_tof_right_row3_msg);
+                    pc_tof_right_row4_pub_->publish(pc_tof_right_row4_msg);
+                }
+                publish_cnt_row_tof = 0;
             }
         }
         isTofUpdating = false;
     }
     if (use_camera_pointcloud && isCameraUpdating) { // Camera
-        pc_camera_pub_->publish(pc_camera_msg);
-        bbox_array_camera_pub_->publish(bbox_msg);
-        isCameraUpdating = false;
+        if (publish_cnt_camera >= publish_rate_camera) {
+            pc_camera_pub_->publish(pc_camera_msg);
+            bbox_array_camera_pub_->publish(bbox_msg);
+            isCameraUpdating = false;
+            publish_cnt_camera = 0;
+        }
     }
     if (use_cliff_pointcloud && isCliffUpdating) {
-        pc_cliff_pub_->publish(pc_cliff_msg);
-        isCliffUpdating = false;
+        if (publish_cnt_cliff >= publish_rate_cliff) {
+            pc_cliff_pub_->publish(pc_cliff_msg);
+            isCliffUpdating = false;
+            publish_cnt_cliff = 0;
+        }
     }
+
+    if (publish_cnt_1d_tof > 10000)     publish_cnt_1d_tof = 0;
+    if (publish_cnt_multi_tof > 10000)  publish_cnt_multi_tof = 0;
+    if (publish_cnt_row_tof > 10000)    publish_cnt_row_tof = 0;
+    if (publish_cnt_camera > 10000)     publish_cnt_camera = 0;
+    if (publish_cnt_cliff > 10000)      publish_cnt_cliff = 0;
 }
 
 void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)

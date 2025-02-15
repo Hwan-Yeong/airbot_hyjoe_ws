@@ -38,19 +38,23 @@ def generate_launch_description():
              parameters=[
                 {"target_frame": "base_link"}, # "map" or "base_link"
 
-                {"use_tof_pointcloud": True},
-                {"use_tof_1D": True},
-                {"use_tof_left": True},
-                {"use_tof_right": True},
-                {"tof_debug_mode": True},
-                {"use_camera_pointcloud": True},
-                {"use_cliff_pointcloud": True},
+                {"use.tof": True},
+                {"use.tof.1D": True},
+                {"use.tof.left": True},
+                {"use.tof.right": True},
+                {"use.tof.row": True},
+                {"use.camera": True},
+                {"use.cliff": True},
 
-                {"camera_pointcloud_resolution_m": 0.05},
-                {"camera_class_id_confidence_th": ["1: 50", "5: 49", "6: 48"]}, # "class_id:score_th"
-                {"camera_object_direction": True}, # 정방향(CCW+):True, 역방향(CW+):False
+                {"camera.pointcloud_resolutionm": 0.05},
+                {"camera.class_id_confidence_th": ["1: 50", "5: 49", "6: 48"]}, # "class_id:score_th"
+                {"camera.object_direction": True}, # 정방향(CCW+):True, 역방향(CW+):False
 
-                {"pointcloud_publish_rate_ms": 100},
+                {"publish.rate_ms.tof_1d": 10},
+                {"publish.rate_ms.tof_multi": 50},
+                {"publish.rate_ms.tof_row": 50},
+                {"publish.rate_ms.camera": 100},
+                {"publish.rate_ms.cliff": 10},
             ]
         ),
     ])
