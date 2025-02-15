@@ -15,6 +15,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(yaml_cpp_vendor REQUIRED)
 
 include_directories(
   include
@@ -53,6 +54,9 @@ install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION include/${PROJECT_NAME})
 
 install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME})
+
+install(DIRECTORY config
   DESTINATION share/${PROJECT_NAME})
 
 ament_package()

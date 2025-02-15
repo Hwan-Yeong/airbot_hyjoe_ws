@@ -53,14 +53,14 @@ private:
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
     std::string target_frame;
-    bool use_tof_pointcloud;
+    bool use_tof;
     bool use_tof_1D;
     bool use_tof_left;
     bool use_tof_right;
-    bool tof_debug_mode;
-    bool use_camera_pointcloud;
-    bool use_cliff_pointcloud;
-    float camera_pointcloud_resolution_m;
+    bool use_tof_row;
+    bool use_camera;
+    bool ues_cliff;
+    float camera_pointcloud_resolution;
     std::vector<std::string> camera_param_raw_vector;
     std::map<int, int> camera_class_id_confidence_th;
     bool camera_object_direction;

@@ -61,14 +61,14 @@ SensorToPointcloud::SensorToPointcloud()
 
     // Set Parameters
     this->get_parameter("target_frame", target_frame);
-    this->get_parameter("use.tof", use_tof_pointcloud);
+    this->get_parameter("use.tof", use_tof);
     this->get_parameter("use.tof.1D", use_tof_1D);
     this->get_parameter("use.tof.left", use_tof_left);
     this->get_parameter("use.tof.right", use_tof_right);
-    this->get_parameter("use.tof.row", tof_debug_mode);
-    this->get_parameter("use.camera", use_camera_pointcloud);
-    this->get_parameter("use.cliff", use_cliff_pointcloud);
-    this->get_parameter("camera.pointcloud_resolution", camera_pointcloud_resolution_m);
+    this->get_parameter("use.tof.row", use_tof_row);
+    this->get_parameter("use.camera", use_camera);
+    this->get_parameter("use.cliff", ues_cliff);
+    this->get_parameter("camera.pointcloud_resolution", camera_pointcloud_resolution);
     this->get_parameter("camera.class_id_confidence_th", camera_param_raw_vector);
     this->get_parameter("camera.object_direction", camera_object_direction);
     this->get_parameter("publish.rate_ms.tof_1d", publish_rate_1d_tof);
@@ -103,12 +103,12 @@ SensorToPointcloud::SensorToPointcloud()
         "bottom_status", 10, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1));
     
     // Msg Publishers
-    if (use_tof_pointcloud) {
+    if (use_tof) {
         pc_tof_1d_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
             "sensor_to_pointcloud/tof/mono", 10);
         pc_tof_multi_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
             "sensor_to_pointcloud/tof/multi", 10);
-        if (tof_debug_mode) {
+        if (use_tof_row) {
             pc_tof_left_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
                 "sensor_to_pointcloud/tof/multi/left/row_1", 10);
             pc_tof_left_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
@@ -127,13 +127,13 @@ SensorToPointcloud::SensorToPointcloud()
                 "sensor_to_pointcloud/tof/multi/right/row_4", 10);
         }
     }
-    if (use_camera_pointcloud) {
+    if (use_camera) {
         pc_camera_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
             "sensor_to_pointcloud/camera_object", 10);
         bbox_array_camera_pub_ = this->create_publisher<vision_msgs::msg::BoundingBox2DArray>(
             "sensor_to_pointcloud/camera/bbox", 10);
     }
-    if (use_cliff_pointcloud) {
+    if (ues_cliff) {
         pc_cliff_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
             "sensor_to_pointcloud/cliff", 10);
     }
@@ -169,7 +169,7 @@ void SensorToPointcloud::publisherMonitor()
         if (use_tof_left || use_tof_right) {
             pc_tof_multi_msg = sensor_msgs::msg::PointCloud2(); //clear
         }
-        if (tof_debug_mode) {
+        if (use_tof_row) {
             if (use_tof_left) {
                 pc_tof_left_row1_msg = sensor_msgs::msg::PointCloud2(); //clear
                 pc_tof_left_row2_msg = sensor_msgs::msg::PointCloud2(); //clear
@@ -185,20 +185,20 @@ void SensorToPointcloud::publisherMonitor()
         }
     }
     if (!isCameraUpdating) {
-        if (use_camera_pointcloud) {
+        if (use_camera) {
             pc_camera_msg = sensor_msgs::msg::PointCloud2(); //clear
             bbox_msg = vision_msgs::msg::BoundingBox2DArray(); //clear
             marker_msg = visualization_msgs::msg::MarkerArray(); //clear
         }
     }
     if (!isCliffUpdating) {
-        if (use_cliff_pointcloud) {
+        if (ues_cliff) {
             pc_cliff_msg = sensor_msgs::msg::PointCloud2();
         }
     }
 
     // publish pointCloud Data
-    if (use_tof_pointcloud && isTofUpdating) { // ToF
+    if (use_tof && isTofUpdating) { // ToF
         if (use_tof_1D) {
             if (publish_cnt_1d_tof >= publish_rate_1d_tof) {
                 pc_tof_1d_pub_->publish(pc_tof_1d_msg);
@@ -211,7 +211,7 @@ void SensorToPointcloud::publisherMonitor()
                 publish_cnt_multi_tof = 0;
             }
         }
-        if (tof_debug_mode) {
+        if (use_tof_row) {
             if (publish_cnt_row_tof >= publish_rate_row_tof) {
                 if (use_tof_left) {
                     pc_tof_left_row1_pub_->publish(pc_tof_left_row1_msg);
@@ -230,7 +230,7 @@ void SensorToPointcloud::publisherMonitor()
         }
         isTofUpdating = false;
     }
-    if (use_camera_pointcloud && isCameraUpdating) { // Camera
+    if (use_camera && isCameraUpdating) { // Camera
         if (publish_cnt_camera >= publish_rate_camera) {
             pc_camera_pub_->publish(pc_camera_msg);
             bbox_array_camera_pub_->publish(bbox_msg);
@@ -238,7 +238,7 @@ void SensorToPointcloud::publisherMonitor()
             publish_cnt_camera = 0;
         }
     }
-    if (use_cliff_pointcloud && isCliffUpdating) {
+    if (ues_cliff && isCliffUpdating) {
         if (publish_cnt_cliff >= publish_rate_cliff) {
             pc_cliff_pub_->publish(pc_cliff_msg);
             isCliffUpdating = false;
@@ -263,7 +263,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
         point_cloud_tof_.updateRobotPose(pose);
     }
 
-    if (use_tof_pointcloud) {
+    if (use_tof) {
         if (use_tof_1D) {
             pc_tof_1d_msg = point_cloud_tof_.updateTopTofPointCloudMsg(msg);
         }
@@ -272,7 +272,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
                             (use_tof_left ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
             pc_tof_multi_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, side, false);
         }
-        if (tof_debug_mode) {
+        if (use_tof_row) {
             if (use_tof_left) {
                 pc_tof_left_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::FIRST);
                 pc_tof_left_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::SECOND);
@@ -301,9 +301,9 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::AIDataArr
         point_cloud_camera_.updateRobotPose(pose);
     }
 
-    if (use_camera_pointcloud) {
+    if (use_camera) {
         bbox_msg = point_cloud_camera_.updateCameraBoundingBoxMsg(msg, camera_class_id_confidence_th, camera_object_direction);
-        pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_msg, camera_pointcloud_resolution_m);
+        pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_msg, camera_pointcloud_resolution);
     }
 
     isCameraUpdating = true;
@@ -319,7 +319,7 @@ void SensorToPointcloud::cliffMsgUpdate(const std_msgs::msg::UInt8::SharedPtr ms
         // point_cloud_camera_.updateRobotPose(pose);
     }
 
-    if (use_cliff_pointcloud) {
+    if (ues_cliff) {
         pc_cliff_msg = point_cloud_cliff_.updateCliffPointCloudMsg(msg);
     }
 
