@@ -11,6 +11,8 @@ from launch_ros.actions import Node
 from launch.conditions import IfCondition
 from launch_ros.actions import Node
 from launch.substitutions import ThisLaunchFileDir
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 
 ##############################
 ### Camera Object Class ID ###
@@ -29,54 +31,24 @@ from launch.substitutions import ThisLaunchFileDir
 ##############################
 
 def generate_launch_description():
+    parameter_file = LaunchConfiguration('params_file')
+    params_declare = DeclareLaunchArgument(
+        'params_file',
+        default_value=os.path.join(
+            get_package_share_directory('airbot_sensor_to_pointcloud'),
+            'config',
+            'sensor_to_pointcloud_param.yaml'
+        ),
+        description='Path to the ROS2 parameters file to use.'
+    )
 
     return LaunchDescription([
+        params_declare,
         Node(
+            name='airbot_sensor_to_pointcloud',
             package='airbot_sensor_to_pointcloud',
             executable='sensor_to_pointcloud',
             output='screen',
-            name='airbot_sensor_to_pointcloud',
-            parameters=[
-            {"target_frame": "map"}, # "map" or "base_link"
-
-            {"use.tof": True},
-            {"use.tof.1D": True},
-            {"use.tof.left": True},
-            {"use.tof.right": True},
-            {"use.tof.row": True},
-            {"use.camera": True},
-            {"use.cliff": True},
-
-            {"camera.pointcloud_resolutionm": 0.05},
-            {"camera.class_id_confidence_th": ["2: 55", "5: 55", "6: 55"]}, # "class_id:score_th"
-            {"camera.object_direction": False}, # 정방향(CCW+):True, 역방향(CW+):False
-
-            {"publish.rate_ms.tof_1d": 10},
-            {"publish.rate_ms.tof_multi": 50},
-            {"publish.rate_ms.tof_row": 50},
-            {"publish.rate_ms.camera": 100},
-            {"publish.rate_ms.cliff": 10},
-        ]
+            parameters=[parameter_file],
         ),
     ])
-
-
-    # config_file = os.path.join(
-    #     get_package_share_directory('airbot_sensor_to_pointcloud'),
-    #     'config',
-    #     'airbot_sensor_to_pointcloud.yaml'
-    # )
-
-    # # YAML 파일 로드
-    # with open(config_file, 'r') as file:
-    #     params = yaml.safe_load(file)
-
-    # return LaunchDescription([
-    #     Node(
-    #         name='airbot_sensor_to_pointcloud',
-    #         package='airbot_sensor_to_pointcloud',
-    #         executable='sensor_to_pointcloud',
-    #         output='screen',
-    #         parameters=[params],
-    #     ),
-    # ])

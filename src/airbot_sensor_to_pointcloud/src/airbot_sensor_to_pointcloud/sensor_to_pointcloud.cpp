@@ -43,7 +43,7 @@ SensorToPointcloud::SensorToPointcloud()
 {
     // Declare Parameters
     this->declare_parameter("target_frame","base_link");
-    this->declare_parameter("use.tof",false);
+    this->declare_parameter("use.tof.all",false);
     this->declare_parameter("use.tof.1D",false);
     this->declare_parameter("use.tof.left",false);
     this->declare_parameter("use.tof.right",false);
@@ -61,7 +61,7 @@ SensorToPointcloud::SensorToPointcloud()
 
     // Set Parameters
     this->get_parameter("target_frame", target_frame);
-    this->get_parameter("use.tof", use_tof);
+    this->get_parameter("use.tof.all", use_tof);
     this->get_parameter("use.tof.1D", use_tof_1D);
     this->get_parameter("use.tof.left", use_tof_left);
     this->get_parameter("use.tof.right", use_tof_right);
