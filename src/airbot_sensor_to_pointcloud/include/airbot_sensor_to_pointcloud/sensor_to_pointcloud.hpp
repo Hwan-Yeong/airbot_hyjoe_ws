@@ -61,8 +61,8 @@ private:
     bool use_camera_pointcloud;
     bool use_cliff_pointcloud;
     float camera_pointcloud_resolution_m;
-    std::vector<long int> camera_target_class_id_list;
-    int camera_confidence_threshold;
+    std::vector<std::string> camera_param_raw_vector;
+    std::map<int, int> camera_class_id_confidence_th;
     bool camera_object_direction;
     int pointcloud_publish_rate_ms;
 

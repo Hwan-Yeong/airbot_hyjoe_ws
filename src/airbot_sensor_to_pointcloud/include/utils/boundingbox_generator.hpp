@@ -20,8 +20,7 @@ public:
                                                                     std::string frame,
                                                                     tPose robot_pose,
                                                                     tPoint translation,
-                                                                    std::vector<long int> class_id_list,
-                                                                    int th_confidence,
+                                                                    std::map<int, int> class_id_confidence_th,
                                                                     bool direction);
 
 private:

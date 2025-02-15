@@ -18,7 +18,7 @@ public:
 
     void updateTargetFrame(std::string &updated_frame);
     void updateRobotPose(tPose &pose);
-    vision_msgs::msg::BoundingBox2DArray updateCameraBoundingBoxMsg(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg, std::vector<long int> class_id_list, int th_confidence, bool direction);
+    vision_msgs::msg::BoundingBox2DArray updateCameraBoundingBoxMsg(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg, std::map<int, int> class_id_confidence_th, bool direction);
     sensor_msgs::msg::PointCloud2 updateCameraPointCloudMsg(vision_msgs::msg::BoundingBox2DArray msg, float pc_resolution);
 
 private:

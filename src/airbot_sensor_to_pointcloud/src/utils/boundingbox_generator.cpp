@@ -13,8 +13,7 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
                                                                                       std::string frame,
                                                                                       tPose robot_pose,
                                                                                       tPoint translation,
-                                                                                      std::vector<long int> class_id_list,
-                                                                                      int th_confidence,
+                                                                                      std::map<int, int> class_id_confidence_th,
                                                                                       bool direction)
 {
     auto bbox_array = vision_msgs::msg::BoundingBox2DArray();
@@ -32,8 +31,8 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
     const double robot_sin = std::sin(robot_pose.orientation.yaw);
     for (const auto &obj : objects)
     {
-        auto it = std::find(class_id_list.begin(), class_id_list.end(), static_cast<long int>(obj.id));
-        if (it != class_id_list.end() && static_cast<int>(obj.score) >= th_confidence) { // data filtering with "class id", "confidencd score"
+        auto it = class_id_confidence_th.find(obj.id);
+        if (it != class_id_confidence_th.end() && static_cast<int>(obj.score) >= it->second) { // data filtering with "class id", "confidencd score"
             if (obj.height >= 0.0 && obj.width >= 0.0) {
                 auto bbox = vision_msgs::msg::BoundingBox2D();
 
@@ -67,7 +66,7 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
             }
         } else {
             // RCLCPP_INFO(rclcpp::get_logger("BoundingBoxGenerator"),
-            //             "[Camera Filtered Data] ID: %d, SCORE: %d", static_cast<long int>(obj.id), static_cast<int>(obj.score));
+            //             "[Camera Filtered Data] ID: %d, SCORE: %d", static_cast<int>(obj.id), static_cast<int>(obj.score));
         }
     }
 

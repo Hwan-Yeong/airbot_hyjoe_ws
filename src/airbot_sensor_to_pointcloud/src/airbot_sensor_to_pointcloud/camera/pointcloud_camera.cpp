@@ -30,14 +30,13 @@ void PointCloudCamera::updateRobotPose(tPose &pose)
     robot_pose_ = pose;
 }
 
-vision_msgs::msg::BoundingBox2DArray PointCloudCamera::updateCameraBoundingBoxMsg(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg, std::vector<long int> class_id_list, int th_confidence, bool direction)
+vision_msgs::msg::BoundingBox2DArray PointCloudCamera::updateCameraBoundingBoxMsg(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg, std::map<int, int> class_id_confidence_th, bool direction)
 {
     camera_bbox_array_ = boundingbox_generator_->generateBoundingBoxMessage(msg,
                                                                            target_frame_,
                                                                            robot_pose_,
                                                                            camera_translation_,
-                                                                           class_id_list,
-                                                                           th_confidence,
+                                                                           class_id_confidence_th,
                                                                            direction);
     return camera_bbox_array_;
 }

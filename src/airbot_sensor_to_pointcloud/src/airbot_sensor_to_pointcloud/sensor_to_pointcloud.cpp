@@ -47,8 +47,7 @@ SensorToPointcloud::SensorToPointcloud()
     this->declare_parameter("use_camera_pointcloud",false);
     this->declare_parameter("use_cliff_pointcloud",false);
     this->declare_parameter("camera_pointcloud_resolution_m",0.0);
-    this->declare_parameter("camera_target_class_id_list",std::vector<long int>());
-    this->declare_parameter("camera_confidence_threshold",0);
+    this->declare_parameter("camera_class_id_confidence_th",std::vector<std::string>());
     this->declare_parameter("camera_object_direction",false);
     this->declare_parameter("pointcloud_publish_rate_ms",0);
 
@@ -62,8 +61,7 @@ SensorToPointcloud::SensorToPointcloud()
     this->get_parameter("use_camera_pointcloud", use_camera_pointcloud);
     this->get_parameter("use_cliff_pointcloud", use_cliff_pointcloud);
     this->get_parameter("camera_pointcloud_resolution_m", camera_pointcloud_resolution_m);
-    this->get_parameter("camera_target_class_id_list", camera_target_class_id_list);
-    this->get_parameter("camera_confidence_threshold", camera_confidence_threshold);
+    this->get_parameter("camera_class_id_confidence_th", camera_param_raw_vector);
     this->get_parameter("camera_object_direction", camera_object_direction);
     this->get_parameter("pointcloud_publish_rate_ms", pointcloud_publish_rate_ms);
 
@@ -71,6 +69,13 @@ SensorToPointcloud::SensorToPointcloud()
     point_cloud_tof_.updateTargetFrame(target_frame);
     point_cloud_camera_.updateTargetFrame(target_frame);
     point_cloud_cliff_.updateTargetFrame(target_frame);
+    for (const auto& item : camera_param_raw_vector) {
+        std::istringstream ss(item);
+        std::string key, value;
+        if (std::getline(ss, key, ':') && std::getline(ss, value)) {
+            camera_class_id_confidence_th[std::stoi(key)] = std::stoi(value);
+        }
+    }
 
     // Msg Update Flags
     isTofUpdating = false;
@@ -239,7 +244,7 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::AIDataArr
     }
 
     if (use_camera_pointcloud) {
-        bbox_msg = point_cloud_camera_.updateCameraBoundingBoxMsg(msg, camera_target_class_id_list, camera_confidence_threshold, camera_object_direction);
+        bbox_msg = point_cloud_camera_.updateCameraBoundingBoxMsg(msg, camera_class_id_confidence_th, camera_object_direction);
         pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_msg, camera_pointcloud_resolution_m);
     }
 

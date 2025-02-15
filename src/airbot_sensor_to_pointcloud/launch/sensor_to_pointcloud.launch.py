@@ -47,8 +47,7 @@ def generate_launch_description():
                 {"use_cliff_pointcloud": True},
 
                 {"camera_pointcloud_resolution_m": 0.05},
-                {"camera_target_class_id_list": [1, 5, 6]},
-                {"camera_confidence_threshold": 55}, # range:[1,100]
+                {"camera_class_id_confidence_th": ["1: 50", "5: 49", "6: 48"]}, # "class_id:score_th"
                 {"camera_object_direction": True}, # 정방향(CCW+):True, 역방향(CW+):False
 
                 {"pointcloud_publish_rate_ms": 100},
