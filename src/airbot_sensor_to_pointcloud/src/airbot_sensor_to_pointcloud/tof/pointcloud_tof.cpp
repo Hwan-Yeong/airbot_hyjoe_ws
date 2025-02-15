@@ -2,21 +2,25 @@
 
 PointCloudTof::PointCloudTof(double tof_top_sensor_frame_x_translate = 0.0942,
                              double tof_top_sensor_frame_y_translate = 0.0,
-                             double tof_tof_sensor_frame_z_translate = 0.56513,
+                             double tof_top_sensor_frame_z_translate = 0.56513,
                              double tof_top_sensor_frame_pitch_ang = 33,
                              double tof_bot_sensor_frame_x_translate = 0.145,
                              double tof_bot_sensor_frame_y_translate = 0.076,
                              double tof_bot_sensor_frame_z_translate = 0.03,
+                             double tof_bot_left_sensor_frame_pitch_ang = 0.0,
+                             double tof_bot_right_sensor_frame_pitch_ang = 0.0,
                              double tof_bot_left_sensor_frame_yaw_ang = 15.0,
                              double tof_bot_right_sensor_frame_yaw_ang = -15.0,
                              double tof_bot_fov_ang = 45)
     : tof_top_translation_(tof_top_sensor_frame_x_translate,
                            tof_top_sensor_frame_y_translate,
-                           tof_tof_sensor_frame_z_translate),
+                           tof_top_sensor_frame_z_translate),
       tof_top_sensor_frame_pitch_ang_(tof_top_sensor_frame_pitch_ang),
       tof_bot_translation_(tof_bot_sensor_frame_x_translate,
                            tof_bot_sensor_frame_y_translate,
                            tof_bot_sensor_frame_z_translate),
+      tof_bot_left_sensor_frame_pitch_ang_(tof_bot_left_sensor_frame_pitch_ang),
+      tof_bot_right_sensor_frame_pitch_ang_(tof_bot_right_sensor_frame_pitch_ang),
       tof_bot_left_sensor_frame_yaw_ang_(tof_bot_left_sensor_frame_yaw_ang),
       tof_bot_right_sensor_frame_yaw_ang_(tof_bot_right_sensor_frame_yaw_ang),
       tof_bot_fov_ang_(tof_bot_fov_ang)
@@ -94,6 +98,7 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
         multi_tof_points_on_robot_frame = frame_converter_->transformTofSensor2RobotFrame(multi_tof_points_on_sensor_frame,
                                                                                           true,
                                                                                           tof_bot_left_sensor_frame_yaw_ang_,
+                                                                                          tof_bot_left_sensor_frame_pitch_ang_,
                                                                                           tof_bot_translation_);
         if (target_frame_ == "map") {
             multi_tof_points_on_map_frame
@@ -107,6 +112,7 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
         multi_tof_points_on_robot_frame = frame_converter_->transformTofSensor2RobotFrame(multi_tof_points_on_sensor_frame,
                                                                                           false,
                                                                                           tof_bot_right_sensor_frame_yaw_ang_,
+                                                                                          tof_bot_right_sensor_frame_pitch_ang_,
                                                                                           tof_bot_translation_);
         if (target_frame_ == "map") {
             multi_tof_points_on_map_frame = frame_converter_->transformRobot2GlobalFrame(multi_tof_points_on_robot_frame,
@@ -120,10 +126,12 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
         multi_left_tof_points_on_robot_frame = frame_converter_->transformTofSensor2RobotFrame(multi_left_tof_points_on_sensor_frame,
                                                                                                true,
                                                                                                tof_bot_left_sensor_frame_yaw_ang_,
+                                                                                               tof_bot_left_sensor_frame_pitch_ang_,
                                                                                                tof_bot_translation_);
         multi_right_tof_points_on_robot_frame = frame_converter_->transformTofSensor2RobotFrame(multi_right_tof_points_on_sensor_frame,
                                                                                                 false,
                                                                                                 tof_bot_right_sensor_frame_yaw_ang_,
+                                                                                                tof_bot_right_sensor_frame_pitch_ang_,
                                                                                                 tof_bot_translation_);
         multi_tof_points_on_robot_frame.insert(multi_tof_points_on_robot_frame.end(), 
                                                multi_left_tof_points_on_robot_frame.begin(), 

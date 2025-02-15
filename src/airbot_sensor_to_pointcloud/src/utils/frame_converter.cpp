@@ -12,23 +12,29 @@ FrameConverter::~FrameConverter()
 std::vector<tPoint> FrameConverter::transformTofSensor2RobotFrame(const std::vector<tPoint> &input_points,
                                                                   bool isLeft,
                                                                   double rotation_yaw,
+                                                                  double rotation_pitch,
                                                                   tPoint translation)
 {
     std::vector<tPoint> points;
     tPoint p;
 
-    const double cosine = std::cos(rotation_yaw*M_PI/180);
-    const double sine = std::sin(rotation_yaw*M_PI/180);
+    const double cosine_yaw = std::cos(rotation_yaw*M_PI/180);
+    const double sine_yaw = std::sin(rotation_yaw*M_PI/180);
+    const double cosine_pitch = std::cos(rotation_pitch*M_PI/180);
+    const double sine_pitch = std::sin(rotation_pitch*M_PI/180);
 
     for (const auto& point : input_points) {
+        double x_yaw = point.x * cosine_yaw - point.y * sine_yaw;
+        double y_yaw = point.x * sine_yaw + point.y * cosine_yaw;
+        double z_yaw = point.z;
         if (isLeft) {
-            p.x = point.x * cosine - point.y * sine + translation.x;
-            p.y = point.x * sine + point.y * cosine + translation.y;
-            p.z = point.z + translation.z;
+            p.x = x_yaw * cosine_pitch + z_yaw * sine_pitch + translation.x;
+            p.y = y_yaw + translation.y;
+            p.z = -x_yaw * sine_pitch + z_yaw * cosine_pitch + translation.z;
         } else {
-            p.x = point.x * cosine - point.y * sine + translation.x;
-            p.y = point.x * sine + point.y * cosine - translation.y;
-            p.z = point.z + translation.z;
+            p.x = x_yaw * cosine_pitch + z_yaw * sine_pitch + translation.x;
+            p.y = y_yaw - translation.y;
+            p.z = -x_yaw * sine_pitch + z_yaw * cosine_pitch + translation.z;
         }
         points.push_back(p);
     }

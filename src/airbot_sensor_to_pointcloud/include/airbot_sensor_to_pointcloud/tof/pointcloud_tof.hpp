@@ -12,11 +12,13 @@ class PointCloudTof
 public:
     PointCloudTof(double tof_top_sensor_frame_x_translate,
                   double tof_top_sensor_frame_y_translate,
-                  double tof_tof_sensor_frame_z_translate,
+                  double tof_top_sensor_frame_z_translate,
                   double tof_top_sensor_frame_pitch_ang,
                   double tof_bot_sensor_frame_x_translate,
                   double tof_bot_sensor_frame_y_translate,
                   double tof_bot_sensor_frame_z_translate,
+                  double tof_bot_left_sensor_frame_pitch_ang,
+                  double tof_bot_right_sensor_frame_pitch_ang,
                   double tof_bot_left_sensor_frame_yaw_ang,
                   double tof_bot_rihgt_sensor_frame_yaw_ang,
                   double tof_bot_fov_ang);
@@ -36,6 +38,8 @@ private:
     tPoint tof_top_translation_;
     double tof_top_sensor_frame_pitch_ang_;
     tPoint tof_bot_translation_;
+    double tof_bot_left_sensor_frame_pitch_ang_;
+    double tof_bot_right_sensor_frame_pitch_ang_;
     double tof_bot_left_sensor_frame_yaw_ang_;
     double tof_bot_right_sensor_frame_yaw_ang_;
     double tof_bot_fov_ang_;

@@ -5,11 +5,13 @@ using namespace std::chrono_literals;
 // Robot, Sensor Geometric Specification
 double tof_top_sensor_frame_x_translate = 0.0942;       //[meter]
 double tof_top_sensor_frame_y_translate = 0.0;          //[meter]
-double tof_tof_sensor_frame_z_translate = 0.56513;      //[meter]
-double tof_top_sensor_frame_pitch_ang = 50; //30        //[deg]
+double tof_top_sensor_frame_z_translate = 0.56513;      //[meter]
+double tof_top_sensor_frame_pitch_ang = 45;             //[deg]
 double tof_bot_sensor_frame_x_translate = 0.14316;      //[meter]
 double tof_bot_sensor_frame_y_translate = 0.075446;     //[meter]
 double tof_bot_sensor_frame_z_translate = 0.03;         //[meter]
+double tof_bot_left_sensor_frame_pitch_ang = -2.0;      //[deg]
+double tof_bot_right_sensor_frame_pitch_ang = -2.0;     //[deg]
 double tof_bot_left_sensor_frame_yaw_ang = 13.0;        //[deg]
 double tof_bot_rihgt_sensor_frame_yaw_ang = -15.0;      //[deg]
 double tof_bot_fov_ang = 45;                            //[deg]
@@ -23,11 +25,13 @@ SensorToPointcloud::SensorToPointcloud()
     : rclcpp::Node("airbot_sensor_to_pointcloud"),
     point_cloud_tof_(tof_top_sensor_frame_x_translate,
                      tof_top_sensor_frame_y_translate,
-                     tof_tof_sensor_frame_z_translate,
+                     tof_top_sensor_frame_z_translate,
                      tof_top_sensor_frame_pitch_ang,
                      tof_bot_sensor_frame_x_translate,
                      tof_bot_sensor_frame_y_translate,
                      tof_bot_sensor_frame_z_translate,
+                     tof_bot_left_sensor_frame_pitch_ang,
+                     tof_bot_right_sensor_frame_pitch_ang,
                      tof_bot_left_sensor_frame_yaw_ang,
                      tof_bot_rihgt_sensor_frame_yaw_ang,
                      tof_bot_fov_ang),

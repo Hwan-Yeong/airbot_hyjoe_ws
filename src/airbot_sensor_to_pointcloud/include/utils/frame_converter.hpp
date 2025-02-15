@@ -29,6 +29,7 @@ public:
     std::vector<tPoint> transformTofSensor2RobotFrame(const std::vector<tPoint> &input_points,
                                                       bool isLeft, 
                                                       double rotation_yaw,
+                                                      double rotation_pitch,
                                                       tPoint translation);
     std::vector<tPoint> transformCameraSensor2RobotFrame(const std::vector<tPoint> &input_points,
                                                          tPoint translation);
