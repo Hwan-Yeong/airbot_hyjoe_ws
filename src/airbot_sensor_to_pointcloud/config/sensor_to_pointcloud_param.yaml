@@ -1,29 +1,34 @@
 airbot_sensor_to_pointcloud:
   ros__parameters:
+  
     target_frame: "map" # "map" or "base_link"
 
-    use:
-      tof:
-        all: true
-        1D: true
-        left: true
-        right: true
-        row: true
-      camera: true
-      cliff: true
-
+    tof:
+      all:
+        use: true
+      1D:
+        use: true
+        publish_rate_ms: 10
+      multi:
+        publish_rate_ms: 50
+        left:
+          use: true
+        right:
+          use: true
+        row:
+          use: true
+          publish_rate_ms: 50
+    
     camera:
+      use: true
+      publish_rate_ms: 100
       pointcloud_resolution: 0.05
       class_id_confidence_th: # 형식: "class id: confidence score"
         - "2: 55"
         - "5: 55"
         - "6: 55"
       object_direction: false  # 정방향(CCW+):True, 역방향(CW+):False
-
-    publish:
-      rate_ms:
-        tof_1d: 10
-        tof_multi: 50
-        tof_row: 50
-        camera: 100
-        cliff: 10
+    
+    cliff:
+      use: true
+      publish_rate_ms: 10

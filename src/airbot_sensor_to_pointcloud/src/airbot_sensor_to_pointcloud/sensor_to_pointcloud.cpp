@@ -43,39 +43,39 @@ SensorToPointcloud::SensorToPointcloud()
 {
     // Declare Parameters
     this->declare_parameter("target_frame","base_link");
-    this->declare_parameter("use.tof.all",false);
-    this->declare_parameter("use.tof.1D",false);
-    this->declare_parameter("use.tof.left",false);
-    this->declare_parameter("use.tof.right",false);
-    this->declare_parameter("use.tof.row",false);
-    this->declare_parameter("use.camera",false);
-    this->declare_parameter("use.cliff",false);
+    this->declare_parameter("tof.all.use",false);
+    this->declare_parameter("tof.1D.use",false);
+    this->declare_parameter("tof.1D.publish_rate_ms",100);
+    this->declare_parameter("tof.multi.publish_rate_ms",100);
+    this->declare_parameter("tof.multi.left.use",false);
+    this->declare_parameter("tof.multi.right.use",false);
+    this->declare_parameter("tof.multi.row.use",false);
+    this->declare_parameter("tof.multi.row.publish_rate_ms",100);
+    this->declare_parameter("camera.use",false);
+    this->declare_parameter("camera.publish_rate_ms",100);
     this->declare_parameter("camera.pointcloud_resolution",0.05);
     this->declare_parameter("camera.class_id_confidence_th",std::vector<std::string>());
     this->declare_parameter("camera.object_direction",false);
-    this->declare_parameter("publish.rate_ms.tof_1d",100);
-    this->declare_parameter("publish.rate_ms.tof_multi",100);
-    this->declare_parameter("publish.rate_ms.tof_row",100);
-    this->declare_parameter("publish.rate_ms.camera",100);
-    this->declare_parameter("publish.rate_ms.cliff",100);
+    this->declare_parameter("cliff.use",false);
+    this->declare_parameter("cliff.publish_rate_ms",100);
 
     // Set Parameters
     this->get_parameter("target_frame", target_frame);
-    this->get_parameter("use.tof.all", use_tof);
-    this->get_parameter("use.tof.1D", use_tof_1D);
-    this->get_parameter("use.tof.left", use_tof_left);
-    this->get_parameter("use.tof.right", use_tof_right);
-    this->get_parameter("use.tof.row", use_tof_row);
-    this->get_parameter("use.camera", use_camera);
-    this->get_parameter("use.cliff", ues_cliff);
+    this->get_parameter("tof.all.use", use_tof);
+    this->get_parameter("tof.1D.use", use_tof_1D);
+    this->get_parameter("tof.1D.publish_rate_ms", publish_rate_1d_tof);
+    this->get_parameter("tof.multi.publish_rate_ms", publish_rate_multi_tof);
+    this->get_parameter("tof.multi.left.use", use_tof_left);
+    this->get_parameter("tof.multi.right.use", use_tof_right);
+    this->get_parameter("tof.multi.row.use", use_tof_row);
+    this->get_parameter("tof.multi.row.publish_rate_ms", publish_rate_row_tof);
+    this->get_parameter("camera.use", use_camera);
+    this->get_parameter("camera.publish_rate_ms", publish_rate_camera);
     this->get_parameter("camera.pointcloud_resolution", camera_pointcloud_resolution);
     this->get_parameter("camera.class_id_confidence_th", camera_param_raw_vector);
     this->get_parameter("camera.object_direction", camera_object_direction);
-    this->get_parameter("publish.rate_ms.tof_1d", publish_rate_1d_tof);
-    this->get_parameter("publish.rate_ms.tof_multi", publish_rate_multi_tof);
-    this->get_parameter("publish.rate_ms.tof_row", publish_rate_row_tof);
-    this->get_parameter("publish.rate_ms.camera", publish_rate_camera);
-    this->get_parameter("publish.rate_ms.cliff", publish_rate_cliff);
+    this->get_parameter("cliff.use", ues_cliff);
+    this->get_parameter("cliff.publish_rate_ms", publish_rate_cliff);
 
     // Update Parameters
     point_cloud_tof_.updateTargetFrame(target_frame);
