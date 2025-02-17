@@ -28,6 +28,12 @@ airbot_sensor_to_pointcloud:
         - "5: 55"
         - "6: 55"
       object_direction: false  # 정방향(CCW+):True, 역방향(CW+):False
+      logger:
+        use: true
+        margin:
+          distance_diff: 0.5
+          width_diff: 0.1
+          height_diff: 0.1
     
     cliff:
       use: true

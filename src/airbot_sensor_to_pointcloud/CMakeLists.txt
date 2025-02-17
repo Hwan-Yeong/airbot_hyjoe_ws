@@ -34,6 +34,7 @@ add_executable(sensor_to_pointcloud
   src/utils/frame_converter.cpp
   src/utils/pointcloud_generator.cpp
   src/utils/boundingbox_generator.cpp
+  src/logger/camera_object_logger.cpp
 )
 
 ament_target_dependencies(sensor_to_pointcloud 

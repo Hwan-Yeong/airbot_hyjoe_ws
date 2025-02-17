@@ -19,6 +19,7 @@
 #include "airbot_sensor_to_pointcloud/tof/pointcloud_tof.hpp"
 #include "airbot_sensor_to_pointcloud/camera/pointcloud_camera.hpp"
 #include "airbot_sensor_to_pointcloud/cliff/pointcloud_cliff.hpp"
+#include "logger/camera_object_logger.hpp"
 
 
 class SensorToPointcloud : public rclcpp::Node
@@ -31,6 +32,8 @@ private:
     PointCloudTof point_cloud_tof_;
     PointCloudCamera point_cloud_camera_;
     PointCloudCliff point_cloud_cliff_;
+    BoundingBoxGenerator bounding_box_generator_;
+    CameraObjectLogger camera_object_logger_;
 
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::AIDataArray>::SharedPtr camera_sub_;
@@ -60,7 +63,11 @@ private:
     bool use_tof_row;
     bool use_camera;
     bool ues_cliff;
+    bool use_camera_object_logger;
     float camera_pointcloud_resolution;
+    double camera_logger_distance_margin;
+    double camera_logger_width_margin;
+    double camera_logger_height_margin;
     std::vector<std::string> camera_param_raw_vector;
     std::map<int, int> camera_class_id_confidence_th;
     bool camera_object_direction;

@@ -35,11 +35,11 @@ SensorToPointcloud::SensorToPointcloud()
                      tof_bot_left_sensor_frame_yaw_ang,
                      tof_bot_rihgt_sensor_frame_yaw_ang,
                      tof_bot_fov_ang),
-    point_cloud_camera_(camera_sensor_frame_x_translate,
-                        camera_sensor_frame_y_translate,
-                        camera_sensor_frame_z_translate),
     point_cloud_cliff_(cliff_sensor_distance_center_to_front_ir,
-                       cliff_sensor_angle_to_next_ir_sensor)
+                       cliff_sensor_angle_to_next_ir_sensor),
+    bounding_box_generator_(camera_sensor_frame_x_translate,
+                            camera_sensor_frame_y_translate,
+                            camera_sensor_frame_z_translate)
 {
     // Declare Parameters
     this->declare_parameter("target_frame","base_link");
@@ -56,6 +56,10 @@ SensorToPointcloud::SensorToPointcloud()
     this->declare_parameter("camera.pointcloud_resolution",0.05);
     this->declare_parameter("camera.class_id_confidence_th",std::vector<std::string>());
     this->declare_parameter("camera.object_direction",false);
+    this->declare_parameter("camera.logger.use",false);
+    this->declare_parameter("camera.logger.margin.distance_diff",1.0);
+    this->declare_parameter("camera.logger.margin.width_diff",1.0);
+    this->declare_parameter("camera.logger.margin.height_diff",1.0);
     this->declare_parameter("cliff.use",false);
     this->declare_parameter("cliff.publish_rate_ms",100);
 
@@ -74,13 +78,18 @@ SensorToPointcloud::SensorToPointcloud()
     this->get_parameter("camera.pointcloud_resolution", camera_pointcloud_resolution);
     this->get_parameter("camera.class_id_confidence_th", camera_param_raw_vector);
     this->get_parameter("camera.object_direction", camera_object_direction);
+    this->get_parameter("camera.logger.use", use_camera_object_logger);
+    this->get_parameter("camera.logger.margin.distance_diff", camera_logger_distance_margin);
+    this->get_parameter("camera.logger.margin.width_diff", camera_logger_width_margin);
+    this->get_parameter("camera.logger.margin.height_diff", camera_logger_height_margin);
     this->get_parameter("cliff.use", ues_cliff);
     this->get_parameter("cliff.publish_rate_ms", publish_rate_cliff);
 
     // Update Parameters
     point_cloud_tof_.updateTargetFrame(target_frame);
-    point_cloud_camera_.updateTargetFrame(target_frame);
+    bounding_box_generator_.updateTargetFrame(target_frame);
     point_cloud_cliff_.updateTargetFrame(target_frame);
+    camera_object_logger_.updateParams(camera_logger_distance_margin,camera_logger_width_margin,camera_logger_height_margin);
     for (const auto& item : camera_param_raw_vector) {
         std::istringstream ss(item);
         std::string key, value;
@@ -293,16 +302,19 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
 
 void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg)
 {
-    if (target_frame == "map") {
+    if (target_frame == "map" || use_camera_object_logger) {
         tPose pose;
         pose.position.x = msg->robot_x;
         pose.position.y = msg->robot_y;
         pose.orientation.yaw = msg->robot_angle;
-        point_cloud_camera_.updateRobotPose(pose);
+        bounding_box_generator_.updateRobotPose(pose);
     }
 
+    if (use_camera_object_logger) {
+        camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th, camera_object_direction));
+    }
     if (use_camera) {
-        bbox_msg = point_cloud_camera_.updateCameraBoundingBoxMsg(msg, camera_class_id_confidence_th, camera_object_direction);
+        bbox_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th, camera_object_direction);
         pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_msg, camera_pointcloud_resolution);
     }
 
@@ -316,7 +328,7 @@ void SensorToPointcloud::cliffMsgUpdate(const std_msgs::msg::UInt8::SharedPtr ms
         // pose.position.x = msg->robot_x;
         // pose.position.y = msg->robot_y;
         // pose.orientation.yaw = msg->robot_angle;
-        // point_cloud_camera_.updateRobotPose(pose);
+        // point_cloud_cliff_.updateRobotPose(pose);
     }
 
     if (ues_cliff) {

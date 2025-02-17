@@ -13,17 +13,28 @@
 class BoundingBoxGenerator
 {
 public:
-    BoundingBoxGenerator();
+    BoundingBoxGenerator(double sensor_frame_x_translate,
+                         double sensor_frame_y_translate,
+                         double sensor_frame_z_translate);
     ~BoundingBoxGenerator();
 
-    vision_msgs::msg::BoundingBox2DArray generateBoundingBoxMessage(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg,
-                                                                    std::string frame,
-                                                                    tPose robot_pose,
-                                                                    tPoint translation,
-                                                                    std::map<int, int> class_id_confidence_th,
-                                                                    bool direction);
+    void updateTargetFrame(std::string &updated_frame);
+    void updateRobotPose(tPose &pose);
+
+    vision_msgs::msg::BoundingBox2DArray generateBoundingBoxMessage(
+        const robot_custom_msgs::msg::AIDataArray::SharedPtr msg,
+        std::map<int, int> class_id_confidence_th,
+        bool direction);
+    
+    std::pair<robot_custom_msgs::msg::AIDataArray, vision_msgs::msg::BoundingBox2DArray> getObjectBoundingBoxInfo(
+        const robot_custom_msgs::msg::AIDataArray::SharedPtr msg,
+        std::map<int, int> class_id_confidence_th,
+        bool direction);
 
 private:
+    std::string target_frame_;
+    tPoint sensor_frame_translation_;
+    tPose robot_pose_;
 };
 
 #endif // BOUNDINGBOX_GENERATOR
