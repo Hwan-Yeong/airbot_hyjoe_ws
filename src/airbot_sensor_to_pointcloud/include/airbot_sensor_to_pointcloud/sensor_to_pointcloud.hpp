@@ -35,6 +35,9 @@ private:
     BoundingBoxGenerator bounding_box_generator_;
     CameraObjectLogger camera_object_logger_;
 
+    std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
+    std::shared_ptr<rclcpp::ParameterCallbackHandle> param_callback_handle_;
+
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::AIDataArray>::SharedPtr camera_sub_;
     rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr cliff_sub_;
@@ -55,32 +58,32 @@ private:
 
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
-    std::string target_frame;
-    bool use_tof;
-    bool use_tof_1D;
-    bool use_tof_left;
-    bool use_tof_right;
-    bool use_tof_row;
-    bool use_camera;
-    bool ues_cliff;
-    bool use_camera_object_logger;
-    float camera_pointcloud_resolution;
-    double camera_logger_distance_margin;
-    double camera_logger_width_margin;
-    double camera_logger_height_margin;
-    std::vector<std::string> camera_param_raw_vector;
-    std::map<int, int> camera_class_id_confidence_th;
-    bool camera_object_direction;
-    int publish_rate_1d_tof;
-    int publish_rate_multi_tof;
-    int publish_rate_row_tof;
-    int publish_rate_camera;
-    int publish_rate_cliff;
-    int publish_cnt_1d_tof;
-    int publish_cnt_multi_tof;
-    int publish_cnt_row_tof;
-    int publish_cnt_camera;
-    int publish_cnt_cliff;
+    std::string target_frame_;
+    bool use_tof_;
+    bool use_tof_1D_;
+    bool use_tof_left_;
+    bool use_tof_right_;
+    bool use_tof_row_;
+    bool use_camera_;
+    bool ues_cliff_;
+    bool use_camera_object_logger_;
+    float camera_pointcloud_resolution_;
+    double camera_logger_distance_margin_;
+    double camera_logger_width_margin_;
+    double camera_logger_height_margin_;
+    std::vector<std::string> camera_param_raw_vector_;
+    std::map<int, int> camera_class_id_confidence_th_;
+    bool camera_object_direction_;
+    int publish_rate_1d_tof_;
+    int publish_rate_multi_tof_;
+    int publish_rate_row_tof_;
+    int publish_rate_camera_;
+    int publish_rate_cliff_;
+    int publish_cnt_1d_tof_;
+    int publish_cnt_multi_tof_;
+    int publish_cnt_row_tof_;
+    int publish_cnt_camera_;
+    int publish_cnt_cliff_;
 
     sensor_msgs::msg::PointCloud2 pc_tof_1d_msg;
     sensor_msgs::msg::PointCloud2 pc_tof_multi_msg;

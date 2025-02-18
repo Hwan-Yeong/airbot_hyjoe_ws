@@ -37,6 +37,18 @@ add_executable(sensor_to_pointcloud
   src/logger/camera_object_logger.cpp
 )
 
+#####################################
+############# TEST CODE #############
+add_executable(param_setter
+  test/test_frame_changer.cpp
+)
+ament_target_dependencies(param_setter
+  rclcpp
+)
+install(TARGETS param_setter
+  DESTINATION lib/${PROJECT_NAME})
+#####################################
+
 ament_target_dependencies(sensor_to_pointcloud 
   rclcpp 
   sensor_msgs 
