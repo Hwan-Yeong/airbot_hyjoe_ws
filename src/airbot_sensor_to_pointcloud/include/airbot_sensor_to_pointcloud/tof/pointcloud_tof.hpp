@@ -30,8 +30,8 @@ public:
     sensor_msgs::msg::PointCloud2 updateBotTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, bool isShowRow = false, ROW_NUMBER row = ROW_NUMBER::FIRST);
 
 private:
-    std::shared_ptr<FrameConverter> frame_converter_;
-    std::shared_ptr<PointCloudGenerator> pointcloud_generator_;
+    FrameConverter frame_converter_;
+    PointCloudGenerator pointcloud_generator_;
 
     tPose robot_pose_;
     std::string target_frame_;

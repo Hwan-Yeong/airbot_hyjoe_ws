@@ -331,7 +331,7 @@ void SensorToPointcloud::cliffMsgUpdate(const std_msgs::msg::UInt8::SharedPtr ms
         // point_cloud_cliff_.updateRobotPose(pose);
     }
 
-    if (ues_cliff) {
+    if (ues_cliff && target_frame == "base_link") {
         pc_cliff_msg = point_cloud_cliff_.updateCliffPointCloudMsg(msg);
     }
 

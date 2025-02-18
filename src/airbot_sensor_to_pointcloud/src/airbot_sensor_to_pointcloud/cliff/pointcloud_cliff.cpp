@@ -60,19 +60,6 @@ void PointCloudCliff::updateRobotPose(tPose &pose)
 
 sensor_msgs::msg::PointCloud2 PointCloudCliff::updateCliffPointCloudMsg(std_msgs::msg::UInt8::SharedPtr msg)
 {
-    std::vector<tPoint> cliff_points_on_robot_frame = transformCliffMsg2PointsOnRobotFrame(msg);
-
-    return pointcloud_generator_->generatePointCloud2Message(cliff_points_on_robot_frame, target_frame_);
-}
-
-std::vector<tPoint> PointCloudCliff::transformCliffMsg2PointsOnRobotFrame(std_msgs::msg::UInt8::SharedPtr msg)
-{
-    std::vector<tPoint> active_sensor_points;
-    for (size_t i=0; i<ir_sensor_points_.size(); ++i) {
-        if(msg->data & (1 << i)) {
-            active_sensor_points.push_back(ir_sensor_points_[i]);
-        }
-    }
-
-    return active_sensor_points;
+    return pointcloud_generator_.generatePointCloud2Message(
+        frame_converter_.transformCliffSensor2RobotFrame(msg, ir_sensor_points_), target_frame_);
 }

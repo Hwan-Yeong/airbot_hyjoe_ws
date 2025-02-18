@@ -68,11 +68,11 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateTopTofPointCloudMsg(const rob
     std::vector<tPoint> points_on_robot_frame = {point_on_robot_frame};
 
     if (target_frame_ == "map") {
-        std::vector<tPoint> points_on_map_frame = frame_converter_->transformRobot2GlobalFrame(points_on_robot_frame,
+        std::vector<tPoint> points_on_map_frame = frame_converter_.transformRobot2GlobalFrame(points_on_robot_frame,
                                                                                                robot_pose_);
-        return pointcloud_generator_->generatePointCloud2Message(points_on_map_frame, target_frame_);
+        return pointcloud_generator_.generatePointCloud2Message(points_on_map_frame, target_frame_);
     } else if (target_frame_ == "base_link") {
-        return pointcloud_generator_->generatePointCloud2Message(points_on_robot_frame, target_frame_);
+        return pointcloud_generator_.generatePointCloud2Message(points_on_robot_frame, target_frame_);
     } else {
         RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Select Wrong Target Frame: %s", target_frame_.c_str());
         return sensor_msgs::msg::PointCloud2();
@@ -95,27 +95,27 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
     case TOF_SIDE::LEFT:
         zero_dist_index = std::vector<bool>(16,false);
         multi_tof_points_on_sensor_frame = transformTofMsg2PointsOnSensorFrame(multi_tof_bot_left, false);
-        multi_tof_points_on_robot_frame = frame_converter_->transformTofSensor2RobotFrame(multi_tof_points_on_sensor_frame,
+        multi_tof_points_on_robot_frame = frame_converter_.transformTofSensor2RobotFrame(multi_tof_points_on_sensor_frame,
                                                                                           true,
                                                                                           tof_bot_left_sensor_frame_yaw_ang_,
                                                                                           tof_bot_left_sensor_frame_pitch_ang_,
                                                                                           tof_bot_translation_);
         if (target_frame_ == "map") {
             multi_tof_points_on_map_frame
-                = frame_converter_->transformRobot2GlobalFrame(multi_tof_points_on_robot_frame,
+                = frame_converter_.transformRobot2GlobalFrame(multi_tof_points_on_robot_frame,
                                                                robot_pose_);
         }
         break;
     case TOF_SIDE::RIGHT:
         zero_dist_index = std::vector<bool>(16,false);
         multi_tof_points_on_sensor_frame = transformTofMsg2PointsOnSensorFrame(multi_tof_bot_right, false);
-        multi_tof_points_on_robot_frame = frame_converter_->transformTofSensor2RobotFrame(multi_tof_points_on_sensor_frame,
+        multi_tof_points_on_robot_frame = frame_converter_.transformTofSensor2RobotFrame(multi_tof_points_on_sensor_frame,
                                                                                           false,
                                                                                           tof_bot_right_sensor_frame_yaw_ang_,
                                                                                           tof_bot_right_sensor_frame_pitch_ang_,
                                                                                           tof_bot_translation_);
         if (target_frame_ == "map") {
-            multi_tof_points_on_map_frame = frame_converter_->transformRobot2GlobalFrame(multi_tof_points_on_robot_frame,
+            multi_tof_points_on_map_frame = frame_converter_.transformRobot2GlobalFrame(multi_tof_points_on_robot_frame,
                                                                                          robot_pose_);
         }
         break;
@@ -123,12 +123,12 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
         zero_dist_index = std::vector<bool>(32,false);
         multi_left_tof_points_on_sensor_frame = transformTofMsg2PointsOnSensorFrame(multi_tof_bot_left, false);
         multi_right_tof_points_on_sensor_frame = transformTofMsg2PointsOnSensorFrame(multi_tof_bot_right, true);
-        multi_left_tof_points_on_robot_frame = frame_converter_->transformTofSensor2RobotFrame(multi_left_tof_points_on_sensor_frame,
+        multi_left_tof_points_on_robot_frame = frame_converter_.transformTofSensor2RobotFrame(multi_left_tof_points_on_sensor_frame,
                                                                                                true,
                                                                                                tof_bot_left_sensor_frame_yaw_ang_,
                                                                                                tof_bot_left_sensor_frame_pitch_ang_,
                                                                                                tof_bot_translation_);
-        multi_right_tof_points_on_robot_frame = frame_converter_->transformTofSensor2RobotFrame(multi_right_tof_points_on_sensor_frame,
+        multi_right_tof_points_on_robot_frame = frame_converter_.transformTofSensor2RobotFrame(multi_right_tof_points_on_sensor_frame,
                                                                                                 false,
                                                                                                 tof_bot_right_sensor_frame_yaw_ang_,
                                                                                                 tof_bot_right_sensor_frame_pitch_ang_,
@@ -140,7 +140,7 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
                                                multi_right_tof_points_on_robot_frame.begin(), 
                                                multi_right_tof_points_on_robot_frame.end());
         if (target_frame_ == "map") {
-            multi_tof_points_on_map_frame = frame_converter_->transformRobot2GlobalFrame(multi_tof_points_on_robot_frame,
+            multi_tof_points_on_map_frame = frame_converter_.transformRobot2GlobalFrame(multi_tof_points_on_robot_frame,
                                                                                          robot_pose_);
         }
         break;
@@ -178,10 +178,10 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
 
     if (target_frame_ == "map") {
         std::vector<tPoint> filtered_tof_points = filterPoints(multi_tof_points_on_map_frame);
-        return pointcloud_generator_->generatePointCloud2Message(filtered_tof_points, target_frame_);
+        return pointcloud_generator_.generatePointCloud2Message(filtered_tof_points, target_frame_);
     } else if (target_frame_ == "base_link") {
         std::vector<tPoint> filtered_tof_points = filterPoints(multi_tof_points_on_robot_frame);
-        return pointcloud_generator_->generatePointCloud2Message(filtered_tof_points, target_frame_);
+        return pointcloud_generator_.generatePointCloud2Message(filtered_tof_points, target_frame_);
     } else {
         RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Select Wrong Target Frame: %s", target_frame_.c_str());
         return sensor_msgs::msg::PointCloud2();

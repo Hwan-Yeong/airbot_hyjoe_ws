@@ -5,6 +5,7 @@
 #include <string>
 #include "std_msgs/msg/u_int8.hpp"
 #include "utils/pointcloud_generator.hpp"
+#include "utils/frame_converter.hpp"
 
 class PointCloudCliff
 {
@@ -17,16 +18,14 @@ public:
     void updateRobotPose(tPose &pose);
     sensor_msgs::msg::PointCloud2 updateCliffPointCloudMsg(std_msgs::msg::UInt8::SharedPtr msg);
 
-
 private:
-    std::shared_ptr<PointCloudGenerator> pointcloud_generator_;
+    PointCloudGenerator pointcloud_generator_;
+    FrameConverter frame_converter_;
 
     tPose robot_pose_;
     std::string target_frame_;
     tPoint ir_1_position_, ir_2_position_, ir_3_position_, ir_4_position_, ir_5_position_, ir_6_position_;
     std::vector<tPoint> ir_sensor_points_;
-
-    std::vector<tPoint> transformCliffMsg2PointsOnRobotFrame(std_msgs::msg::UInt8::SharedPtr msg);
 };
 
 #endif //POINTCLOUD_CLIFF_HPP

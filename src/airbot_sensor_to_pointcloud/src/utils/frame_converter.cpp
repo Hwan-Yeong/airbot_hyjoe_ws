@@ -58,6 +58,19 @@ std::vector<tPoint> FrameConverter::transformCameraSensor2RobotFrame(const std::
     return points;
 }
 
+std::vector<tPoint> FrameConverter::transformCliffSensor2RobotFrame(std_msgs::msg::UInt8::SharedPtr msg,
+                                                                         std::vector<tPoint> &sensor_positions)
+{
+    std::vector<tPoint> active_sensor_points;
+    for (size_t i=0; i<sensor_positions.size(); ++i) {
+        if(msg->data & (1 << i)) {
+            active_sensor_points.push_back(sensor_positions[i]);
+        }
+    }
+
+    return active_sensor_points;
+}
+
 std::vector<tPoint> FrameConverter::transformRobot2GlobalFrame(const std::vector<tPoint> &input_points,
                                                                tPose robot_pose)
 {
