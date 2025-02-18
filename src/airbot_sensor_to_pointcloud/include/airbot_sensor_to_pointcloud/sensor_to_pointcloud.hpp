@@ -11,8 +11,8 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "robot_custom_msgs/msg/tof_data.hpp"
-#include "robot_custom_msgs/msg/ai_data.hpp"
-#include "robot_custom_msgs/msg/ai_data_array.hpp"
+#include "robot_custom_msgs/msg/camera_data.hpp"
+#include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 #include <builtin_interfaces/msg/time.hpp>
@@ -39,7 +39,7 @@ private:
     std::shared_ptr<rclcpp::ParameterCallbackHandle> param_callback_handle_;
 
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
-    rclcpp::Subscription<robot_custom_msgs::msg::AIDataArray>::SharedPtr camera_sub_;
+    rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
     rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr cliff_sub_;
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_1d_pub_;
@@ -106,7 +106,7 @@ private:
 
     void publisherMonitor();
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
-    void cameraMsgUpdate(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg);
+    void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
     void cliffMsgUpdate(const std_msgs::msg::UInt8::SharedPtr msg);
 };
 

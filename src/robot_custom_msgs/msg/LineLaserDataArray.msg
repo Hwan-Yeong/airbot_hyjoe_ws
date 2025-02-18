@@ -1,9 +1,8 @@
 builtin_interfaces/Time timestamp
 
-# The number of objects
 uint8 num
 
-AIData[] data_array
+LineLaserData[] data_array
 
 # AMCL pose
 float64 robot_x

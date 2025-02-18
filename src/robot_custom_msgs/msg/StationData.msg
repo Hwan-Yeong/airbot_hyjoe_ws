@@ -1,0 +1,4 @@
+uint8 sig_short
+uint8 sig_long
+uint8 receiver_status
+uint8 docking_status

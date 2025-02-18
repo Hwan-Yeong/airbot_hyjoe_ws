@@ -18,11 +18,17 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Position.msg"
   "msg/MotorStatus.msg"
   "msg/TofData.msg"
-  "msg/AIData.msg"
-  "msg/AIDataArray.msg"
+  "msg/ImuCalibration.msg"
+  "msg/CameraData.msg"
+  "msg/CameraDataArray.msg"
+  "msg/StationData.msg"
   "msg/ErrorList.msg"
+  "msg/RpmControl.msg"
   "msg/ErrorListArray.msg"
   "msg/LineLaserData.msg"
+  "msg/LineLaserDataArray.msg"
+  "msg/RobotState.msg"
+  "msg/NaviState.msg"
   DEPENDENCIES std_msgs
 )
 

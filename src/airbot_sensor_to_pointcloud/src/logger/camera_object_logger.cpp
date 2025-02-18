@@ -15,7 +15,7 @@ void CameraObjectLogger::updateParams(double dist_margin, double width_margin, d
     height_margin_ = height_margin;
 }
 
-void CameraObjectLogger::log(std::pair<robot_custom_msgs::msg::AIDataArray, vision_msgs::msg::BoundingBox2DArray> object_info)
+void CameraObjectLogger::log(std::pair<robot_custom_msgs::msg::CameraDataArray, vision_msgs::msg::BoundingBox2DArray> object_info)
 {
     std::map<int, std::vector<vision_msgs::msg::BoundingBox2D>> new_objects = updateObjects(object_info.first, object_info.second);
 
@@ -39,7 +39,7 @@ void CameraObjectLogger::logInfoClear()
 }
 
 std::map<int, std::vector<vision_msgs::msg::BoundingBox2D>> CameraObjectLogger::updateObjects(
-    robot_custom_msgs::msg::AIDataArray object_array,
+    robot_custom_msgs::msg::CameraDataArray object_array,
     vision_msgs::msg::BoundingBox2DArray object_bbox_array)
 {
     std::map<int, std::vector<vision_msgs::msg::BoundingBox2D>> ret = objects_;

@@ -31,7 +31,7 @@ void BoundingBoxGenerator::updateRobotPose(tPose &pose)
 }
 
 vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMessage(
-    const robot_custom_msgs::msg::AIDataArray::SharedPtr msg,
+    const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg,
     std::map<int, int> class_id_confidence_th,
     bool direction)
 {
@@ -45,7 +45,7 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
     bbox_array.header.stamp = rclcpp::Clock().now();
     bbox_array.header.frame_id = target_frame_;
 
-    std::vector<robot_custom_msgs::msg::AIData> objects(msg->data_array.begin(), msg->data_array.end());
+    std::vector<robot_custom_msgs::msg::CameraData> objects(msg->data_array.begin(), msg->data_array.end());
     const double robot_cos = std::cos(robot_pose_.orientation.yaw);
     const double robot_sin = std::sin(robot_pose_.orientation.yaw);
     for (const auto &obj : objects)
@@ -91,12 +91,12 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
 
     return bbox_array;
 }
-std::pair<robot_custom_msgs::msg::AIDataArray, vision_msgs::msg::BoundingBox2DArray> BoundingBoxGenerator::getObjectBoundingBoxInfo(
-    const robot_custom_msgs::msg::AIDataArray::SharedPtr msg,
+std::pair<robot_custom_msgs::msg::CameraDataArray, vision_msgs::msg::BoundingBox2DArray> BoundingBoxGenerator::getObjectBoundingBoxInfo(
+    const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg,
     std::map<int, int> class_id_confidence_th,
     bool direction)
 {
-    auto filtered_objects = robot_custom_msgs::msg::AIDataArray();
+    auto filtered_objects = robot_custom_msgs::msg::CameraDataArray();
     auto bbox_array = vision_msgs::msg::BoundingBox2DArray();
 
     if (msg->data_array.empty() || msg->num == 0) {
@@ -113,7 +113,7 @@ std::pair<robot_custom_msgs::msg::AIDataArray, vision_msgs::msg::BoundingBox2DAr
     bbox_array.header.stamp = rclcpp::Clock().now();
     bbox_array.header.frame_id = target_frame_;
 
-    std::vector<robot_custom_msgs::msg::AIData> objects(msg->data_array.begin(), msg->data_array.end());
+    std::vector<robot_custom_msgs::msg::CameraData> objects(msg->data_array.begin(), msg->data_array.end());
     const double robot_cos = std::cos(robot_pose_.orientation.yaw);
     const double robot_sin = std::sin(robot_pose_.orientation.yaw);
     for (const auto &obj : objects)

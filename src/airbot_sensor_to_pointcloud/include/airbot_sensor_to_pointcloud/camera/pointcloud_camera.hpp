@@ -3,8 +3,8 @@
 
 #include <cmath>
 #include <string>
-#include "robot_custom_msgs/msg/ai_data.hpp"
-#include "robot_custom_msgs/msg/ai_data_array.hpp"
+#include "robot_custom_msgs/msg/camera_data.hpp"
+#include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "utils/pointcloud_generator.hpp"
 #include "utils/boundingbox_generator.hpp"
 

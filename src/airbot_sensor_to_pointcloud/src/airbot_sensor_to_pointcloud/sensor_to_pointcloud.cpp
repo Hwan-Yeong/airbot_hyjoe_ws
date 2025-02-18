@@ -123,7 +123,7 @@ SensorToPointcloud::SensorToPointcloud()
     // Msg Subscribers
     tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
         "tof_data", 10, std::bind(&SensorToPointcloud::tofMsgUpdate, this, std::placeholders::_1));
-    camera_sub_ = this->create_subscription<robot_custom_msgs::msg::AIDataArray>(
+    camera_sub_ = this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
         "camera_data", 10, std::bind(&SensorToPointcloud::cameraMsgUpdate, this, std::placeholders::_1));
     cliff_sub_ = this->create_subscription<std_msgs::msg::UInt8>(
         "bottom_status", 10, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1));
@@ -317,7 +317,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
     isTofUpdating = true;
 }
 
-void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::AIDataArray::SharedPtr msg)
+void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg)
 {
     if (target_frame_ == "map" || use_camera_object_logger_) {
         tPose pose;
