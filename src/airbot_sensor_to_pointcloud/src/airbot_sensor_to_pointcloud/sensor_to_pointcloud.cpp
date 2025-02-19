@@ -114,6 +114,7 @@ SensorToPointcloud::SensorToPointcloud()
             camera_class_id_confidence_th_[std::stoi(key)] = std::stoi(value);
         }
     }
+    RCLCPP_INFO(this->get_logger(), "[sensor_to_pointcloud] Parameters init finished!");
 
     // Msg Update Flags
     isTofUpdating = false;
@@ -134,6 +135,7 @@ SensorToPointcloud::SensorToPointcloud()
             "sensor_to_pointcloud/tof/mono", 10);
         pc_tof_multi_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
             "sensor_to_pointcloud/tof/multi", 10);
+        RCLCPP_INFO(this->get_logger(), "[sensor_to_pointcloud] 1D/Multi TOF init finished!");
         if (use_tof_row_) {
             pc_tof_left_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
                 "sensor_to_pointcloud/tof/multi/left/row_1", 10);
@@ -152,16 +154,19 @@ SensorToPointcloud::SensorToPointcloud()
             pc_tof_right_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
                 "sensor_to_pointcloud/tof/multi/right/row_4", 10);
         }
+        RCLCPP_INFO(this->get_logger(), "[sensor_to_pointcloud] Multi TOF Row init finished!");
     }
     if (use_camera_) {
         pc_camera_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
             "sensor_to_pointcloud/camera_object", 10);
         bbox_array_camera_pub_ = this->create_publisher<vision_msgs::msg::BoundingBox2DArray>(
             "sensor_to_pointcloud/camera/bbox", 10);
+        RCLCPP_INFO(this->get_logger(), "[sensor_to_pointcloud] Camera init finished!");
     }
     if (ues_cliff_) {
         pc_cliff_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
             "sensor_to_pointcloud/cliff", 10);
+        RCLCPP_INFO(this->get_logger(), "[sensor_to_pointcloud] Cliff init finished!");
     }
 
     publish_cnt_1d_tof_ = 0;

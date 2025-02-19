@@ -13,9 +13,8 @@ public:
 
         subscription_ = this->create_subscription<std_msgs::msg::UInt8>(
             "/soc_cmd", 10,
-            std::bind(&ParamSetterNode::socCmdCallback, this, std::placeholders::_1));
-        
-        RCLCPP_INFO(this->get_logger(), "Subscribed to /set_target_frame");
+            std::bind(&ParamSetterNode::socCmdCallback, this, std::placeholders::_1));        
+        RCLCPP_INFO(this->get_logger(), "[param_setter] Node init finished!");
     }
 
 private:
