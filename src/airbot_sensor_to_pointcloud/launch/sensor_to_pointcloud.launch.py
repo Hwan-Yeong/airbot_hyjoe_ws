@@ -51,4 +51,12 @@ def generate_launch_description():
             output='screen',
             parameters=[parameter_file],
         ),
+
+        Node(
+            name='airbot_param_setter',
+            package='airbot_sensor_to_pointcloud',
+            executable='param_setter',
+            output='screen',            
+            respawn = True
+        )
     ])

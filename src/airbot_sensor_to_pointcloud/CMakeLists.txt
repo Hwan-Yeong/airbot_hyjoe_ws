@@ -8,6 +8,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(robot_custom_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
@@ -37,16 +38,26 @@ add_executable(sensor_to_pointcloud
   src/logger/camera_object_logger.cpp
 )
 
-#####################################
-############# TEST CODE #############
 add_executable(param_setter
-  test/test_frame_changer.cpp
+  src/dynamic_param_setter/param_setter.cpp
 )
 ament_target_dependencies(param_setter
   rclcpp
+  std_msgs
 )
 install(TARGETS param_setter
   DESTINATION lib/${PROJECT_NAME})
+
+#####################################
+############# TEST CODE #############
+# add_executable(param_setter
+#   test/test_frame_changer.cpp
+# )
+# ament_target_dependencies(param_setter
+#   rclcpp
+# )
+# install(TARGETS param_setter
+#   DESTINATION lib/${PROJECT_NAME})
 #####################################
 
 ament_target_dependencies(sensor_to_pointcloud 
