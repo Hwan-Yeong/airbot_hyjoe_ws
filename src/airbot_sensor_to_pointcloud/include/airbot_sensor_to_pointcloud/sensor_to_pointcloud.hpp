@@ -84,6 +84,7 @@ private:
     int publish_cnt_row_tof_;
     int publish_cnt_camera_;
     int publish_cnt_cliff_;
+    double tilting_ang_1d_tof_;
 
     sensor_msgs::msg::PointCloud2 pc_tof_1d_msg;
     sensor_msgs::msg::PointCloud2 pc_tof_multi_msg;

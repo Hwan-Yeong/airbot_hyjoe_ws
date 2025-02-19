@@ -3,7 +3,6 @@
 PointCloudTof::PointCloudTof(double tof_top_sensor_frame_x_translate = 0.0942,
                              double tof_top_sensor_frame_y_translate = 0.0,
                              double tof_top_sensor_frame_z_translate = 0.56513,
-                             double tof_top_sensor_frame_pitch_ang = 33,
                              double tof_bot_sensor_frame_x_translate = 0.145,
                              double tof_bot_sensor_frame_y_translate = 0.076,
                              double tof_bot_sensor_frame_z_translate = 0.03,
@@ -15,7 +14,6 @@ PointCloudTof::PointCloudTof(double tof_top_sensor_frame_x_translate = 0.0942,
     : tof_top_translation_(tof_top_sensor_frame_x_translate,
                            tof_top_sensor_frame_y_translate,
                            tof_top_sensor_frame_z_translate),
-      tof_top_sensor_frame_pitch_ang_(tof_top_sensor_frame_pitch_ang),
       tof_bot_translation_(tof_bot_sensor_frame_x_translate,
                            tof_bot_sensor_frame_y_translate,
                            tof_bot_sensor_frame_z_translate),
@@ -25,9 +23,6 @@ PointCloudTof::PointCloudTof(double tof_top_sensor_frame_x_translate = 0.0942,
       tof_bot_right_sensor_frame_yaw_ang_(tof_bot_right_sensor_frame_yaw_ang),
       tof_bot_fov_ang_(tof_bot_fov_ang)
 {
-    tof_top_sensor_frame_pitch_cosine_ = std::cos(tof_top_sensor_frame_pitch_ang_*M_PI/180);
-    tof_top_sensor_frame_pitch_sine_ = std::sin(tof_top_sensor_frame_pitch_ang_*M_PI/180);
-
     tof_bot_row_1_z_tan_ = std::tan(tof_bot_fov_ang_*(3.0/8.0)*M_PI/180);
     tof_bot_row_2_z_tan_ = std::tan(tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
     tof_bot_row_3_z_tan_ = std::tan(-tof_bot_fov_ang_*(1.0/8.0)*M_PI/180);
@@ -59,12 +54,14 @@ void PointCloudTof::updateRobotPose(tPose &pose)
     robot_pose_ = pose;
 }
 
-sensor_msgs::msg::PointCloud2 PointCloudTof::updateTopTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg)
+sensor_msgs::msg::PointCloud2 PointCloudTof::updateTopTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, double tilting_angle)
 {
     tPoint point_on_robot_frame, point_on_map_frame;
-    point_on_robot_frame.x = tof_top_translation_.x + msg->top * tof_top_sensor_frame_pitch_cosine_;
+    double tof_top_sensor_frame_pitch_cosine = std::cos(tilting_angle*M_PI/180);
+    double tof_top_sensor_frame_pitch_sine = std::sin(tilting_angle*M_PI/180);
+    point_on_robot_frame.x = tof_top_translation_.x + msg->top * tof_top_sensor_frame_pitch_cosine;
     point_on_robot_frame.y = tof_top_translation_.y;
-    point_on_robot_frame.z = tof_top_translation_.z + msg->top * tof_top_sensor_frame_pitch_sine_;
+    point_on_robot_frame.z = tof_top_translation_.z + msg->top * tof_top_sensor_frame_pitch_sine;
     std::vector<tPoint> points_on_robot_frame = {point_on_robot_frame};
 
     if (target_frame_ == "map") {

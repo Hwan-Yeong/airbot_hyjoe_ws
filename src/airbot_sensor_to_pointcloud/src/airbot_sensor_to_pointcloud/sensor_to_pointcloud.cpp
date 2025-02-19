@@ -6,7 +6,6 @@ using namespace std::chrono_literals;
 double tof_top_sensor_frame_x_translate = 0.0942;       //[meter]
 double tof_top_sensor_frame_y_translate = 0.0;          //[meter]
 double tof_top_sensor_frame_z_translate = 0.56513;      //[meter]
-double tof_top_sensor_frame_pitch_ang = 45;             //[deg]
 double tof_bot_sensor_frame_x_translate = 0.14316;      //[meter]
 double tof_bot_sensor_frame_y_translate = 0.075446;     //[meter]
 double tof_bot_sensor_frame_z_translate = 0.03;         //[meter]
@@ -26,7 +25,6 @@ SensorToPointcloud::SensorToPointcloud()
     point_cloud_tof_(tof_top_sensor_frame_x_translate,
                      tof_top_sensor_frame_y_translate,
                      tof_top_sensor_frame_z_translate,
-                     tof_top_sensor_frame_pitch_ang,
                      tof_bot_sensor_frame_x_translate,
                      tof_bot_sensor_frame_y_translate,
                      tof_bot_sensor_frame_z_translate,
@@ -63,6 +61,7 @@ SensorToPointcloud::SensorToPointcloud()
     this->declare_parameter("tof.all.use",false);
     this->declare_parameter("tof.1D.use",false);
     this->declare_parameter("tof.1D.publish_rate_ms",100);
+    this->declare_parameter("tof.1D.tilting_angle_deg",0.0);
     this->declare_parameter("tof.multi.publish_rate_ms",100);
     this->declare_parameter("tof.multi.left.use",false);
     this->declare_parameter("tof.multi.right.use",false);
@@ -85,6 +84,7 @@ SensorToPointcloud::SensorToPointcloud()
     this->get_parameter("tof.all.use", use_tof_);
     this->get_parameter("tof.1D.use", use_tof_1D_);
     this->get_parameter("tof.1D.publish_rate_ms", publish_rate_1d_tof_);
+    this->get_parameter("tof.1D.tilting_angle_deg", tilting_ang_1d_tof_);
     this->get_parameter("tof.multi.publish_rate_ms", publish_rate_multi_tof_);
     this->get_parameter("tof.multi.left.use", use_tof_left_);
     this->get_parameter("tof.multi.right.use", use_tof_right_);
@@ -291,7 +291,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
 
     if (use_tof_) {
         if (use_tof_1D_) {
-            pc_tof_1d_msg = point_cloud_tof_.updateTopTofPointCloudMsg(msg);
+            pc_tof_1d_msg = point_cloud_tof_.updateTopTofPointCloudMsg(msg, tilting_ang_1d_tof_);
         }
         if (use_tof_left_ || use_tof_right_) {
             TOF_SIDE side = (use_tof_left_ && use_tof_right_) ? TOF_SIDE::BOTH : 

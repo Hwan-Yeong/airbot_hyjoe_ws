@@ -9,6 +9,7 @@ airbot_sensor_to_pointcloud:
       1D:
         use: true
         publish_rate_ms: 10
+        tilting_angle_deg: 45.0 # double type
       multi:
         publish_rate_ms: 50
         left:
