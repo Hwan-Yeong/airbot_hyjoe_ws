@@ -25,7 +25,7 @@ void CameraObjectLogger::log(std::pair<robot_custom_msgs::msg::CameraDataArray, 
         RCLCPP_INFO(logger, "================ [UPDATE] ================");
         for (const auto& [id, object_list] : objects_) {
             for (const auto& object : object_list) {
-                RCLCPP_INFO(logger, "[ID]: %u, [Position (X, Y): (%3f, %3f)], [Size (W, H): (%3f, %3f)]",
+                RCLCPP_INFO(logger, "[ID]: %u, [Position (X, Y): (%.3f, %3.f)], [Size (W, H): (%.3f, %.3f)]",
                             id, object.center.position.x, object.center.position.y, object.size_x, object.size_y);
             }
         }
