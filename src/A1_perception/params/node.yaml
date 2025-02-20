@@ -1,0 +1,78 @@
+A1_perception:
+  node:
+    period_ms: 10
+    inputs:
+      robot_position:
+        topic: "/amcl_pose"
+        type: "PoseWithCovarianceStamped"
+      one_d_tof:
+        topic: "/sensor_to_pointcloud/tof/mono"
+        type: "PointCloud2"
+      multi_tof:
+        topic: "/sensor_to_pointcloud/tof/multi"
+        type: "PointCloud2"
+      camera_points:
+        topic: "/sensor_to_pointcloud/camera_object"
+        type: "PointCloud2"
+      # lidar_points:
+      #   # 에브리봇 코드 확인후 수정해야 함
+      #   topic: "/scan"
+      #   type: "LaserScan"
+
+    layers:
+      debug_multi_tof:
+        # tof 센서의 데이터를 확인하기 위한 레이어 (테스트용)
+        inputs:
+        - "multi_tof"
+        filter:
+          timeout:
+            timeout_milliseconds: 100
+      debug_one_d_tof:
+        # tof 센서의 데이터를 확인하기 위한 레이어 (테스트용)
+        inputs:
+        - "one_d_tof"
+        filter:
+          timeout:
+            timeout_milliseconds: 100
+      debug_camera:
+        # 카메라 센서의 데이터를 확인하기 위한 레이어 (테스트용)
+        inputs:
+        - "camera_points"
+        filter:
+          timeout:
+            timeout_milliseconds: 100
+      # debug_lidar:
+      #   # 라이다 센서의 데이터를 확인하기 위한 레이어 (테스트용)
+      #   inputs:
+      #   - "lidar_points"
+      #   filter:
+      #     timeout:
+      #       timeout_milliseconds: 100
+      multi_tof:
+        inputs:
+        - "multi_tof"
+        filter:
+          compose:
+            filters:
+              timeout:
+                timeout_milliseconds: 10000
+              polygon_roi:
+                use_inside: true
+                polygon: [ [ 0.0, -0.4 ], [ 0.6, -0.4 ], [ 0.6, 0.4 ], [ 0.0, 0.4 ] ]
+              density:
+                max_count: 3
+                radius: 0.1
+      cliff:
+        inputs:
+        - "multi_tof"
+        filter:
+          compose:
+            filters:
+              timeout:
+                timeout_milliseconds: 100
+              polygon_roi:
+                use_inside: true
+                polygon: [ [ 0.0, -0.4 ], [ 0.6, -0.4 ], [ 0.6, 0.4 ], [ 0.0, 0.4 ] ]
+              density:
+                max_count: 3
+                radius: 0.1

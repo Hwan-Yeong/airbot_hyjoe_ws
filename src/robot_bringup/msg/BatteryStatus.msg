@@ -1,0 +1,4 @@
+uint16 battery_percentage
+float32 battery_voltage
+float32 battery_current
+uint16 battery_status

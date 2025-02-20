@@ -1,0 +1,5 @@
+<library path="A1_path_planner">
+    <class name="A1_path_planner/PathPlanner" type="A1_path_planner::PathPlanner" base_class_type="nav2_core::GlobalPlanner">
+        <description>An implementation of the Airbot path planning Algorithm</description>
+    </class>
+</library>

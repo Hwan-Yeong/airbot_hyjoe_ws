@@ -1,0 +1,9 @@
+# Goal 
+bool req_angle
+---
+#result
+bool success # true : 성공 , # false : 실패
+int32 status_code  # 1: 성공 , 2: 센서 데이터 없음.
+---
+#feedback
+int32 sequence
