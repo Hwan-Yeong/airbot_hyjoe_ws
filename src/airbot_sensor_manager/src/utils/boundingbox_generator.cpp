@@ -1,6 +1,5 @@
 #include "utils/boundingbox_generator.hpp"
 
-
 BoundingBoxGenerator::BoundingBoxGenerator(double sensor_frame_x_translate,
                                            double sensor_frame_y_translate,
                                            double sensor_frame_z_translate)

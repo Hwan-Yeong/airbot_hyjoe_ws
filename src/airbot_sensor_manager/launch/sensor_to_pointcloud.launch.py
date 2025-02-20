@@ -1,18 +1,9 @@
 import os
-import yaml
-import numpy as np
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.actions import IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration,PythonExpression
-from launch_ros.actions import Node
-from launch.conditions import IfCondition
-from launch_ros.actions import Node
-from launch.substitutions import ThisLaunchFileDir
-from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
 
 ##############################
 ### Camera Object Class ID ###
@@ -35,7 +26,7 @@ def generate_launch_description():
     params_declare = DeclareLaunchArgument(
         'params_file',
         default_value=os.path.join(
-            get_package_share_directory('airbot_sensor_to_pointcloud'),
+            get_package_share_directory('airbot_sensor_manager'),
             'config',
             'sensor_to_pointcloud_param.yaml'
         ),
@@ -46,17 +37,9 @@ def generate_launch_description():
         params_declare,
         Node(
             name='airbot_sensor_to_pointcloud',
-            package='airbot_sensor_to_pointcloud',
+            package='airbot_sensor_manager',
             executable='sensor_to_pointcloud',
             output='screen',
             parameters=[parameter_file],
-        ),
-
-        Node(
-            name='airbot_param_setter',
-            package='airbot_sensor_to_pointcloud',
-            executable='param_setter',
-            output='screen',            
-            respawn = True
         )
     ])

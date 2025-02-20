@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>airbot_sensor_to_pointcloud</name>
+  <name>airbot_sensor_manager</name>
   <version>0.0.0</version>
   <description>To transform sensor data to map_frame PointCloud</description>
   <maintainer email="hyjoe@everybot.net">root</maintainer>

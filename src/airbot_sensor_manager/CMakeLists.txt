@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(airbot_sensor_to_pointcloud)
+project(airbot_sensor_manager)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -74,8 +74,14 @@ ament_target_dependencies(sensor_to_pointcloud
 install(TARGETS sensor_to_pointcloud
   DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION include/${PROJECT_NAME})
+install(DIRECTORY include/airbot_sensor_to_pointcloud/
+  DESTINATION include/airbot_sensor_to_pointcloud)
+
+install(DIRECTORY include/logger/
+  DESTINATION include/logger)
+
+install(DIRECTORY include/utils/
+  DESTINATION include/utils)
 
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME})
