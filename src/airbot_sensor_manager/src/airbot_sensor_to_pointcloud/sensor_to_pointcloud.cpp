@@ -65,6 +65,7 @@ SensorToPointcloud::SensorToPointcloud()
     bounding_box_generator_.updateTargetFrame(target_frame_);
     point_cloud_cliff_.updateTargetFrame(target_frame_);
     camera_object_logger_.updateParams(camera_logger_distance_margin_,camera_logger_width_margin_,camera_logger_height_margin_);
+    point_cloud_lidar_.updateParams(front_lidar_params_, back_lidar_params_);
     for (const auto& item : camera_param_raw_vector_) {
         std::istringstream ss(item);
         std::string key, value;
@@ -88,12 +89,12 @@ SensorToPointcloud::SensorToPointcloud()
     cliff_sub_ = this->create_subscription<std_msgs::msg::UInt8>(
         "bottom_status", 10, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1));
 
-    laser1_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(
+    lidar_front_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(
         this, "scan_front");
-    laser2_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(
+    lidar_back_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(
         this, "scan_back");
-    sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(SyncPolicy(10), *laser1_sub_, *laser2_sub_);
-    sync_->registerCallback(std::bind(&SensorToPointcloud::synchronizedCallback, this, std::placeholders::_1, std::placeholders::_2));
+    sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(SyncPolicy(10), *lidar_front_sub_, *lidar_back_sub_);
+    sync_->registerCallback(std::bind(&SensorToPointcloud::lidarMsgUpdate, this, std::placeholders::_1, std::placeholders::_2));
 
     // Msg Publishers
     if (use_tof_) {
@@ -228,18 +229,18 @@ void SensorToPointcloud::setParams()
 
     this->get_parameter("lidar.use", use_lidar_);
     this->get_parameter("lidar.publish_rate_ms", publish_rate_lidar_);
-    this->get_parameter("lidar.front.range.angle_max", front_angle_max_);
-    this->get_parameter("lidar.front.range.angle_min", front_angle_min_);
-    this->get_parameter("lidar.front.geometry.alpha", front_alpha_);
-    this->get_parameter("lidar.front.geometry.offset.x", front_offset_x_);
-    this->get_parameter("lidar.front.geometry.offset.y", front_offset_y_);
-    this->get_parameter("lidar.front.geometry.offset.z", front_offset_z_);
-    this->get_parameter("lidar.back.range.angle_max", back_angle_max_);
-    this->get_parameter("lidar.back.range.angle_min", back_angle_min_);
-    this->get_parameter("lidar.back.geometry.alpha", back_alpha_);
-    this->get_parameter("lidar.back.geometry.offset.x", back_offset_x_);
-    this->get_parameter("lidar.back.geometry.offset.y", back_offset_y_);
-    this->get_parameter("lidar.back.geometry.offset.z", back_offset_z_);
+    this->get_parameter("lidar.front.range.angle_max", front_lidar_params_.angle_max);
+    this->get_parameter("lidar.front.range.angle_min", front_lidar_params_.angle_min);
+    this->get_parameter("lidar.front.geometry.alpha", front_lidar_params_.alpha);
+    this->get_parameter("lidar.front.geometry.offset.x", front_lidar_params_.offset.x);
+    this->get_parameter("lidar.front.geometry.offset.y", front_lidar_params_.offset.y);
+    this->get_parameter("lidar.front.geometry.offset.z", front_lidar_params_.offset.z);
+    this->get_parameter("lidar.back.range.angle_max", back_lidar_params_.angle_max);
+    this->get_parameter("lidar.back.range.angle_min", back_lidar_params_.angle_min);
+    this->get_parameter("lidar.back.geometry.alpha", back_lidar_params_.alpha);
+    this->get_parameter("lidar.back.geometry.offset.x", back_lidar_params_.offset.x);
+    this->get_parameter("lidar.back.geometry.offset.y", back_lidar_params_.offset.y);
+    this->get_parameter("lidar.back.geometry.offset.z", back_lidar_params_.offset.z);
 }
 
 void SensorToPointcloud::printParams()
@@ -273,10 +274,10 @@ void SensorToPointcloud::printParams()
     RCLCPP_INFO(this->get_logger(), "[Lidar Settings]");
     RCLCPP_INFO(this->get_logger(), "  Lidar Use: %d", use_lidar_);
     RCLCPP_INFO(this->get_logger(), "  Lidar Publish Rate: %d ms", publish_rate_lidar_);
-    RCLCPP_INFO(this->get_logger(), "  Lidar Front: Angle Min: %.2f, Angle Max: %.2f, Alpha: %.2f", front_angle_min_, front_angle_max_, front_alpha_);
-    RCLCPP_INFO(this->get_logger(), "  Lidar Front Offset: (X: %.2f, Y: %.2f, Z: %.2f)", front_offset_x_, front_offset_y_, front_offset_z_);
-    RCLCPP_INFO(this->get_logger(), "  Lidar Back: Angle Min: %.2f, Angle Max: %.2f, Alpha: %.2f", back_angle_min_, back_angle_max_, back_alpha_);
-    RCLCPP_INFO(this->get_logger(), "  Lidar Back Offset: (X: %.2f, Y: %.2f, Z: %.2f)", back_offset_x_, back_offset_y_, back_offset_z_);
+    RCLCPP_INFO(this->get_logger(), "  Lidar Front: Angle Min: %.2f, Angle Max: %.2f, Alpha: %.2f", front_lidar_params_.angle_min, front_lidar_params_.angle_max, front_lidar_params_.alpha);
+    RCLCPP_INFO(this->get_logger(), "  Lidar Front Offset: (X: %.2f, Y: %.2f, Z: %.2f)", front_lidar_params_.offset.x, front_lidar_params_.offset.y, front_lidar_params_.offset.z);
+    RCLCPP_INFO(this->get_logger(), "  Lidar Back: Angle Min: %.2f, Angle Max: %.2f, Alpha: %.2f", back_lidar_params_.angle_min, back_lidar_params_.angle_max, back_lidar_params_.alpha);
+    RCLCPP_INFO(this->get_logger(), "  Lidar Back Offset: (X: %.2f, Y: %.2f, Z: %.2f)", back_lidar_params_.offset.x, back_lidar_params_.offset.y, back_lidar_params_.offset.z);
     
     RCLCPP_INFO(this->get_logger(), "===============================================================");
 }
@@ -471,96 +472,12 @@ void SensorToPointcloud::cliffMsgUpdate(const std_msgs::msg::UInt8::SharedPtr ms
     isCliffUpdating = true;
 }
 
-void SensorToPointcloud::synchronizedCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr &laser1_msg, const sensor_msgs::msg::LaserScan::ConstSharedPtr &laser2_msg)
+void SensorToPointcloud::lidarMsgUpdate(const sensor_msgs::msg::LaserScan::ConstSharedPtr &lidar_front_msg, const sensor_msgs::msg::LaserScan::ConstSharedPtr &lidar_back_msg)
 {
     // Always publish at "base_scan" frame
-    scan_front_ = *laser1_msg;
-    scan_back_ = *laser2_msg;
-    update_point_cloud_rgb();
+    sensor_msgs::msg::LaserScan front_msg = *lidar_front_msg;
+    sensor_msgs::msg::LaserScan back_msg = *lidar_back_msg;
+    pc_lidar_msg = point_cloud_lidar_.updateLidarPointCloudMsg(front_msg, back_msg);
 
     isLidarUpdating = true;
-}
-
-void SensorToPointcloud::update_point_cloud_rgb()
-{
-    // refresh_params();
-    pcl::PointCloud<pcl::PointXYZ> cloud_; 
-    std::vector<std::array<float, 2>> scan_data;
-    float min_theta = std::numeric_limits<float>::max();
-    float max_theta = std::numeric_limits<float>::lowest();
-
-    auto process_laser = [&](const sensor_msgs::msg::LaserScan &laser, 
-                            float x_off, float y_off, float z_off, float alpha, 
-                            float angle_min, float angle_max) {
-        if (laser.ranges.empty()) return;
-
-        float temp_min = std::min(laser.angle_min, laser.angle_max);
-        float temp_max = std::max(laser.angle_min, laser.angle_max);
-        float alpha_rad = alpha * M_PI / 180.0;
-        float cos_alpha = std::cos(alpha_rad);
-        float sin_alpha = std::sin(alpha_rad);
-        float angle_min_rad = angle_min * M_PI / 180.0;
-        float angle_max_rad = angle_max * M_PI / 180.0;
-
-        for (size_t i = 0; i < laser.ranges.size(); ++i) {
-            float angle = temp_min + i * laser.angle_increment;
-            if (angle > temp_max) break;
-
-            float range = laser.ranges[i];
-
-            if (std::isnan(range) || range < laser.range_min || range > laser.range_max) continue;
-
-            bool is_in_range = (angle >= angle_min_rad && angle <= angle_max_rad);
-            if (is_in_range == false) continue;
-
-            pcl::PointXYZ pt; 
-            float x = range * std::cos(angle);
-            float y = range * std::sin(angle);
-
-            pt.x = x * cos_alpha - y * sin_alpha + x_off;
-            pt.y = x * sin_alpha + y * cos_alpha + y_off;
-            pt.z = z_off;
-
-            cloud_.points.push_back(pt);
-
-            float r_ = std::hypot(pt.x, pt.y);
-            float theta_ = std::atan2(pt.y, pt.x);
-            scan_data.push_back({theta_, r_});
-
-            min_theta = std::min(min_theta, theta_);
-            max_theta = std::max(max_theta, theta_);
-        }
-    };
-
-    // Process both lasers
-    process_laser(scan_front_, front_offset_x_, front_offset_y_, front_offset_z_, front_alpha_, 
-                front_angle_min_, front_angle_max_);
-
-    process_laser(scan_back_, back_offset_x_, back_offset_y_, back_offset_z_, back_alpha_, 
-                back_angle_min_, back_angle_max_);
-
-    // Create and publish PointCloud2 message
-    removePointsWithinRadius(cloud_, 0.2); //radius 0.19
-    pcl::toROSMsg(cloud_, pc_lidar_msg);
-    pc_lidar_msg.header.frame_id = "base_scan";
-
-    rclcpp::Time time1(scan_front_.header.stamp);
-    rclcpp::Time time2(scan_back_.header.stamp);
-    pc_lidar_msg.header.stamp = (time1 < time2) ? scan_back_.header.stamp : scan_front_.header.stamp;
-    pc_lidar_msg.is_dense = false;
-}
-
-void SensorToPointcloud::removePointsWithinRadius(pcl::PointCloud<pcl::PointXYZ>& cloud, float radius, float center_x, float center_y)
-{
-    pcl::PointCloud<pcl::PointXYZ> filteredCloud;
-
-    for (const auto& point : cloud.points) {
-        float distance = std::sqrt((point.x - center_x) * (point.x - center_x) + 
-                                    (point.y - center_y) * (point.y - center_y));
-        if (distance >= radius) {
-            filteredCloud.points.push_back(point);
-        }
-    }
-
-    cloud.points.swap(filteredCloud.points);
 }

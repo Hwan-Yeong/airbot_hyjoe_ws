@@ -21,6 +21,7 @@
 #include "airbot_sensor_to_pointcloud/tof/pointcloud_tof.hpp"
 #include "airbot_sensor_to_pointcloud/camera/pointcloud_camera.hpp"
 #include "airbot_sensor_to_pointcloud/cliff/pointcloud_cliff.hpp"
+#include "airbot_sensor_to_pointcloud/lidar/pointcloud_lidar.hpp"
 #include "logger/camera_object_logger.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include <pcl_conversions/pcl_conversions.h>
@@ -44,6 +45,7 @@ private:
     PointCloudCliff point_cloud_cliff_;
     BoundingBoxGenerator bounding_box_generator_;
     CameraObjectLogger camera_object_logger_;
+    PointCloudLidar point_cloud_lidar_;
 
     std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> param_callback_handle_;
@@ -51,7 +53,7 @@ private:
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
     rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr cliff_sub_;
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::LaserScan>> laser1_sub_, laser2_sub_;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::LaserScan>> lidar_front_sub_, lidar_back_sub_;
     std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_1d_pub_;
@@ -85,7 +87,6 @@ private:
         publish_cnt_camera_, publish_cnt_cliff_, publish_cnt_lidar_;
     double tilting_ang_1d_tof_;
 
-    sensor_msgs::msg::LaserScan scan_front_, scan_back_;
     sensor_msgs::msg::PointCloud2 pc_tof_1d_msg, pc_tof_multi_msg,
         pc_tof_left_row1_msg, pc_tof_left_row2_msg, pc_tof_left_row3_msg, pc_tof_left_row4_msg,
         pc_tof_right_row1_msg, pc_tof_right_row2_msg, pc_tof_right_row3_msg, pc_tof_right_row4_msg,
@@ -96,9 +97,7 @@ private:
 
     bool isTofUpdating, isCameraUpdating, isCliffUpdating, isLidarUpdating;
 
-    std::string topic1_, topic2_, cloudTopic_, cloudFrameId_;
-    float front_offset_x_, front_offset_y_, front_offset_z_, front_alpha_, front_angle_min_, front_angle_max_,
-        back_offset_x_, back_offset_y_, back_offset_z_, back_alpha_, back_angle_min_, back_angle_max_;
+    tLidarParam front_lidar_params_, back_lidar_params_;
 
     void declareParams();
     void setParams();
@@ -107,9 +106,7 @@ private:
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
     void cliffMsgUpdate(const std_msgs::msg::UInt8::SharedPtr msg);
-    void synchronizedCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr &laser1_msg, const sensor_msgs::msg::LaserScan::ConstSharedPtr &laser2_msg);
-    void update_point_cloud_rgb();
-    void removePointsWithinRadius(pcl::PointCloud<pcl::PointXYZ>& cloud, float radius, float center_x = 0.0f, float center_y = 0.0f);
+    void lidarMsgUpdate(const sensor_msgs::msg::LaserScan::ConstSharedPtr &lidar_front_msg, const sensor_msgs::msg::LaserScan::ConstSharedPtr &lidar_back_msg);
 };
 
 #endif // SENSOR_TO_POINTCLOUD

@@ -135,8 +135,8 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(co
 
         for (int i = 0; i < point_size_x; ++i) {
             for (int j = 0; j < point_size_y; ++j) {
-
-                if ((ptr - msg.data.data()) + msg.point_step > max_size) {
+                size_t current_offset = static_cast<size_t>(ptr - msg.data.data());
+                if (current_offset + msg.point_step > max_size) {
                     RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "############## IGNORE! #############");
                     RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "##### Memory overflow detected! ####");
                     return msg;
