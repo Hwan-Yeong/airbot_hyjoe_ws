@@ -72,67 +72,37 @@ private:
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
     std::string target_frame_;
-    bool use_tof_;
-    bool use_tof_1D_;
-    bool use_tof_left_;
-    bool use_tof_right_;
-    bool use_tof_row_;
-    bool use_camera_;
-    bool ues_cliff_;
-    bool use_camera_object_logger_;
+    bool use_tof_, use_tof_1D_, use_tof_left_, use_tof_right_, use_tof_row_,
+        use_camera_, ues_cliff_, use_camera_object_logger_, use_lidar_;
     float camera_pointcloud_resolution_;
-    double camera_logger_distance_margin_;
-    double camera_logger_width_margin_;
-    double camera_logger_height_margin_;
+    double camera_logger_distance_margin_, camera_logger_width_margin_, camera_logger_height_margin_;
     std::vector<std::string> camera_param_raw_vector_;
     std::map<int, int> camera_class_id_confidence_th_;
     bool camera_object_direction_;
-    int publish_rate_1d_tof_;
-    int publish_rate_multi_tof_;
-    int publish_rate_row_tof_;
-    int publish_rate_camera_;
-    int publish_rate_cliff_;
-    int publish_cnt_1d_tof_;
-    int publish_cnt_multi_tof_;
-    int publish_cnt_row_tof_;
-    int publish_cnt_camera_;
-    int publish_cnt_cliff_;
+    int publish_rate_1d_tof_, publish_rate_multi_tof_, publish_rate_row_tof_,
+        publish_rate_camera_, publish_rate_cliff_, publish_rate_lidar_;
+    int publish_cnt_1d_tof_, publish_cnt_multi_tof_, publish_cnt_row_tof_,
+        publish_cnt_camera_, publish_cnt_cliff_, publish_cnt_lidar_;
     double tilting_ang_1d_tof_;
 
-    sensor_msgs::msg::PointCloud2 pc_tof_1d_msg;
-    sensor_msgs::msg::PointCloud2 pc_tof_multi_msg;
-    sensor_msgs::msg::PointCloud2 pc_tof_left_row1_msg;
-    sensor_msgs::msg::PointCloud2 pc_tof_left_row2_msg;
-    sensor_msgs::msg::PointCloud2 pc_tof_left_row3_msg;
-    sensor_msgs::msg::PointCloud2 pc_tof_left_row4_msg;
-    sensor_msgs::msg::PointCloud2 pc_tof_right_row1_msg;
-    sensor_msgs::msg::PointCloud2 pc_tof_right_row2_msg;
-    sensor_msgs::msg::PointCloud2 pc_tof_right_row3_msg;
-    sensor_msgs::msg::PointCloud2 pc_tof_right_row4_msg;
-    sensor_msgs::msg::PointCloud2 pc_camera_msg;
-    sensor_msgs::msg::PointCloud2 pc_cliff_msg;
-    sensor_msgs::msg::PointCloud2 pc_lidar_msg;
+    sensor_msgs::msg::LaserScan scan_front_, scan_back_;
+    sensor_msgs::msg::PointCloud2 pc_tof_1d_msg, pc_tof_multi_msg,
+        pc_tof_left_row1_msg, pc_tof_left_row2_msg, pc_tof_left_row3_msg, pc_tof_left_row4_msg,
+        pc_tof_right_row1_msg, pc_tof_right_row2_msg, pc_tof_right_row3_msg, pc_tof_right_row4_msg,
+        pc_camera_msg, pc_cliff_msg, pc_lidar_msg;
+
     vision_msgs::msg::BoundingBox2DArray bbox_msg;
     visualization_msgs::msg::MarkerArray marker_msg;
 
-    bool isTofUpdating;
-    bool isCameraUpdating;
-    bool isCliffUpdating;
+    bool isTofUpdating, isCameraUpdating, isCliffUpdating, isLidarUpdating;
 
     std::string topic1_, topic2_, cloudTopic_, cloudFrameId_;
-    bool show1_, show2_, flip1_, flip2_, inverse1_, inverse2_;
-    float laser1XOff_, laser1YOff_, laser1ZOff_, laser1Alpha_, laser1AngleMin_, laser1AngleMax_;
-    uint8_t laser1R_, laser1G_, laser1B_;
+    float front_offset_x_, front_offset_y_, front_offset_z_, front_alpha_, front_angle_min_, front_angle_max_,
+        back_offset_x_, back_offset_y_, back_offset_z_, back_alpha_, back_angle_min_, back_angle_max_;
 
-    float laser2XOff_, laser2YOff_, laser2ZOff_, laser2Alpha_, laser2AngleMin_, laser2AngleMax_;
-    uint8_t laser2R_, laser2G_, laser2B_;
-
-    sensor_msgs::msg::LaserScan laser1_;
-    sensor_msgs::msg::LaserScan laser2_;
-
-    void initialize_lidar_params();
-    void refresh_lidar_params();
-    void print_lidar_params();
+    void declareParams();
+    void setParams();
+    void printParams();
     void publisherMonitor();
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);

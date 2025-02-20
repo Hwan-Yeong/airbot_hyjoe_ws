@@ -56,55 +56,9 @@ SensorToPointcloud::SensorToPointcloud()
         }
     );
 
-    initialize_lidar_params();
-    refresh_lidar_params();
-    print_lidar_params();
-
-    // Declare Parameters
-    this->declare_parameter("target_frame","base_link");
-    this->declare_parameter("tof.all.use",false);
-    this->declare_parameter("tof.1D.use",false);
-    this->declare_parameter("tof.1D.publish_rate_ms",100);
-    this->declare_parameter("tof.1D.tilting_angle_deg",0.0);
-    this->declare_parameter("tof.multi.publish_rate_ms",100);
-    this->declare_parameter("tof.multi.left.use",false);
-    this->declare_parameter("tof.multi.right.use",false);
-    this->declare_parameter("tof.multi.row.use",false);
-    this->declare_parameter("tof.multi.row.publish_rate_ms",100);
-    this->declare_parameter("camera.use",false);
-    this->declare_parameter("camera.publish_rate_ms",100);
-    this->declare_parameter("camera.pointcloud_resolution",0.05);
-    this->declare_parameter("camera.class_id_confidence_th",std::vector<std::string>());
-    this->declare_parameter("camera.object_direction",false);
-    this->declare_parameter("camera.logger.use",false);
-    this->declare_parameter("camera.logger.margin.distance_diff",1.0);
-    this->declare_parameter("camera.logger.margin.width_diff",1.0);
-    this->declare_parameter("camera.logger.margin.height_diff",1.0);
-    this->declare_parameter("cliff.use",false);
-    this->declare_parameter("cliff.publish_rate_ms",100);
-
-    // Set Parameters
-    this->get_parameter("target_frame", target_frame_);
-    this->get_parameter("tof.all.use", use_tof_);
-    this->get_parameter("tof.1D.use", use_tof_1D_);
-    this->get_parameter("tof.1D.publish_rate_ms", publish_rate_1d_tof_);
-    this->get_parameter("tof.1D.tilting_angle_deg", tilting_ang_1d_tof_);
-    this->get_parameter("tof.multi.publish_rate_ms", publish_rate_multi_tof_);
-    this->get_parameter("tof.multi.left.use", use_tof_left_);
-    this->get_parameter("tof.multi.right.use", use_tof_right_);
-    this->get_parameter("tof.multi.row.use", use_tof_row_);
-    this->get_parameter("tof.multi.row.publish_rate_ms", publish_rate_row_tof_);
-    this->get_parameter("camera.use", use_camera_);
-    this->get_parameter("camera.publish_rate_ms", publish_rate_camera_);
-    this->get_parameter("camera.pointcloud_resolution", camera_pointcloud_resolution_);
-    this->get_parameter("camera.class_id_confidence_th", camera_param_raw_vector_);
-    this->get_parameter("camera.object_direction", camera_object_direction_);
-    this->get_parameter("camera.logger.use", use_camera_object_logger_);
-    this->get_parameter("camera.logger.margin.distance_diff", camera_logger_distance_margin_);
-    this->get_parameter("camera.logger.margin.width_diff", camera_logger_width_margin_);
-    this->get_parameter("camera.logger.margin.height_diff", camera_logger_height_margin_);
-    this->get_parameter("cliff.use", ues_cliff_);
-    this->get_parameter("cliff.publish_rate_ms", publish_rate_cliff_);
+    declareParams();
+    setParams();
+    printParams();
 
     // Update Parameters
     point_cloud_tof_.updateTargetFrame(target_frame_);
@@ -133,8 +87,10 @@ SensorToPointcloud::SensorToPointcloud()
     cliff_sub_ = this->create_subscription<std_msgs::msg::UInt8>(
         "bottom_status", 10, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1));
 
-    laser1_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(this, topic1_);
-    laser2_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(this, topic2_);
+    laser1_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(
+        this, "scan_front");
+    laser2_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(
+        this, "scan_back");
     sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(SyncPolicy(10), *laser1_sub_, *laser2_sub_);
     sync_->registerCallback(std::bind(&SensorToPointcloud::synchronizedCallback, this, std::placeholders::_1, std::placeholders::_2));
 
@@ -179,7 +135,8 @@ SensorToPointcloud::SensorToPointcloud()
     }
 
     pc_lidar_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-        cloudTopic_, rclcpp::SensorDataQoS().best_effort());
+        "sensor_to_pointcloud/lidar", rclcpp::SensorDataQoS().best_effort());
+    RCLCPP_INFO(this->get_logger(), "Lidar init finished!");
 
     publish_cnt_1d_tof_ = 0;
     publish_cnt_multi_tof_ = 0;
@@ -196,97 +153,125 @@ SensorToPointcloud::~SensorToPointcloud()
 {
 }
 
-void SensorToPointcloud::initialize_lidar_params()
+void SensorToPointcloud::declareParams()
 {
-    this->declare_parameter("pointCloudTopic", "sensor_to_pointcloud/lidar");
-    this->declare_parameter("pointCloutFrameId", "base_scan");
-    this->declare_parameter("scanTopic1", "/scan_front");
-    this->declare_parameter("laser1XOff", 0.15);
-    this->declare_parameter("laser1YOff", 0.0);
-    this->declare_parameter("laser1ZOff", 0.0);
-    this->declare_parameter("laser1Alpha", 180.0);
-    this->declare_parameter("laser1AngleMin", 90.0);
-    this->declare_parameter("laser1AngleMax", 270.0);
-    this->declare_parameter("laser1R", 255);
-    this->declare_parameter("laser1G", 0);
-    this->declare_parameter("laser1B", 0);
-    this->declare_parameter("show1", true);
-    this->declare_parameter("flip1", false);
-    this->declare_parameter("inverse1", false);
+    this->declare_parameter("target_frame","base_link");
 
-    this->declare_parameter("scanTopic2", "/scan_back");
-    this->declare_parameter("laser2XOff", -0.15);
-    this->declare_parameter("laser2YOff", 0.0);
-    this->declare_parameter("laser2ZOff", 0.0);
-    this->declare_parameter("laser2Alpha", 0.0);
-    this->declare_parameter("laser2AngleMin", 90.0);
-    this->declare_parameter("laser2AngleMax", 270.0);
-    this->declare_parameter("laser2R", 0);
-    this->declare_parameter("laser2G", 0);
-    this->declare_parameter("laser2B", 255);
-    this->declare_parameter("show2", true);
-    this->declare_parameter("flip2", false);
-    this->declare_parameter("inverse2", false);
+    this->declare_parameter("tof.all.use",false);
+    this->declare_parameter("tof.1D.use",false);
+    this->declare_parameter("tof.1D.publish_rate_ms",100);
+    this->declare_parameter("tof.1D.tilting_angle_deg",0.0);
+    this->declare_parameter("tof.multi.publish_rate_ms",100);
+    this->declare_parameter("tof.multi.left.use",false);
+    this->declare_parameter("tof.multi.right.use",false);
+    this->declare_parameter("tof.multi.row.use",false);
+    this->declare_parameter("tof.multi.row.publish_rate_ms",100);
+
+    this->declare_parameter("camera.use",false);
+    this->declare_parameter("camera.publish_rate_ms",100);
+    this->declare_parameter("camera.pointcloud_resolution",0.05);
+    this->declare_parameter("camera.class_id_confidence_th",std::vector<std::string>());
+    this->declare_parameter("camera.object_direction",false);
+    this->declare_parameter("camera.logger.use",false);
+    this->declare_parameter("camera.logger.margin.distance_diff",1.0);
+    this->declare_parameter("camera.logger.margin.width_diff",1.0);
+    this->declare_parameter("camera.logger.margin.height_diff",1.0);
+
+    this->declare_parameter("cliff.use",false);
+    this->declare_parameter("cliff.publish_rate_ms",100);
+
+    this->declare_parameter("lidar.use", false);
+    this->declare_parameter("lidar.publish_rate_ms", 100);
+    this->declare_parameter("lidar.front.range.angle_max", 0.0);
+    this->declare_parameter("lidar.front.range.angle_min", 0.0);
+    this->declare_parameter("lidar.front.geometry.alpha", 0.0);
+    this->declare_parameter("lidar.front.geometry.offset.x", 0.0);
+    this->declare_parameter("lidar.front.geometry.offset.y", 0.0);
+    this->declare_parameter("lidar.front.geometry.offset.z", 0.0);
+    this->declare_parameter("lidar.back.range.angle_max", 0.0);
+    this->declare_parameter("lidar.back.range.angle_min", 0.0);
+    this->declare_parameter("lidar.back.geometry.alpha", 0.0);
+    this->declare_parameter("lidar.back.geometry.offset.x", 0.0);
+    this->declare_parameter("lidar.back.geometry.offset.y", 0.0);
+    this->declare_parameter("lidar.back.geometry.offset.z", 0.0);
 }
 
-void SensorToPointcloud::refresh_lidar_params()
+void SensorToPointcloud::setParams()
 {
-    this->get_parameter_or<std::string>("pointCloudTopic", cloudTopic_, "sensor_to_pointcloud/lidar");
-    this->get_parameter_or<std::string>("pointCloutFrameId", cloudFrameId_, "base_scan");
-    this->get_parameter_or<std::string>("scanTopic1", topic1_, "/scan_front");
-    this->get_parameter_or<float>("laser1XOff", laser1XOff_, 0.15);
-    this->get_parameter_or<float>("laser1YOff", laser1YOff_, 0.0);
-    this->get_parameter_or<float>("laser1ZOff", laser1ZOff_, 0.0);
-    this->get_parameter_or<float>("laser1Alpha", laser1Alpha_, 180.0);
-    this->get_parameter_or<float>("laser1AngleMin", laser1AngleMin_, 90.0);
-    this->get_parameter_or<float>("laser1AngleMax", laser1AngleMax_, 270.0);
-    this->get_parameter_or<uint8_t>("laser1R", laser1R_, 255);
-    this->get_parameter_or<uint8_t>("laser1G", laser1G_, 0);
-    this->get_parameter_or<uint8_t>("laser1B", laser1B_, 0);
-    this->get_parameter_or<bool>("show1", show1_, true);
-    this->get_parameter_or<bool>("flip1", flip1_, false);
-    this->get_parameter_or<bool>("inverse1", inverse1_, false);
-    this->get_parameter_or<std::string>("scanTopic2", topic2_, "/scan_back");
-    this->get_parameter_or<float>("laser2XOff", laser2XOff_, -0.15);
-    this->get_parameter_or<float>("laser2YOff", laser2YOff_, 0.0);
-    this->get_parameter_or<float>("laser2ZOff", laser2ZOff_, 0.0);
-    this->get_parameter_or<float>("laser2Alpha", laser2Alpha_, 0.0);
-    this->get_parameter_or<float>("laser2AngleMin", laser2AngleMin_, 90.0);
-    this->get_parameter_or<float>("laser2AngleMax", laser2AngleMax_, 270.0);
-    this->get_parameter_or<uint8_t>("laser2R", laser2R_, 0);
-    this->get_parameter_or<uint8_t>("laser2G", laser2G_, 0);
-    this->get_parameter_or<uint8_t>("laser2B", laser2B_, 255);
-    this->get_parameter_or<bool>("show2", show2_, true);
-    this->get_parameter_or<bool>("flip2", flip2_, false);
-    this->get_parameter_or<bool>("inverse2", inverse2_, false);
+    this->get_parameter("target_frame", target_frame_);
+
+    this->get_parameter("tof.all.use", use_tof_);
+    this->get_parameter("tof.1D.use", use_tof_1D_);
+    this->get_parameter("tof.1D.publish_rate_ms", publish_rate_1d_tof_);
+    this->get_parameter("tof.1D.tilting_angle_deg", tilting_ang_1d_tof_);
+    this->get_parameter("tof.multi.publish_rate_ms", publish_rate_multi_tof_);
+    this->get_parameter("tof.multi.left.use", use_tof_left_);
+    this->get_parameter("tof.multi.right.use", use_tof_right_);
+    this->get_parameter("tof.multi.row.use", use_tof_row_);
+    this->get_parameter("tof.multi.row.publish_rate_ms", publish_rate_row_tof_);
+
+    this->get_parameter("camera.use", use_camera_);
+    this->get_parameter("camera.publish_rate_ms", publish_rate_camera_);
+    this->get_parameter("camera.pointcloud_resolution", camera_pointcloud_resolution_);
+    this->get_parameter("camera.class_id_confidence_th", camera_param_raw_vector_);
+    this->get_parameter("camera.object_direction", camera_object_direction_);
+    this->get_parameter("camera.logger.use", use_camera_object_logger_);
+    this->get_parameter("camera.logger.margin.distance_diff", camera_logger_distance_margin_);
+    this->get_parameter("camera.logger.margin.width_diff", camera_logger_width_margin_);
+    this->get_parameter("camera.logger.margin.height_diff", camera_logger_height_margin_);
+
+    this->get_parameter("cliff.use", ues_cliff_);
+    this->get_parameter("cliff.publish_rate_ms", publish_rate_cliff_);
+
+    this->get_parameter("lidar.use", use_lidar_);
+    this->get_parameter("lidar.publish_rate_ms", publish_rate_lidar_);
+    this->get_parameter("lidar.front.range.angle_max", front_angle_max_);
+    this->get_parameter("lidar.front.range.angle_min", front_angle_min_);
+    this->get_parameter("lidar.front.geometry.alpha", front_alpha_);
+    this->get_parameter("lidar.front.geometry.offset.x", front_offset_x_);
+    this->get_parameter("lidar.front.geometry.offset.y", front_offset_y_);
+    this->get_parameter("lidar.front.geometry.offset.z", front_offset_z_);
+    this->get_parameter("lidar.back.range.angle_max", back_angle_max_);
+    this->get_parameter("lidar.back.range.angle_min", back_angle_min_);
+    this->get_parameter("lidar.back.geometry.alpha", back_alpha_);
+    this->get_parameter("lidar.back.geometry.offset.x", back_offset_x_);
+    this->get_parameter("lidar.back.geometry.offset.y", back_offset_y_);
+    this->get_parameter("lidar.back.geometry.offset.z", back_offset_z_);
 }
 
-void SensorToPointcloud::print_lidar_params()
+void SensorToPointcloud::printParams()
 {
-    RCLCPP_INFO(this->get_logger(), "PointCloudTopic: %s", cloudTopic_.c_str());
-    RCLCPP_INFO(this->get_logger(), "PointCloudFrameId: %s", cloudFrameId_.c_str());
-
-    RCLCPP_INFO(this->get_logger(), "LIDAR 1:");
-    RCLCPP_INFO(this->get_logger(), "  Scan Topic: %s", topic1_.c_str());
-    RCLCPP_INFO(this->get_logger(), "  Offset: X=%.2f, Y=%.2f, Z=%.2f", laser1XOff_, laser1YOff_, laser1ZOff_);
-    RCLCPP_INFO(this->get_logger(), "  Alpha: %.2f", laser1Alpha_);
-    RCLCPP_INFO(this->get_logger(), "  Angle Min: %.2f, Angle Max: %.2f", laser1AngleMin_, laser1AngleMax_);
-    RCLCPP_INFO(this->get_logger(), "  RGB: (%d, %d, %d)", laser1R_, laser1G_, laser1B_);
-    RCLCPP_INFO(this->get_logger(), "  Show: %s, Flip: %s, Inverse: %s", 
-        show1_ ? "true" : "false",
-        flip1_ ? "true" : "false",
-        inverse1_ ? "true" : "false");
-
-    RCLCPP_INFO(this->get_logger(), "LIDAR 2:");
-    RCLCPP_INFO(this->get_logger(), "  Scan Topic: %s", topic2_.c_str());
-    RCLCPP_INFO(this->get_logger(), "  Offset: X=%.2f, Y=%.2f, Z=%.2f", laser2XOff_, laser2YOff_, laser2ZOff_);
-    RCLCPP_INFO(this->get_logger(), "  Alpha: %.2f", laser2Alpha_);
-    RCLCPP_INFO(this->get_logger(), "  Angle Min: %.2f, Angle Max: %.2f", laser2AngleMin_, laser2AngleMax_);
-    RCLCPP_INFO(this->get_logger(), "  RGB: (%d, %d, %d)", laser2R_, laser2G_, laser2B_);
-    RCLCPP_INFO(this->get_logger(), "  Show: %s, Flip: %s, Inverse: %s", 
-        show2_ ? "true" : "false",
-        flip2_ ? "true" : "false",
-        inverse2_ ? "true" : "false");
+    RCLCPP_INFO(this->get_logger(), "======================== PARAMETERS ========================");
+    
+    RCLCPP_INFO(this->get_logger(), "[General]");
+    RCLCPP_INFO(this->get_logger(), "  Target Frame: %s", target_frame_.c_str());
+    
+    RCLCPP_INFO(this->get_logger(), "[TOF Settings]");
+    RCLCPP_INFO(this->get_logger(), "  TOF All Use: %d", use_tof_);
+    RCLCPP_INFO(this->get_logger(), "  TOF 1D Use: %d", use_tof_1D_);
+    RCLCPP_INFO(this->get_logger(), "  TOF 1D Publish Rate: %d ms", publish_rate_1d_tof_);
+    RCLCPP_INFO(this->get_logger(), "  TOF 1D Tilting Angle: %.2f deg", tilting_ang_1d_tof_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Publish Rate: %d ms", publish_rate_multi_tof_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Use: %d", use_tof_left_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Use: %d", use_tof_right_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Row Use: %d", use_tof_row_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Row Publish Rate: %d ms", publish_rate_row_tof_);
+    
+    RCLCPP_INFO(this->get_logger(), "[Camera Settings]");
+    RCLCPP_INFO(this->get_logger(), "  Camera Use: %d", use_camera_);
+    RCLCPP_INFO(this->get_logger(), "  Camera Publish Rate: %d ms", publish_rate_camera_);
+    RCLCPP_INFO(this->get_logger(), "  Camera Pointcloud Resolution: %.2f", camera_pointcloud_resolution_);
+    RCLCPP_INFO(this->get_logger(), "  Camera Object Logger Use: %d", use_camera_object_logger_);
+    
+    RCLCPP_INFO(this->get_logger(), "[Lidar Settings]");
+    RCLCPP_INFO(this->get_logger(), "  Lidar Use: %d", use_lidar_);
+    RCLCPP_INFO(this->get_logger(), "  Lidar Publish Rate: %d ms", publish_rate_lidar_);
+    RCLCPP_INFO(this->get_logger(), "  Lidar Front: Angle Min: %.2f, Angle Max: %.2f, Alpha: %.2f", front_angle_min_, front_angle_max_, front_alpha_);
+    RCLCPP_INFO(this->get_logger(), "  Lidar Front Offset: (X: %.2f, Y: %.2f, Z: %.2f)", front_offset_x_, front_offset_y_, front_offset_z_);
+    RCLCPP_INFO(this->get_logger(), "  Lidar Back: Angle Min: %.2f, Angle Max: %.2f, Alpha: %.2f", back_angle_min_, back_angle_max_, back_alpha_);
+    RCLCPP_INFO(this->get_logger(), "  Lidar Back Offset: (X: %.2f, Y: %.2f, Z: %.2f)", back_offset_x_, back_offset_y_, back_offset_z_);
+    
+    RCLCPP_INFO(this->get_logger(), "============================================================");
 }
 
 void SensorToPointcloud::publisherMonitor()
@@ -469,8 +454,8 @@ void SensorToPointcloud::cliffMsgUpdate(const std_msgs::msg::UInt8::SharedPtr ms
 
 void SensorToPointcloud::synchronizedCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr &laser1_msg, const sensor_msgs::msg::LaserScan::ConstSharedPtr &laser2_msg)
 {
-    laser1_ = *laser1_msg;
-    laser2_ = *laser2_msg;
+    scan_front_ = *laser1_msg;
+    scan_back_ = *laser2_msg;
     update_point_cloud_rgb();
 }
 
@@ -484,9 +469,8 @@ void SensorToPointcloud::update_point_cloud_rgb()
 
     auto process_laser = [&](const sensor_msgs::msg::LaserScan &laser, 
                             float x_off, float y_off, float z_off, float alpha, 
-                            float angle_min, float angle_max, 
-                            bool flip, bool inverse, bool show) {
-        if (!show || laser.ranges.empty()) return;
+                            float angle_min, float angle_max) {
+        if (laser.ranges.empty()) return;
 
         float temp_min = std::min(laser.angle_min, laser.angle_max);
         float temp_max = std::max(laser.angle_min, laser.angle_max);
@@ -500,13 +484,12 @@ void SensorToPointcloud::update_point_cloud_rgb()
             float angle = temp_min + i * laser.angle_increment;
             if (angle > temp_max) break;
 
-            size_t idx = flip ? laser.ranges.size() - 1 - i : i;
-            float range = laser.ranges[idx];
+            float range = laser.ranges[i];
 
             if (std::isnan(range) || range < laser.range_min || range > laser.range_max) continue;
 
             bool is_in_range = (angle >= angle_min_rad && angle <= angle_max_rad);
-            if (inverse == is_in_range) continue;
+            if (is_in_range == false) continue;
 
             pcl::PointXYZ pt; 
             float x = range * std::cos(angle);
@@ -528,20 +511,20 @@ void SensorToPointcloud::update_point_cloud_rgb()
     };
 
     // Process both lasers
-    process_laser(laser1_, laser1XOff_, laser1YOff_, laser1ZOff_, laser1Alpha_, 
-                laser1AngleMin_, laser1AngleMax_, flip1_, inverse1_, show1_);
+    process_laser(scan_front_, front_offset_x_, front_offset_y_, front_offset_z_, front_alpha_, 
+                front_angle_min_, front_angle_max_);
 
-    process_laser(laser2_, laser2XOff_, laser2YOff_, laser2ZOff_, laser2Alpha_, 
-                laser2AngleMin_, laser2AngleMax_, flip2_, inverse2_, show2_);
+    process_laser(scan_back_, back_offset_x_, back_offset_y_, back_offset_z_, back_alpha_, 
+                back_angle_min_, back_angle_max_);
 
     // Create and publish PointCloud2 message
     removePointsWithinRadius(cloud_, 0.2); //radius 0.19
     pcl::toROSMsg(cloud_, pc_lidar_msg);
-    pc_lidar_msg.header.frame_id = cloudFrameId_;
+    pc_lidar_msg.header.frame_id = "base_scan";
 
-    rclcpp::Time time1(laser1_.header.stamp);
-    rclcpp::Time time2(laser2_.header.stamp);
-    pc_lidar_msg.header.stamp = (time1 < time2) ? laser2_.header.stamp : laser1_.header.stamp;
+    rclcpp::Time time1(scan_front_.header.stamp);
+    rclcpp::Time time2(scan_back_.header.stamp);
+    pc_lidar_msg.header.stamp = (time1 < time2) ? scan_back_.header.stamp : scan_front_.header.stamp;
     pc_lidar_msg.is_dense = false;
 }
 
