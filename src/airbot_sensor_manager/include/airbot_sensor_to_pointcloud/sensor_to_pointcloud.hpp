@@ -73,7 +73,7 @@ private:
 
     std::string target_frame_;
     bool use_tof_, use_tof_1D_, use_tof_left_, use_tof_right_, use_tof_row_,
-        use_camera_, ues_cliff_, use_camera_object_logger_, use_lidar_;
+        use_camera_, use_cliff_, use_camera_object_logger_, use_lidar_;
     float camera_pointcloud_resolution_;
     double camera_logger_distance_margin_, camera_logger_width_margin_, camera_logger_height_margin_;
     std::vector<std::string> camera_param_raw_vector_;

@@ -39,6 +39,10 @@ SensorToPointcloud::SensorToPointcloud()
                             camera_sensor_frame_y_translate,
                             camera_sensor_frame_z_translate)
 {
+    declareParams();
+    setParams();
+    printParams();
+
     // Dynamic Parameter Handler
     param_handler_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
     param_callback_handle_ = param_handler_->add_parameter_callback(
@@ -55,10 +59,6 @@ SensorToPointcloud::SensorToPointcloud()
             }
         }
     );
-
-    declareParams();
-    setParams();
-    printParams();
 
     // Update Parameters
     point_cloud_tof_.updateTargetFrame(target_frame_);
@@ -78,6 +78,7 @@ SensorToPointcloud::SensorToPointcloud()
     isTofUpdating = false;
     isCameraUpdating = false;
     isCliffUpdating = false;
+    isLidarUpdating = false;
 
     // Msg Subscribers
     tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
@@ -128,21 +129,23 @@ SensorToPointcloud::SensorToPointcloud()
             "sensor_to_pointcloud/camera/bbox", 10);
         RCLCPP_INFO(this->get_logger(), "Camera init finished!");
     }
-    if (ues_cliff_) {
+    if (use_cliff_) {
         pc_cliff_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
             "sensor_to_pointcloud/cliff", 10);
         RCLCPP_INFO(this->get_logger(), "Cliff init finished!");
     }
-
-    pc_lidar_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-        "sensor_to_pointcloud/lidar", rclcpp::SensorDataQoS().best_effort());
-    RCLCPP_INFO(this->get_logger(), "Lidar init finished!");
+    if (use_lidar_) {
+        pc_lidar_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+            "sensor_to_pointcloud/lidar", rclcpp::SensorDataQoS().best_effort());
+        RCLCPP_INFO(this->get_logger(), "Lidar init finished!");
+    }
 
     publish_cnt_1d_tof_ = 0;
     publish_cnt_multi_tof_ = 0;
     publish_cnt_row_tof_ = 0;
     publish_cnt_camera_ = 0;
     publish_cnt_cliff_ = 0;
+    publish_cnt_lidar_ = 0;
 
     // Monitor Timer
     poincloud_publish_timer_ = this->create_wall_timer(
@@ -220,7 +223,7 @@ void SensorToPointcloud::setParams()
     this->get_parameter("camera.logger.margin.width_diff", camera_logger_width_margin_);
     this->get_parameter("camera.logger.margin.height_diff", camera_logger_height_margin_);
 
-    this->get_parameter("cliff.use", ues_cliff_);
+    this->get_parameter("cliff.use", use_cliff_);
     this->get_parameter("cliff.publish_rate_ms", publish_rate_cliff_);
 
     this->get_parameter("lidar.use", use_lidar_);
@@ -241,10 +244,10 @@ void SensorToPointcloud::setParams()
 
 void SensorToPointcloud::printParams()
 {
-    RCLCPP_INFO(this->get_logger(), "======================== PARAMETERS ========================");
+    RCLCPP_INFO(this->get_logger(), "================== SENSOR MANAGER PARAMETERS ==================");
     
     RCLCPP_INFO(this->get_logger(), "[General]");
-    RCLCPP_INFO(this->get_logger(), "  Target Frame: %s", target_frame_.c_str());
+    RCLCPP_INFO(this->get_logger(), "  Target Frame: '%s'", target_frame_.c_str());
     
     RCLCPP_INFO(this->get_logger(), "[TOF Settings]");
     RCLCPP_INFO(this->get_logger(), "  TOF All Use: %d", use_tof_);
@@ -262,6 +265,10 @@ void SensorToPointcloud::printParams()
     RCLCPP_INFO(this->get_logger(), "  Camera Publish Rate: %d ms", publish_rate_camera_);
     RCLCPP_INFO(this->get_logger(), "  Camera Pointcloud Resolution: %.2f", camera_pointcloud_resolution_);
     RCLCPP_INFO(this->get_logger(), "  Camera Object Logger Use: %d", use_camera_object_logger_);
+
+    RCLCPP_INFO(this->get_logger(), "[Cliff Settings]");
+    RCLCPP_INFO(this->get_logger(), "  Camera Use: %d", use_cliff_);
+    RCLCPP_INFO(this->get_logger(), "  Camera Publish Rate: %d ms", publish_rate_cliff_);
     
     RCLCPP_INFO(this->get_logger(), "[Lidar Settings]");
     RCLCPP_INFO(this->get_logger(), "  Lidar Use: %d", use_lidar_);
@@ -271,7 +278,7 @@ void SensorToPointcloud::printParams()
     RCLCPP_INFO(this->get_logger(), "  Lidar Back: Angle Min: %.2f, Angle Max: %.2f, Alpha: %.2f", back_angle_min_, back_angle_max_, back_alpha_);
     RCLCPP_INFO(this->get_logger(), "  Lidar Back Offset: (X: %.2f, Y: %.2f, Z: %.2f)", back_offset_x_, back_offset_y_, back_offset_z_);
     
-    RCLCPP_INFO(this->get_logger(), "============================================================");
+    RCLCPP_INFO(this->get_logger(), "===============================================================");
 }
 
 void SensorToPointcloud::publisherMonitor()
@@ -281,6 +288,7 @@ void SensorToPointcloud::publisherMonitor()
     publish_cnt_row_tof_ += 10;
     publish_cnt_camera_ += 10;
     publish_cnt_cliff_ += 10;
+    publish_cnt_lidar_ += 10;
 
     // msg Reset
     if (!isTofUpdating) {
@@ -313,8 +321,13 @@ void SensorToPointcloud::publisherMonitor()
         }
     }
     if (!isCliffUpdating) {
-        if (ues_cliff_) {
+        if (use_cliff_) {
             pc_cliff_msg = sensor_msgs::msg::PointCloud2();
+        }
+    }
+    if (!isLidarUpdating) {
+        if (use_lidar_) {
+            pc_lidar_msg = sensor_msgs::msg::PointCloud2();
         }
     }
 
@@ -359,21 +372,27 @@ void SensorToPointcloud::publisherMonitor()
             publish_cnt_camera_ = 0;
         }
     }
-    if (ues_cliff_ && isCliffUpdating) {
+    if (use_cliff_ && isCliffUpdating) {
         if (publish_cnt_cliff_ >= publish_rate_cliff_) {
             pc_cliff_pub_->publish(pc_cliff_msg);
             isCliffUpdating = false;
             publish_cnt_cliff_ = 0;
         }
     }
-
-    pc_lidar_pub_->publish(pc_lidar_msg);
+    if (use_lidar_ && isLidarUpdating) {
+        if (publish_cnt_lidar_ >= publish_rate_lidar_) {
+            pc_lidar_pub_->publish(pc_lidar_msg);
+            isLidarUpdating = false;
+            publish_cnt_lidar_ = 0;
+        }
+    }
 
     if (publish_cnt_1d_tof_ > 10000)     publish_cnt_1d_tof_ = 0;
     if (publish_cnt_multi_tof_ > 10000)  publish_cnt_multi_tof_ = 0;
     if (publish_cnt_row_tof_ > 10000)    publish_cnt_row_tof_ = 0;
     if (publish_cnt_camera_ > 10000)     publish_cnt_camera_ = 0;
     if (publish_cnt_cliff_ > 10000)      publish_cnt_cliff_ = 0;
+    if (publish_cnt_lidar_ > 10000)      publish_cnt_lidar_ = 0;
 }
 
 void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
@@ -445,7 +464,7 @@ void SensorToPointcloud::cliffMsgUpdate(const std_msgs::msg::UInt8::SharedPtr ms
         // point_cloud_cliff_.updateRobotPose(pose);
     }
 
-    if (ues_cliff_ && target_frame_ == "base_link") {
+    if (use_cliff_ && target_frame_ == "base_link") {
         pc_cliff_msg = point_cloud_cliff_.updateCliffPointCloudMsg(msg);
     }
 
@@ -454,9 +473,12 @@ void SensorToPointcloud::cliffMsgUpdate(const std_msgs::msg::UInt8::SharedPtr ms
 
 void SensorToPointcloud::synchronizedCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr &laser1_msg, const sensor_msgs::msg::LaserScan::ConstSharedPtr &laser2_msg)
 {
+    // Always publish at "base_scan" frame
     scan_front_ = *laser1_msg;
     scan_back_ = *laser2_msg;
     update_point_cloud_rgb();
+
+    isLidarUpdating = true;
 }
 
 void SensorToPointcloud::update_point_cloud_rgb()
