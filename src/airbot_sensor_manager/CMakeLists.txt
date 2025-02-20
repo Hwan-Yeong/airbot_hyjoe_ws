@@ -17,6 +17,7 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)
+find_package(pcl_conversions REQUIRED)
 
 include_directories(
   include
@@ -62,7 +63,8 @@ install(TARGETS param_setter
 
 ament_target_dependencies(sensor_to_pointcloud 
   rclcpp 
-  sensor_msgs 
+  sensor_msgs
+  pcl_conversions
   robot_custom_msgs
   builtin_interfaces
   tf2
