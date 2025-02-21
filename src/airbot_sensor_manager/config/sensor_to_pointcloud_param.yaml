@@ -41,7 +41,7 @@ airbot_sensor_to_pointcloud:
       publish_rate_ms: 10
   
     lidar:
-      use: true
+      use: false
       publish_rate_ms: 100
       front:
         range:

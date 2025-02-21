@@ -150,7 +150,7 @@ SensorToPointcloud::SensorToPointcloud()
 
     // Monitor Timer
     poincloud_publish_timer_ = this->create_wall_timer(
-        100ms, std::bind(&SensorToPointcloud::publisherMonitor, this));
+        10ms, std::bind(&SensorToPointcloud::publisherMonitor, this));
 }
 
 SensorToPointcloud::~SensorToPointcloud()
