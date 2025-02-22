@@ -41,7 +41,7 @@ SensorToPointcloud::SensorToPointcloud()
 {
     declareParams();
     setParams();
-    printParams();
+    initVariables();
 
     // Dynamic Parameter Handler
     param_handler_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
@@ -49,13 +49,17 @@ SensorToPointcloud::SensorToPointcloud()
         "target_frame",
         [this](const rclcpp::Parameter & param) {
             if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                std::string before = target_frame_;
                 target_frame_ = param.as_string();
                 point_cloud_tof_.updateTargetFrame(target_frame_);
                 bounding_box_generator_.updateTargetFrame(target_frame_);
                 point_cloud_cliff_.updateTargetFrame(target_frame_);
-                RCLCPP_INFO(this->get_logger(),
-                            "Success to Change [target_frame : %s]",
-                            target_frame_.c_str());
+                std::string after;
+                if (this->get_parameter("target_frame", after)) {
+                    RCLCPP_INFO(this->get_logger(), "[=== Updating target_frame: %s -> %s ===]", before.c_str(), after.c_str());
+                } else {
+                    RCLCPP_WARN(this->get_logger(), "target_frame parameter not found!");
+                }
             }
         }
     );
@@ -73,13 +77,8 @@ SensorToPointcloud::SensorToPointcloud()
             camera_class_id_confidence_th_[std::stoi(key)] = std::stoi(value);
         }
     }
-    RCLCPP_INFO(this->get_logger(), "Parameters init finished!");
-
-    // Msg Update Flags
-    isTofUpdating = false;
-    isCameraUpdating = false;
-    isCliffUpdating = false;
-    isLidarUpdating = false;
+    printParams();
+    RCLCPP_INFO(this->get_logger(), "All Parameters init finished!");
 
     // Msg Subscribers
     tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
@@ -88,13 +87,14 @@ SensorToPointcloud::SensorToPointcloud()
         "camera_data", 10, std::bind(&SensorToPointcloud::cameraMsgUpdate, this, std::placeholders::_1));
     cliff_sub_ = this->create_subscription<std_msgs::msg::UInt8>(
         "bottom_status", 10, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1));
-
     lidar_front_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(
         this, "scan_front");
     lidar_back_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(
         this, "scan_back");
-    sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(SyncPolicy(10), *lidar_front_sub_, *lidar_back_sub_);
-    sync_->registerCallback(std::bind(&SensorToPointcloud::lidarMsgUpdate, this, std::placeholders::_1, std::placeholders::_2));
+    sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(
+        SyncPolicy(10), *lidar_front_sub_, *lidar_back_sub_);
+    sync_->registerCallback(
+        std::bind(&SensorToPointcloud::lidarMsgUpdate, this, std::placeholders::_1, std::placeholders::_2));
 
     // Msg Publishers
     if (use_tof_) {
@@ -141,13 +141,6 @@ SensorToPointcloud::SensorToPointcloud()
         RCLCPP_INFO(this->get_logger(), "Lidar init finished!");
     }
 
-    publish_cnt_1d_tof_ = 0;
-    publish_cnt_multi_tof_ = 0;
-    publish_cnt_row_tof_ = 0;
-    publish_cnt_camera_ = 0;
-    publish_cnt_cliff_ = 0;
-    publish_cnt_lidar_ = 0;
-
     // Monitor Timer
     poincloud_publish_timer_ = this->create_wall_timer(
         10ms, std::bind(&SensorToPointcloud::publisherMonitor, this));
@@ -155,6 +148,7 @@ SensorToPointcloud::SensorToPointcloud()
 
 SensorToPointcloud::~SensorToPointcloud()
 {
+    param_handler_.reset();
 }
 
 void SensorToPointcloud::declareParams()
@@ -246,10 +240,12 @@ void SensorToPointcloud::setParams()
 void SensorToPointcloud::printParams()
 {
     RCLCPP_INFO(this->get_logger(), "================== SENSOR MANAGER PARAMETERS ==================");
-    
+
+    // General Settings
     RCLCPP_INFO(this->get_logger(), "[General]");
     RCLCPP_INFO(this->get_logger(), "  Target Frame: '%s'", target_frame_.c_str());
-    
+
+    // TOF Settings
     RCLCPP_INFO(this->get_logger(), "[TOF Settings]");
     RCLCPP_INFO(this->get_logger(), "  TOF All Use: %d", use_tof_);
     RCLCPP_INFO(this->get_logger(), "  TOF 1D Use: %d", use_tof_1D_);
@@ -260,26 +256,66 @@ void SensorToPointcloud::printParams()
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Use: %d", use_tof_right_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Row Use: %d", use_tof_row_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Row Publish Rate: %d ms", publish_rate_row_tof_);
-    
+
+    // Camera Settings
     RCLCPP_INFO(this->get_logger(), "[Camera Settings]");
     RCLCPP_INFO(this->get_logger(), "  Camera Use: %d", use_camera_);
     RCLCPP_INFO(this->get_logger(), "  Camera Publish Rate: %d ms", publish_rate_camera_);
     RCLCPP_INFO(this->get_logger(), "  Camera Pointcloud Resolution: %.2f", camera_pointcloud_resolution_);
-    RCLCPP_INFO(this->get_logger(), "  Camera Object Logger Use: %d", use_camera_object_logger_);
+    RCLCPP_INFO(this->get_logger(), "  Camera Object Direction: %s", camera_object_direction_ ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  Camera Class ID Confidence Threshold:");
+    for (const auto& conf : camera_class_id_confidence_th_) {
+        RCLCPP_INFO(this->get_logger(), "    Class ID: %d, Confidence: %d", conf.first, conf.second);
+    }
+    RCLCPP_INFO(this->get_logger(), "  Camera Logger Use: %d", use_camera_object_logger_);
+    RCLCPP_INFO(this->get_logger(), "  Camera Logger Margins: Distance Diff: %.2f, Width Diff: %.2f, Height Diff: %.2f", 
+                camera_logger_distance_margin_, 
+                camera_logger_width_margin_, 
+                camera_logger_height_margin_);
 
+    // Cliff Settings
     RCLCPP_INFO(this->get_logger(), "[Cliff Settings]");
-    RCLCPP_INFO(this->get_logger(), "  Camera Use: %d", use_cliff_);
-    RCLCPP_INFO(this->get_logger(), "  Camera Publish Rate: %d ms", publish_rate_cliff_);
-    
+    RCLCPP_INFO(this->get_logger(), "  Cliff Use: %d", use_cliff_);
+    RCLCPP_INFO(this->get_logger(), "  Cliff Publish Rate: %d ms", publish_rate_cliff_);
+
+    // Lidar Settings
     RCLCPP_INFO(this->get_logger(), "[Lidar Settings]");
     RCLCPP_INFO(this->get_logger(), "  Lidar Use: %d", use_lidar_);
     RCLCPP_INFO(this->get_logger(), "  Lidar Publish Rate: %d ms", publish_rate_lidar_);
-    RCLCPP_INFO(this->get_logger(), "  Lidar Front: Angle Min: %.2f, Angle Max: %.2f, Alpha: %.2f", front_lidar_params_.angle_min, front_lidar_params_.angle_max, front_lidar_params_.alpha);
-    RCLCPP_INFO(this->get_logger(), "  Lidar Front Offset: (X: %.2f, Y: %.2f, Z: %.2f)", front_lidar_params_.offset.x, front_lidar_params_.offset.y, front_lidar_params_.offset.z);
-    RCLCPP_INFO(this->get_logger(), "  Lidar Back: Angle Min: %.2f, Angle Max: %.2f, Alpha: %.2f", back_lidar_params_.angle_min, back_lidar_params_.angle_max, back_lidar_params_.alpha);
-    RCLCPP_INFO(this->get_logger(), "  Lidar Back Offset: (X: %.2f, Y: %.2f, Z: %.2f)", back_lidar_params_.offset.x, back_lidar_params_.offset.y, back_lidar_params_.offset.z);
-    
+    RCLCPP_INFO(this->get_logger(), "  Lidar Front: Angle Min: %.2f, Angle Max: %.2f, Alpha: %.2f", 
+                front_lidar_params_.angle_min, 
+                front_lidar_params_.angle_max, 
+                front_lidar_params_.alpha);
+    RCLCPP_INFO(this->get_logger(), "  Lidar Front Offset: (X: %.2f, Y: %.2f, Z: %.2f)", 
+                front_lidar_params_.offset.x, 
+                front_lidar_params_.offset.y, 
+                front_lidar_params_.offset.z);
+    RCLCPP_INFO(this->get_logger(), "  Lidar Back: Angle Min: %.2f, Angle Max: %.2f, Alpha: %.2f", 
+                back_lidar_params_.angle_min, 
+                back_lidar_params_.angle_max, 
+                back_lidar_params_.alpha);
+    RCLCPP_INFO(this->get_logger(), "  Lidar Back Offset: (X: %.2f, Y: %.2f, Z: %.2f)", 
+                back_lidar_params_.offset.x, 
+                back_lidar_params_.offset.y, 
+                back_lidar_params_.offset.z);
+
     RCLCPP_INFO(this->get_logger(), "===============================================================");
+
+}
+
+void SensorToPointcloud::initVariables()
+{
+    isTofUpdating = false;
+    isCameraUpdating = false;
+    isCliffUpdating = false;
+    isLidarUpdating = false;
+
+    publish_cnt_1d_tof_ = 0;
+    publish_cnt_multi_tof_ = 0;
+    publish_cnt_row_tof_ = 0;
+    publish_cnt_camera_ = 0;
+    publish_cnt_cliff_ = 0;
+    publish_cnt_lidar_ = 0;
 }
 
 void SensorToPointcloud::publisherMonitor()

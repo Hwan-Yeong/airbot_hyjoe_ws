@@ -1,14 +1,16 @@
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/u_int8.hpp"
 #include <string>
+#include <vector>
+#include <thread>
 
 class ParamSetterNode : public rclcpp::Node {
 public:
     ParamSetterNode() : Node("param_setter") {
-        parameters_client_ = std::make_shared<rclcpp::SyncParametersClient>(this, "/airbot_sensor_to_pointcloud");
+        parameters_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "/airbot_sensor_to_pointcloud");
 
         while (!parameters_client_->wait_for_service(std::chrono::seconds(2))) {
-            RCLCPP_WARN(this->get_logger(), "Waiting for parameter server...");
+            RCLCPP_WARN(this->get_logger(), "Waiting for parameter server... please check 'sensor_to_pointcloud' node is alive");
         }
 
         subscription_ = this->create_subscription<std_msgs::msg::UInt8>(
@@ -26,25 +28,42 @@ private:
         } else if (msg->data == 3) { // Navigation
             frame_id = "map";
         } else {
-            frame_id = "map";
+            return;
         }
 
         if (frame_id.empty()) {
             RCLCPP_WARN(this->get_logger(), "Received empty frame_id. Ignoring.");
             return;
         }
+        
+        RCLCPP_INFO(this->get_logger(), "Setting parameter 'target_frame' to: %s", frame_id.c_str());
 
-        parameters_client_->set_parameters({rclcpp::Parameter("target_frame", frame_id)});
+        auto future = parameters_client_->set_parameters(
+            {rclcpp::Parameter("target_frame", frame_id)}
+        );
+        
+        std::thread([future]() mutable {
+            try {
+                future.get();
+                RCLCPP_INFO(rclcpp::get_logger("param_setter"), "Successfully set parameter!");
+            } catch (const std::exception &e) {
+                RCLCPP_ERROR(rclcpp::get_logger("param_setter"), "Exception in set_parameters(): %s", e.what());
+            }
+        }).detach();
     }
 
     rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr subscription_;
-    std::shared_ptr<rclcpp::SyncParametersClient> parameters_client_;
+    std::shared_ptr<rclcpp::AsyncParametersClient> parameters_client_;
 };
 
 int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<ParamSetterNode>();
-    rclcpp::spin(node);
+
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(node);
+    executor.spin();
+
     rclcpp::shutdown();
     return 0;
 }

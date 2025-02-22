@@ -102,6 +102,7 @@ private:
     void declareParams();
     void setParams();
     void printParams();
+    void initVariables();
     void publisherMonitor();
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
