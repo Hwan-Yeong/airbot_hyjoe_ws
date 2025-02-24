@@ -22,7 +22,10 @@ include_directories(
 )
 
 # Executable (if needed)
-add_executable(error_manager src/error_manager/error_manager.cpp src/node.cpp)
+add_executable(error_manager
+  src/error_manager/error_manager.cpp
+  src/node.cpp
+)
 
 # Link dependencies
 ament_target_dependencies(error_manager
@@ -31,8 +34,6 @@ ament_target_dependencies(error_manager
   std_msgs
   robot_custom_msgs
 )
-
-#target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME})
 
 # Install headers
 install(DIRECTORY include/
