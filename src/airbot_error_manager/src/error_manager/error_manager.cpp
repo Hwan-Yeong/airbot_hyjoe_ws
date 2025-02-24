@@ -113,6 +113,33 @@ ErrorManager::~ErrorManager()
 {
 }
 
+void ErrorManager::publishErrorList()
+{
+    robot_custom_msgs::msg::ErrorListArray error_msg_array;
+
+    for (auto it = error_list_.begin(); it != error_list_.end();) {
+        auto& error = **it;
+        error.count++;
+        
+        robot_custom_msgs::msg::ErrorList error_msg;
+        error_msg.count = error.count;
+        error_msg.rank = error.rank;
+        error_msg.error_code = error.error_code;
+
+        if (error.count > CLEAR_CNT) {
+            it = error_list_.erase(it);
+        } else {
+            error_msg_array.data_array.push_back(error_msg);
+            ++it;
+        }
+    }
+
+    if (!error_list_.empty()) {
+        error_list_pub_->publish(error_msg_array);
+        printErrorList();
+    }
+}
+
 /**
  * @brief Left Motor 구속 및 제어 불가 시 에러
  * @note E04
@@ -454,33 +481,6 @@ void ErrorManager::addError(int rank, const std::string &error_code)
     new_error->rank = rank;
     new_error->error_code = error_code;
     error_list_.push_back(new_error);
-}
-
-void ErrorManager::publishErrorList()
-{
-    robot_custom_msgs::msg::ErrorListArray error_msg_array;
-
-    for (auto it = error_list_.begin(); it != error_list_.end();) {
-        auto& error = **it;
-        error.count++;
-        
-        robot_custom_msgs::msg::ErrorList error_msg;
-        error_msg.count = error.count;
-        error_msg.rank = error.rank;
-        error_msg.error_code = error.error_code;
-
-        if (error.count > CLEAR_CNT) {
-            it = error_list_.erase(it);
-        } else {
-            error_msg_array.data_array.push_back(error_msg);
-            ++it;
-        }
-    }
-
-    if (!error_list_.empty()) {
-        error_list_pub_->publish(error_msg_array);
-        printErrorList();
-    }
 }
 
 void ErrorManager::printErrorList(){

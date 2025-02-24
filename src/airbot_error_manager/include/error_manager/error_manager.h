@@ -56,6 +56,8 @@ private:
     std::vector<std::shared_ptr<robot_custom_msgs::msg::ErrorList>> error_list_;
 
 private:
+    void publishErrorList();
+    
     void leftMotorStuckErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void rightMotorStuckErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void scanDirtyFrontErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
@@ -82,7 +84,6 @@ private:
     void stationOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
 
     void updateErrorLists(int rank, std::string code);
-    void publishErrorList();
     void addError(int rank, const std::string &error_code);
     void printErrorList();
 };
