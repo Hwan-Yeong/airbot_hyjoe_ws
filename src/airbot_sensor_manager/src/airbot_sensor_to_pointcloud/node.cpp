@@ -1,4 +1,4 @@
-#include "airbot_sensor_to_pointcloud/sensor_to_pointcloud.hpp"
+#include "airbot_sensor_to_pointcloud/sensor_to_pointcloud/sensor_to_pointcloud.hpp"
 
 int main(int argc, char* argv[])
 {

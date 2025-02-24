@@ -27,9 +27,11 @@ include_directories(
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
+################################
+##### SENSOR_TO_POINTCLOUD #####
 add_executable(sensor_to_pointcloud
-  src/node.cpp
-  src/airbot_sensor_to_pointcloud/sensor_to_pointcloud.cpp
+  src/airbot_sensor_to_pointcloud/node.cpp
+  src/airbot_sensor_to_pointcloud/sensor_to_pointcloud/sensor_to_pointcloud.cpp
   src/airbot_sensor_to_pointcloud/tof/pointcloud_tof.cpp
   src/airbot_sensor_to_pointcloud/camera/pointcloud_camera.cpp
   src/airbot_sensor_to_pointcloud/cliff/pointcloud_cliff.cpp
@@ -39,29 +41,6 @@ add_executable(sensor_to_pointcloud
   src/utils/boundingbox_generator.cpp
   src/logger/camera_object_logger.cpp
 )
-
-add_executable(param_setter
-  src/dynamic_param_setter/param_setter.cpp
-)
-ament_target_dependencies(param_setter
-  rclcpp
-  std_msgs
-)
-install(TARGETS param_setter
-  DESTINATION lib/${PROJECT_NAME})
-
-#####################################
-############# TEST CODE #############
-# add_executable(param_setter
-#   test/test_frame_changer.cpp
-# )
-# ament_target_dependencies(param_setter
-#   rclcpp
-# )
-# install(TARGETS param_setter
-#   DESTINATION lib/${PROJECT_NAME})
-#####################################
-
 ament_target_dependencies(sensor_to_pointcloud 
   rclcpp 
   sensor_msgs
@@ -73,23 +52,43 @@ ament_target_dependencies(sensor_to_pointcloud
   vision_msgs
   visualization_msgs
 )
-
 install(TARGETS sensor_to_pointcloud
-  DESTINATION lib/${PROJECT_NAME})
-
+DESTINATION lib/${PROJECT_NAME}
+)
 install(DIRECTORY include/airbot_sensor_to_pointcloud/
-  DESTINATION include/airbot_sensor_to_pointcloud)
-
+  DESTINATION include/airbot_sensor_to_pointcloud
+)
 install(DIRECTORY include/logger/
-  DESTINATION include/logger)
-
+  DESTINATION include/logger
+)
 install(DIRECTORY include/utils/
-  DESTINATION include/utils)
+  DESTINATION include/utils
+)
 
+################################
+######### PARAM_SETTER #########
+add_executable(param_setter
+  src/dynamic_param_setter/param_setter/param_setter.cpp
+  src/dynamic_param_setter/node.cpp
+)
+ament_target_dependencies(param_setter
+  rclcpp
+  std_msgs
+)
+install(TARGETS param_setter
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(DIRECTORY include/dynamic_param_setter/
+  DESTINATION include/dynamic_param_setter
+)
+
+################################
+############ GENERAL ###########
 install(DIRECTORY launch
-  DESTINATION share/${PROJECT_NAME})
-
+  DESTINATION share/${PROJECT_NAME}
+)
 install(DIRECTORY config
-  DESTINATION share/${PROJECT_NAME})
+  DESTINATION share/${PROJECT_NAME}
+)
 
 ament_package()
