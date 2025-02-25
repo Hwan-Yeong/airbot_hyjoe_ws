@@ -109,22 +109,22 @@ int main(int argc, char **argv)
 				{
 					pubdata.data="node_lidar is trapped\n";
 					error_pub->publish(pubdata);
-					printf("trapped\n");
+					RCLCPP_INFO(node->get_logger(), "trapped");
 				}
 				if(node_lidar.lidar_status.lidar_abnormal_state & 0x02)
 				{
 					pubdata.data="node_lidar frequence abnormal\n";
 					error_pub->publish(pubdata);
-					printf("frequence abnormal\n");
+					RCLCPP_INFO(node->get_logger(), "frequence abnormal");
 				}
 				if(node_lidar.lidar_status.lidar_abnormal_state & 0x04)
 				{
 					pubdata.data="node_lidar is blocked\n";
 					error_pub->publish(pubdata);
-					printf("-blocked\n");
+					RCLCPP_INFO(node->get_logger(), "blocked");
 				}
-				node_lidar.serial_port->write_data(end_lidar,4);
-				node_lidar.lidar_status.lidar_ready = false;
+				// node_lidar.serial_port->write_data(end_lidar,4);
+				// node_lidar.lidar_status.lidar_ready = false;
 
 				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
@@ -205,17 +205,19 @@ int main(int argc, char **argv)
 				}
 				else
 				{
-					//error_마지막 데이터 수신 후 경과 시간 계산
-					//lidar time out = 2sec
-					auto current_time = std::chrono::steady_clock::now();
-					std::chrono::duration<double> elapsed_time = current_time - last_data_time;
-					if (elapsed_time.count() >= 3.0)
-					{
-						// 3초 이상 데이터가 없는 경우 에러 메시지 퍼블리시
-						auto error_msg = std::make_shared<std_msgs::msg::Bool>();
-						error_msg->data = true;
-						laser_error_pub->publish(*error_msg);
-						RCLCPP_INFO(node->get_logger(), "No scan data received for 3 seconds!");
+					if (node_lidar.lidar_status.lidar_ready) {
+						//error_마지막 데이터 수신 후 경과 시간 계산
+						//lidar time out = 2sec
+						auto current_time = std::chrono::steady_clock::now();
+						std::chrono::duration<double> elapsed_time = current_time - last_data_time;
+						if (elapsed_time.count() >= 3.0)
+						{
+							// 3초 이상 데이터가 없는 경우 에러 메시지 퍼블리시
+							auto error_msg = std::make_shared<std_msgs::msg::Bool>();
+							error_msg->data = true;
+							laser_error_pub->publish(*error_msg);
+							RCLCPP_INFO(node->get_logger(), "No scan data received for 3 seconds!");
+						}
 					}
 				}
 			}

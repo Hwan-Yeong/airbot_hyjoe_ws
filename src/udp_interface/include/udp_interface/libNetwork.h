@@ -4,15 +4,21 @@
 #include <vector>
 #include <string>
 
-#define BASE_VERSION "v0.18"
+#define BASE_VERSION "0.33"
 
-#ifdef OTA_SETTING
+#ifdef LOG_SETTING
+    #ifdef DEBUG_MODE
+        #define VERSION BASE_VERSION ".2.1"
+    #else
+        #define VERSION BASE_VERSION ".2.0"
+    #endif
+#elif defined(OTA_SETTING)
     #ifdef DEBUG_MODE
         #define VERSION BASE_VERSION ".1.1"
     #else
         #define VERSION BASE_VERSION ".1.0"
     #endif
-#else
+#else // NORMAL ¸ðµå
     #ifdef DEBUG_MODE
         #define VERSION BASE_VERSION ".0.1"
     #else
@@ -41,16 +47,32 @@
 #define getRobotSpeedIdx 19
 #define getTargetPositionCalculateIdx 20
 
+#define getRobotStatusIdx 21
+#define getActionStatusIdx 22
+#define getNotificationIdx 23
+
 #define getAICalibrationIdx 25
 #define getLogDataIdx 26
 
 #define getDockingStatusIdx 30 
+
+#define getMotorStatusV2Idx 31
+#define getRecvIRStatusIdx 32
+#define getCliffIRStatusIdx 33
+#define getCameraStatusV2Idx 34
+#define getLineLaserStatusV2Idx 35
+#define getTofStatusV2Idx 36
+#define getBatteryStatusV2Idx 37
+
+#if false
 #define getIntegrationMapDataIdx 31
 #define getIntegrationModifiedMapDataIdx 32 
-
+#endif
 
 #define getAllStatusIdx 40
 #define getAllMovingInfoIdx 41
+#define getAllStatusV2Idx 42
+#define getAllMovingInfoV2Idx 43
 
 #define setReturnToChargingStationIdx 50
 #define setEmergencyStopIdx 51 
@@ -74,10 +96,18 @@
 #define setIntegrationModifiedMapDataIdx 70
 #define setByPassOneDataIdx 71
 #define setByPassTwoDataIdx 72
+#define setPGMMapDataIdx 73
+
+#define setFactoryModeIdx 74
+#define setBatterySleepModeIdx 75
+#define setSensorInspectionModeIdx 76
+#define setStationRepositioningIdx 77
 
 #define setOTAIdx 80
-#define setFactoryResetIdx 81
-#define setRecoveryIdx 82
+#define setOTADataIdx 81
+
+#define setFactoryResetIdx 83
+#define setRecoveryIdx 84
 
 #define setDockingStatusIdx 90 
 
@@ -93,6 +123,7 @@
 #define objectRes   0x02
 #define objectEmergency   0x0F
 #define objectJig  0xC8
+#define objectOTAData  0x0E
 /******************************************** */
 
 // #1
@@ -118,6 +149,15 @@ struct MotorStatus_t {
     int rightStatus;
 };
 
+struct MotorStatusV2_t {
+    double leftRPM;
+    double  rightRPM;
+    double leftCurrent;
+    double rightCurrent;
+    int leftType;
+    int rightType;
+};
+
 // #4
 struct CameraStatus_t {
     int status;
@@ -139,6 +179,12 @@ struct TofStatus_t {
     double topDistance;
 };
 
+struct TofStatusV2_t {
+    int leftStatus;
+    int rightStatus; 
+    int topStatus;
+};
+
 // #7
 struct IRStatus_t {
     bool sensor1;
@@ -151,6 +197,22 @@ struct IRStatus_t {
     bool stationIR2;
     bool stationIR3;
     bool stationIR4;
+};
+
+struct RecvIRStatus_t {
+    bool RecvIR1;
+    bool RecvIR2;
+    bool RecvIR3;
+    bool RecvIR4;
+};
+
+struct CliffIRStatus_t {
+    bool CliffIR1;
+    bool CliffIR2;
+    bool CliffIR3;
+    bool CliffIR4;
+    bool CliffIR5;
+    bool CliffIR6;
 };
 
 // #8
@@ -180,6 +242,24 @@ struct BatteryStatus_t {
     double  serialNumber;
 };
 
+struct BatteryStatusV2_t {
+    int cell_voltage1;
+    int cell_voltage2;
+    int cell_voltage3;
+    int cell_voltage4;
+    int cell_voltage5;
+    int total_capacity;
+    int remaining_capacity;
+    int battery_manufacturer;
+    int battery_percent;
+    double battery_voltage;
+    double battery_current;
+    int battery_temperature1;
+    int battery_temperature2;
+    int design_capacity;
+    int number_of_cycles;
+};
+
 // #10
 struct SoftwareVersion_t {
     std::string version;
@@ -200,6 +280,13 @@ struct ErrorList_t {
 
 // #13
 struct TargetPosition_t {
+    double x;
+    double y;
+    double theta;
+};
+
+struct StationRepositioning_t
+{
     double x;
     double y;
     double theta;
@@ -246,9 +333,35 @@ struct ModifiedMapDataB_t {
     std::vector<unsigned char> data;
 };
 
+struct PGMMapData_t {
+    std::string	 name;
+    std::string	 sha256;
+    std::string  data;
+};
+
+struct PGMMapDataB_t {
+    std::string	 name;
+    bool	      sha256;
+    std::vector<unsigned char> data;
+};
+
+
 struct RobotSpeed_t {
     double mS;
     double radS;
+};
+
+struct RobotStatus_t {
+    int status;
+};
+
+struct ActionStatus_t {
+    int status;
+};
+
+struct Notification_t {
+    int code;
+    std::string	desccription;
 };
 
 struct IntegrationModifiedMapData_t {
@@ -314,7 +427,15 @@ struct AllStatus_t {
     std::string	data;
 };
 
+struct AllStatusV2_t {
+    std::string	data;
+};
+
 struct AllMovingInfo_t {
+    std::string	data;
+};
+
+struct AllMovingInfoV2_t {
     std::string	data;
 };
 
@@ -364,6 +485,18 @@ struct StopCharging_t {
 struct SoftwareReset_t {
     bool Return;
 
+};
+
+struct FactoryMode_t {
+    bool start;
+};
+
+struct BatterySleepMode_t {
+    bool start;
+};
+
+struct InspectionMode_t {
+    bool start;
 };
 
 // #57
@@ -426,10 +559,23 @@ struct TimeData_t {
     int second;
 };
 
+struct Status_t {
+    int status;
+};
 
 struct ota_t {
     std::string	checksum;
     int size;
+};
+
+struct otadata_t {
+    std::string	checksum;
+    std::string	data;
+};
+
+struct otadataB_t {
+    std::string	checksum;
+    std::vector<unsigned char>	data;
 };
 
 struct SettingCommand_t {
@@ -444,11 +590,46 @@ struct version_t {
     std::string	version;
 };
 
+struct ObjectDataV2
+{
+    uint8_t class_id;      // °´Ã¼ÀÇ Å¬·¡½º ID
+    uint8_t confidence;    // ½Å·Úµµ (0~100)
+    int16_t x;             // X ÁÂÇ¥
+    int16_t y;             // Y ÁÂÇ¥
+    int16_t theta;         // °¢µµ (Theta)
+    int16_t width;         // ³Êºñ (Width)
+    int16_t height;        // ³ôÀÌ (Height)
+    uint16_t distance;     // °Å¸® (Distance)
+};
+
+struct LLDataV2
+{
+    int16_t x;
+    int16_t y;
+    int16_t theta;
+    // int16_t width;
+    int8_t direction; // Added field for Direction
+    // int8_t reserved;  // Added field for Reserved
+    int16_t height;
+    uint16_t distance;
+};
+
+
+enum OTASDatastep {
+    DStep0 = 0, // ÃÊ±â ´Ü°è
+    DStep1 = 1, // ´Ü°è 1
+    DStep2 = 2, // ´Ü°è 2
+    DStepP = 0xA, // ´Ü°è Pass
+    DStepF = 0xF  // ´Ü°è Fail
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void APIGetVersion(std::string &data);
+std::string APIGetTotalVersion();
+void APISetTotalVersion(std::string data);
 void APISetEnc(bool enable);
 
 void start_server();
@@ -457,12 +638,20 @@ void stop_server();
 bool reqGetPosition(void);
 bool reqGetLidarSensorStatus(void);
 bool reqGetMotorStatus(void);
+bool reqGetMotorStatusV2(void);
 bool reqGetCameraStatus(void);
+bool reqGetCameraStatusV2(void);
 bool reqGetLineLaserStatus(void);
+bool reqGetLineLaserStatusV2(void);
 bool reqGetTofStatus(void);
+bool reqGetTofStatusV2(void);
 bool reqGetIRStatus(void);
+bool reqGetRecvIRStatus(void);
+bool reqGetCliffIRStatus(void);
+
 bool reqGetSonicStatus(void);
 bool reqGetBatteryStatus(void);
+bool reqGetBatteryStatusV2(void);
 bool reqGetSoftwareVersion(void);
 bool reqGetRobotInfo(void);
 bool reqGetErrorList(void);
@@ -473,8 +662,14 @@ bool reqGetLidarData(void);
 bool reqGetModifiedMapData(void);
 bool reqGetAllStatus(void);
 bool reqGetAllMovingInfo(void);
+bool reqGetAllStatusV2(void);
+bool reqGetAllMovingInfoV2(void);
 bool reqGetDockingStatus(void);
 bool reqGetRobotSpeed(void);
+bool reqGetRobotStatus(void);
+bool reqGetActionStatus(void);
+bool reqGetNotification(void);
+
 bool reqGetTargetPositionCalculate(TargetPosition_t &settings);
 bool reqGetAICalibration(AICalibration_t &settings);
 
@@ -487,27 +682,47 @@ void resGetjson_with_base64(const std::string& base64Data);
 void resGetPosition(double x, double y, double theta);
 void resGetLidarSensorStatus(int front, int rear);
 void resGetMotorStatus(double MotorStatusleftSpeed, double MotorStatusrightSpeed,double MotorStatusleftPower, double MotorStatusrightPower,int MotorStatusleftStatus, int MotorStatusrightStatus);
+void resGetMotorStatusV2(double MotorStatusleftRPM, double MotorStatusrightRPM,double MotorStatusleftCurrent, double MotorStatusrightCurrent,int MotorStatusleftType, int MotorStatusrightType);
+
 void resGetCameraStatus(int status);
+void resGetCameraStatusV2(int status, const std::vector<ObjectDataV2> &objects);
 void resGetLineLaserStatus(int left, int right);
+void resGetLineLaserStatusV2(int status, const  std::vector<LLDataV2>& llDataList);
 void resGetTofStatus(int leftStatus, double leftDistance,int rightStatus, double rightDistance,int topStatus, double topDistance);
+void resGetTofStatusV2(int leftStatus, const std::vector<int> &leftDistances,
+                     int rightStatus, const std::vector<int> &rightDistances,
+                     int topStatus, int topDistance);
 void resGetIRStatus(bool sensor1, bool sensor2, bool sensor3, bool sensor4, bool sensor5, bool sensor6, bool stationIR1, bool stationIR2, bool stationIR3, bool stationIR4);
-void resGetSonicStatus(int leftStatus, bool LeftSenseing,int rightStatus,bool rightSenseing);
+
+void resGetRecvIRStatus(bool RecvIR1, bool RecvIR2, bool RecvIR3, bool RecvIR4);
+void resGetCliffIRStatus(bool CliffIR1, bool CliffIR2, bool CliffIR3, bool CliffIR4, bool CliffIR5, bool CliffIR6);
+
+void resGetSonicStatus(int leftStatus, bool LeftSenseing, int rightStatus, bool rightSenseing);
 void resGetBatteryStatus(double voltage,double current,double temperature,double chargeState,double capacity,double designCapacity,double percentage,double supplyStatus,double supplyHealth,double supplyTechnology,double present,double cellVoltagem,double cellTemperature,double location,const std::string& serialNumber);
-void resGetSoftwareVersion(const std::string& version);
-void resGetRobotInfo(const std::string& serialNumber, int status);
-void resGetErrorList(const std::vector<ErrorList_t>& ErrorList);
+void resGetBatteryStatusV2(int cell_voltage1, int cell_voltage2, int cell_voltage3,
+                         int cell_voltage4, int cell_voltage5, int total_capacity,
+                         int remaining_capacity, int battery_manufacturer, int battery_percent,
+                         double battery_voltage, double battery_current, int battery_temperature1,
+                         int battery_temperature2, int design_capacity, int number_of_cycles);
+void resGetSoftwareVersion(const std::string &version);
+void resGetRobotInfo(const std::string &serialNumber, int status);
+void resGetErrorList(const std::vector<ErrorList_t> &ErrorList);
 void resGetTargetPosition(double x, double y, double theta);
 void resGetMapStatus(bool mapping, const std::string&  data);
 
 
 void resGetMapDataS(double width, double height, double resolution, double posX, double posY, const std::string &data);
 void resGetMapDataB(double width, double height, double resolution, double posX, double posY,  const unsigned char* data, size_t length);
-void resGetLidarData(double front, double rear) ;
+void resGetLidarData(double front, double rear);
+void resGetNotification(int code, std::string Notification);
 
 void resGetModifiedMapData(const std::string&  data);
 void resGetModifiedMapDataB(double width, double height, const unsigned char* data, size_t length);
 void resGetRobotSpeed(double mS, double radS);
 void resGetTargetPositionCalculate(double Time, double Distance, double x, double y, double theta);
+void resGetRobotStatus(int status);
+void resGetActionStatus(int status);
+
 void resGetAICalibration(int result);
 
 bool resGetLogData(const std::string &folderPath);
@@ -524,10 +739,32 @@ void resGetAllStatus(
     double BatterydesignCapacity, double Batterypercentage, double BatterysupplyStatus, double BatterysupplyHealth,
     double BatterysupplyTechnology, double Batterypresent, double BatterycellVoltage, double BatterycellTemperature,
     double Batterylocation, std::string BatteryserialNumber);
+
+    void resGetAllStatusV2(
+        int LidarSensorfront, int LidarSensorrear,
+        double MotorStatusleftRPM, double MotorStatusrightRPM, double MotorStatusleftCurrent, double MotorStatusrightCurrent, int MotorStatusleftType, int MotorStatusrightType,
+        int Camerastatus, const std::vector<ObjectDataV2> &objects,
+        int LineLaserStatus, const std::vector<LLDataV2> &llDataList,
+        int TofStatusleftStatus, int TofStatusrightStatus, int TofStatustopStatus,
+        const std::vector<int> &leftDistances, const std::vector<int> &rightDistances, int TofStatustopDistance,
+        bool CliffIR1, bool CliffIR2, bool CliffIR3, bool CliffIR4, bool CliffIR5, bool CliffIR6,
+        bool RecvIR1, bool RecvIR2, bool RecvIR3, bool RecvIR4,
+        double cellVoltage1, double cellVoltage2, double cellVoltage3, double cellVoltage4, double cellVoltage5,
+        double totalCapacity, double remainingCapacity, int batteryManufacturer, double batteryPercent,
+        double batteryVoltage, double batteryCurrent, double batteryTemperature1, double batteryTemperature2,
+        double designCapacity, int numberOfCycles);
+
 void resGetAllMovingInfo(
     int movingState,
     double x, double y,double theta,
     double Targetx, double Targety,double Targettheta);
+    
+void resGetAllMovingInfoV2(
+        int movingState,
+        bool validPosition,
+        double x, double y, double theta,
+        bool validTargetPosition,
+        double Targetx, double Targety, double Targettheta);
 
 void resGetIntegrationMapDataB(const unsigned char *data, size_t length);
 void resGetIntegrationModifiedMapDataB(const unsigned char *data, size_t length);
@@ -547,12 +784,14 @@ bool reqSetMaxDrivingSpeed(MaxDrivingSpeed_t& settings);
 bool reqSetMotorManual_RPM(MotorManual_RPM_t& settings);
 bool reqSetMotorManual_VW(MotorManual_VW_t& settings);
 bool reqSetTargetPosition(TargetPosition_t& settings);
+bool reqSetStationRepositioning(StationRepositioning_t &settings);
 bool reqSetDriving(Driving_t& settings);
 bool reqSetMapping(Mapping_t& settings);
 bool reqSetModifiedMapDataS(std::string&  data);
 //bool reqSetModifiedMapDataB(std::vector<unsigned char> &data) ;
 bool reqSetModifiedMapDataB(ModifiedMapDataB_t &data);
 bool reqSetByPassOneData(ByPassOne_t &data);
+bool reqSetPGMMapData(PGMMapDataB_t &data);
 
 bool reqSetIntegrationModifiedMapDataB(IntegrationModifiedMapDataB_t &data);
 
@@ -562,8 +801,13 @@ bool reqSetRotation(Rotation_t &data);
 bool reqSetTimeData(TimeData_t &data);
 
 bool reqSetOTA(ota_t &data);
+bool reqSetOTAdata(otadataB_t &data);
 bool reqSetFactoryReset(void);
 bool reqSetRecovery(void);
+
+bool reqSetFactoryMode(FactoryMode_t &data);
+bool reqSetBatterySleepMode(BatterySleepMode_t &data);
+bool reqSetSensorInspectionMode(InspectionMode_t &data);
 
 bool reqSetDockingState(DockingStatus_t &data);
 
@@ -578,9 +822,11 @@ void resSetMaxDrivingSpeed(bool Result);
 void resSetMotorManual_RPM(bool Result);
 void resSetMotorManual_VW(bool Result);
 void resSetTargetPosition(bool Result);
+void resSetStationRepositioningIdx(bool Result);
 void resSetDriving(bool Result);
 void resSetMapping(bool Result);
 void resSetModifiedMapData(bool Result);
+void resSetPGMMapData(bool Result);
 
 void resSetIntegrationModifiedMapData(bool Result);
 void resSetByPassOneData(bool Result);
@@ -592,8 +838,14 @@ void resSetRotation(bool Result);
 void resSetTimeData(bool Result);
 
 void resSetOTA(bool Result);
+// void resSetOTAdata(bool Result);
+void resSetOTAdata(int progress, int state);
 void resSetFactoryReset(bool Result);
 void resSetRecovery(bool Result);
+
+void resSetFactoryMode(bool Result);
+void resSetBatterySleepMode(bool Result);
+void resSetSensorInspectionMode(bool Result);
 
 void resSetDockingState(bool Result);
 
@@ -617,7 +869,7 @@ std::string API_FileRead(const std::string &filename, unsigned char *key);
 void API_FileSave(const std::string& plaintext, const std::string& filename, const unsigned char* key, const unsigned char* iv);
 bool API_FileExist(const std::string& filename);
 void API_FileDelete(const std::string& filename);
-// start_server ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ø¼ï¿½ï¿½ï¿½ API_GenerateKey ï¿½Ê¼ï¿½
+// start_server ¾øÀÌ »ç¿ëÀ» À§ÇØ¼­´Â API_GenerateKey ÇÊ¼ö
 void API_GenerateKey();
 bool API_FileDataRead(ByPassOne_t &data);
 bool API_FileDataApply();

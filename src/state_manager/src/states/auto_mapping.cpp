@@ -14,13 +14,11 @@ void AutoMapping::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
   req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
   bSavedMap = false;
   mapping_start_time = std::numeric_limits<double>::max();
-  // if(state_utils->getNodeStatusID() == NODE_STATUS::AUTO_MAPPING || state_utils->getNodeStatusID() == NODE_STATUS::MANUAL_MAPPING){
-  //     exitMappingNode();
-  // }else if(state_utils->getNodeStatusID() == NODE_STATUS::NAVI){
-  //     exitNavigationNode();
-  // }
-  exitMappingNode();
-  exitNavigationNode();
+  if(state_utils->getNodeStatusID() == NODE_STATUS::AUTO_MAPPING || state_utils->getNodeStatusID() == NODE_STATUS::MANUAL_MAPPING){
+      exitMappingNode();
+  }else if(state_utils->getNodeStatusID() == NODE_STATUS::NAVI){
+      exitNavigationNode();
+  }
   
   if( state_utils->getRobotCMDID().robot_cmd != REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_AUTO_MAPPING ){
     state_utils->startMonitorOdomReset();
@@ -31,16 +29,19 @@ void AutoMapping::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
 
 void AutoMapping::run(const std::shared_ptr<StateUtils> &state_utils) {
 
-  if (state_utils->getOdomResetDone()){
-    runAutoMapping();
+  if(state_utils->isLidarSensorOK())
+  {
+    if (state_utils->getOdomResetDone()){
+      runAutoMapping();
+    }
   }
 }
 
 void AutoMapping::post_run(const std::shared_ptr<StateUtils> &state_utils) {
   stateBase::post_run(state_utils);
+  state_utils->saveLastPosition();
   RCLCPP_INFO(node_->get_logger(), "[AutoMapping] Exiting AutoMapping STATE");
-  if(state_utils->getRobotCMDID().soc_cmd == REQUEST_SOC_CMD::STOP_AUTO_MAPPING )
-  {
+  if(state_utils->getRobotCMDID().soc_cmd == REQUEST_SOC_CMD::STOP_AUTO_MAPPING ){
     map_saver();
     exitMappingNode();
   }
@@ -50,10 +51,9 @@ void AutoMapping::post_run(const std::shared_ptr<StateUtils> &state_utils) {
 
 ///////////////function in AutoMapping
 void AutoMapping::runAutoMapping() {
-  state_utils->setMovingStateID(NAVI_STATE::IDLE);
   reset_subExploreFinish();
   // ******Auto mapping Launch files******
-  if (startProcess("ros2 launch explore explore_all.launch.py",
+  if (state_utils->startProcess("ros2 launch explore explore_all.launch.py",
                    "/home/airbot/mapping_pid.txt")) {
     mapping_start_time = node_->now().seconds();
     state_utils->setNodeStatusID( NODE_STATUS::AUTO_MAPPING );
@@ -68,47 +68,26 @@ void AutoMapping::runAutoMapping() {
   }
 }
 
-void AutoMapping::explore_finish_callback(const std_msgs::msg::Empty::SharedPtr msgs) {
-  try {
-    docking_and_save_map();
-  } catch (const std::exception &e) {
-    RCLCPP_ERROR(node_->get_logger(), "Exception: %s", e.what());
-  }
-}
-
-void AutoMapping::docking_and_save_map() {
-  try {
+void AutoMapping::explore_finish_callback(const std_msgs::msg::Empty::SharedPtr) {
+    // finish generate change state msg
+    auto robot_cmd_msg = std_msgs::msg::UInt8();
+    robot_cmd_msg.data = int( REQUEST_ROBOT_CMD::DONE_AUTO_MAPPING );
+    req_robot_cmd_pub_->publish(robot_cmd_msg);
     RCLCPP_INFO(node_->get_logger(), "Explore mapping completed ");
     reset_subExploreFinish();
-  } catch (const std::exception &e) {
-    RCLCPP_ERROR(node_->get_logger(), "Exception: %s", e.what());
-  }
-  // Monitor the docking and after that save map.
 }
 
 void AutoMapping::reset_subExploreFinish() {
-  try {
-    // Reset the subscription to unsubscribe
-    std::lock_guard<std::mutex> lock(explore_sub_mutex_);
     if (explore_finish_sub) {
-      RCLCPP_INFO(node_->get_logger(), "reset_subExploreFinish");
       explore_finish_sub.reset();
-      RCLCPP_INFO(node_->get_logger(), "reset_subExploreFinish - end ");
-      // finish generate change state msg
-      auto robot_cmd_msg = std_msgs::msg::UInt8();
-      robot_cmd_msg.data = int( REQUEST_ROBOT_CMD::DONE_AUTO_MAPPING );
-      req_robot_cmd_pub_->publish(robot_cmd_msg);
-      //
+      RCLCPP_INFO(node_->get_logger(), "reset_subExploreFinish");
     } else {
       RCLCPP_INFO(node_->get_logger(), "explore_finish_sub is allready reset ");
     }
-  } catch (const std::exception &e) {
-    RCLCPP_ERROR(node_->get_logger(), "Exception: %s", e.what());
-  }
 }
 
 void AutoMapping::exitMappingNode() {
-  if (stopProcess("/home/airbot/mapping_pid.txt")) {
+  if (state_utils->stopProcess("/home/airbot/mapping_pid.txt")) {
     state_utils->setNodeStatusID( NODE_STATUS::IDLE );
     RCLCPP_INFO(node_->get_logger(), "exit Mapping Node");
   } else {
@@ -120,7 +99,7 @@ void AutoMapping::exitMappingNode() {
 }
 
 void AutoMapping::exitNavigationNode() {
-  if (stopProcess("/home/airbot/navigation_pid.txt")) {
+  if (state_utils->stopProcess("/home/airbot/navigation_pid.txt")) {
     RCLCPP_INFO(node_->get_logger(), "exit Navigation Node");
   } else {
     RCLCPP_INFO(node_->get_logger(), "Fail - kill Navigation Node");
@@ -171,56 +150,6 @@ void AutoMapping::map_saver() {
   } else {
     RCLCPP_INFO(node_->get_logger(), "Map save fail");
   }
-}
-
-////Process check
-
-bool AutoMapping::startProcess(const std::string &command,
-                               const std::string &pidFilePath) {
-  int result = std::system(("setsid bash -c '" + command +
-                            "' > /dev/null 2>&1 & echo $! > " + pidFilePath)
-                               .c_str());
-  if (result == 0) {
-    std::ifstream pidFile(pidFilePath);
-    if (pidFile.is_open()) {
-      std::string pid;
-      std::getline(pidFile, pid);
-      pidFile.close();
-      if (!pid.empty()) {
-        RCLCPP_INFO(node_->get_logger(),
-                    "Process started successfully with PID: %s", pid.c_str());
-        return true;
-      }
-    }
-  }
-  RCLCPP_ERROR(node_->get_logger(), "Failed to start the process.");
-  return false;
-}
-
-bool AutoMapping::stopProcess(const std::string &pidFilePath) {
-  std::ifstream pidFile(pidFilePath);
-  std::string pid;
-  if (pidFile.is_open()) {
-    std::getline(pidFile, pid);
-    pidFile.close();
-    if (!pid.empty()) {
-      pid_t processGroupID = std::stoi(pid);
-      if (kill(-processGroupID, SIGINT) == 0) {
-        sleep(1); // Wait for process to handle SIGINT
-        if (kill(-processGroupID, 0) == -1) { // Process no longer exists
-          RCLCPP_INFO(node_->get_logger(), "Process terminated successfully.");
-          return true;
-        } else {
-          RCLCPP_WARN(node_->get_logger(),
-                      "Process did not terminate, sending SIGKILL.");
-          kill(-processGroupID, SIGKILL);
-        }
-      } else {
-        RCLCPP_ERROR(node_->get_logger(), "Failed to send SIGINT.");
-      }
-    }
-  }
-  return false;
 }
 
 } // namespace airbot_state

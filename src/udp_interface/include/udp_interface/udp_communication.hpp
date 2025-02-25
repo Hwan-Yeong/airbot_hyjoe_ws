@@ -2,7 +2,7 @@
 #define UDP_COMMUNICATION_HPP
 
 #include "udp_interface/libNetwork.h" //#include "libNetwork.h"
-#include<chrono>
+
 #include <fstream>
 #include <filesystem>
 #include <chrono>
@@ -12,6 +12,7 @@
 #include <sstream>
 #include <iomanip>
 #include <dlfcn.h>
+#include <cmath>
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -32,6 +33,8 @@
 #include "robot_custom_msgs/msg/tof_data.hpp"
 #include "robot_custom_msgs/msg/motor_status.hpp"
 #include "robot_custom_msgs/msg/station_data.hpp"
+//testcode
+#include "robot_custom_msgs/msg/test_position.hpp"
 
 #include "robot_custom_msgs/msg/rpm_control.hpp"
 #include "robot_custom_msgs/msg/imu_calibration.hpp"
@@ -52,11 +55,10 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_ros/transform_broadcaster.h>
-#include <mutex>
 
-#define USE_NEW_PROTOCOL 0
-
-#define SOFTWARE_VERSION "2.5.7"
+#define USE_NEW_PROTOCOL 1
+#define PROTOCOL_V17 0
+#define SOFTWARE_VERSION "2.5.8A"
 
 enum class REQUEST_STATUS
 {
@@ -160,6 +162,7 @@ enum class NAVI_STATE
     FAIL,
     ROTAION,
     COMPLETE_ROTATION,
+    READY,
 };
 
 enum class NAVI_FAIL_REASON
@@ -174,6 +177,7 @@ enum class NAVI_FAIL_REASON
 enum class UDP_COMMUNICATION
 {
     NORMAL,
+    INSPECTION,
     AP_JIG_MODE,
     AMR_JIG_MODE,
 };
@@ -458,8 +462,6 @@ private :
 
     std::mutex camera_mutex_;
     std::mutex line_laser_mutex_;
-
-    std::mutex versionTimer_mutex_;
     
     //subscriber
     //mcu_sub
@@ -480,6 +482,8 @@ private :
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr lidar_back_sub_;
     rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub;
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr amcl_pose_sub;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr slam_pose_sub;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::ErrorListArray>::SharedPtr error_list_sub_;
     //state_sub
     rclcpp::Subscription<robot_custom_msgs::msg::RobotState>::SharedPtr req_state_sub;
@@ -496,6 +500,7 @@ private :
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr batterySleep_cmd_pub_;
 
     rclcpp::Publisher<robot_custom_msgs::msg::Position>::SharedPtr move_target_pub_;
+    rclcpp::Publisher<robot_custom_msgs::msg::TestPosition>::SharedPtr test_move_target_pub_;
     rclcpp::Publisher<robot_custom_msgs::msg::BlockAreaList>::SharedPtr block_area_pub_;
     rclcpp::Publisher<robot_custom_msgs::msg::BlockAreaList>::SharedPtr block_wall_pub_;     
 	rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_version_pub_;
@@ -503,6 +508,7 @@ private :
     rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr jig_request_battery_pub_;
     rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr jig_request_imu_pub_;
     rclcpp::Publisher<robot_custom_msgs::msg::RobotState>::SharedPtr req_state_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr station_pose_pub_;
     
     //rclcpp::Publisher<robot_custom_msgs::msg::MotorRpm>::SharedPtr cmd_rpm_pub_;
     rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_soc_cmd_pub_;
@@ -512,6 +518,7 @@ private :
     rclcpp::TimerBase::SharedPtr socAutoSendTimer_;
     rclcpp::TimerBase::SharedPtr versionTimer_;
     rclcpp::TimerBase::SharedPtr map_Timer_;
+    rclcpp::TimerBase::SharedPtr linear_target_timer_;
     rclcpp::TimerBase::SharedPtr rotation_target_timer_;
 
     //udp protocol data
@@ -528,11 +535,22 @@ private :
     MotorManual_RPM_t ReqManualRpmMove;
     MotorManual_RPM_t& reqManualRpmMove = ReqManualRpmMove;
     ModifiedMapDataB_t modifiedMap;
-    ExcelSteps_t Settings9;
-    ExcelSteps_t &settings9 = Settings9;
-    TargetPosition_t Settings11;
+    ExcelSteps_t ReqExcelator;
+    ExcelSteps_t &reqExcelator = ReqExcelator;
+    TargetPosition_t ReqCalculateTargetPose;
     Rotation_t ReqRotation;
     Rotation_t& reqRotation = ReqRotation;
+
+    #if PROTOCOL_V17 > 0
+    FactoryMode_t ReqFactoryMode;
+    FactoryMode_t& reqFactoryMode = ReqFactoryMode;
+    BatterySleepMode_t ReqBatterySleep;
+    BatterySleepMode_t& reqBatterySleep = ReqBatterySleep;
+    InspectionMode_t ReqInspectionMode;
+    InspectionMode_t &reqInspectionMode = ReqInspectionMode;
+    StationRepositioning_t ReqStationPose;
+    StationRepositioning_t& reqStationPose = ReqStationPose;
+    #endif
 
     std::vector<ErrorList_t> error_list;
 
@@ -547,17 +565,21 @@ private :
     sensor_msgs::msg::LaserScan::SharedPtr apJigFrontLaserData;
     sensor_msgs::msg::LaserScan::SharedPtr apJigBackLaserData;
 
-    UDP_COMMUNICATION udpMode;
+    UDP_COMMUNICATION communicationMode;
     double initNodeTime;
-    bool bSensorOn;
-
     rotationData rotation;
+    pose base_odom;
+    pose odom;
+    bool end_linear_target;
 
 public:
     UdpCommunication();
     ~ UdpCommunication();
 
     void initializeData();
+    void setCommnicationMode(UDP_COMMUNICATION set);
+    UDP_COMMUNICATION getCommunicationMode();
+    void debugLogCommnicationMode(UDP_COMMUNICATION set);
     void procSocCommunication();
     void procAmrJigCommunication();
     void procApJigCommunication();
@@ -620,6 +642,8 @@ public:
     void tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void errorListCallback(const robot_custom_msgs::msg::ErrorListArray::SharedPtr msg);
     void amclCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+    void slamPoseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+    void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
     void mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
 	void fw_version_callback(const std_msgs::msg::String::SharedPtr msg);
     void ai_version_callback(const std_msgs::msg::String::SharedPtr msg);
@@ -697,18 +721,18 @@ public:
     void publishChargingCommand(bool start);
     void publishBlockArea(const ByPassOne_t& parsedData);
     void publishBlockWall(const ByPassOne_t& parsedData);
+    void publishClearVirtualWall();
     void publishVersionRequest();
     void publishTargetPosition(double x,double y,double theta);
     void publishLidarOnOff(bool on_off);
-    void publishTofOnOff(bool set);
     void publishSensorOnOff(bool set);
     void publishBatterySleep();
+    void publishStationPose(double x, double y, double theta);
 
     void clearErrorList();
 
     void systemRebootCommand();
 
-    void resetSocAutoSendTimer();
     void resetVersionTimer();
 
     //mapping function
@@ -739,6 +763,14 @@ public:
     bool startRotation(int type, double targetAngle);
     int getMinDistanceFromLidarSensor(const std::vector<int>& vecDistance);
     double normalize_angle(double angle);
+
+    void enableLinearTargetMoving();
+    void disableLinearTargetMovoing();
+    double getDistance(pose base, pose current);
+    void processLinearMoving();
+
+    //test_code
+    void publishTestTargetPosition(double x,double y,double theta, int type);
 };
 
 #endif // UDP_COMMUNICATION_HPP

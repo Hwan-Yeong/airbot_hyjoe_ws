@@ -11,14 +11,12 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(serial REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(robot_custom_msgs REQUIRED)
-find_package(nav2_msgs REQUIRED)
-find_package(robot_bringup REQUIRED)
+find_package(nav_msgs REQUIRED)
 
 
 # Add compile options for security and optimization
@@ -31,6 +29,7 @@ add_compile_options(
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro,-z,now")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,relro,-z,now")
 
+#add_library(state_manager_lib OBJECT ${SRC_FILES})
 
 # Include directories
 include_directories(
@@ -58,19 +57,15 @@ endif()
 
 add_executable(udp_communication src/main.cpp src/udp_communication.cpp)
 
-# add_library(udp_communication_lib SHARED src/udp_communication.cpp)
-
 ament_target_dependencies(udp_communication
   rclcpp
   tf2_geometry_msgs
   std_msgs
   sensor_msgs
-  nav_msgs
   geometry_msgs
   serial
   robot_custom_msgs
-  nav2_msgs
-  robot_bringup
+  nav_msgs
 )
 
 target_link_libraries(udp_communication ${LIBNETWORK_LIBRARY})

@@ -10,11 +10,24 @@ from launch_ros.actions import Node
 from launch.conditions import IfCondition
 from launch_ros.actions import Node
 from launch.substitutions import ThisLaunchFileDir
-
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
-    
+
+    params_file = LaunchConfiguration('params_file')
+
+    declare_params_file_arg = DeclareLaunchArgument(
+        'params_file',
+        default_value=os.path.join(
+            get_package_share_directory('airbot_sensor_manager'),
+            'config',
+            'sensor_to_pointcloud_param.yaml'
+        ),
+        description='Path to the ROS2 parameters file to use.'
+    )
+
     bringup_launch_file = os.path.join(
         get_package_share_directory('robot_bringup'),
         'launch', 'state_publisher.launch.py'
@@ -35,9 +48,16 @@ def generate_launch_description():
         'launch',
         'state_manager.launch.py'
     )    
+    
+    sensor_to_pointcloud_launch = os.path.join(
+        get_package_share_directory('airbot_sensor_manager'),
+        'launch',
+        'sensor_to_pointcloud.launch.py'
+    )
 
 
     return LaunchDescription([
+        declare_params_file_arg,
 
 	#	#Platform Driver
         Node(
@@ -68,7 +88,7 @@ def generate_launch_description():
         IncludeLaunchDescription(
            PythonLaunchDescriptionSource([state_manager_launch_file])
        ),
-       
+
        IncludeLaunchDescription(
            PythonLaunchDescriptionSource([get_package_share_directory(
               'A1_keepout'), '/launch/keepout.launch.py'])
@@ -79,25 +99,29 @@ def generate_launch_description():
               'A1_localization'), '/launch/localization.launch.py'])
        ),
 
-       IncludeLaunchDescription(
-           PythonLaunchDescriptionSource([get_package_share_directory(
-              'A1_perception'), '/launch/A1_perception.launch.py'])
-       ),
-
 
        IncludeLaunchDescription(
            PythonLaunchDescriptionSource([get_package_share_directory(
               'airbot_ai_interface'), '/launch/airbot_ai_interface_launch.py'])
        ),
 
-       IncludeLaunchDescription(
-           PythonLaunchDescriptionSource([get_package_share_directory(
-              'airbot_sensor_to_pointcloud'), '/launch/sensor_to_pointcloud.launch.py'])
-       ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                get_package_share_directory('airbot_sensor_manager'),
+                '/launch/sensor_manager.launch.py'
+            ]),
+            launch_arguments={'params_file': params_file}.items()
+        ),
 
         IncludeLaunchDescription(
            PythonLaunchDescriptionSource([get_package_share_directory(
               'airbot_error_manager'), '/launch/error_manager.launch.py'])
        ),
+        
+        #Collision Detection
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([get_package_share_directory(
+               'airbot_motion_anomaly_detector'), '/launch/anomaly_detector.launch.py'])
+        ),
     ])
 

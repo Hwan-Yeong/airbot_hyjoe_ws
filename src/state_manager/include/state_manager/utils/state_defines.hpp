@@ -38,6 +38,7 @@ enum class NAVI_STATE : int {
   FAIL,
   ROTAION,
   COMPLETE_ROTATION,
+  READY,
 };
 
 inline std::string enumToString(NAVI_STATE in) {
@@ -46,6 +47,9 @@ inline std::string enumToString(NAVI_STATE in) {
   case NAVI_STATE::IDLE:
     out = std::string("IDLE");
     break;
+  case NAVI_STATE::READY:
+    out = std::string("READY");
+    break;  
   case NAVI_STATE::MOVE_GOAL:
     out = std::string("MOVE_GOAL");
     break;
@@ -73,6 +77,7 @@ enum class NAVI_FAIL_REASON {
   NODE_OFF,
   SERVER_NO_ACTION,
   GOAL_ABORT,
+  GOAL_REJECT,
   UNKWON,
 };
 
@@ -91,6 +96,9 @@ inline std::string enumToString(NAVI_FAIL_REASON in) {
   case NAVI_FAIL_REASON::GOAL_ABORT:
     out = std::string("GOAL_ABORT");
     break;
+    case NAVI_FAIL_REASON::GOAL_REJECT:
+    out = std::string("GOAL_REJECT");
+    break;  
   case NAVI_FAIL_REASON::UNKWON:
     out = std::string("UNKWON");
     break;
@@ -331,6 +339,13 @@ inline std::string enumToString(const ROBOT_STATUS in) {
   return out;
 };
 
+enum ROTATION_COMMAND
+{
+    ROTATE_RELATIVE,
+    ROTATE_ABSOLUTE,
+    ROTATE_360_CCW,
+    ROTATE_360_CW,
+};
 
 
 } // namespace airbot_state

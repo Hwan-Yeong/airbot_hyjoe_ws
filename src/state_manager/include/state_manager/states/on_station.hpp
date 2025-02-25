@@ -15,7 +15,6 @@ public:
   virtual void post_run(const std::shared_ptr<StateUtils> &state_utils) override;
   void stationData_callback(const robot_custom_msgs::msg::StationData::SharedPtr msg);
 
-  rclcpp::Subscription<robot_custom_msgs::msg::StationData>::SharedPtr station_data_sub;
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_robot_cmd_pub_;
   int docking_status;
   bool bLocalizationComplete;

@@ -15,6 +15,7 @@ public:
   virtual void run(const std::shared_ptr<StateUtils> &state_utils) override;
   virtual void post_run(const std::shared_ptr<StateUtils> &state_utils) override;
   void startDocking();
+  void exitMappingNode();
   void stationData_callback(const robot_custom_msgs::msg::StationData::SharedPtr msg);
 
   std_msgs::msg::UInt8 dock_cmd_;

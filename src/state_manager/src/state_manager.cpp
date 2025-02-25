@@ -14,7 +14,8 @@ StateManager::StateManager() : Node("state_manager") {
   auto_mapping = std::make_shared<AutoMapping>(int(ROBOT_STATE::AUTO_MAPPING), std::shared_ptr<rclcpp::Node>(this), state_utils);
   manual_mapping = std::make_shared<ManualMapping>(int(ROBOT_STATE::MANUAL_MAPPING), std::shared_ptr<rclcpp::Node>(this), state_utils);
   return_charger = std::make_shared<ReturnCharger>(int(ROBOT_STATE::RETURN_CHARGER), std::shared_ptr<rclcpp::Node>(this), state_utils);
-  factory_navigation = std::make_shared<Navigation>(int(ROBOT_STATE::FACTORY_NAVIGATION), std::shared_ptr<rclcpp::Node>(this), state_utils);
+  factory_navigation = std::make_shared<FactoryNavigation>(int(ROBOT_STATE::FACTORY_NAVIGATION), std::shared_ptr<rclcpp::Node>(this), state_utils);
+  error = std::make_shared<Error>(int(ROBOT_STATE::ERROR), std::shared_ptr<rclcpp::Node>(this), state_utils);
   states_[ROBOT_STATE::IDLE] = idle;
   states_[ROBOT_STATE::ONSTATION] = on_station;
   states_[ROBOT_STATE::UNDOCKING] = undocking;
@@ -24,12 +25,12 @@ StateManager::StateManager() : Node("state_manager") {
   states_[ROBOT_STATE::MANUAL_MAPPING] = manual_mapping;
   states_[ROBOT_STATE::RETURN_CHARGER] = return_charger;
   states_[ROBOT_STATE::FACTORY_NAVIGATION] = factory_navigation;
+  states_[ROBOT_STATE::ERROR] = error;
   current_state_ = idle;
   setCurrentStateID(ROBOT_STATE::IDLE);
 
   robot_cmd_sub_ = this->create_subscription<std_msgs::msg::UInt8>("robot_state_cmd", 10, std::bind(&StateManager::handleRobotCMD, this,std::placeholders::_1));
   soc_cmd_sub_ = this->create_subscription<std_msgs::msg::UInt8>("/soc_cmd", 10, std::bind(&StateManager::handleSoCCMD, this, std::placeholders::_1));
-  req_target_sub_ = this->create_subscription<robot_custom_msgs::msg::Position>("/move_target", 10,std::bind(&StateManager::target_callback, this, std::placeholders::_1));
 
   robot_state_pub_ = this->create_publisher<robot_custom_msgs::msg::RobotState>("/state_datas", 10);
   navi_state_pub_ = this->create_publisher<robot_custom_msgs::msg::NaviState>("/navi_datas", 10);
@@ -77,6 +78,7 @@ void StateManager::handleSoCCMD(const std_msgs::msg::UInt8::SharedPtr msg) {
   RCLCPP_INFO(this->get_logger(),">>>>>>>>GET CMD FROM SOC : [%s]",enumToString(req_cmd).c_str());
   cmds.soc_cmd = req_cmd;
   // cmds.robot_cmd = REQUEST_ROBOT_CMD::VOID;
+  state_utils->setStartOnStation(false);
   checkTransition(cmds);
 }
 void StateManager::handleRobotCMD(const std_msgs::msg::UInt8::SharedPtr msg) {
@@ -96,7 +98,7 @@ void StateManager::checkTransition( const state_cmd &cmd_ids )
     if (getCurrentStateID() == ROBOT_STATE::IDLE) {
       setState(ROBOT_STATE::AUTO_MAPPING, ROBOT_STATUS::START, cmd_ids);
     } else if (getCurrentStateID() == ROBOT_STATE::ONSTATION) {
-      setState(ROBOT_STATE::UNDOCKING, ROBOT_STATUS::START, cmd_ids);
+      setState(ROBOT_STATE::UNDOCKING, ROBOT_STATUS::READY, cmd_ids);
     } else {
       // fail - abort command
     }
@@ -104,7 +106,7 @@ void StateManager::checkTransition( const state_cmd &cmd_ids )
     if (getCurrentStateID() == ROBOT_STATE::IDLE) {
       setState(ROBOT_STATE::MANUAL_MAPPING, ROBOT_STATUS::START, cmd_ids);
     } else if (getCurrentStateID() == ROBOT_STATE::ONSTATION) {
-      setState(ROBOT_STATE::UNDOCKING, ROBOT_STATUS::START, cmd_ids);
+      setState(ROBOT_STATE::UNDOCKING, ROBOT_STATUS::READY, cmd_ids);
     } else {
       // fail - abort command
     }
@@ -112,21 +114,23 @@ void StateManager::checkTransition( const state_cmd &cmd_ids )
     if (getCurrentStateID() == ROBOT_STATE::IDLE) {
       setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
     } else if (getCurrentStateID() == ROBOT_STATE::ONSTATION) {
-      setState(ROBOT_STATE::UNDOCKING, ROBOT_STATUS::START, cmd_ids);
+      setState(ROBOT_STATE::UNDOCKING, ROBOT_STATUS::READY, cmd_ids);
     } else if (getCurrentStateID() == ROBOT_STATE::NAVIGATION) {
+      setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
+    } else if (getCurrentStateID() == ROBOT_STATE::RETURN_CHARGER) {
       setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
     } else {
       // fail - abort command
     }
   } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::START_RETURN_CHARGER) {
     if (getCurrentStateID() == ROBOT_STATE::IDLE) {
-      setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::START, cmd_ids);
+      setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::READY, cmd_ids);
     } else if (getCurrentStateID() == ROBOT_STATE::AUTO_MAPPING) {
-      setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::START, cmd_ids);
+      setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::READY, cmd_ids);
     } else if (getCurrentStateID() == ROBOT_STATE::MANUAL_MAPPING) {
-      setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::START, cmd_ids);
+      setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::READY, cmd_ids);
     } else if (getCurrentStateID() == ROBOT_STATE::NAVIGATION) {
-      setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::START, cmd_ids);
+      setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::READY, cmd_ids);
     } else {
       // fail - abort command
     }
@@ -201,13 +205,13 @@ void StateManager::checkTransition( const state_cmd &cmd_ids )
   }
   else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::START_FACTORY_NAVIGATION) { //reserve code
     if (getCurrentStateID() == ROBOT_STATE::IDLE) {
-      setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::START, cmd_ids);
+      setState(ROBOT_STATE::FACTORY_NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
     } else {
       // fail - abort command
     }
   }
   else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::STOP_FACTORY_NAVIGATION) { //reserve code
-    if (getCurrentStateID() == ROBOT_STATE::NAVIGATION) {
+    if (getCurrentStateID() == ROBOT_STATE::FACTORY_NAVIGATION) {
       setState(ROBOT_STATE::IDLE, ROBOT_STATUS::START, cmd_ids);
     } else {
       // fail - abort command
@@ -218,11 +222,7 @@ void StateManager::checkTransition( const state_cmd &cmd_ids )
   {
     //cmds.soc_cmd = REQUEST_SOC_CMD::VOID;
     if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::START_ONSTATION) {
-      if (getCurrentStateID() == ROBOT_STATE::IDLE) {
-        setState(ROBOT_STATE::ONSTATION, ROBOT_STATUS::START, cmd_ids);
-      } else {
-        // fail - abort command
-      }
+      setState(ROBOT_STATE::ONSTATION, ROBOT_STATUS::START, cmd_ids);
     }  
     else if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::STOP_ONSTATION) {
       if (getCurrentStateID() == ROBOT_STATE::ONSTATION) {
@@ -250,7 +250,7 @@ void StateManager::checkTransition( const state_cmd &cmd_ids )
       }
     } else if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::DONE_AUTO_MAPPING) {
       if (getCurrentStateID() == ROBOT_STATE::AUTO_MAPPING) {
-        setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::START, cmd_ids);
+        setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::READY, cmd_ids);
       } else {
         // fail - abort command
       }
@@ -292,12 +292,6 @@ void StateManager::runCurrentState() {
   try {
     if (current_state_) {
       current_state_->run(state_utils);
-      //for navigation
-      if( bsetMovetarget && getCurrentStateID() == ROBOT_STATE::NAVIGATION )
-      {
-        bsetMovetarget = false;
-        current_state_->reserveTarget(target_pose);
-      }
       // send node_status
       auto req_state_msg = robot_custom_msgs::msg::RobotState();
       req_state_msg.state = int(state_utils->getStateID());
@@ -319,16 +313,4 @@ void StateManager::runCurrentState() {
   }
 }
 
-void StateManager::target_callback(
-    const robot_custom_msgs::msg::Position::SharedPtr msg) {
-  try {
-    target_pose.x = msg->x;
-    target_pose.y = msg->y;
-    target_pose.theta = msg->theta;
-    bsetMovetarget = true;
-    RCLCPP_INFO(this->get_logger(), "target_callback x : %f , y : %f, theta : %f ", target_pose.x,target_pose.y,target_pose.theta);
-  } catch (const std::exception &e) {
-    RCLCPP_INFO(this->get_logger(), "Exception: %s", e.what());
-  }
-}
 } // namespace airbot_state

@@ -20,6 +20,8 @@
 #include "state_manager/states/auto_mapping.hpp"
 #include "state_manager/states/manual_mapping.hpp"
 #include "state_manager/states/return_charger.hpp"
+#include "state_manager/states/factory_navigation.hpp"
+#include "state_manager/states/error.hpp"
 #include "state_manager/utils/state_utils.hpp"
 
 namespace airbot_state {
@@ -40,7 +42,8 @@ private:
   std::shared_ptr<AutoMapping> auto_mapping;
   std::shared_ptr<ManualMapping> manual_mapping;
   std::shared_ptr<ReturnCharger> return_charger;
-  std::shared_ptr<Navigation> factory_navigation;
+  std::shared_ptr<FactoryNavigation> factory_navigation;
+  std::shared_ptr<Error> error;
 
   rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr robot_cmd_sub_;
   rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr soc_cmd_sub_;
@@ -57,12 +60,7 @@ private:
   ROBOT_STATE current_state;
   state_cmd pre_cmds;
   
-
   std::shared_ptr<StateUtils> state_utils;
-
-  void target_callback(const robot_custom_msgs::msg::Position::SharedPtr msg);
-  bool bsetMovetarget;
-  pose target_pose;
 
   void setState(ROBOT_STATE state_id, 
                 ROBOT_STATUS status_id,

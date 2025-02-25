@@ -9,7 +9,7 @@
 // when 2024.12.24 ap image is download,USE_REMOVE_SYSLOG is false
 // 양산에서는 disable 해야함. : icbaek.24.12.28
 #define USE_REMOVE_SYSLOG true
-#define TOF_ALWAYS_ON 0
+#define TOF_ALWAYS_ON 1
 
 auto previous_time = std::chrono::steady_clock::now();
 
@@ -167,9 +167,9 @@ void UARTCommunication::initializeData()
     g_transmission_data.docking_flags = 0;
     g_transmission_data.imu_flags = 0x0;
     #if TOF_ALWAYS_ON > 0
-    g_transmission_data.tof_flags = 0x0;//0x1;
+    g_transmission_data.tofnBatt_flags = 0x0;//0x1;
     #else
-    g_transmission_data.tof_flags = 0x1;
+    g_transmission_data.tofnBatt_flags = 0x1;
     #endif
     g_transmission_data.index = 0;
 
@@ -472,29 +472,64 @@ bool UARTCommunication::isIMUCalibrationMode(ImuCalibrationCommand mode) const
 // ToF On/Off
 /**************************************************************************************/
 
-// ToF 상태를 설정하는 함수 (하위 4 비트에 ToF On/Off 설정)
-void UARTCommunication::setToF(ToFStatus status)
+
+// 충전 설정 함수 (상위 4 비트에 충전 명령 설정)
+void UARTCommunication::setBattMode(ToFnBatt set)
 {
-    if (status == ToFStatus::ON){
+    uint8_t temp = getUpperBits(g_transmission_data.tofnBatt_flags);
+    if(static_cast<ToFnBatt>(temp) != set){
+        if (set == ToFnBatt::BATT_NORMAL){
+            RCLCPP_INFO(this->get_logger(), "BATT_NORMAL");
+        }else if(set == ToFnBatt::BATT_SLEEP){
+            RCLCPP_INFO(this->get_logger(), "BATT_SLEEP");
+        }else{
+            RCLCPP_INFO(this->get_logger(), "setBattMode error");
+        }
+    }
+    
+    // 기존 충전 명령을 지우고 새 명령으로 설정
+    g_transmission_data.tofnBatt_flags &= 0x0F;  // 하위 4 비트는 그대로 두고, 상위 4 비트 초기화
+    g_transmission_data.tofnBatt_flags |= (static_cast<uint8_t>(set) << 4); // 상위 4 비트에 새로운 충전 명령 설정
+}
+
+// ToF 상태를 설정하는 함수 (하위 4 비트에 ToF On/Off 설정)
+void UARTCommunication::setToF(ToFnBatt status)
+{
+    if (status == ToFnBatt::ON){
         RCLCPP_INFO(this->get_logger(), "TOF-ON");
-    }else if(status == ToFStatus::OFF){
+    }else if(status == ToFnBatt::OFF){
         RCLCPP_INFO(this->get_logger(), "TOF-OFF");
     }else{
         RCLCPP_INFO(this->get_logger(), "setToF Error"); 
     }
     // 하위 4 비트 설정 (ToF On/Off)
-    g_transmission_data.tof_flags &= 0xF0;  // 기존 하위 4 비트 초기화 (상위 4 비트만 남기기)
-    g_transmission_data.tof_flags |= static_cast<uint8_t>(status); // 하위 4 비트에 새로운 ToF 상태 설정
+    g_transmission_data.tofnBatt_flags &= 0xF0;  // 기존 하위 4 비트 초기화 (상위 4 비트만 남기기)
+    g_transmission_data.tofnBatt_flags |= static_cast<uint8_t>(status); // 하위 4 비트에 새로운 ToF 상태 설정
 }
+
+
+// 배터리 명령어를 읽어오는 함수 (상위 4 비트)
+ToFnBatt UARTCommunication::getBattMode() const
+{
+    return static_cast<ToFnBatt>(g_transmission_data.tofnBatt_flags >> 4); // 상위 4 비트 추출
+}
+
 
 // ToF 상태 값을 읽어오는 함수 (하위 4 비트)
-ToFStatus UARTCommunication::getToFStatus() const
+ToFnBatt UARTCommunication::getToFStatus() const
 {
-    return static_cast<ToFStatus>(g_transmission_data.tof_flags & 0x0F); // 하위 4 비트 추출
+    return static_cast<ToFnBatt>(g_transmission_data.tofnBatt_flags & 0x0F); // 하위 4 비트 추출
 }
 
+// 배터리 상태가 설정되었는지 확인하는 함수 (상위 4 비트)
+bool UARTCommunication::isBattMode(ToFnBatt mode) const
+{
+    return getBattMode() == mode;
+}
+
+
 // ToF 상태가 설정되었는지 확인하는 함수 (하위 4 비트)
-bool UARTCommunication::isToFStatus(ToFStatus status) const
+bool UARTCommunication::isToFStatus(ToFnBatt status) const
 {
     return getToFStatus() == status;
 }
@@ -580,7 +615,7 @@ void UARTCommunication::sendProtocolV1Data(TransmissionData& data)
     message[27] = data.imu_flags;
 
     // tof Flags
-    message[28] = data.tof_flags;
+    message[28] = data.tofnBatt_flags;
 
     // Index
     message[29] = data.index; // Index (0~255)
@@ -1347,19 +1382,22 @@ geometry_msgs::msg::Quaternion UARTCommunication::create_quaternion_from_yaw(dou
 void UARTCommunication::batterySleepCallback(const std_msgs::msg::Bool::SharedPtr msg)
 {
     bool bBatterySleep = msg->data;
-    //setBatterySleep(bBatterySleep);
+    // setBatterySleep(bBatterySleep);
+	// TODO
+    setBattMode(ToFnBatt::BATT_SLEEP);
+
     RCLCPP_ERROR(this->get_logger(), "BATTERY-SLEEP"); 
 }
 
 void UARTCommunication::tofCommandCallback(const std_msgs::msg::Bool::SharedPtr msg)
 {
     #if TOF_ALWAYS_ON == 0
-    ToFStatus status;
+    ToFnBatt status;
     if(msg->data){
-        status = ToFStatus::ON;
+        status = ToFnBatt::ON;
         RCLCPP_INFO(this->get_logger(), "COMMAND-CALLBACK TOF-ON");
     }else{
-        status = ToFStatus::OFF;
+        status = ToFnBatt::OFF;
         RCLCPP_INFO(this->get_logger(), "COMMAND-CALLBACK TOF-OFF");
     }
     setToF(status);

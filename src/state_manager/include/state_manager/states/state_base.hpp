@@ -16,12 +16,15 @@
 #include "robot_custom_msgs/msg/position.hpp"
 #include "robot_custom_msgs/msg/station_data.hpp"
 #include "robot_custom_msgs/msg/robot_state.hpp"
+//testcode
+#include "robot_custom_msgs/msg/test_position.hpp"
 
 #include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 
 #include "state_manager/utils/state_utils.hpp"
 #include "state_manager/utils/state_defines.hpp"
+#include "state_manager/utils/navi_defines.hpp"
 
 #include <functional>
 
@@ -53,6 +56,15 @@ struct pose {
   pose() : x(0.0), y(0.0), theta(0.0), timestamp(0.0) {}
 };
 
+struct rotationData
+{
+    bool progress;
+    int type;
+    double target;
+    double accAngle;
+    double preTheta;
+};
+
 namespace airbot_state {
 class stateBase {
 public:
@@ -65,17 +77,12 @@ public:
   virtual void post_run(const std::shared_ptr<StateUtils> &state_utils);
   bool isFirstRunning();
 
-  void reserveTarget(pose pose_data);
-  bool set_movetarget;
-  pose target_pose;
-  pose pre_target_pose;
-
-protected:
-  int id, id_pre;
-  bool bStatusChange;
-  bool first_running;
+  protected:
   std::shared_ptr<rclcpp::Node> node_;
-    std::shared_ptr<StateUtils> state_utils;
+  std::shared_ptr<StateUtils> state_utils;
+  
+  int id;
+  bool first_running;
   // rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
 };
 

@@ -29,6 +29,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/LineLaserDataArray.msg"
   "msg/RobotState.msg"
   "msg/NaviState.msg"
+  "msg/TestPosition.msg"
   DEPENDENCIES std_msgs
 )
 

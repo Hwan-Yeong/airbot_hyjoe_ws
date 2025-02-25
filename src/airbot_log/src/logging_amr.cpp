@@ -7,7 +7,11 @@
 #include <queue>
 #include <mutex>
 #include <filesystem>
+#include <string>
+#include <dlfcn.h>
+#include "airbot_log/libNetwork.h"
 
+const std::string folderPath = "/home/airbot/amrlog";
 
 // 로그 엔트리를 표현하는 구조체
 struct LogEntry {
@@ -21,12 +25,14 @@ struct LogEntry {
     }
 };
 
+
+
 class UnifiedLogger : public rclcpp::Node
 {
 public:
     UnifiedLogger() : Node("logging_amr")
     {
-        std::filesystem::create_directories("/home/airbot/amrlog/");  // 폴더 생성
+        std::filesystem::create_directories(folderPath);  // 폴더 생성
         // spdlog 로거 설정
         // 25.02.18 기준 사양 :  10MB단위 10개파일로 순환구조로 한 파일로 관리한다.
         auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
@@ -71,6 +77,16 @@ private:
         // 정렬된 로그 메시지 기록
         for (const auto& entry : entries) {
             logger_->info(entry.message);
+        }
+
+        // 로그 전송 체크
+        if(reqGetLogData()){            
+            if (resGetLogData(folderPath)){
+                RCLCPP_INFO(this->get_logger(), "folder processed successfully");
+            }
+            else {
+                RCLCPP_INFO(this->get_logger(), "failed to process folder");
+            }
         }
     }
 
@@ -121,10 +137,20 @@ private:
 
     std::mutex queue_mutex_;  // 큐 접근 동기화를 위한 뮤텍스
 };
-
+void *g_handle = nullptr;
 int main(int argc, char * argv[])
 {
     rclcpp::init(argc, argv);
+
+    g_handle = dlopen("/home/airbot/airbot_ws/install/airbot_log/lib/libLOGNetwork.so", RTLD_LAZY);
+    if (!g_handle) {
+        std::cerr << "amr log - Cannot open library: " << dlerror() << '\n';
+        return 1;
+    }
+
+    APISetEnc(false);
+    start_server();
+
     rclcpp::spin(std::make_shared<UnifiedLogger>());
     rclcpp::shutdown();
     return 0;

@@ -48,7 +48,8 @@ set(LIB_SOURCES
   ${PROJECT_SOURCE_DIR}/src/states/manual_mapping.cpp
   ${PROJECT_SOURCE_DIR}/src/states/return_charger.cpp
   ${PROJECT_SOURCE_DIR}/src/states/state_base.cpp
-  #${PROJECT_SOURCE_DIR}/src/states/factory_navigation.cpp
+  ${PROJECT_SOURCE_DIR}/src/states/error.cpp
+  ${PROJECT_SOURCE_DIR}/src/states/factory_navigation.cpp
   ${PROJECT_SOURCE_DIR}/src/utils/state_utils.cpp
 )
 
@@ -62,6 +63,7 @@ add_executable(state_manager src/node.cpp)
 # Link dependencies
 ament_target_dependencies(state_manager_lib
   rclcpp
+  sensor_msgs
   tf2_geometry_msgs
   std_msgs
   nav_msgs

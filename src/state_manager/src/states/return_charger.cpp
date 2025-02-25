@@ -5,38 +5,100 @@ namespace airbot_state {
 
 ReturnCharger::ReturnCharger(const int actionID, std::shared_ptr<rclcpp::Node> node, const std::shared_ptr<StateUtils> &utils)
     : stateBase(actionID, node, utils) {
-  // req_nomotion_local_pub_ =
-  //     this->create_publisher<std_msgs::msg::Empty>("/localization/request",
-  //     1);
+
 }
 
 void ReturnCharger::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
   stateBase::pre_run(state_utils);
-  RCLCPP_INFO(node_->get_logger(),
-              "[ReturnCharger] Preparing ReturnCharger STATE");
+  RCLCPP_INFO(node_->get_logger(),"[ReturnCharger] Preparing ReturnCharger STATE");
   req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
-  target_pose_pub_ =
-      node_->create_publisher<geometry_msgs::msg::Pose>("/target_pose", 10);
-  client_ = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(
-      node_, "navigate_to_pose");
+  target_pose_pub_ = node_->create_publisher<geometry_msgs::msg::Pose>("/target_pose", 10);
+  client_ = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(node_, "navigate_to_pose");
   
-  state_utils->setMovingStateID(NAVI_STATE::IDLE);
-  moveToDock(0.0, 0.0, 1.0);
-  publishTargetPosition(0.0, 0.0, 1.0);
+
+  state_utils->setMovingStateID( NAVI_STATE::IDLE);
+  state_utils->setStatusID(ROBOT_STATUS::READY);
+  setReadyMoving(READY_MOVING::IDLE);
+  if(state_utils->getNodeStatusID() == NODE_STATUS::AUTO_MAPPING || state_utils->getNodeStatusID() == NODE_STATUS::NAVI){
+    setReadyNavigation(READY_NAVIGATION::CHECK_SENSOR);
+  }else{
+    setReadyNavigation(READY_NAVIGATION::LAUCN_NODE);
+  }
+  
+  state_utils->publishAllSensorOn();
+}
+
+void ReturnCharger::setReadyNavigation(READY_NAVIGATION set)
+{
+  if(readyNavi != set){
+    RCLCPP_INFO(node_->get_logger(), "[ReturnCharger] setReadyNavigation %s", enumToString(set).c_str());
+  }
+  readyNavi = set;
+}
+
+void ReturnCharger::setReadyMoving(READY_MOVING set)
+{
+  if(readyMoving != set){
+    RCLCPP_INFO(node_->get_logger(), "[ReturnCharger] setReadyMoving %s", enumToString(set).c_str());
+  }
+  readyMoving = set;
 }
 
 void ReturnCharger::run(const std::shared_ptr<StateUtils> &state_utils) {
-  // RCLCPP_INFO(node_->get_logger(),
-  //             "[ReturnCharger] Running ReturnCharger with shared data: ");
-  // moveToDock(0.0, 0.0, 1.0);
-  // publishTargetPosition(0.0, 0.0, 1.0);
+  ROBOT_STATUS ready_check;
   
+  if(state_utils->getOnstationStatus()){
+    RCLCPP_INFO(node_->get_logger(), "[ReturnCharger] Robot get on Docking Station!!!");
+    auto req_state_msg = std_msgs::msg::UInt8();
+    req_state_msg.data = int(REQUEST_ROBOT_CMD::START_ONSTATION);
+    req_robot_cmd_pub_->publish(req_state_msg);
+    return;
+  }
+
+  switch (state_utils->getStatusID())
+  {
+  case ROBOT_STATUS::READY :
+    ready_check = processNavigationReady();
+    state_utils->setStatusID(ready_check);
+    break;
+    case ROBOT_STATUS::START :
+    if( state_utils->getMovingStateID() == NAVI_STATE::PAUSE ){
+      setReadyMoving(READY_MOVING::CHECK_SENSOR);
+      state_utils->setMovingStateID(NAVI_STATE::READY); //resume
+    }
+    if(state_utils->getMovingStateID() == NAVI_STATE::READY){
+      processMoveTarget();
+    }
+    break;
+    case ROBOT_STATUS::PAUSE :
+    if (state_utils->getMovingStateID() != NAVI_STATE::PAUSE) {
+      pauseReturnCharger();
+    }else if(state_utils->getMovingStateID() == NAVI_STATE::READY){
+      state_utils->setStatusID( ROBOT_STATUS::START);
+    }
+    break;
+    case ROBOT_STATUS::COMPLETE :
+    if(state_utils->getMovingStateID() == NAVI_STATE::READY){
+      state_utils->setStatusID( ROBOT_STATUS::START);
+    }
+    break;
+    case ROBOT_STATUS::FAIL :
+    if(state_utils->getMovingStateID() == NAVI_STATE::READY){
+      state_utils->setStatusID( ROBOT_STATUS::START);
+    }
+    break;      
+  default:
+    RCLCPP_INFO(node_->get_logger(), "[ReturnCharger] Running UnKown Status");
+    break;
+  }
 }
 
 void ReturnCharger::post_run(const std::shared_ptr<StateUtils> &state_utils) {
+  state_utils->saveLastPosition();
   RCLCPP_INFO(node_->get_logger(),
               "[ReturnCharger] Exiting ReturnCharger STATE");
   req_robot_cmd_pub_.reset();
+  stopMonitorReturnCharger();
   if (state_utils->getRobotCMDID().soc_cmd == REQUEST_SOC_CMD::STOP_RETURN_CHARGER || state_utils->getRobotCMDID().soc_cmd == REQUEST_SOC_CMD::START_DOCKING) {
     if (state_utils->getNodeStatusID() == NODE_STATUS::AUTO_MAPPING ||
         state_utils->getNodeStatusID() == NODE_STATUS::MANUAL_MAPPING) {
@@ -48,6 +110,214 @@ void ReturnCharger::post_run(const std::shared_ptr<StateUtils> &state_utils) {
   }
 }
 
+ROBOT_STATUS ReturnCharger::processNavigationReady()
+{
+  ROBOT_STATUS ret = ROBOT_STATUS::READY;
+  int localize_result = 0;
+  switch (readyNavi)
+  {
+  case READY_NAVIGATION::LAUCN_NODE :
+      if(naviNodeLauncher()){
+        setReadyNavigation(READY_NAVIGATION::CHECK_NODE);
+      }else{
+        setReadyNavigation(READY_NAVIGATION::FAIL);
+        ret = ROBOT_STATUS::FAIL;
+      }
+    break;
+  case READY_NAVIGATION::CHECK_NODE :
+     if(naviNodeChecker()){
+        setReadyNavigation(READY_NAVIGATION::CHECK_SENSOR);
+      }
+    break;
+  case READY_NAVIGATION::CHECK_SENSOR :
+  #if USE_TOF_ONOFF > 0
+    if(state_utils->isLidarSensorOK() && state_utils->isMultiToFSensorOK()){
+      state_utils->disableSensorcallback();
+      setReadyMoving(READY_MOVING::REQUEST_POSE_ESTIMATE);
+    }
+    #else
+    if(state_utils->isLidarSensorOK()){
+      state_utils->disableSensorcallback();
+      setReadyMoving(READY_MOVING::REQUEST_POSE_ESTIMATE);
+    }
+    #endif   
+  case READY_NAVIGATION::REQUEST_POSE_ESTIMATE :
+      state_utils->publishLocalizePose();
+      setReadyNavigation(READY_NAVIGATION::CHECK_POSE_ESTIMATE);
+    break;
+  case READY_NAVIGATION::CHECK_POSE_ESTIMATE :
+      if(state_utils->getNodeStatusID() == NODE_STATUS::AUTO_MAPPING){
+        setReadyNavigation(READY_NAVIGATION::COMPLETE);
+        state_utils->setMovingStateID( NAVI_STATE::READY);
+      } else {
+        localize_result = localizationChecker();
+        if(localize_result > 0){
+          setReadyNavigation(READY_NAVIGATION::COMPLETE);
+          state_utils->setMovingStateID( NAVI_STATE::READY);
+        }else if(localize_result < 0){
+          // state_utils->publishAllSensorOff();
+          setReadyNavigation(READY_NAVIGATION::FAIL);
+        }
+      }
+    break;
+  case READY_NAVIGATION::COMPLETE :
+    setReadyMoving(READY_MOVING::COMPLETE);
+    ret = ROBOT_STATUS::START;  
+    break;
+  case READY_NAVIGATION::FAIL :
+    ret = ROBOT_STATUS::FAIL;
+    break;    
+  default:
+    RCLCPP_INFO(node_->get_logger(), "[ReturnCharger] processNavigationReady readyState Error!! : %d", static_cast<int>(readyNavi));
+    break;
+  }
+
+  return ret;
+}
+
+bool ReturnCharger::naviNodeLauncher()
+{
+  bool ret = false;
+  if(state_utils->getNodeStatusID() == NODE_STATUS::NAVI){
+    RCLCPP_INFO(node_->get_logger(), "Node status already Navi skip node launch ");
+    ret = true;
+  }else{
+    if(startNavigation()){
+	      RCLCPP_INFO(node_->get_logger(), "Navi node launch Success");
+	      ret = true;
+		}else{
+      ret = false;
+      RCLCPP_INFO(node_->get_logger(), "Navi node launch Fail");
+    }
+  }
+  return ret;
+}
+
+bool ReturnCharger::naviNodeChecker()
+{
+  bool ret = false;
+  double wait_navi_launch = node_->now().seconds()-node_start_time;
+  RCLCPP_INFO(node_->get_logger(), "[Navigation] Navigation NODE ALL RUNNING -> launch time %f sec", wait_navi_launch);
+  if(state_utils->isValidNavigation("/home/airbot/navigation_pid.txt", node_start_time)){
+      waitNodeLaunching();
+      RCLCPP_INFO(node_->get_logger(), "Navi node launch Complete time : %f", wait_navi_launch);
+      ret = true;
+  }else if(wait_navi_launch >= 30){
+    RCLCPP_INFO(node_->get_logger(), "Navi node launch Fail time : %f", wait_navi_launch);
+  }
+  return ret;
+}
+
+
+int8_t ReturnCharger::localizationChecker()
+{
+  int8_t ret = 0;
+  if(state_utils->isStartLocalization()){
+    double wait_localize_time = node_->now().seconds()-state_utils->getLocalizationStartTime();
+    if(state_utils->getLocalizationComplete()){
+      RCLCPP_INFO(node_->get_logger(), "localization Done ");
+      ret = 1;
+    }else if(wait_localize_time >= 30){
+      RCLCPP_INFO(node_->get_logger(), "localization TimeOut ");
+      ret = -1;
+    }
+  }else{
+    RCLCPP_INFO(node_->get_logger(), "skip localization");
+    ret = 1;
+  }
+
+  return ret;
+}
+
+void ReturnCharger::processMoveTarget()
+{  
+  int localize_result = 0;
+  switch (readyMoving)
+  {
+  case READY_MOVING::CHECK_SENSOR :
+  #if USE_TOF_ONOFF > 0
+    if(state_utils->isLidarSensorOK() && state_utils->isMultiToFSensorOK()){
+      state_utils->disableSensorcallback();
+      setReadyMoving(READY_MOVING::REQUEST_POSE_ESTIMATE);
+    }
+    #else
+    if(state_utils->isLidarSensorOK()){
+      state_utils->disableSensorcallback();
+      setReadyMoving(READY_MOVING::REQUEST_POSE_ESTIMATE);
+    }
+    #endif
+    break;
+  case READY_MOVING::REQUEST_POSE_ESTIMATE :
+    state_utils->publishLocalizePose();
+    setReadyMoving(READY_MOVING::CHECK_POSE_ESTIMATE);
+    break;
+  case READY_MOVING::CHECK_POSE_ESTIMATE :
+    if(state_utils->getNodeStatusID() == NODE_STATUS::AUTO_MAPPING){
+      setReadyMoving(READY_MOVING::COMPLETE);
+    } else{
+      localize_result = localizationChecker();
+      if(localize_result > 0) setReadyMoving(READY_MOVING::COMPLETE);
+      else if(localize_result < 0) setReadyMoving(READY_MOVING::FAIL);
+    }
+    break;
+  case READY_MOVING::COMPLETE :
+    state_utils->publishClearCostMap();
+    moveToDock(0.0, 0.0, 1.0);
+    publishTargetPosition(0.0, 0.0, 1.0);
+    break;
+  case READY_MOVING::FAIL :
+    state_utils->setStatusID(ROBOT_STATUS::FAIL);
+    break;   
+  default:
+    break;
+  };
+}
+
+bool ReturnCharger::startNavigation() {
+  bool ret = false;
+
+  if (state_utils->startProcess("ros2 launch airbot_navigation navigation.launch.py","/home/airbot/navigation_pid.txt")) {
+    nav_node_start_time = node_->get_clock()->now();
+    node_start_time = node_->now().seconds();
+    RCLCPP_INFO(node_->get_logger(), "Navigation Node Start Success");
+    ret = true;
+  }else {
+    // reqStatus = REQUEST_STATUS::FAIL;
+    RCLCPP_INFO(node_->get_logger(), "Navigation Node Start FAIL");
+  }
+  return ret;
+}
+
+void ReturnCharger::pauseReturnCharger() {
+  RCLCPP_INFO(node_->get_logger(), "PAUSE Signal");
+
+  // Check if the goal handle exists and is in an active state
+  if (future_goal_handle_) {
+    auto status = future_goal_handle_->get_status();
+    if (status == rclcpp_action::GoalStatus::STATUS_EXECUTING ||
+        status == rclcpp_action::GoalStatus::STATUS_ACCEPTED) {
+      client_->async_cancel_goal(future_goal_handle_);
+      state_utils->setMovingStateID(NAVI_STATE::PAUSE);
+      RCLCPP_INFO(node_->get_logger(), "ReturnCharger paused");
+    } else {
+      RCLCPP_WARN(node_->get_logger(), "Cannot pause, goal is not active. Status: %d", status);
+    }
+  } else {
+    RCLCPP_WARN(node_->get_logger(), "Cannot pause, no valid goal handle");
+  }
+}
+
+void ReturnCharger::waitNodeLaunching() {
+  // wait nav bringup time
+  rclcpp::Duration checkTime = node_->get_clock()->now() - nav_node_start_time;
+  int waitSec = 5 - (int)checkTime.seconds();
+
+  if (waitSec > 0) {
+    std::this_thread::sleep_for(std::chrono::seconds(waitSec));
+    RCLCPP_INFO(node_->get_logger(), "START_NAVIGATION wait sec : %d ",
+                waitSec);
+  }
+}
 ///////////////function in ReturnCharger
 void ReturnCharger::moveToDock(double x, double y, double theta) {
   startMonitorReturnCharger();
@@ -78,19 +348,6 @@ void ReturnCharger::moveToDock(double x, double y, double theta) {
   auto docking_goal_options = rclcpp_action::Client<
       nav2_msgs::action::NavigateToPose>::SendGoalOptions();
 
-  docking_goal_options.feedback_callback =
-      [this](auto, const std::shared_ptr<
-                       const nav2_msgs::action::NavigateToPose::Feedback>
-                       feedback) {
-        // RCLCPP_INFO(node_->get_logger(), "Feedback received: Distance
-        // remaining to goal: %.2f", feedback->distance_remaining);
-
-        // You can update the robot_status based on feedback if needed
-        if (feedback->distance_remaining > 0.20) {
-            state_utils->setMovingStateID( NAVI_STATE::MOVE_GOAL);
-        }
-      };
-
   docking_goal_options.result_callback = [this](const auto &result) {
     switch (result.code) {
     case rclcpp_action::ResultCode::SUCCEEDED:
@@ -100,8 +357,8 @@ void ReturnCharger::moveToDock(double x, double y, double theta) {
       break;
     case rclcpp_action::ResultCode::ABORTED:
     RCLCPP_INFO(node_->get_logger(), "Goal was aborted.");
-      //state_utils->setMovingStateID(NAVI_STATE::FAIL); // node_->robot_status = 4;  // STOP
-      //state_utils->setMovingFailID(NAVI_FAIL_REASON::GOAL_ABORT);
+      state_utils->setMovingStateID(NAVI_STATE::FAIL); // node_->robot_status = 4;  // STOP
+      state_utils->setMovingFailID(NAVI_FAIL_REASON::GOAL_ABORT);
       break;
     case rclcpp_action::ResultCode::CANCELED:
     RCLCPP_INFO(node_->get_logger(), "Goal was canceled.");
@@ -113,6 +370,18 @@ void ReturnCharger::moveToDock(double x, double y, double theta) {
       state_utils->setMovingStateID(NAVI_STATE::FAIL); // node_->robot_status = 3;  // FAIL
       state_utils->setMovingFailID(NAVI_FAIL_REASON::UNKWON);
       break;
+    }
+  };
+
+  docking_goal_options.goal_response_callback = [this](std::shared_ptr<rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>>goal_handle) {
+    if (!goal_handle) {
+      RCLCPP_INFO(node_->get_logger(), "Goal was rejected by the server.");
+      state_utils->setMovingStateID(NAVI_STATE::FAIL);
+      state_utils->setMovingFailID(NAVI_FAIL_REASON::GOAL_REJECT);
+    } else {
+      RCLCPP_INFO(node_->get_logger(), "Goal accepted by the server.");
+      future_goal_handle_ = goal_handle; // Store the handle for pause/resume
+      state_utils->setMovingStateID(NAVI_STATE::MOVE_GOAL);
     }
   };
   client_->async_send_goal(nearDockGoal, docking_goal_options);
@@ -138,13 +407,9 @@ void ReturnCharger::publishTargetPosition(double x, double y, double theta) {
 void ReturnCharger::stopMonitorReturnCharger() { reset_timerNaviStatus(); }
 
 void ReturnCharger::startMonitorReturnCharger() {
-  try {
     nav_status_timer_ = node_->create_wall_timer(
         std::chrono::milliseconds(1000),
         std::bind(&ReturnCharger::monitor_returnCharger, this));
-  } catch (const std::exception &e) {
-    RCLCPP_ERROR(node_->get_logger(), "Exception: %s", e.what());
-  }
 }
 
 void ReturnCharger::monitor_returnCharger() {
@@ -186,18 +451,12 @@ void ReturnCharger::monitor_returnCharger() {
 }
 
 void ReturnCharger::reset_timerNaviStatus() {
-  try {
-    std::lock_guard<std::mutex> lock(nav_status_timer_mutex_);
     if (nav_status_timer_) {
-      RCLCPP_INFO(node_->get_logger(), "reset_timerNaviStatus");
       nav_status_timer_.reset();
-      RCLCPP_INFO(node_->get_logger(), "reset_timerNaviStatus - end ");
+      RCLCPP_INFO(node_->get_logger(), "reset_timerNaviStatus");
     } else {
       RCLCPP_INFO(node_->get_logger(), "nav_status_timer_ is allready reset ");
     }
-  } catch (const std::exception &e) {
-    RCLCPP_ERROR(node_->get_logger(), "Exception: %s", e.what());
-  }
 }
 //////////////saving map
 void ReturnCharger::map_saver() {
@@ -245,7 +504,7 @@ void ReturnCharger::map_saver() {
 }
 
 void ReturnCharger::exitMappingNode() {
-  if (stopProcess("/home/airbot/mapping_pid.txt")) {
+  if (state_utils->stopProcess("/home/airbot/mapping_pid.txt")) {
     RCLCPP_INFO(node_->get_logger(), "exit Mapping Node");
   } else {
     RCLCPP_INFO(node_->get_logger(), "Fail - kill Mapping Node");
@@ -256,7 +515,7 @@ void ReturnCharger::exitMappingNode() {
 }
 
 void ReturnCharger::exitNavigationNode() {
-  if (stopProcess("/home/airbot/navigation_pid.txt")) {
+  if (state_utils->stopProcess("/home/airbot/navigation_pid.txt")) {
     RCLCPP_INFO(node_->get_logger(), "exit Navigation Node");
   } else {
     RCLCPP_INFO(node_->get_logger(), "Fail - kill Navigation Node");
@@ -264,29 +523,4 @@ void ReturnCharger::exitNavigationNode() {
   state_utils->setNodeStatusID( NODE_STATUS::IDLE );
 }
 
-bool ReturnCharger::stopProcess(const std::string &pidFilePath) {
-  std::ifstream pidFile(pidFilePath);
-  std::string pid;
-  if (pidFile.is_open()) {
-    std::getline(pidFile, pid);
-    pidFile.close();
-    if (!pid.empty()) {
-      pid_t processGroupID = std::stoi(pid);
-      if (kill(-processGroupID, SIGINT) == 0) {
-        sleep(1); // Wait for process to handle SIGINT
-        if (kill(-processGroupID, 0) == -1) { // Process no longer exists
-          RCLCPP_INFO(node_->get_logger(), "Process terminated successfully.");
-          return true;
-        } else {
-          RCLCPP_WARN(node_->get_logger(),
-                      "Process did not terminate, sending SIGKILL.");
-          kill(-processGroupID, SIGKILL);
-        }
-      } else {
-        RCLCPP_ERROR(node_->get_logger(), "Failed to send SIGINT.");
-      }
-    }
-  }
-  return false;
-}
 } // namespace airbot_state

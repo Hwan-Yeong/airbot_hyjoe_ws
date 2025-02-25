@@ -59,7 +59,7 @@ typedef struct TransmissionData
     uint8_t motor_flags;     // Motor Enable Flags
     uint8_t docking_flags;   // DOCKING&CHARGE Flags
     uint8_t imu_flags;       // IMU Calibration Flags
-    uint8_t tof_flags;       // tof on/off Flags
+    uint8_t tofnBatt_flags;       // tof Batt on/off Flags
     uint8_t index;           // Index (0~255)
 } TransmissionData;
 
@@ -105,8 +105,11 @@ enum class ImuCalibrationCommand : uint8_t
     END_OF_ROTATION = 0x2
 };
 
-enum class ToFStatus : uint8_t
+enum class ToFnBatt : uint8_t
 {
+    // 상위 4 비트
+    BATT_NORMAL = 0x0,        // Batt Normal
+    BATT_SLEEP = 0x1,           // Batt Sleep
     // 하위 4 비트 ( ToF On / oFF  )
     ON = 0x0, // ToF On  // (Default)
     OFF = 0x1 // ToF Off
@@ -418,12 +421,15 @@ private:
     bool isIMUCalibrationMode(ImuCalibrationCommand mode) const;
 
     /**************************************************************************************/
-    // ToF On/Off
+    // ToF On/Off n Batt Mode Change
     /**************************************************************************************/
-    void setToF(ToFStatus status);
-    ToFStatus getToFStatus() const;
-    bool isToFStatus(ToFStatus status) const;
-
+    void setToF(ToFnBatt status);
+    void setBattMode(ToFnBatt set);
+    ToFnBatt getToFStatus() const;
+    ToFnBatt getBattMode() const;
+    bool isToFStatus(ToFnBatt status) const;
+    bool isBattMode(ToFnBatt status) const;
+   
     /**************************************************************************************/
     // Motor Control
     /**************************************************************************************/

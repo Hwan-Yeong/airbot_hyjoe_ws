@@ -12,17 +12,42 @@ void UnDocking::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
   cmd_vel_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
   req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
   bUndockStart = false;
+  state_utils->setStartOnStation(true);
   RCLCPP_INFO(node_->get_logger(), "[UnDocking] Preparing UnDocking STATE");
-  state_utils->publishMultiTofOff();
+  state_utils->enableOdomcallback();
 }
 
 void UnDocking::run(const std::shared_ptr<StateUtils> &state_utils) {
  //RCLCPP_INFO(node_->get_logger(), "[UnDocking] Running UnDocking with shared data: ");
+ auto undock_state_msg = std_msgs::msg::UInt8();
+  ROBOT_STATUS ready_check;
+  switch (state_utils->getStatusID()) {
+  case ROBOT_STATUS::READY:
+    if( state_utils->getPrepareOdomFlag() ){
+      enableLinearTargetMoving();
+      ready_check = ROBOT_STATUS::START;
+      state_utils->setStatusID(ready_check);
+    }
+    break;
+  case ROBOT_STATUS::START :
+    if( bUndockStart )
+    {
+      ready_check = ROBOT_STATUS::COMPLETE;
+      state_utils->setStatusID(ready_check);
+    }  
+    break;
 
-  if (bUndockStart) {
-    bUndockStart = false;
-    // finish generate change state msg
-    auto undock_state_msg = std_msgs::msg::UInt8();
+  case ROBOT_STATUS::PAUSE :
+    RCLCPP_INFO(node_->get_logger(), "[Undocking] Running PAUSE Status");
+    break;
+
+  case ROBOT_STATUS::COMPLETE :
+    if(linear_target_timer_)
+    {
+      RCLCPP_INFO(node_->get_logger(), "[Undocking] close linear target timer");
+      linear_target_timer_.reset();
+      state_utils->disableOdomcallback();
+    }
     if(state_utils->getRobotCMDID().soc_cmd == REQUEST_SOC_CMD::START_AUTO_MAPPING){
       undock_state_msg.data = int(REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_AUTO_MAPPING);
     }else if(state_utils->getRobotCMDID().soc_cmd == REQUEST_SOC_CMD::START_MANUAL_MAPPING){
@@ -31,11 +56,16 @@ void UnDocking::run(const std::shared_ptr<StateUtils> &state_utils) {
       undock_state_msg.data = int(REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_NAVIGATION);
     }
     req_robot_cmd_pub_->publish(undock_state_msg);
-  } else {
-    unDockingMove(0.3);
-  }
+    break;
 
-  
+  case ROBOT_STATUS::FAIL :
+    RCLCPP_INFO(node_->get_logger(), "[Undocking] Running FAIL Status");
+    break;
+
+  default:
+    RCLCPP_INFO(node_->get_logger(), "[Undocking] Running UnKown Status");
+    break;
+  }
 }
 
 void UnDocking::post_run(const std::shared_ptr<StateUtils> &state_utils) {
@@ -43,34 +73,52 @@ void UnDocking::post_run(const std::shared_ptr<StateUtils> &state_utils) {
   stateBase::post_run(state_utils);
   req_robot_cmd_pub_.reset();
   cmd_vel_pub_.reset();
+  if(linear_target_timer_)
+  {
+    linear_target_timer_.reset();
+  }
   state_utils->startMonitorOdomReset();
 }
 
-void UnDocking::unDockingMove(const float dist) {
-  RCLCPP_ERROR(node_->get_logger(), "undocking move - start");
-  auto moveFwd = geometry_msgs::msg::Twist();
-  moveFwd.linear.x = 0.05; // Move forward at 0.05 m/s
-  moveFwd.angular.z = 0.0; // No rotation
-  // Distance to move
-  double distance = dist;
-  // Velocity: 0.2 m/s
-  double velocity = 0.05;
-  // Time needed to move 30 cm
-  double time_to_move = distance / velocity; // Time in seconds
-  rclcpp::Rate rate(10); // Publish at 10 Hz (10 times per second)
-  int num_iterations =
-      time_to_move * 10; // Number of iterations required to move 30 cm
-  for (int i = 0; i < num_iterations; ++i) {
-    cmd_vel_pub_->publish(moveFwd);
-    rate.sleep(); // Sleep to maintain the loop rate
-  }
-  // Stop the robot after moving the required distance
-  moveFwd.linear.x = 0.0;
-  cmd_vel_pub_->publish(moveFwd);
-  sleep(3); // hjkim 250110 - wait for stop undocking move
-  bUndockStart = true;
-  dock_pose_estimate = false;
-  RCLCPP_ERROR(node_->get_logger(), "undocking move - after 6 + 3 sec");
+void UnDocking::enableLinearTargetMoving()
+{
+    end_linear_target = false;
+    base_odom = state_utils->getCurrentOdom();
+    if(!linear_target_timer_){
+        linear_target_timer_ = node_->create_wall_timer( std::chrono::milliseconds(20), std::bind(&UnDocking::processLinearMoving, this));
+        RCLCPP_WARN(node_->get_logger(), "enableLinearTargetMoving");
+    }else{
+        RCLCPP_WARN(node_->get_logger(), "LinearTargetMoving is already enabled!!");
+    }
+}
+void UnDocking::processLinearMoving()
+{
+    pose current = state_utils->getCurrentOdom();
+    double distance = getDistance(base_odom,current);
+    if(distance >= 0.3)
+    {
+        end_linear_target = true;
+        publishVelocityCommand(0.0,0.0);
+        RCLCPP_WARN(node_->get_logger(), "moving 0.3m over distance : %f , base X : %f, Y : %f, current X : %f, Y : %f ",
+        distance,base_odom.x,base_odom.y,current.x,current.y);
+        bUndockStart = true;
+    }else{
+        RCLCPP_WARN(node_->get_logger(), "processLinearMoving...distance : %f",distance);
+        publishVelocityCommand(0.07,0.0);
+    }
+}
+
+void UnDocking::publishVelocityCommand(double v, double w)
+{
+    auto cmd_msg = geometry_msgs::msg::Twist();
+    cmd_msg.linear.x = v;
+    cmd_msg.angular.z = w;
+    cmd_vel_pub_->publish(cmd_msg);
+    // RCLCPP_INFO(node_->get_logger(), "publishVelocityCommand V : %f, W : %f ", v,w);
+}
+
+double UnDocking::getDistance(pose base, pose current) {
+  return std::sqrt((current.x - base.x) * (current.x - base.x) + (current.y - base.y) * (current.y - base.y));
 }
 
 } // namespace airbot_state

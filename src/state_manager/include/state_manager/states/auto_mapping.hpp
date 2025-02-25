@@ -17,22 +17,14 @@ public:
 
   // odom and odom reset
 
-  // AutoMapping
-  std::mutex explore_sub_mutex_;
-
   void runAutoMapping();
   void reset_subExploreFinish();
-  void docking_and_save_map();
   void explore_finish_callback(const std_msgs::msg::Empty::SharedPtr msgs);
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr explore_finish_sub;
 
   void map_saver();
   void exitMappingNode();
   void exitNavigationNode();
-
-  ////process check
-  bool startProcess(const std::string &command, const std::string &pidFilePath);
-  bool stopProcess(const std::string &pidFilePath);
 
   double mapping_start_time;
   bool bSavedMap;

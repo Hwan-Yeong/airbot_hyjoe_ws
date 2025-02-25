@@ -23,22 +23,44 @@ public:
   void reset_timerNaviStatus();
   void monitor_returnCharger();
 
+  void exitMappingNode();
+  void map_saver();
+  void exitNavigationNode();
+
+
+  bool naviNodeLauncher();
+  bool naviNodeChecker();
+
+  void processMoveTarget();
+  ROBOT_STATUS processNavigationReady();
+  int8_t localizationChecker();
+
+  bool startNavigation();
+  void pauseReturnCharger();
+  void waitNodeLaunching();
+
+  void setReadyNavigation(READY_NAVIGATION set);
+  void setReadyMoving(READY_MOVING set);
+
   rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr client_;
+  rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr future_goal_handle_;
   rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr target_pose_pub_;
   rclcpp::TimerBase::SharedPtr nav_status_timer_;
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr dock_pub;
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_robot_cmd_pub_;
+  
+  rclcpp::Time nav_node_start_time;
+  double node_start_time;
   bool dock_pose_estimate = false;
-  NAVI_STATE movingState;
-  std::mutex nav_status_timer_mutex_;
   std_msgs::msg::UInt8 dock_cmd_;
-  // map saving
-  void exitMappingNode();
+
+  pose station_pose;
   bool bSavedMap;
-  void map_saver();
-  void exitNavigationNode();
-  ////process check
-  bool stopProcess(const std::string &pidFilePath);
+
+  MOVING_DATA movingData;
+  NAVI_STATE movingState;
+  READY_NAVIGATION readyNavi;
+  READY_MOVING  readyMoving;
 
 };
 

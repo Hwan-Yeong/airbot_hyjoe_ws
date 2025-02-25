@@ -24,13 +24,8 @@ public:
   void exitNavigationNode();
   bool bSavedMap;
 
-  ////process check
-  bool startProcess(const std::string &command, const std::string &pidFilePath);
-  bool stopProcess(const std::string &pidFilePath);
-
   void stationData_callback(const robot_custom_msgs::msg::StationData::SharedPtr msg);
 
-  rclcpp::Subscription<robot_custom_msgs::msg::StationData>::SharedPtr station_data_sub;
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_robot_cmd_pub_;
 
   u_int8_t docking_status;

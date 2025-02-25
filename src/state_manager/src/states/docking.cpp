@@ -12,18 +12,21 @@ void Docking::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
   dock_pub = node_->create_publisher<std_msgs::msg::UInt8>("/docking_cmd", 10);
   req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
   station_data_sub = node_->create_subscription<robot_custom_msgs::msg::StationData>("/station_data", 10, std::bind(&Docking::stationData_callback, this, std::placeholders::_1));
-  startDocking();
-  state_utils->publishMultiTofOff();
+  startDocking(); 
+  // state_utils->publishAllSensorOff();
+  if (state_utils->getNodeStatusID() == NODE_STATUS::AUTO_MAPPING || state_utils->getNodeStatusID() == NODE_STATUS::MANUAL_MAPPING) {
+    exitMappingNode();
+  }
 }
 
-void Docking::run(const std::shared_ptr<StateUtils> &state_utils) {
+void Docking::run(const std::shared_ptr<StateUtils> &) {
   if( isFirstRunning() ){
     RCLCPP_INFO(node_->get_logger(), "[Docking] Running Docking with shared data: ");
   }
   
 }
 
-void Docking::post_run(const std::shared_ptr<StateUtils> &state_utils) {
+void Docking::post_run(const std::shared_ptr<StateUtils> &) {
   RCLCPP_INFO(node_->get_logger(), "[Docking] Exiting Docking");
   dock_cmd_.data = DOCK_STOP;
   dock_pub->publish(dock_cmd_);
@@ -38,6 +41,16 @@ void Docking::startDocking() {
   dock_pub->publish(dock_cmd_);
 }
 
+void Docking::exitMappingNode() {
+  if (state_utils->stopProcess("/home/airbot/mapping_pid.txt")) {
+    RCLCPP_INFO(node_->get_logger(), "exit Mapping Node");
+  } else {
+    RCLCPP_INFO(node_->get_logger(), "Fail - kill Mapping Node");
+  }  
+  state_utils->setNodeStatusID(NODE_STATUS::IDLE);
+  // rclcpp::Rate waitStop(1000);
+  // waitStop.sleep();
+}
 void Docking::stationData_callback(const robot_custom_msgs::msg::StationData::SharedPtr msg) {
   try {
 
