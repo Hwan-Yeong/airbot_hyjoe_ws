@@ -149,7 +149,7 @@ void ErrorManager::leftMotorStuckErrorCallback(const std_msgs::msg::Bool::Shared
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -165,7 +165,7 @@ void ErrorManager::rightMotorStuckErrorCallback(const std_msgs::msg::Bool::Share
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -181,7 +181,7 @@ void ErrorManager::scanDirtyFrontErrorCallback(const std_msgs::msg::Bool::Shared
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -197,7 +197,7 @@ void ErrorManager::scanDirtyBackErrorCallback(const std_msgs::msg::Bool::SharedP
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -213,7 +213,7 @@ void ErrorManager::dockingStationErrorCallback(const std_msgs::msg::Bool::Shared
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -229,7 +229,7 @@ void ErrorManager::chargingErrorCallback(const std_msgs::msg::Bool::SharedPtr ms
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -245,7 +245,7 @@ void ErrorManager::batChargingOverCurrentErrorCallback(const std_msgs::msg::Bool
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -261,7 +261,7 @@ void ErrorManager::batDischargingOverCurrentErrorCallback(const std_msgs::msg::B
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -277,7 +277,7 @@ void ErrorManager::topTofErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -293,7 +293,7 @@ void ErrorManager::cameraErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -309,7 +309,7 @@ void ErrorManager::rightMotorErrorCallback(const std_msgs::msg::Bool::SharedPtr 
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -325,7 +325,7 @@ void ErrorManager::leftMotorErrorCallback(const std_msgs::msg::Bool::SharedPtr m
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -341,7 +341,7 @@ void ErrorManager::scanFrontErrorCallback(const std_msgs::msg::Bool::SharedPtr m
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -357,7 +357,7 @@ void ErrorManager::scanBackErrorCallback(const std_msgs::msg::Bool::SharedPtr ms
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -373,7 +373,7 @@ void ErrorManager::batOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -389,7 +389,7 @@ void ErrorManager::botTofErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -405,7 +405,7 @@ void ErrorManager::unReachableGoalErrorCallback(const std_msgs::msg::Bool::Share
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -421,7 +421,7 @@ void ErrorManager::changeTempGoalErrorCallback(const std_msgs::msg::Bool::Shared
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -437,7 +437,7 @@ void ErrorManager::fallDownErrorCallback(const std_msgs::msg::Bool::SharedPtr ms
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -453,7 +453,7 @@ void ErrorManager::unableToDockingErrorCallback(const std_msgs::msg::Bool::Share
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -469,7 +469,7 @@ void ErrorManager::boardOverHeatErrorCallback(const std_msgs::msg::Bool::SharedP
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
@@ -485,15 +485,15 @@ void ErrorManager::stationOverHeatErrorCallback(const std_msgs::msg::Bool::Share
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
-        removeFromErrorLists(rank);
+        removeFromErrorLists(errorCode);
     }
 }
 
 void ErrorManager::updateErrorLists(int rank, std::string code)
 {
     auto it = std::find_if(error_list_.begin(), error_list_.end(),
-        [rank](const std::shared_ptr<robot_custom_msgs::msg::ErrorList>& error) {
-            return error->rank == rank;
+        [&code](const std::shared_ptr<robot_custom_msgs::msg::ErrorList>& error) {
+            return error->error_code == code;
     });
 
     if (it == error_list_.end()) {
@@ -504,9 +504,9 @@ void ErrorManager::updateErrorLists(int rank, std::string code)
 void ErrorManager::addError(int rank, const std::string &error_code)
 {
     auto it = std::find_if(error_list_.begin(), error_list_.end(),
-        [rank](const std::shared_ptr<robot_custom_msgs::msg::ErrorList>& error) {
-            return error->rank == rank;
-        });
+        [&error_code](const std::shared_ptr<robot_custom_msgs::msg::ErrorList>& error) {
+            return error->error_code == error_code;
+    });
 
     if (it != error_list_.end()) {
         return;
@@ -523,14 +523,14 @@ void ErrorManager::addError(int rank, const std::string &error_code)
     error_list_.push_back(new_error);
 }
 
-void ErrorManager::removeFromErrorLists(int rank)
+void ErrorManager::removeFromErrorLists(std::string code)
 {
     auto it = std::find_if(error_list_.begin(), error_list_.end(),
-        [rank](const std::shared_ptr<robot_custom_msgs::msg::ErrorList>& error) {
-            return error->rank == rank;
+        [&code](const std::shared_ptr<robot_custom_msgs::msg::ErrorList>& error) {
+            return error->error_code == code;
     });
     if (it != error_list_.end()) {
-        error_list_.erase(it, error_list_.end());
+        error_list_.erase(it);
     }
 }
 
