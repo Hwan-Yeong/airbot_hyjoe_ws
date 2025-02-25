@@ -1,4 +1,4 @@
-#include "error_manager/error_manager.h"
+#include "error_manager/error_manager.hpp"
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);

@@ -88,6 +88,7 @@ private:
 
     void updateErrorLists(int rank, std::string code);
     void addError(int rank, const std::string &error_code);
+    void removeFromErrorLists(int rank);
     void printErrorList();
 };
 
