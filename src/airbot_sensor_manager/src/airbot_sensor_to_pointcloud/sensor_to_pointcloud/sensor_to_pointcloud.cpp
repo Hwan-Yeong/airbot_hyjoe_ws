@@ -95,6 +95,8 @@ SensorToPointcloud::SensorToPointcloud()
         SyncPolicy(10), *lidar_front_sub_, *lidar_back_sub_);
     sync_->registerCallback(
         std::bind(&SensorToPointcloud::lidarMsgUpdate, this, std::placeholders::_1, std::placeholders::_2));
+    eyes_sub_ = this->create_subscription<robot_custom_msgs::msg::BatteryStatus>(
+        "battery_status", 10, std::bind(&SensorToPointcloud::eyesMsgUpdate, this, std::placeholders::_1));
 
     // Msg Publishers
     if (use_tof_) {
@@ -316,6 +318,9 @@ void SensorToPointcloud::initVariables()
     publish_cnt_camera_ = 0;
     publish_cnt_cliff_ = 0;
     publish_cnt_lidar_ = 0;
+
+    isRightEyeDetectCliff = false;
+    isLeftEyeDetectCliff = false;
 }
 
 void SensorToPointcloud::publisherMonitor()
@@ -434,12 +439,28 @@ void SensorToPointcloud::publisherMonitor()
 
 void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
+    auto customized_msg = std::make_shared<robot_custom_msgs::msg::TofData>(*msg);
+
     if (target_frame_ == "map") {
         tPose pose;
         pose.position.x = msg->robot_x;
         pose.position.y = msg->robot_y;
         pose.orientation.yaw = msg->robot_angle;
         point_cloud_tof_.updateRobotPose(pose);
+    }
+
+    if (isLeftEyeDetectCliff) {
+        customized_msg->bot_left[12] = 0.48;
+        customized_msg->bot_left[13] = 0.48;
+        customized_msg->bot_left[14] = 0.48;
+        customized_msg->bot_left[15] = 0.48;
+    }
+
+    if (isRightEyeDetectCliff) {
+        customized_msg->bot_right[12] = 0.48;
+        customized_msg->bot_right[13] = 0.48;
+        customized_msg->bot_right[14] = 0.48;
+        customized_msg->bot_right[15] = 0.48;
     }
 
     if (use_tof_) {
@@ -449,20 +470,20 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
         if (use_tof_left_ || use_tof_right_) {
             TOF_SIDE side = (use_tof_left_ && use_tof_right_) ? TOF_SIDE::BOTH : 
                             (use_tof_left_ ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
-            pc_tof_multi_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, side, false);
+            pc_tof_multi_msg = point_cloud_tof_.updateBotTofPointCloudMsg(customized_msg, side, false);
         }
         if (use_tof_row_) {
             if (use_tof_left_) {
-                pc_tof_left_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::FIRST);
-                pc_tof_left_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::SECOND);
-                pc_tof_left_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::THIRD);
-                pc_tof_left_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::FOURTH);
+                pc_tof_left_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(customized_msg, TOF_SIDE::LEFT, true, ROW_NUMBER::FIRST);
+                pc_tof_left_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(customized_msg, TOF_SIDE::LEFT, true, ROW_NUMBER::SECOND);
+                pc_tof_left_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(customized_msg, TOF_SIDE::LEFT, true, ROW_NUMBER::THIRD);
+                pc_tof_left_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(customized_msg, TOF_SIDE::LEFT, true, ROW_NUMBER::FOURTH);
             }
             if (use_tof_right_) {
-                pc_tof_right_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FIRST);
-                pc_tof_right_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::SECOND);
-                pc_tof_right_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::THIRD);
-                pc_tof_right_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FOURTH);
+                pc_tof_right_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(customized_msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FIRST);
+                pc_tof_right_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(customized_msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::SECOND);
+                pc_tof_right_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(customized_msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::THIRD);
+                pc_tof_right_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(customized_msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FOURTH);
             }
         }
     }
@@ -516,4 +537,19 @@ void SensorToPointcloud::lidarMsgUpdate(const sensor_msgs::msg::LaserScan::Const
     pc_lidar_msg = point_cloud_lidar_.updateLidarPointCloudMsg(front_msg, back_msg);
 
     isLidarUpdating = true;
+}
+
+// 1hz (1000ms)
+void SensorToPointcloud::eyesMsgUpdate(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg)
+{
+    if (msg->cell_voltage1 > 675) { // at stop: 648
+        isRightEyeDetectCliff = true;
+    } else {
+        isRightEyeDetectCliff = false;
+    }
+    if (msg->cell_voltage2 > 650) { // at stop: 624
+        isLeftEyeDetectCliff = true;
+    } else {
+        isLeftEyeDetectCliff = false;
+    }
 }

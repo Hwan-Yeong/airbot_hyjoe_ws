@@ -15,6 +15,7 @@
 #include "robot_custom_msgs/msg/tof_data.hpp"
 #include "robot_custom_msgs/msg/camera_data.hpp"
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
+#include "robot_custom_msgs/msg/battery_status.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 #include <builtin_interfaces/msg/time.hpp>
@@ -55,6 +56,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr cliff_sub_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::LaserScan>> lidar_front_sub_, lidar_back_sub_;
     std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
+    rclcpp::Subscription<robot_custom_msgs::msg::BatteryStatus>::SharedPtr eyes_sub_;
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_1d_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_multi_pub_;
@@ -99,6 +101,8 @@ private:
 
     tLidarParam front_lidar_params_, back_lidar_params_;
 
+    bool isRightEyeDetectCliff, isLeftEyeDetectCliff;
+
     void declareParams();
     void setParams();
     void printParams();
@@ -108,6 +112,7 @@ private:
     void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
     void cliffMsgUpdate(const std_msgs::msg::UInt8::SharedPtr msg);
     void lidarMsgUpdate(const sensor_msgs::msg::LaserScan::ConstSharedPtr &lidar_front_msg, const sensor_msgs::msg::LaserScan::ConstSharedPtr &lidar_back_msg);
+    void eyesMsgUpdate(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg);
 };
 
 #endif // SENSOR_TO_POINTCLOUD
