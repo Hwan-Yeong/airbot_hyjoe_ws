@@ -1,8 +1,5 @@
 #include "error_manager/error_manager.h"
 
-#define CLEAR_CNT 5
-#define ERROR_LIST_SIZE 10
-
 using namespace std::chrono_literals;
 
 ErrorManager::ErrorManager()

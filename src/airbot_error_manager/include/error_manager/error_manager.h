@@ -1,7 +1,7 @@
 #ifndef ERROR_MANAGER_HPP
 #define ERROR_MANAGER_HPP
 
- #include <iostream>
+#include <iostream>
 #include <cmath>
 #include <vector>
 #include <chrono>
@@ -16,6 +16,9 @@
 #include "robot_custom_msgs/msg/error_list.hpp"
 #include "robot_custom_msgs/msg/error_list_array.hpp"
 
+
+#define CLEAR_CNT 5
+#define ERROR_LIST_SIZE 10
 
 class ErrorManager : public rclcpp::Node
 {
