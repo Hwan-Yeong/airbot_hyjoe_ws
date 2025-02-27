@@ -15,37 +15,50 @@ find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(robot_custom_msgs REQUIRED)
 
-# Include directories
 include_directories(
-  include  # Include your project's header directory
+  include
   ${catkin_INCLUDE_DIRS}
 )
 
-# Executable (if needed)
+################################
+######## ERROR_MANAGER #########
 add_executable(error_manager
   src/error_manager/error_manager.cpp
-  src/node.cpp
+  src/error_manager/node.cpp
 )
-
-# Link dependencies
 ament_target_dependencies(error_manager
   rclcpp
   tf2_geometry_msgs
   std_msgs
   robot_custom_msgs
 )
-
-# Install headers
-install(DIRECTORY include/
-  DESTINATION include
-)
-
-# Install targets (adjust DESTINATION paths if necessary)
-install(TARGETS
-error_manager
+install(TARGETS error_manager
   DESTINATION lib/${PROJECT_NAME}
 )
 
+################################
+######## ERROR_MONITOR #########
+add_executable(error_monitor
+  src/error_monitor/board_temperature_monitor/board_temperature_monitor.cpp
+  src/error_monitor/fall_down_monitor/fall_down_monitor.cpp
+  src/error_monitor/error_monitor.cpp
+  src/error_monitor/node.cpp
+)
+ament_target_dependencies(error_monitor
+  rclcpp
+  sensor_msgs
+  std_msgs
+  robot_custom_msgs
+)
+install(TARGETS error_monitor
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+################################
+############ GENERAL ###########
+install(DIRECTORY include/
+  DESTINATION include
+)
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME})
 
