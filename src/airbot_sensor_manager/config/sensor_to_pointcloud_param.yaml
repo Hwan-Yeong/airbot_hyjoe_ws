@@ -3,6 +3,14 @@ airbot_sensor_to_pointcloud:
   
     target_frame: "map" # "map" or "base_link"
 
+    ################################
+    #######  ToF Matrix idx  #######
+    #                              #
+    #       [00, 01, 02, 03]       #
+    #       [04, 05, 06, 07]       #
+    #       [08, 09, 10, 11]       #
+    #       [12, 13, 14, 15]       #
+    ################################
     tof:
       all:
         use: true
@@ -19,7 +27,24 @@ airbot_sensor_to_pointcloud:
         row:
           use: true
           publish_rate_ms: 50
-    
+
+    ###############################
+    #######  Camera Object  #######
+    ######     Class ID      ######
+    #                             #
+    #       0: cable              #
+    #       1: carpet             #
+    #       2: clothes            #
+    #       3: liquid             #
+    #       4: non_obstacle       #
+    #       5: obstacle           #
+    #       6: poop               #
+    #       7: scale              #
+    #       8: threshold          #
+    #       9: person             #
+    #       10: dog               #
+    #       11: cat               #
+    ###############################
     camera:
       use: true
       publish_rate_ms: 100
@@ -36,32 +61,19 @@ airbot_sensor_to_pointcloud:
           width_diff: 0.1
           height_diff: 0.1
     
+    ####################
+    #####  Bot IR  #####
+    ### < Top View > ###
+    #                  #
+    #        ff        #
+    #    fl      fr    #
+    #                  #
+    #    bl      br    #
+    #        bb        #
+    #                  #
+    ####################
     cliff:
       use: true
       publish_rate_ms: 10
-  
-    lidar:
-      use: false
-      publish_rate_ms: 100
-      front:
-        range:
-          angle_max: 270.0
-          angle_min: 90.0
-        geometry:
-          alpha: 180.0
-          offset:
-            x: 0.15
-            y: 0.0
-            z: 0.0
-      back:
-        range:
-          angle_max: 270.0
-          angle_min: 90.0
-        geometry:
-          alpha: 0.0
-          offset:
-            x: -0.15
-            y: 0.0
-            z: 0.0
 
     use_sim_time: false

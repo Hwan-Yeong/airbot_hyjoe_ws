@@ -17,15 +17,10 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)
-find_package(pcl_conversions REQUIRED)
 
 include_directories(
   include
-  ${PCL_INCLUDE_DIRS}
 )
-
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
 
 ################################
 ##### SENSOR_TO_POINTCLOUD #####
@@ -35,7 +30,6 @@ add_executable(sensor_to_pointcloud
   src/airbot_sensor_to_pointcloud/tof/pointcloud_tof.cpp
   src/airbot_sensor_to_pointcloud/camera/pointcloud_camera.cpp
   src/airbot_sensor_to_pointcloud/cliff/pointcloud_cliff.cpp
-  src/airbot_sensor_to_pointcloud/lidar/pointcloud_lidar.cpp
   src/utils/frame_converter.cpp
   src/utils/pointcloud_generator.cpp
   src/utils/boundingbox_generator.cpp
@@ -44,7 +38,6 @@ add_executable(sensor_to_pointcloud
 ament_target_dependencies(sensor_to_pointcloud 
   rclcpp 
   sensor_msgs
-  pcl_conversions
   robot_custom_msgs
   builtin_interfaces
   tf2

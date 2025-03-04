@@ -69,7 +69,6 @@ SensorToPointcloud::SensorToPointcloud()
     bounding_box_generator_.updateTargetFrame(target_frame_);
     point_cloud_cliff_.updateTargetFrame(target_frame_);
     camera_object_logger_.updateParams(camera_logger_distance_margin_,camera_logger_width_margin_,camera_logger_height_margin_);
-    point_cloud_lidar_.updateParams(front_lidar_params_, back_lidar_params_);
     for (const auto& item : camera_param_raw_vector_) {
         std::istringstream ss(item);
         std::string key, value;
@@ -87,14 +86,6 @@ SensorToPointcloud::SensorToPointcloud()
         "camera_data", 10, std::bind(&SensorToPointcloud::cameraMsgUpdate, this, std::placeholders::_1));
     cliff_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
         "bottom_ir_data", 10, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1));
-    lidar_front_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(
-        this, "scan_front");
-    lidar_back_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(
-        this, "scan_back");
-    sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(
-        SyncPolicy(10), *lidar_front_sub_, *lidar_back_sub_);
-    sync_->registerCallback(
-        std::bind(&SensorToPointcloud::lidarMsgUpdate, this, std::placeholders::_1, std::placeholders::_2));
 
     // Msg Publishers
     if (use_tof_) {
@@ -135,11 +126,6 @@ SensorToPointcloud::SensorToPointcloud()
             "sensor_to_pointcloud/cliff", 10);
         RCLCPP_INFO(this->get_logger(), "Cliff init finished!");
     }
-    if (use_lidar_) {
-        pc_lidar_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-            "sensor_to_pointcloud/lidar", rclcpp::SensorDataQoS().best_effort());
-        RCLCPP_INFO(this->get_logger(), "Lidar init finished!");
-    }
 
     // Monitor Timer
     poincloud_publish_timer_ = this->create_wall_timer(
@@ -177,21 +163,6 @@ void SensorToPointcloud::declareParams()
 
     this->declare_parameter("cliff.use",false);
     this->declare_parameter("cliff.publish_rate_ms",100);
-
-    this->declare_parameter("lidar.use", false);
-    this->declare_parameter("lidar.publish_rate_ms", 100);
-    this->declare_parameter("lidar.front.range.angle_max", 0.0);
-    this->declare_parameter("lidar.front.range.angle_min", 0.0);
-    this->declare_parameter("lidar.front.geometry.alpha", 0.0);
-    this->declare_parameter("lidar.front.geometry.offset.x", 0.0);
-    this->declare_parameter("lidar.front.geometry.offset.y", 0.0);
-    this->declare_parameter("lidar.front.geometry.offset.z", 0.0);
-    this->declare_parameter("lidar.back.range.angle_max", 0.0);
-    this->declare_parameter("lidar.back.range.angle_min", 0.0);
-    this->declare_parameter("lidar.back.geometry.alpha", 0.0);
-    this->declare_parameter("lidar.back.geometry.offset.x", 0.0);
-    this->declare_parameter("lidar.back.geometry.offset.y", 0.0);
-    this->declare_parameter("lidar.back.geometry.offset.z", 0.0);
 }
 
 void SensorToPointcloud::setParams()
@@ -220,21 +191,6 @@ void SensorToPointcloud::setParams()
 
     this->get_parameter("cliff.use", use_cliff_);
     this->get_parameter("cliff.publish_rate_ms", publish_rate_cliff_);
-
-    this->get_parameter("lidar.use", use_lidar_);
-    this->get_parameter("lidar.publish_rate_ms", publish_rate_lidar_);
-    this->get_parameter("lidar.front.range.angle_max", front_lidar_params_.angle_max);
-    this->get_parameter("lidar.front.range.angle_min", front_lidar_params_.angle_min);
-    this->get_parameter("lidar.front.geometry.alpha", front_lidar_params_.alpha);
-    this->get_parameter("lidar.front.geometry.offset.x", front_lidar_params_.offset.x);
-    this->get_parameter("lidar.front.geometry.offset.y", front_lidar_params_.offset.y);
-    this->get_parameter("lidar.front.geometry.offset.z", front_lidar_params_.offset.z);
-    this->get_parameter("lidar.back.range.angle_max", back_lidar_params_.angle_max);
-    this->get_parameter("lidar.back.range.angle_min", back_lidar_params_.angle_min);
-    this->get_parameter("lidar.back.geometry.alpha", back_lidar_params_.alpha);
-    this->get_parameter("lidar.back.geometry.offset.x", back_lidar_params_.offset.x);
-    this->get_parameter("lidar.back.geometry.offset.y", back_lidar_params_.offset.y);
-    this->get_parameter("lidar.back.geometry.offset.z", back_lidar_params_.offset.z);
 }
 
 void SensorToPointcloud::printParams()
@@ -277,28 +233,6 @@ void SensorToPointcloud::printParams()
     RCLCPP_INFO(this->get_logger(), "[Cliff Settings]");
     RCLCPP_INFO(this->get_logger(), "  Cliff Use: %d", use_cliff_);
     RCLCPP_INFO(this->get_logger(), "  Cliff Publish Rate: %d ms", publish_rate_cliff_);
-
-    // Lidar Settings
-    RCLCPP_INFO(this->get_logger(), "[Lidar Settings]");
-    RCLCPP_INFO(this->get_logger(), "  Lidar Use: %d", use_lidar_);
-    RCLCPP_INFO(this->get_logger(), "  Lidar Publish Rate: %d ms", publish_rate_lidar_);
-    RCLCPP_INFO(this->get_logger(), "  Lidar Front: Angle Min: %.2f, Angle Max: %.2f, Alpha: %.2f", 
-                front_lidar_params_.angle_min, 
-                front_lidar_params_.angle_max, 
-                front_lidar_params_.alpha);
-    RCLCPP_INFO(this->get_logger(), "  Lidar Front Offset: (X: %.2f, Y: %.2f, Z: %.2f)", 
-                front_lidar_params_.offset.x, 
-                front_lidar_params_.offset.y, 
-                front_lidar_params_.offset.z);
-    RCLCPP_INFO(this->get_logger(), "  Lidar Back: Angle Min: %.2f, Angle Max: %.2f, Alpha: %.2f", 
-                back_lidar_params_.angle_min, 
-                back_lidar_params_.angle_max, 
-                back_lidar_params_.alpha);
-    RCLCPP_INFO(this->get_logger(), "  Lidar Back Offset: (X: %.2f, Y: %.2f, Z: %.2f)", 
-                back_lidar_params_.offset.x, 
-                back_lidar_params_.offset.y, 
-                back_lidar_params_.offset.z);
-
     RCLCPP_INFO(this->get_logger(), "===============================================================");
 
 }
@@ -308,14 +242,12 @@ void SensorToPointcloud::initVariables()
     isTofUpdating = false;
     isCameraUpdating = false;
     isCliffUpdating = false;
-    isLidarUpdating = false;
 
     publish_cnt_1d_tof_ = 0;
     publish_cnt_multi_tof_ = 0;
     publish_cnt_row_tof_ = 0;
     publish_cnt_camera_ = 0;
     publish_cnt_cliff_ = 0;
-    publish_cnt_lidar_ = 0;
 }
 
 void SensorToPointcloud::publisherMonitor()
@@ -325,7 +257,6 @@ void SensorToPointcloud::publisherMonitor()
     publish_cnt_row_tof_ += 10;
     publish_cnt_camera_ += 10;
     publish_cnt_cliff_ += 10;
-    publish_cnt_lidar_ += 10;
 
     // msg Reset
     if (!isTofUpdating) {
@@ -360,11 +291,6 @@ void SensorToPointcloud::publisherMonitor()
     if (!isCliffUpdating) {
         if (use_cliff_) {
             pc_cliff_msg = sensor_msgs::msg::PointCloud2();
-        }
-    }
-    if (!isLidarUpdating) {
-        if (use_lidar_) {
-            pc_lidar_msg = sensor_msgs::msg::PointCloud2();
         }
     }
 
@@ -416,20 +342,12 @@ void SensorToPointcloud::publisherMonitor()
             publish_cnt_cliff_ = 0;
         }
     }
-    if (use_lidar_ && isLidarUpdating) {
-        if (publish_cnt_lidar_ >= publish_rate_lidar_) {
-            pc_lidar_pub_->publish(pc_lidar_msg);
-            isLidarUpdating = false;
-            publish_cnt_lidar_ = 0;
-        }
-    }
 
     if (publish_cnt_1d_tof_ > 10000)     publish_cnt_1d_tof_ = 0;
     if (publish_cnt_multi_tof_ > 10000)  publish_cnt_multi_tof_ = 0;
     if (publish_cnt_row_tof_ > 10000)    publish_cnt_row_tof_ = 0;
     if (publish_cnt_camera_ > 10000)     publish_cnt_camera_ = 0;
     if (publish_cnt_cliff_ > 10000)      publish_cnt_cliff_ = 0;
-    if (publish_cnt_lidar_ > 10000)      publish_cnt_lidar_ = 0;
 }
 
 void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
@@ -506,14 +424,4 @@ void SensorToPointcloud::cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrDa
     }
 
     isCliffUpdating = true;
-}
-
-void SensorToPointcloud::lidarMsgUpdate(const sensor_msgs::msg::LaserScan::ConstSharedPtr &lidar_front_msg, const sensor_msgs::msg::LaserScan::ConstSharedPtr &lidar_back_msg)
-{
-    // Always publish at "base_scan" frame
-    sensor_msgs::msg::LaserScan front_msg = *lidar_front_msg;
-    sensor_msgs::msg::LaserScan back_msg = *lidar_back_msg;
-    pc_lidar_msg = point_cloud_lidar_.updateLidarPointCloudMsg(front_msg, back_msg);
-
-    isLidarUpdating = true;
 }

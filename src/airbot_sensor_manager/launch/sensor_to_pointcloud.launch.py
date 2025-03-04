@@ -5,22 +5,6 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-##############################
-### Camera Object Class ID ###
-# 0: cable
-# 1: carpet
-# 2: clothes
-# 3: liquid
-# 4: non_obstacle
-# 5: obstacle
-# 6: poop
-# 7: scale
-# 8: threshold
-# 9: person
-# 10: dog
-# 11: cat
-##############################
-
 def generate_launch_description():
     parameter_file = LaunchConfiguration('params_file')
     params_declare = DeclareLaunchArgument(

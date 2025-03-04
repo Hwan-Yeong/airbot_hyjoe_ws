@@ -1,21 +1,5 @@
 #include "airbot_sensor_to_pointcloud/cliff/pointcloud_cliff.hpp"
 
-/*
-#######################
-#### IR Sensor Num ####
-#######################
-###                 ###
-###  < Top View >   ###
-###                 ###
-###        1        ###
-###    2       6    ###
-###                 ###
-###    3       5    ###
-###        4        ###
-###                 ###
-#######################
-*/
-
 PointCloudCliff::PointCloudCliff(double distance_center_to_front_ir_sensor = 0.15,
                                  double angle_to_next_ir_sensor = 50)
 {

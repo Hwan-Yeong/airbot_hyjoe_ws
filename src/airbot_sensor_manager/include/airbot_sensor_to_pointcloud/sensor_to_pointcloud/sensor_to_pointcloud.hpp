@@ -22,12 +22,8 @@
 #include "airbot_sensor_to_pointcloud/tof/pointcloud_tof.hpp"
 #include "airbot_sensor_to_pointcloud/camera/pointcloud_camera.hpp"
 #include "airbot_sensor_to_pointcloud/cliff/pointcloud_cliff.hpp"
-#include "airbot_sensor_to_pointcloud/lidar/pointcloud_lidar.hpp"
 #include "logger/camera_object_logger.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
-#include <pcl_conversions/pcl_conversions.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
 
 
 using namespace message_filters;
@@ -46,7 +42,6 @@ private:
     PointCloudCliff point_cloud_cliff_;
     BoundingBoxGenerator bounding_box_generator_;
     CameraObjectLogger camera_object_logger_;
-    PointCloudLidar point_cloud_lidar_;
 
     std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> param_callback_handle_;
@@ -54,8 +49,6 @@ private:
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr cliff_sub_;
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::LaserScan>> lidar_front_sub_, lidar_back_sub_;
-    std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_1d_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_multi_pub_;
@@ -69,36 +62,33 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_right_row4_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_camera_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_cliff_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_lidar_pub_;
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr bbox_array_camera_pub_;
 
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
     std::string target_frame_;
     bool use_tof_, use_tof_1D_, use_tof_left_, use_tof_right_, use_tof_row_,
-        use_camera_, use_cliff_, use_camera_object_logger_, use_lidar_;
+        use_camera_, use_cliff_, use_camera_object_logger_;
     float camera_pointcloud_resolution_;
     double camera_logger_distance_margin_, camera_logger_width_margin_, camera_logger_height_margin_;
     std::vector<std::string> camera_param_raw_vector_;
     std::map<int, int> camera_class_id_confidence_th_;
     bool camera_object_direction_;
     int publish_rate_1d_tof_, publish_rate_multi_tof_, publish_rate_row_tof_,
-        publish_rate_camera_, publish_rate_cliff_, publish_rate_lidar_;
+        publish_rate_camera_, publish_rate_cliff_;
     int publish_cnt_1d_tof_, publish_cnt_multi_tof_, publish_cnt_row_tof_,
-        publish_cnt_camera_, publish_cnt_cliff_, publish_cnt_lidar_;
+        publish_cnt_camera_, publish_cnt_cliff_;
     double tilting_ang_1d_tof_;
 
     sensor_msgs::msg::PointCloud2 pc_tof_1d_msg, pc_tof_multi_msg,
         pc_tof_left_row1_msg, pc_tof_left_row2_msg, pc_tof_left_row3_msg, pc_tof_left_row4_msg,
         pc_tof_right_row1_msg, pc_tof_right_row2_msg, pc_tof_right_row3_msg, pc_tof_right_row4_msg,
-        pc_camera_msg, pc_cliff_msg, pc_lidar_msg;
+        pc_camera_msg, pc_cliff_msg;
 
     vision_msgs::msg::BoundingBox2DArray bbox_msg;
     visualization_msgs::msg::MarkerArray marker_msg;
 
-    bool isTofUpdating, isCameraUpdating, isCliffUpdating, isLidarUpdating;
-
-    tLidarParam front_lidar_params_, back_lidar_params_;
+    bool isTofUpdating, isCameraUpdating, isCliffUpdating;
 
     void declareParams();
     void setParams();
@@ -108,7 +98,6 @@ private:
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
     void cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
-    void lidarMsgUpdate(const sensor_msgs::msg::LaserScan::ConstSharedPtr &lidar_front_msg, const sensor_msgs::msg::LaserScan::ConstSharedPtr &lidar_back_msg);
 };
 
 #endif // SENSOR_TO_POINTCLOUD
