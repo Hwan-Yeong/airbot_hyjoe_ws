@@ -15,6 +15,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/BatteryStatus.msg"
   "msg/BlockArea.msg"
   "msg/BlockAreaList.msg"
+  "msg/BottomIrData.msg"
   "msg/Position.msg"
   "msg/MotorStatus.msg"
   "msg/TofData.msg"
@@ -29,6 +30,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/LineLaserDataArray.msg"
   "msg/RobotState.msg"
   "msg/NaviState.msg"
+  "msg/TestPosition.msg"
   DEPENDENCIES std_msgs
 )
 

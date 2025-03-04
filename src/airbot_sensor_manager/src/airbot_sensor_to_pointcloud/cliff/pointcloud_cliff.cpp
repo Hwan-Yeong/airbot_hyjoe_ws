@@ -58,8 +58,17 @@ void PointCloudCliff::updateRobotPose(tPose &pose)
     robot_pose_ = pose;
 }
 
-sensor_msgs::msg::PointCloud2 PointCloudCliff::updateCliffPointCloudMsg(std_msgs::msg::UInt8::SharedPtr msg)
+sensor_msgs::msg::PointCloud2 PointCloudCliff::updateCliffPointCloudMsg(robot_custom_msgs::msg::BottomIrData::SharedPtr msg)
 {
-    return pointcloud_generator_.generatePointCloud2Message(
-        frame_converter_.transformCliffSensor2RobotFrame(msg, ir_sensor_points_), target_frame_);
+    std::vector<tPoint> points_on_robot_frame = frame_converter_.transformCliffSensor2RobotFrame(msg, ir_sensor_points_);
+    std::vector<tPoint> points_on_map_frame = frame_converter_.transformRobot2GlobalFrame(points_on_robot_frame, robot_pose_);
+
+    if (target_frame_ == "map") {
+        return pointcloud_generator_.generatePointCloud2Message(points_on_map_frame, target_frame_);
+    } else if (target_frame_ == "base_link") {
+        return pointcloud_generator_.generatePointCloud2Message(points_on_robot_frame, target_frame_);
+    } else {
+        RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Select Wrong Target Frame: %s", target_frame_.c_str());
+        return sensor_msgs::msg::PointCloud2();
+    }
 }

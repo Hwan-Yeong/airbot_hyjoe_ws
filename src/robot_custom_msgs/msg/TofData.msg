@@ -5,6 +5,8 @@
 # Row [2]: Matrix [08, 09, 10, 11] => Sensor indices (left: [11, 10, 09, 08], right: [04, 05, 06, 07])
 # Row [3]: Matrix [12, 13, 14, 15] => Sensor indices (left: [15, 14, 13, 12], right: [00, 01, 02, 03])
 
+builtin_interfaces/Time timestamp
+
 # Row-major order 4x4 matrix (16 elements)
 float64 top             # Single value for the top sensor
 float64[16] bot_left    # Left sensor 4x4 matrix

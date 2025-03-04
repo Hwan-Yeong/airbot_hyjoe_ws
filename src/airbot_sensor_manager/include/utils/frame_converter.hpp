@@ -3,7 +3,7 @@
 
 #include <cmath>
 #include <vector>
-#include "std_msgs/msg/u_int8.hpp"
+#include "robot_custom_msgs/msg/bottom_ir_data.hpp"
 #include "utils/common_struct.hpp"
 
 enum class TOF_SIDE
@@ -34,8 +34,8 @@ public:
                                                       tPoint translation);
     std::vector<tPoint> transformCameraSensor2RobotFrame(const std::vector<tPoint> &input_points,
                                                          tPoint translation);
-    std::vector<tPoint> transformCliffSensor2RobotFrame(std_msgs::msg::UInt8::SharedPtr msg,
-                                                             std::vector<tPoint> &sensor_positions);
+    std::vector<tPoint> transformCliffSensor2RobotFrame(robot_custom_msgs::msg::BottomIrData::SharedPtr msg,
+                                                        std::vector<tPoint> &sensor_positions);
     std::vector<tPoint> transformRobot2GlobalFrame(const std::vector<tPoint> &input_points,
                                                    tPose robot_pose);
 private:

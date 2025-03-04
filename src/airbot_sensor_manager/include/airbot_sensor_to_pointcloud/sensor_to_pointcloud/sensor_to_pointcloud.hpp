@@ -15,6 +15,7 @@
 #include "robot_custom_msgs/msg/tof_data.hpp"
 #include "robot_custom_msgs/msg/camera_data.hpp"
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
+#include "robot_custom_msgs/msg/bottom_ir_data.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 #include <builtin_interfaces/msg/time.hpp>
@@ -52,7 +53,7 @@ private:
 
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
-    rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr cliff_sub_;
+    rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr cliff_sub_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::LaserScan>> lidar_front_sub_, lidar_back_sub_;
     std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
 
@@ -106,7 +107,7 @@ private:
     void publisherMonitor();
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
-    void cliffMsgUpdate(const std_msgs::msg::UInt8::SharedPtr msg);
+    void cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
     void lidarMsgUpdate(const sensor_msgs::msg::LaserScan::ConstSharedPtr &lidar_front_msg, const sensor_msgs::msg::LaserScan::ConstSharedPtr &lidar_back_msg);
 };
 

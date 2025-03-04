@@ -85,8 +85,8 @@ SensorToPointcloud::SensorToPointcloud()
         "tof_data", 10, std::bind(&SensorToPointcloud::tofMsgUpdate, this, std::placeholders::_1));
     camera_sub_ = this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
         "camera_data", 10, std::bind(&SensorToPointcloud::cameraMsgUpdate, this, std::placeholders::_1));
-    cliff_sub_ = this->create_subscription<std_msgs::msg::UInt8>(
-        "bottom_status", 10, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1));
+    cliff_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
+        "bottom_ir_data", 10, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1));
     lidar_front_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(
         this, "scan_front");
     lidar_back_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(
@@ -491,17 +491,17 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
     isCameraUpdating = true;
 }
 
-void SensorToPointcloud::cliffMsgUpdate(const std_msgs::msg::UInt8::SharedPtr msg)
+void SensorToPointcloud::cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg)
 {
     if (target_frame_ == "map") {
-        // tPose pose;
-        // pose.position.x = msg->robot_x;
-        // pose.position.y = msg->robot_y;
-        // pose.orientation.yaw = msg->robot_angle;
-        // point_cloud_cliff_.updateRobotPose(pose);
+        tPose pose;
+        pose.position.x = msg->robot_x;
+        pose.position.y = msg->robot_y;
+        pose.orientation.yaw = msg->robot_angle;
+        point_cloud_cliff_.updateRobotPose(pose);
     }
 
-    if (use_cliff_ && target_frame_ == "base_link") {
+    if (use_cliff_) {
         pc_cliff_msg = point_cloud_cliff_.updateCliffPointCloudMsg(msg);
     }
 
