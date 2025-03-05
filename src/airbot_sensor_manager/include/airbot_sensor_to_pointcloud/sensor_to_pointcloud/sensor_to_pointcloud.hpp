@@ -3,8 +3,7 @@
 
 #include <chrono>
 #include "rclcpp/rclcpp.hpp"
-#include <message_filters/subscriber.h>
-#include <message_filters/sync_policies/approximate_time.h>
+#include "std_msgs/msg/bool.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
@@ -25,11 +24,6 @@
 #include "logger/camera_object_logger.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 
-
-using namespace message_filters;
-using SyncPolicy = sync_policies::ApproximateTime<sensor_msgs::msg::LaserScan, sensor_msgs::msg::LaserScan>;
-
-
 class SensorToPointcloud : public rclcpp::Node
 {
 public:
@@ -46,6 +40,7 @@ private:
     std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> param_callback_handle_;
 
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sensor_to_pointcloud_cmd_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr cliff_sub_;
@@ -66,6 +61,7 @@ private:
 
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
+    bool isActiveSensorToPointcloud;
     std::string target_frame_;
     bool use_tof_, use_tof_1D_, use_tof_left_, use_tof_right_, use_tof_row_,
         use_camera_, use_cliff_, use_camera_object_logger_;
@@ -95,6 +91,7 @@ private:
     void printParams();
     void initVariables();
     void publisherMonitor();
+    void activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
     void cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);

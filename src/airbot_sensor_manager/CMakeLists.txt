@@ -36,7 +36,8 @@ add_executable(sensor_to_pointcloud
   src/logger/camera_object_logger.cpp
 )
 ament_target_dependencies(sensor_to_pointcloud 
-  rclcpp 
+  rclcpp
+  std_msgs
   sensor_msgs
   robot_custom_msgs
   builtin_interfaces

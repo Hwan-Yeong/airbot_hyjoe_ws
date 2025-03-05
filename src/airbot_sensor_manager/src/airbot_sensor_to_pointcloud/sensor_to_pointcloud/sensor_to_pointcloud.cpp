@@ -79,6 +79,10 @@ SensorToPointcloud::SensorToPointcloud()
     printParams();
     RCLCPP_INFO(this->get_logger(), "All Parameters init finished!");
 
+    // Cmd Subscribers
+    sensor_to_pointcloud_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+        "cmd_sensor_manager", 10, std::bind(&SensorToPointcloud::activeCmdCallback, this, std::placeholders::_1));
+
     // Msg Subscribers
     tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
         "tof_data", 10, std::bind(&SensorToPointcloud::tofMsgUpdate, this, std::placeholders::_1));
@@ -239,6 +243,7 @@ void SensorToPointcloud::printParams()
 
 void SensorToPointcloud::initVariables()
 {
+    isActiveSensorToPointcloud = false;
     isTofUpdating = false;
     isCameraUpdating = false;
     isCliffUpdating = false;
@@ -252,6 +257,18 @@ void SensorToPointcloud::initVariables()
 
 void SensorToPointcloud::publisherMonitor()
 {
+    static int inactive_cnt = 0;
+    if (!isActiveSensorToPointcloud) {
+        inactive_cnt++;
+        if (inactive_cnt >= 1000) {
+            RCLCPP_INFO(this->get_logger(), "Sensor to Pointcloud is not active yet.");
+            inactive_cnt = 0;
+        }
+        initVariables();
+        return;
+    }
+    inactive_cnt = 0;
+
     publish_cnt_1d_tof_ += 10;
     publish_cnt_multi_tof_ += 10;
     publish_cnt_row_tof_ += 10;
@@ -348,6 +365,15 @@ void SensorToPointcloud::publisherMonitor()
     if (publish_cnt_row_tof_ > 10000)    publish_cnt_row_tof_ = 0;
     if (publish_cnt_camera_ > 10000)     publish_cnt_camera_ = 0;
     if (publish_cnt_cliff_ > 10000)      publish_cnt_cliff_ = 0;
+}
+
+void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg)
+{
+    if (msg) {
+        isActiveSensorToPointcloud = msg->data;
+    } else {
+        RCLCPP_ERROR(this->get_logger(), "cmd_sensor_to_pointcloud topic is a nullptr message.");
+    }
 }
 
 void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
