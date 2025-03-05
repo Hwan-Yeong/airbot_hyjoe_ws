@@ -30,6 +30,7 @@ add_executable(sensor_to_pointcloud
   src/airbot_sensor_to_pointcloud/tof/pointcloud_tof.cpp
   src/airbot_sensor_to_pointcloud/camera/pointcloud_camera.cpp
   src/airbot_sensor_to_pointcloud/cliff/pointcloud_cliff.cpp
+  src/airbot_sensor_to_pointcloud/collision/pointcloud_collision.cpp
   src/utils/frame_converter.cpp
   src/utils/pointcloud_generator.cpp
   src/utils/boundingbox_generator.cpp

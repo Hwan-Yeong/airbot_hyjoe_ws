@@ -39,6 +39,10 @@ airbot_sensor_to_pointcloud:
     cliff:
       use: true
       publish_rate_ms: 10
+
+    collision:
+      use: true
+      publish_rate_ms: 10
   
     use_sim_time: false
 

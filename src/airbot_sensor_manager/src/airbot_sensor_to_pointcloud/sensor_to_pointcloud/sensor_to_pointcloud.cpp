@@ -19,6 +19,7 @@ double camera_sensor_frame_y_translate = 0.0;           //[meter]
 double camera_sensor_frame_z_translate = 0.5331;        //[meter]
 double cliff_sensor_distance_center_to_front_ir = 0.15; //[meter]
 double cliff_sensor_angle_to_next_ir_sensor = 50;       //[deg]
+double collision_forward_point_offset = 0.25;           //[meter]
 
 SensorToPointcloud::SensorToPointcloud()
     : rclcpp::Node("airbot_sensor_to_pointcloud"),
@@ -35,6 +36,7 @@ SensorToPointcloud::SensorToPointcloud()
                      tof_bot_fov_ang),
     point_cloud_cliff_(cliff_sensor_distance_center_to_front_ir,
                        cliff_sensor_angle_to_next_ir_sensor),
+    point_cloud_collosion_(collision_forward_point_offset),
     bounding_box_generator_(camera_sensor_frame_x_translate,
                             camera_sensor_frame_y_translate,
                             camera_sensor_frame_z_translate)
@@ -54,6 +56,7 @@ SensorToPointcloud::SensorToPointcloud()
                 point_cloud_tof_.updateTargetFrame(target_frame_);
                 bounding_box_generator_.updateTargetFrame(target_frame_);
                 point_cloud_cliff_.updateTargetFrame(target_frame_);
+                point_cloud_collosion_.updateTargetFrame(target_frame_);
                 std::string after;
                 if (this->get_parameter("target_frame", after)) {
                     RCLCPP_INFO(this->get_logger(), "[=== Updating target_frame: %s -> %s ===]", before.c_str(), after.c_str());
@@ -68,6 +71,7 @@ SensorToPointcloud::SensorToPointcloud()
     point_cloud_tof_.updateTargetFrame(target_frame_);
     bounding_box_generator_.updateTargetFrame(target_frame_);
     point_cloud_cliff_.updateTargetFrame(target_frame_);
+    point_cloud_collosion_.updateTargetFrame(target_frame_);
     camera_object_logger_.updateParams(camera_logger_distance_margin_,camera_logger_width_margin_,camera_logger_height_margin_);
     for (const auto& item : camera_param_raw_vector_) {
         std::istringstream ss(item);
@@ -90,6 +94,8 @@ SensorToPointcloud::SensorToPointcloud()
         "camera_data", 10, std::bind(&SensorToPointcloud::cameraMsgUpdate, this, std::placeholders::_1));
     cliff_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
         "bottom_ir_data", 10, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1));
+    collision_sub_ = this->create_subscription<robot_custom_msgs::msg::AbnormalEventData>(
+        "collision_detection", 10, std::bind(&SensorToPointcloud::collisionMsgUpdate, this, std::placeholders::_1));
 
     // Msg Publishers
     if (use_tof_) {
@@ -130,6 +136,11 @@ SensorToPointcloud::SensorToPointcloud()
             "sensor_to_pointcloud/cliff", 10);
         RCLCPP_INFO(this->get_logger(), "Cliff init finished!");
     }
+    if (use_collision_) {
+        pc_collision_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+            "sensor_to_pointcloud/collision", 10);
+        RCLCPP_INFO(this->get_logger(), "Collision init finished!");
+    }
 
     // Monitor Timer
     poincloud_publish_timer_ = this->create_wall_timer(
@@ -167,6 +178,9 @@ void SensorToPointcloud::declareParams()
 
     this->declare_parameter("cliff.use",false);
     this->declare_parameter("cliff.publish_rate_ms",100);
+
+    this->declare_parameter("collision.use",false);
+    this->declare_parameter("collision.publish_rate_ms",100);
 }
 
 void SensorToPointcloud::setParams()
@@ -195,6 +209,9 @@ void SensorToPointcloud::setParams()
 
     this->get_parameter("cliff.use", use_cliff_);
     this->get_parameter("cliff.publish_rate_ms", publish_rate_cliff_);
+
+    this->get_parameter("collision.use", use_collision_);
+    this->get_parameter("collision.publish_rate_ms", publish_rate_collision_);
 }
 
 void SensorToPointcloud::printParams()
@@ -237,6 +254,11 @@ void SensorToPointcloud::printParams()
     RCLCPP_INFO(this->get_logger(), "[Cliff Settings]");
     RCLCPP_INFO(this->get_logger(), "  Cliff Use: %d", use_cliff_);
     RCLCPP_INFO(this->get_logger(), "  Cliff Publish Rate: %d ms", publish_rate_cliff_);
+
+    // Collision Settings
+    RCLCPP_INFO(this->get_logger(), "[Collision Settings]");
+    RCLCPP_INFO(this->get_logger(), "  Collision Use: %d", use_collision_);
+    RCLCPP_INFO(this->get_logger(), "  Collision Publish Rate: %d ms", publish_rate_collision_);
     RCLCPP_INFO(this->get_logger(), "===============================================================");
 
 }
@@ -247,12 +269,14 @@ void SensorToPointcloud::initVariables()
     isTofUpdating = false;
     isCameraUpdating = false;
     isCliffUpdating = false;
+    isCollisionUpdating = false;
 
     publish_cnt_1d_tof_ = 0;
     publish_cnt_multi_tof_ = 0;
     publish_cnt_row_tof_ = 0;
     publish_cnt_camera_ = 0;
     publish_cnt_cliff_ = 0;
+    publish_cnt_collision_ = 0;
 }
 
 void SensorToPointcloud::publisherMonitor()
@@ -274,6 +298,7 @@ void SensorToPointcloud::publisherMonitor()
     publish_cnt_row_tof_ += 10;
     publish_cnt_camera_ += 10;
     publish_cnt_cliff_ += 10;
+    publish_cnt_collision_ += 10;
 
     // msg Reset
     if (!isTofUpdating) {
@@ -308,6 +333,11 @@ void SensorToPointcloud::publisherMonitor()
     if (!isCliffUpdating) {
         if (use_cliff_) {
             pc_cliff_msg = sensor_msgs::msg::PointCloud2();
+        }
+    }
+    if (!isCollisionUpdating) {
+        if (use_collision_) {
+            pc_collision_msg = sensor_msgs::msg::PointCloud2();
         }
     }
 
@@ -359,12 +389,20 @@ void SensorToPointcloud::publisherMonitor()
             publish_cnt_cliff_ = 0;
         }
     }
+    if (use_collision_ && isCollisionUpdating) {
+        if (publish_cnt_collision_ >= publish_rate_collision_) {
+            pc_collision_pub_->publish(pc_collision_msg);
+            isCollisionUpdating = false;
+            publish_cnt_collision_ = 0;
+        }
+    }
 
     if (publish_cnt_1d_tof_ > 10000)     publish_cnt_1d_tof_ = 0;
     if (publish_cnt_multi_tof_ > 10000)  publish_cnt_multi_tof_ = 0;
     if (publish_cnt_row_tof_ > 10000)    publish_cnt_row_tof_ = 0;
     if (publish_cnt_camera_ > 10000)     publish_cnt_camera_ = 0;
     if (publish_cnt_cliff_ > 10000)      publish_cnt_cliff_ = 0;
+    if (publish_cnt_collision_ > 10000)  publish_cnt_collision_ = 0;
 }
 
 void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg)
@@ -450,4 +488,21 @@ void SensorToPointcloud::cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrDa
     }
 
     isCliffUpdating = true;
+}
+
+void SensorToPointcloud::collisionMsgUpdate(const robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg)
+{
+    if (target_frame_ == "map") {
+        tPose pose;
+        pose.position.x = msg->robot_x;
+        pose.position.y = msg->robot_y;
+        pose.orientation.yaw = msg->robot_angle;
+        point_cloud_collosion_.updateRobotPose(pose);
+    }
+
+    if (use_collision_ && msg->event_trigger) {
+        pc_collision_msg = point_cloud_collosion_.updateCollisionPointCloudMsg(msg);
+    }
+
+    isCollisionUpdating = true;
 }
