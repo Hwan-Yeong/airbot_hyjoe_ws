@@ -10,7 +10,7 @@ def generate_launch_description():
     # airbot_explore_dir = get_package_share_directory('airbot_explore')
     # airbot_slam_dir = get_package_share_directory('airbot_slam')
     explore_dir = get_package_share_directory('explore')
-    wm_slam_dir = get_package_share_directory('wm_slam_toolbox')
+    wm_slam_dir = get_package_share_directory('wm_slam_toolbox_launcher')
     wm_nav_launch_dir = get_package_share_directory('wm_nav_launch');
 
     #slam_launch_file = os.path.join(explore_dir, 'launch', 'slam.launch.py')

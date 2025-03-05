@@ -7,6 +7,8 @@
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 #include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/empty.hpp"
+#include "std_msgs/msg/int32.hpp"
 #include "yaml-cpp/yaml.h"
 
 #include "layer.hpp"
@@ -128,6 +130,7 @@ class RoIFilter : public BaseFilter
    protected:
     virtual bool isInside(pcl::PointXY point) = 0;
     bool use_inside{true};
+    bool publish_stop{true};
 
    private:
     LayerVector updateImpl(LayerVector layer_vector) override;
@@ -220,6 +223,51 @@ class ComposeFilter : public BaseFilter
     std::vector<std::shared_ptr<BaseFilter>> filters{};
 };
 
+/**
+ * @brief DropOffFilter 단차 검증을 위해 만든 필터입니다..
+ *
+ * [YAML 설정 예시]
+ * --------------------------------------------------
+ * compose:
+ *   filters:
+ *     timeout:
+ *       timeout_milliseconds: 100   # TimeoutFilter: 데이터를 무효화할 시간 (밀리초)
+ *     drop_off:
+ *       min_range: 0.58             # DropOffFilter: 최소 거리값
+ *       max_range: 0.7              # DropOffFilter: 최대 거리값
+ *       line_length: 0.2            # DropOffFilter: 생성할 직선 길이/2(m)
+ *       resolution: 0.05            # DropOffFilter: 생성할 직선의 레졸루션(m)
+ *     density:
+ *       max_count: 3                # DensityFilter: 유지할 최대 점 수
+ *       radius: 0.1                 # DensityFilter: 밀도 평가 반경
+ * --------------------------------------------------
+ */
+class DropOffFilter : public BaseFilter
+{
+   public:
+    DropOffFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config);
+
+   private:
+    LayerVector updateImpl(LayerVector layer_vector) override;
+    float min_range{};
+    float max_range{};
+    float line_length{};
+    float resolution{};
+};
+
+/**
+ * @brief OneDTofFilter 1D ToF 검증을 위해 만든 필터입니다.
+ */
+class OneDTofFilter : public BaseFilter
+{
+   public:
+    OneDTofFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config);
+
+   private:
+    LayerVector updateImpl(LayerVector layer_vector) override;
+    int layer_vector_size{};
+    bool use_stop{false};
+};
 }  // namespace A1::perception
 
 #endif  // __FILTER_HPP__

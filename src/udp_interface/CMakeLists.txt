@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.5)
 project(udp_interface)
 
-# Set build type to Debug
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release) #set(CMAKE_BUILD_TYPE Debug) 
 
-# Add compile options for debugging
-add_compile_options(-g)
+# Debug 심볼 옵션 제거 또는 조건부 추가
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  add_compile_options(-g)
+endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)

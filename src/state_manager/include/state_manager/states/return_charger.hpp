@@ -29,7 +29,7 @@ public:
 
 
   bool naviNodeLauncher();
-  bool naviNodeChecker();
+  int naviNodeChecker();
 
   void processMoveTarget();
   ROBOT_STATUS processNavigationReady();
@@ -54,8 +54,7 @@ public:
   bool dock_pose_estimate = false;
   std_msgs::msg::UInt8 dock_cmd_;
 
-  pose station_pose;
-  bool bSavedMap;
+  pose station_pose;  
 
   MOVING_DATA movingData;
   NAVI_STATE movingState;

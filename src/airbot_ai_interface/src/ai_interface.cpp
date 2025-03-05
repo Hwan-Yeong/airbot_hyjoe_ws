@@ -996,7 +996,7 @@ private:
                 camera_data.score = obj.confidence;     // confidence score [0,100]
                 camera_data.x = std::round(static_cast<double>(obj.x * 0.001) * 1000) / 1000;
                 camera_data.y = std::round(static_cast<double>(obj.y * 0.001) * 1000) / 1000;
-                camera_data.theta = -static_cast<double>(obj.theta * M_PI/180); //[rad] - cw(+) // 카메라 장애물 좌표계는 로봇과 y축 반전 ( 오른쪽 + , 왼쪽 - )
+                camera_data.theta = static_cast<double>(obj.theta * M_PI/180); //[rad]
                 camera_data.width = std::round(static_cast<double>(obj.width * 0.001) * 1000) / 1000;
                 camera_data.height = std::round(static_cast<double>(obj.height * 0.001) * 1000) / 1000;
                 camera_data.distance = std::round(static_cast<double>(obj.distance * 0.001) * 1000) / 1000;

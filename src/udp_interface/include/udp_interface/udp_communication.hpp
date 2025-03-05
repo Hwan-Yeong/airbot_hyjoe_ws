@@ -58,7 +58,8 @@
 
 #define USE_NEW_PROTOCOL 1
 #define PROTOCOL_V17 0
-#define SOFTWARE_VERSION "2.5.8A"
+
+
 
 enum class REQUEST_STATUS
 {
@@ -583,6 +584,7 @@ public:
     void procSocCommunication();
     void procAmrJigCommunication();
     void procApJigCommunication();
+    std::string readVersionFromIni(const std::string& filename, const std::string& section, const std::string& key);
 
     void autoSocDataSender();
     void reqSocActionChecker();

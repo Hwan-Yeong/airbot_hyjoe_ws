@@ -16,10 +16,13 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 
 #include "explore_msgs/action/warmup.hpp"
+#include "explore/lifecycle_node_checker.hpp"
+#include "explore/logger.hpp"
 
 #include <map>
 #include <string>
 #include <mutex>
+#include <lifecycle_msgs/srv/detail/get_state__builder.hpp>
 
 namespace explore {
     enum class EXPLORE_STATE {
@@ -40,6 +43,8 @@ namespace explore {
 
         Explore();
 
+        void init();
+
     private:
         void mapReceived(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
 
@@ -49,8 +54,13 @@ namespace explore {
             // std::shared_future<rclcpp_action::ClientGoalHandle<ClientT>::SharedPtr> future);
             rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr future);
 
-        void goalResultCallback(
-            const rclcpp_action::ClientGoalHandle<ClientT>::WrappedResult &result);
+        void goalResultCallback(const rclcpp_action::ClientGoalHandle<ClientT>::WrappedResult &result);
+
+        bool wait_for_bt_navigator_active();
+
+        bool wait_for_velocity_smoother_active();
+
+        geometry_msgs::msg::Pose get_translated_pose();
 
         void makePlan();
 
@@ -65,7 +75,7 @@ namespace explore {
 
         geometry_msgs::msg::Pose getRobotPose() const;
 
-        void sendWarmupRequest();
+        void sendWarmupRequest(bool use_angle);
         void warmupResponseCallback(const rclcpp_action::ClientGoalHandle<explore_msgs::action::Warmup>::SharedPtr &response);
         void warmupFeedbackCallback(
             rclcpp_action::ClientGoalHandle<explore_msgs::action::Warmup>::SharedPtr,
@@ -87,8 +97,10 @@ namespace explore {
         ActionClient::SharedPtr nav_to_pose_client_;
         std::shared_future<rclcpp_action::ClientGoalHandle<ClientT>::SharedPtr> future_goal_handle_;
 
-        // service client for warm up
+        // action client for warm up
         rclcpp_action::Client<explore_msgs::action::Warmup>::SharedPtr explore_warmup_client_;
+        rclcpp::Client<lifecycle_msgs::srv::GetState>::SharedPtr bt_navigator_state_client;
+        rclcpp::Client<lifecycle_msgs::srv::GetState>::SharedPtr velocity_smoother_state_client;
 
         // tf
         std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
@@ -97,10 +109,10 @@ namespace explore {
         // custom classes
         Costmap costmap_;
         FrontierSearch search_;
+        std::shared_ptr<LifecycleNodeChecker> lifecycle_checker_;
 
         //state
         EXPLORE_STATE state_explore;
-
 
         // params
         double potential_scale_, orientation_scale_, gain_scale_, min_frontier_size_;
@@ -124,8 +136,18 @@ namespace explore {
         std::mutex mutex_; // protects sending of actions to nav2
 
         int debug_same_goal_cnt; // same goal debug
+        int warmup_cnt_ = 0;
 
         std::vector<explore::Frontier> frontiers;
         geometry_msgs::msg::Point target_position;
+
+    protected:
+        const std::unordered_set<uint8_t> valid_states_ = {
+            lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED,
+            lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE,
+            lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE,
+            lifecycle_msgs::msg::State::TRANSITION_STATE_CONFIGURING,
+            lifecycle_msgs::msg::State::TRANSITION_STATE_ACTIVATING
+        };
     };
 } // namespace explore

@@ -66,8 +66,8 @@ def generate_launch_description():
              name='robot_bringup'),
         Node(
              package='airbot_log',
-             executable='logging_amr',
-             name='logging_amr'),
+             executable='airbot_logging',
+             name='airbot_logging'),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([bringup_launch_file])
@@ -93,13 +93,7 @@ def generate_launch_description():
            PythonLaunchDescriptionSource([get_package_share_directory(
               'A1_keepout'), '/launch/keepout.launch.py'])
        ),
-
-       IncludeLaunchDescription(
-           PythonLaunchDescriptionSource([get_package_share_directory(
-              'A1_localization'), '/launch/localization.launch.py'])
-       ),
-
-
+       
        IncludeLaunchDescription(
            PythonLaunchDescriptionSource([get_package_share_directory(
               'airbot_ai_interface'), '/launch/airbot_ai_interface_launch.py'])

@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 
-#define BASE_VERSION "0.33"
+#define BASE_VERSION "0.35"
 
 #ifdef LOG_SETTING
     #ifdef DEBUG_MODE

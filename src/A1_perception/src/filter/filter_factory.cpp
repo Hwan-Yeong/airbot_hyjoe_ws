@@ -29,6 +29,14 @@ FilterFactory::create(std::shared_ptr<PerceptionNode> node_ptr, const std::strin
     {
         return std::make_shared<SectorRoIFilter>(node_ptr, config);
     }
+    else if (type == "drop_off")
+    {
+        return std::make_shared<DropOffFilter>(node_ptr, config);
+    }
+    else if (type == "one_d_tof_stop")
+    {
+        return std::make_shared<OneDTofFilter>(node_ptr, config);
+    }
     else
     {
         throw std::runtime_error("Unknown filter type: " + type);

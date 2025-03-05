@@ -70,7 +70,7 @@ public:
   void processMoveTarget();
   ROBOT_STATUS processNavigationReady();
   bool naviNodeLauncher();
-  bool naviNodeChecker();
+  int naviNodeChecker();
   bool resetOdomChecker();
   int8_t localizationChecker();
   void rotation_callback(const robot_custom_msgs::msg::TestPosition::SharedPtr msg);

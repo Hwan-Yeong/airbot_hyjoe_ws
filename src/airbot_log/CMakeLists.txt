@@ -46,17 +46,17 @@ if(NOT LIBNETWORK_INCLUDE_DIR OR NOT LIBNETWORK_LIBRARY)
 endif()
 
 # Executable
-add_executable(logging_amr src/logging_amr.cpp)
+add_executable(airbot_logging src/airbot_logging.cpp)
 
 # Link dependencies
-ament_target_dependencies(logging_amr rclcpp spdlog)
+ament_target_dependencies(airbot_logging rclcpp spdlog)
 
-target_include_directories(logging_amr PRIVATE ${LIBNETWORK_INCLUDE_DIR})
-target_link_libraries(logging_amr ${LIBNETWORK_LIBRARY} fmt::fmt spdlog::spdlog)
+target_include_directories(airbot_logging PRIVATE ${LIBNETWORK_INCLUDE_DIR})
+target_link_libraries(airbot_logging ${LIBNETWORK_LIBRARY} fmt::fmt spdlog::spdlog)
 
 # Install targets
 install(TARGETS
-  logging_amr
+  airbot_logging
   DESTINATION lib/${PROJECT_NAME}
 )
 

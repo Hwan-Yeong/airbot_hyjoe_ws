@@ -30,7 +30,7 @@
 #define BATTERY_MODE_ERROR 0xFF
 
 #define AI_VERSION_SKIP 0
-#define BOOT_TIME_OUT 60
+#define BOOT_TIME_OUT 30
 
 const std::string MapEditFile = "/home/airbot/MapEdit.bin";
 
@@ -102,8 +102,10 @@ void UdpCommunication::initializeData()
     movefail_reason = NAVI_FAIL_REASON::VOID;
     nodeState = NODE_STATUS::IDLE;
     //init Version
+    std::string iniFile = "/home/airbot/airbot_ws/install/udp_interface/share/udp_interface/launch/config.ini";
+    std::string version = readVersionFromIni(iniFile, "info", "version");
     socData.version.bSet = false;
-    socData.version.sw_ver = std::string(SOFTWARE_VERSION);
+    socData.version.sw_ver = version;
     socData.version.mcu_ver = "0.0";
     socData.version.ai_ver = "0.0";
     //initRobotPosition
@@ -330,10 +332,10 @@ void UdpCommunication::setSocDockReceiverData(const robot_custom_msgs::msg::Stat
 void UdpCommunication::setSocBatteryData(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg)
 {
     socData.battInfo.cell_voltage1 = msg->cell_voltage1;
-    socData.battInfo.cell_voltage1 = msg->cell_voltage2;
-    socData.battInfo.cell_voltage1 = msg->cell_voltage3;
-    socData.battInfo.cell_voltage1 = msg->cell_voltage4;
-    socData.battInfo.cell_voltage1 = msg->cell_voltage5;
+    socData.battInfo.cell_voltage2 = msg->cell_voltage2;
+    socData.battInfo.cell_voltage3 = msg->cell_voltage3;
+    socData.battInfo.cell_voltage4 = msg->cell_voltage4;
+    socData.battInfo.cell_voltage5 = msg->cell_voltage5;
 
     socData.battInfo.current = (static_cast<double>(msg->battery_current) * 10) / 10.0;
     socData.battInfo.voltage = msg->battery_voltage;
@@ -352,7 +354,6 @@ void UdpCommunication::setSocBatteryData(const robot_custom_msgs::msg::BatterySt
 
 void UdpCommunication::generateVersion()
 {
-    socData.version.bSet = true;
     socData.version.timestamp = this->now().seconds();
     socData.version.total_ver = (socData.version.sw_ver + ":" + socData.version.mcu_ver + " : " + socData.version.ai_ver);
     RCLCPP_INFO(this->get_logger(), "generateVersion SW VER : %s", socData.version.total_ver.c_str());
@@ -681,6 +682,7 @@ void UdpCommunication::publishVersionRequest()
     std::string ai_version = socData.version.ai_ver;
 
     if(runTime >= BOOT_TIME_OUT){
+        socData.version.bSet = true;
         generateVersion();
         resetVersionTimer();
         return;
@@ -689,12 +691,13 @@ void UdpCommunication::publishVersionRequest()
         msgs.data = 0;
         #if AI_VERSION_SKIP > 0
         if(mcu_version != "0.0" ){
-            generateVersion();
+            socData.version.bSet = true;
             resetVersionTimer();
             return;
         }
         #else
         if(mcu_version != "0.0" && ai_version != "0.0"){
+            socData.version.bSet = true;
             generateVersion();
             resetVersionTimer();
             return;
@@ -803,7 +806,6 @@ void UdpCommunication::errorListCallback(const robot_custom_msgs::msg::ErrorList
                 break;
             }
         }
-
         if (!isSameRank) {
             RCLCPP_INFO(this->get_logger(), "Received error: rank = %d, error_code = %s",
                         error.rank, error.error_code.c_str());
@@ -813,7 +815,8 @@ void UdpCommunication::errorListCallback(const robot_custom_msgs::msg::ErrorList
             error_list.push_back(error_entry);  
         }
     }
-    EmergencyMSG_ERROR(error_list);
+    resGetErrorList(error_list);
+    //EmergencyMSG_ERROR(error_list);
 }
 
 void UdpCommunication::mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
@@ -935,15 +938,16 @@ void UdpCommunication::resSocRobotPose()
 {
     pose pose = getRobotPose();
     resGetPosition(pose.x, pose.y, pose.theta);
+    //RCLCPP_INFO(this->get_logger(), "resSocRobotPose X : %f, Y : %f, Theta : %f",pose.x,pose.y,pose.theta);
 }
 
 void UdpCommunication::resSocMap()
 {
     MapInfo mapInfo = getMapInfo();
 
-    if(robotState == ROBOT_STATE::AUTO_MAPPING || robotState == ROBOT_STATE::MANUAL_MAPPING){
+    if(nodeState == NODE_STATUS::AUTO_MAPPING || nodeState == NODE_STATUS::MANUAL_MAPPING){
         resGetMapDataB(mapInfo.width,mapInfo.height,mapInfo.resolution,mapInfo.origin_x,mapInfo.origin_y, mapInfo.map_data.data() ,mapInfo.map_data.size());
-        //RCLCPP_INFO(this->get_logger(), "realTime map send resolution : %f",mapInfo.resolution);
+        //RCLCPP_INFO(this->get_logger(), "realtime map send with : %d, height : %d, resolution : %f, size : %d",mapInfo.width,mapInfo.height,mapInfo.resolution,mapInfo.map_data.size());
     }else{
         bool bReadMap;
         int height,width,size;
@@ -964,14 +968,14 @@ void UdpCommunication::resSocMap()
             }
         }
         else{
-            bReadMap = readPGM("/home/airbot/test1_map.pgm", width, height, saved_map, origin_x, origin_y);
+            bReadMap = readPGM("/home/airbot/app_rw/map/airbot_map_00.pgm", width, height, saved_map, origin_x, origin_y);
             size = width * height;
             if(bReadMap){
                 if(saved_map.empty() || size == 0){
                     RCLCPP_INFO(this->get_logger(), "map is empty");    
                 }else{
                     resGetMapDataB(width,height,mapInfo.resolution,origin_x,origin_y, saved_map.data(),saved_map.size());
-                    //RCLCPP_INFO(this->get_logger(), "saved map send with : %d, height : %d, resolution : %f, size : %d",mapInfo.resolution);      
+                    //RCLCPP_INFO(this->get_logger(), "saved map send with : %d, height : %d, resolution : %f, size : %d",width,height,mapInfo.resolution,saved_map.size());      
                 }
             }else{
                 RCLCPP_INFO(this->get_logger(), "map read fail error");
@@ -1052,7 +1056,7 @@ void UdpCommunication::resSocModifiedMap()
 
     std::cout << "reqGetModifiedMapData <<<<<" << '\n';
 
-    if (!readPGM("/home/airbot/test1_map.pgm", width, height, modified_map, origin_x, origin_y)) {
+    if (!readPGM("/home/airbot/app_rw/map/airbot_map_00.pgm", width, height, modified_map, origin_x, origin_y)) {
         std::cerr << "Error reading PGM file." << std::endl;
         return;
     } 
@@ -1074,8 +1078,9 @@ void UdpCommunication::resSocMovingInfo()
 void UdpCommunication::resSocCalculateTarget()
 {
     //robotPostion to Target - distance & time
-    // double Time = 0, double Distance = 0;
-    // resGetTargetPositionCalculate( Time,Distance, ReqCalculateTargetPose.x,ReqCalculateTargetPose.y,ReqCalculateTargetPose.theta);
+    double Time = 0;
+    double Distance = 0;
+    resGetTargetPositionCalculate( Time,Distance, ReqCalculateTargetPose.x,ReqCalculateTargetPose.y,ReqCalculateTargetPose.theta);
 }
 
 void UdpCommunication::resSocRobotVelocity()
@@ -1166,6 +1171,8 @@ void UdpCommunication::resSocAllSensor()
     socData.battInfo.total_capacity,socData.battInfo.remaining_capacity,socData.battInfo.manufacturer,
     socData.battInfo.percent,socData.battInfo.voltage,socData.battInfo.current,socData.battInfo.temperature1,socData.battInfo.temperature2,
     socData.battInfo.design_capacity,socData.battInfo.number_of_cycles);
+
+    //RCLCPP_INFO(this->get_logger(), "resSocAllSensor");
     #else
     resGetAllStatus(socData.lidarInfo.front_distance,socData.lidarInfo.rear_distance,
     0.0,0.0,0.0,0.0,0,0,0,0,0,0,0.0,0,0.0,0,0.0,
@@ -1189,10 +1196,59 @@ void UdpCommunication::autoSocDataSender()
     resSocRobotState();
     resSocRobotStatus();
 #endif
+    if(!socData.version.bSet){
+        generateVersion();
+    }
 }
 
 void UdpCommunication::reqSocDataChecker()
 {
+    #if USE_NEW_PROTOCOL > 0
+    if (reqGetPosition()){
+        resSocData(REQUEST_DATA_WHAT::ROBOT_POSITION);
+    }if (reqGetMapData()){   
+        resSocData(REQUEST_DATA_WHAT::MAP);
+    }if (reqGetSoftwareVersion()){
+        resSocData(REQUEST_DATA_WHAT::SW_VERSION);
+    }if (reqGetMapStatus()){
+        resSocData(REQUEST_DATA_WHAT::MAP_STATUS);
+    }if (reqGetTargetPosition()){
+        resSocData(REQUEST_DATA_WHAT::TARGET_POSITION);
+    }if (reqGetBatteryStatusV2()){
+        resSocData(REQUEST_DATA_WHAT::BATTERY_STATUS);
+    }if (reqGetDockingStatus()){
+        resSocData(REQUEST_DATA_WHAT::DOCKING_STATUS);
+    }if (reqGetRobotInfo()){
+        resSocData(REQUEST_DATA_WHAT::ROBOT_INFO);
+    }if (reqGetModifiedMapData()){
+        resSocData(REQUEST_DATA_WHAT::MODIFIED_MAP);   
+    }if (reqGetAllMovingInfoV2()){
+        resSocData(REQUEST_DATA_WHAT::MOVING_INFO);
+    }if(reqGetRobotSpeed()){
+        resSocData(REQUEST_DATA_WHAT::ROBOT_VELOCITY);
+    }if (reqGetMotorStatus()){
+        resSocData(REQUEST_DATA_WHAT::MOTOR_STATUS);
+    }if (reqGetCameraStatusV2()){
+        resSocData(REQUEST_DATA_WHAT::CAMERA_STATUS);
+    }if (reqGetLineLaserStatusV2()){
+        resSocData(REQUEST_DATA_WHAT::LINE_LASER_STATUS);
+    }if (reqGetTofStatusV2()){
+        resSocData(REQUEST_DATA_WHAT::TOF_STATUS);
+    }if (reqGetErrorList()){
+        resSocData(REQUEST_DATA_WHAT::ERROR_LIST);
+    }if (reqGetLidarSensorStatus()){
+        resSocData(REQUEST_DATA_WHAT::LIDAR_DATA);
+    }if (reqGetLidarData()){
+        resSocData(REQUEST_DATA_WHAT::LIDAR_DATA);
+    }if(reqGetRecvIRStatus()){
+        resSocData(REQUEST_DATA_WHAT::DOCK_RECEIVER);
+    }if(reqGetCliffIRStatus()){
+        resSocData(REQUEST_DATA_WHAT::CLIFF_LIFT_DATA);
+    }if(reqGetAllStatusV2()){
+        //RCLCPP_INFO(this->get_logger(), "reqGetAllStatusV2");
+        resSocData(REQUEST_DATA_WHAT::ALL_STATUS);
+    }
+    #else
     if (reqGetPosition()){
         resSocData(REQUEST_DATA_WHAT::ROBOT_POSITION);
     }if (reqGetMapData()){   
@@ -1230,23 +1286,21 @@ void UdpCommunication::reqSocDataChecker()
     }if (reqGetAllStatus()){
         resSocData(REQUEST_DATA_WHAT::ALL_STATUS);
     }
-    // if(reqGetTargetPositionCalculate(reqCalculTarget)){
-    //     responseData(REQUEST_DATA_WHAT::TARGET_POSITION_CALCUL);
-    // }
+    #endif
 }
 
 void UdpCommunication::reqSocOptionChecker()
 {
     if (reqSetModifiedMapDataB(modifiedMap)){
         RCLCPP_INFO(this->get_logger(), "Request map-modify");
-        std::string filename = "/home/airbot/test1_map.pgm";
+        std::string filename = "/home/airbot/app_rw/map/airbot_map_00.pgm";
         savePGMFile(modifiedMap, filename);
         std::cout << "PGM file saved as " << filename << std::endl;
         resSetModifiedMapData(true);
     }
     ByPassOne_t parsedData;
     if (reqSetByPassOneData(parsedData)){
-        //RCLCPP_INFO(this->get_logger(), "Request by Pass Data UID : %s , Version : %s, Modified : %s ",parsedData.uid,parsedData.version,parsedData.modified ); 
+        RCLCPP_INFO(this->get_logger(), "Request by Pass Data UID : %s , Version : %s, Modified : %s ",parsedData.uid.c_str(),parsedData.version.c_str(),parsedData.modified.c_str() ); 
         publishBlockWall(parsedData);
         publishBlockArea(parsedData);
         resSetByPassOneData(true);
@@ -1257,10 +1311,11 @@ void UdpCommunication::reqSocOptionChecker()
         resSetExcelSteps(true);
     }
 
-    // if(reqGetTargetPositionCalculate(ReqCalculateTargetPose)){
-    //     double Time = 0, Distance = 0;
-    //     resGetTargetPositionCalculate( Time,Distance, ReqCalculateTargetPose.x,ReqCalculateTargetPose.y,ReqCalculateTargetPose.theta);
-    // }
+    if(reqGetTargetPositionCalculate(ReqCalculateTargetPose)){
+        double Time = 0, Distance = 0;
+        resGetTargetPositionCalculate( Time,Distance, ReqCalculateTargetPose.x,ReqCalculateTargetPose.y,ReqCalculateTargetPose.theta);
+        RCLCPP_INFO(this->get_logger(), "Request reqGetTargetPositionCalculate"); 
+    }
 }
 
 
@@ -1332,13 +1387,9 @@ void UdpCommunication::generateSocCommand()
             req_soc_cmd_pub_->publish(command_msg);
             RCLCPP_INFO(this->get_logger(), "Request start-docking");
         }else{
-            if(robotState == ROBOT_STATE::DOCKING ){
-                command_msg.data = int(REQUEST_SOC_CMD::STOP_DOCKING);
-                req_soc_cmd_pub_->publish(command_msg);
-                RCLCPP_INFO(this->get_logger(), "Request stop-docking");
-            }else{
-                RCLCPP_INFO(this->get_logger(), "robot is not docking can`t stop");
-            }
+            command_msg.data = int(REQUEST_SOC_CMD::STOP_DOCKING);
+            req_soc_cmd_pub_->publish(command_msg);
+            RCLCPP_INFO(this->get_logger(), "Request stop-docking");
         }
     }
     #if PROTOCOL_V17 > 0
@@ -1398,10 +1449,7 @@ void UdpCommunication::directRequestCommand()
     }else if (reqSetRotation(reqRotation)){
         resSetRotation(true);
         RCLCPP_INFO(this->get_logger(), "Request Rotation type : %d, targetAngle : %f",reqRotation.type,reqRotation.radian);
-        //publishTestTargetPosition(0,0,reqRotation.radian,reqRotation.type);
-        // if(!startRotation(reqRotation.type,reqRotation.radian)){
-        // }
-        RCLCPP_INFO(this->get_logger(), "Request Rotation type : %d, targetAngle : %f",reqRotation.type,reqRotation.radian);   
+        publishTestTargetPosition(0,0,reqRotation.radian,reqRotation.type);
     }
 
     if(reqSetStartLidar()){
@@ -1423,9 +1471,9 @@ void UdpCommunication::directRequestCommand()
 
     if(reqSetBatterySleepMode(reqBatterySleep)){
         resSetBatterySleepMode(true);
-        if(socData.battInfo.manufacturer == 0x02){
+        if(socData.battInfo.manufacturer == 0x01){
             publishBatterySleep();
-        }else if(socData.battInfo.manufacturer == 0x01){
+        }else if(socData.battInfo.manufacturer == 0x02){
             RCLCPP_INFO(this->get_logger(), "UBATTERY Can`t be SleepMdde");
         }else{
             RCLCPP_INFO(this->get_logger(), "UNKOWN BATTERY Can`t be SleepMdde");
@@ -1792,7 +1840,7 @@ void UdpCommunication::publishClearVirtualWall()
     robot_custom_msgs::msg::BlockAreaList empty_msgs;
     block_wall_pub_->publish(empty_msgs);
     block_area_pub_->publish(empty_msgs);
-    RCLCPP_INFO(this->get_logger(), "publishBlockWall empty");
+    RCLCPP_INFO(this->get_logger(), "publishClearVirtualWall");
 }
 
 void UdpCommunication::publishEmergencyCommand()
@@ -1900,7 +1948,7 @@ bool UdpCommunication::readPGM(const std::string& pgm_filename, int& width_map, 
 
     // Derive the YAML file name from the PGM file name
     std::string yaml_filename = pgm_filename.substr(0, pgm_filename.find_last_of('.')) + ".yaml";
-    // std::string yaml_filename = "test1_map.yaml";
+    
     std::ifstream file1(yaml_filename);
     if (!file1.is_open()) {
         std::cerr << "Error: Could not open file " << yaml_filename << std::endl;
@@ -2713,4 +2761,45 @@ void UdpCommunication::publishTestTargetPosition(double x,double y,double theta,
     msg.theta = theta;
     msg.type = type;
     test_move_target_pub_->publish(msg);
+}
+
+
+std::string UdpCommunication::readVersionFromIni(const std::string& filename, const std::string& section, const std::string& key) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {        
+        return "";
+    }
+
+    std::string line;
+    bool inSection = false;
+    while (std::getline(file, line)) {
+        // 공백 제거
+        line.erase(0, line.find_first_not_of(" \t\r\n"));
+        line.erase(line.find_last_not_of(" \t\r\n") + 1);
+
+        // 섹션 확인
+        if (line.empty() || line[0] == ';' || line[0] == '#') continue;  // 주석 무시
+        if (line[0] == '[') {  // 섹션 시작
+            inSection = (line == "[" + section + "]");
+            continue;
+        }
+
+        // 현재 섹션에서 key 찾기
+        if (inSection) {
+            size_t pos = line.find('=');
+            if (pos != std::string::npos) {
+                std::string currentKey = line.substr(0, pos);
+                std::string value = line.substr(pos + 1);
+
+                // 공백 제거
+                currentKey.erase(currentKey.find_last_not_of(" \t") + 1);
+                value.erase(0, value.find_first_not_of(" \t"));
+
+                if (currentKey == key) {
+                    return value;
+                }
+            }
+        }
+    }
+    return "";
 }

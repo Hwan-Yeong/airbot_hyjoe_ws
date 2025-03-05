@@ -1,0 +1,29 @@
+A1_perception:
+  node:
+    period_ms: 10
+    inputs:
+      robot_position:
+        topic: "/amcl_pose"
+        type: "PoseWithCovarianceStamped"
+      one_d_tof:
+        topic: "/sensor_to_pointcloud/tof/mono"
+        type: "PointCloud2"
+
+
+    layers:
+      one_d_tof:
+        inputs:
+        - "one_d_tof"
+        filter:
+          compose:
+            filters:
+              timeout:
+                timeout_milliseconds: 30000
+              polygon_roi:
+                use_inside: true
+                polygon: [ [0.65, -0.65], [0.65, 0.65], [-1.0,1.0], [-1.0,-1.0]]
+              polygon_roi:
+                use_inside: false
+                polygon: [ [0.18, -0.18], [0.18, 0.18], [0,0.18], [0,-0.18]]
+              one_d_tof_stop:
+                use_stop: true

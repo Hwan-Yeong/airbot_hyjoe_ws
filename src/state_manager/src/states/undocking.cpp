@@ -94,7 +94,7 @@ void UnDocking::enableLinearTargetMoving()
 void UnDocking::processLinearMoving()
 {
     pose current = state_utils->getCurrentOdom();
-    double distance = getDistance(base_odom,current);
+    double distance = state_utils->getDistance(base_odom,current);
     if(distance >= 0.3)
     {
         end_linear_target = true;
@@ -103,7 +103,7 @@ void UnDocking::processLinearMoving()
         distance,base_odom.x,base_odom.y,current.x,current.y);
         bUndockStart = true;
     }else{
-        RCLCPP_WARN(node_->get_logger(), "processLinearMoving...distance : %f",distance);
+        //RCLCPP_WARN(node_->get_logger(), "processLinearMoving...distance : %f",distance);
         publishVelocityCommand(0.07,0.0);
     }
 }
@@ -117,8 +117,5 @@ void UnDocking::publishVelocityCommand(double v, double w)
     // RCLCPP_INFO(node_->get_logger(), "publishVelocityCommand V : %f, W : %f ", v,w);
 }
 
-double UnDocking::getDistance(pose base, pose current) {
-  return std::sqrt((current.x - base.x) * (current.x - base.x) + (current.y - base.y) * (current.y - base.y));
-}
 
 } // namespace airbot_state

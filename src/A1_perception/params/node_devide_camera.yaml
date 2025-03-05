@@ -1,0 +1,30 @@
+A1_perception:
+  node:
+    period_ms: 10
+    inputs:
+      robot_position:
+        topic: "/amcl_pose"
+        type: "PoseWithCovarianceStamped"
+      camera_points:
+        topic: "/sensor_to_pointcloud/camera_object"
+        type: "PointCloud2"
+
+    layers:
+      camera_points:
+        inputs:
+        - "camera_points"
+        filter:
+          compose:
+            filters:
+              timeout:
+                timeout_milliseconds: 10000
+              sector_roi:
+                use_inside: true
+                min_range: 0.0
+                max_range: 1.0
+                min_angle: -150
+                max_angle: 150
+              density:
+                max_count: 3
+                radius: 0.1
+      

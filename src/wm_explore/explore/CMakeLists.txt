@@ -21,6 +21,7 @@ find_package(map_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(explore_msgs REQUIRED)
+find_package(lifecycle_msgs REQUIRED)
 
 include_directories(include)
 
@@ -29,6 +30,9 @@ set(LIB_SOURCES
         src/utils.cpp
         src/costmap.cpp
         src/frontier_search.cpp
+        src/explore/lifecycle_node_checker.cpp
+        include/explore/lifecycle_node_checker.hpp
+        include/explore/logger.hpp
 )
 
 # Check if all source files exist
@@ -79,6 +83,7 @@ ament_target_dependencies(explorer
         geometry_msgs
         visualization_msgs
         explore_msgs
+        lifecycle_msgs
 )
 
 # Install the executable

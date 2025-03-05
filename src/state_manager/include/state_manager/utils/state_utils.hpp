@@ -17,6 +17,7 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2/LinearMath/Quaternion.h>
+#include <tf2/utils.h> 
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "robot_custom_msgs/msg/station_data.hpp"
 #include "robot_custom_msgs/msg/position.hpp"
@@ -59,13 +60,29 @@ public:
   void monitor_resetOdom();
   void stopMonitorOdom();
 
+  void startSensorMonitor();
+  void stopSensorMonitor();
+  void monitor_sensor();
+
+  void startLocalizationMonitor(LOCALIZATION_TYPE type);
+  void stopLocalizationMonitor();
+  void monitor_localization();
+
+  void enableArrivedGoalSensorsOffTimer();
+  void disableArrivedGoalSensorsOffTimer();
+  void monitor_ArrivedGoal_SensorsOff();
+
   void reset_timerResetOdom();
+  void reset_timerSensorMonitor();
+  void reset_timerLocalization();
   bool isValidateResetOdom(const pose &odom);
   bool isStartOdomReset();
   bool getOdomResetDone();
 
   bool isStartLocalization();
   bool getLocalizationComplete();
+  void publishStartOdomReset();
+  void publishClearOdomReset();
   void publishLidarOff();
   void publishLidarOn();
   void publishMultiTofOff();
@@ -73,8 +90,9 @@ public:
   void publishAllSensorOff();
   void publishAllSensorOn();
   void publishClearCostMap();
-  void publishLocalizeInitPose();
+  void publishLocalizeUndockPose();
   void publishLocalizePose();
+  void publishLocalizeSavedPose();
 
   void setAllRobotStateIDs(ROBOT_STATE data_state, ROBOT_STATUS data_status, state_cmd data_cmd);
 
@@ -104,9 +122,16 @@ public:
   bool isStartOnStation();
 
   void setOdomResetError(bool set);
-  bool isOdomREsetError();
-  bool isLidarSensorOK();
-  bool isMultiToFSensorOK();
+  bool isOdomResetError();
+  void setLidarError(bool set);
+  bool isLidarError();
+  void setToFError(bool set);
+  bool isToFError();
+  void setLocalizationError(bool set);
+  bool isLocalizationError();
+  void setSensorReady(bool set);
+  bool isSensorReady();
+
   double getLocalizationStartTime();
 
   void setOnstationStatus(const bool &data);
@@ -128,6 +153,7 @@ public:
   bool getPrepareOdomFlag();
   pose getCurrentOdom();
 
+  double getDistance(pose base, pose current);
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr localize_complete_sub;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr odom_status_sub_;
@@ -149,35 +175,52 @@ public:
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr req_clear_costmap_pub_;
   
   rclcpp::TimerBase::SharedPtr odom_reset_timer_;
-  rclcpp::TimerBase::SharedPtr sensor_off_timer_;
+  rclcpp::TimerBase::SharedPtr sensor_monitor_timer_;
+  rclcpp::TimerBase::SharedPtr localization_monitor_timer_;
+  rclcpp::TimerBase::SharedPtr arrivedgoal_sensoroff_timer_;
 
   geometry_msgs::msg::PoseWithCovarianceStamped robot_position_msg;
+  geometry_msgs::msg::PoseWithCovarianceStamped undock_init_pose_msg;
   geometry_msgs::msg::PoseWithCovarianceStamped station_position_msg;
   geometry_msgs::msg::PoseWithCovarianceStamped last_position_msg;
-  std_msgs::msg::UInt8 odom_reset_cmd_;
   
   pose robot_pose;
-
+  pose undock_init_pose;
   pose odom_;
   pose last_pose;
   pose station_pose;
   bool ready_odom = false;
 
   uint8_t odom_status;
+  double odom_reset_monitor_start_time_;
   double reset_odom_start_time_;
+  double sensor_monitor_start_time_;
   double arrived_goal_start_time_;
+  double lidarOn_time;
+  double tofOn_time;
   double localize_start_time;
   uint8_t odom_reset_cnt_ = 0;
+  uint8_t lidar_retry_cnt = 0;
+  uint8_t tof_retry_cnt = 0;
+  uint8_t localization_retry_cnt = 0;
   bool bStartOnStation = false;
   bool bStartOdomReset = false;
   bool bOdomResetDone = false;
   bool bSendResetOdomCmd = false;
+  bool bSendLidarCmd = false;
+  bool bSendTofCmd = false;
+  LOCALIZATION_TYPE Localtype;
   bool bStartLocalizationStart = false;
   bool bLocalizationComplete = false;
   bool bOdomResetError = false;
+  bool bLidarError = false;
+  bool bTofError = false;
+  bool bLoclizationError = false;
+  bool bStartSensorOn = false;
   bool bLidarSensorOK = false;
   bool bMultiToFSensorOK = false;
   bool on_station_status = false;
+  bool bSensorReady = false;
   
   std::shared_ptr<rclcpp::Node> node_;
 

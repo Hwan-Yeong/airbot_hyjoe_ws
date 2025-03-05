@@ -64,6 +64,7 @@ add_executable(state_manager src/node.cpp)
 ament_target_dependencies(state_manager_lib
   rclcpp
   sensor_msgs
+  tf2
   tf2_geometry_msgs
   std_msgs
   nav_msgs

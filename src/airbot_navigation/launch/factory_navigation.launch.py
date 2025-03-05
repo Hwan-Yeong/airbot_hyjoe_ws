@@ -35,7 +35,7 @@ def generate_launch_description():
         'map',
         default=os.path.join(
             get_package_share_directory('airbot_navigation'),
-            '/home/airbot/airbot_ws/install/airbot_navigation/share/airbot_navigation/maps/factory_map.yaml'))
+            '/home/airbot/app_rw/factorymap/airbot_factorymap_00.yaml'))
 
     param_file_name = 'navigation_params.yaml'
 
@@ -75,59 +75,7 @@ def generate_launch_description():
             default_value='false',
             description='Use simulation (Gazebo) clock if true'),
 
-        # DeclareLaunchArgument(
-        #         'use_respawn', default_value='True',
-        #         description='Whether to respawn if a node crashes. Applied when composition is disabled.'),
-##Platform Driver
-        # Node(
-        #     package='driver_control',
-        #     executable='driver_control',
-        #     name='driver_control'),
-
-##Odom Publisher Node
-        # Node(
-        #     package='odom_pub',
-        #     executable='odom_pub',
-        #     name='odom_publisher'),
-
-#Joystick Control Node
-#Added in the system upstart
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(
-        #         [get_package_share_directory('teleop_twist_joy'), '/launch/teleop-launch.py'])
-        # ),
-
-##***Scan merger********
-#  IncludeLaunchDescription(
-#             PythonLaunchDescriptionSource([get_package_share_directory(
-#                 'ira_laser_tools'), '/launch/merge_multi.launch.py'])
-#         ),
         
-        
-##YD Lidar Launch
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(
-        #         [get_package_share_directory('ydlidar_ros2_driver'), '/launch/ydlidar_launch.py'])
-        # ),
-###***Ld Lidar Launch file
-
-# IncludeLaunchDescription(
-#     PythonLaunchDescriptionSource(
-#         [get_package_share_directory('ldlidar_stl_ros2'), '/launch/ld19.launch.py'])
-# ),
-# ##************Slam Toolbox Launch File*************
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(
-        #         [get_package_share_directory('slam_toolbox'), '/launch/online_async_launch.py'])
-        # ),
-
-
-####*******cartographer mapping*******
-
-#  IncludeLaunchDescription(
-#             PythonLaunchDescriptionSource(  
-#                 [get_package_share_directory('carto_mapping'), '/launch/carto_mapping.launch.py'])
-#         ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([nav2_launch_file_dir, '/bringup_launch.py']),
@@ -136,24 +84,5 @@ def generate_launch_description():
                 'use_sim_time': use_sim_time,
                 'params_file': param_dir}.items(),
         ),
-
-        # Node(package='tf2_ros',
-        #             executable='static_transform_publisher',
-        #             name='static_tf_pub_laser',
-        #             arguments=['0', '0', '0.0','0', '0', '0', '1','map','odom'],
-        #             ),
-# ## Realsense Camera
         
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource([get_package_share_directory(
-        #         'realsense2_camera'), '/launch/rs_launch.py'])
-        # ),
-        
-        # Node(
-        #     package='rviz2',
-        #     executable='rviz2',
-        #     name='rviz2',
-        #     arguments=['-d', rviz_config_dir],
-        #     parameters=[{'use_sim_time': use_sim_time}],
-        #     output='screen'),
     ])

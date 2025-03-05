@@ -3,14 +3,17 @@
 #include <string>
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 #include "pcl_conversions/pcl_conversions.h"
 #include "rclcpp/rclcpp.hpp"
 #include "rcutils/logging.h"
+#include "robot_custom_msgs/msg/motor_status.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
+#include "std_msgs/msg/int32.hpp"
 #include "tf2/LinearMath/Quaternion.h"
 #include "vision_msgs/msg/bounding_box2_d_array.hpp"
 #include "yaml-cpp/yaml.h"
@@ -144,6 +147,56 @@ void PerceptionNode::initFilters(const YAML::Node& config)
     // RCLCPP_INFO(this->get_logger(), "%s():%d: Filter init finished.", __FUNCTION__, __LINE__);
 }
 
+void PerceptionNode::initController()
+{
+    auto callback = [this](const std_msgs::msg::Empty::SharedPtr msg)
+    {
+        this->resetLayers();
+        RCLCPP_INFO(this->get_logger(), "%s():%d: Costmap has been cleared.", __FUNCTION__, __LINE__);
+    };
+    this->controller_subscribers["clear_request_from_udp"] = this->create_subscription<std_msgs::msg::Empty>(
+        "/localization/clear/costmap",
+        10,
+        [this](const std_msgs::msg::Empty::SharedPtr msg)
+        {
+            this->resetLayers();
+            RCLCPP_INFO(
+                this->get_logger(), "%s:%ld: Perception's all layers cleared by UDP commnad.", __FUNCTION__, __LINE__);
+        });
+
+    this->controller_subscribers["clear_request_from_rviz_init_pose"] =
+        this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+            "/initialpose",
+            10,
+            [this](const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
+            {
+                this->resetLayers();
+                RCLCPP_INFO(
+                    this->get_logger(),
+                    "%s:%ld: Perception's all layers cleared by initial pose estimate.",
+                    __FUNCTION__,
+                    __LINE__);
+            });
+    this->controller_subscribers["clear_request_from_rviz_goal_pose"] =
+        this->create_subscription<geometry_msgs::msg::PoseStamped>(
+            "/goal_pose",
+            10,
+            [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg)
+            {
+                this->resetLayers();
+                RCLCPP_INFO(
+                    this->get_logger(), "%s:%d: Perception's all layers cleared by goal pose.", __FUNCTION__, __LINE__);
+            });
+    this->controller_subscribers["motor_status"] = this->create_subscription<robot_custom_msgs::msg::MotorStatus>(
+        "/motor_status",
+        10,
+        [this](const robot_custom_msgs::msg::MotorStatus::SharedPtr msg)
+        {
+            this->motor_status.setLeftRpm(msg->left_motor_rpm);
+            this->motor_status.setRightRpm(msg->right_motor_rpm);
+        });
+}
+
 // 수정된 initSubscribers(): inputs는 시퀀스 내부에 mapping 형태로 정의되어 있음
 void PerceptionNode::initSubscribers(const YAML::Node& config)
 {
@@ -221,6 +274,8 @@ void PerceptionNode::initPublishers(const YAML::Node& config)
     auto pub = this->create_publisher<sensor_msgs::msg::PointCloud2>("perception/output", 10);
     this->publishers["output"] = pub;
 
+    this->publishers["stop"] = this->create_publisher<std_msgs::msg::Int32>("perception/action/stop", 10);
+
     for (const auto& layer : config)
     {
         std::string name = layer.first.as<std::string>();
@@ -234,6 +289,8 @@ void PerceptionNode::init()
     this->initSubscribers(this->config["inputs"]);
     this->initFilters(this->config["layers"]);
     this->initPublishers(this->config["layers"]);
+
+    this->initController();
 
     auto timer_callback = std::bind(&PerceptionNode::timerCallback, this);
     auto period = std::chrono::milliseconds(this->config["period_ms"].as<int>());
@@ -258,9 +315,36 @@ Layer PerceptionNode::getSensorLayer(const std::string& name) const
     }
 }
 
+MotorStatus PerceptionNode::getMotorStatus()
+{
+    return this->motor_status;
+}
 Position PerceptionNode::getPosition()
 {
     return this->robot_position;
+}
+
+std::unordered_map<std::string, Layer>& PerceptionNode::getDropOffLayerMap()
+{
+    return this->drop_off_layer_map;
+}
+
+void PerceptionNode::sendActionStop(int data)
+{
+    auto action_stop_pub =
+        std::any_cast<std::shared_ptr<rclcpp::Publisher<std_msgs::msg::Int32>>>(this->publishers["stop"]);
+    std_msgs::msg::Int32 msg;
+    // 0 : NO_STOP
+    // 1 : DROP_OFF STOP
+    // 2 : 1D TOF STOP
+    msg.data = data;
+    action_stop_pub->publish(msg);
+}
+
+void PerceptionNode::resetLayers()
+{
+    this->layers.clear();
+    this->drop_off_layer_map.clear();
 }
 
 sensor_msgs::msg::PointCloud2 PerceptionNode::convertToPointCloud2(const pcl::PointCloud<pcl::PointXYZ>& cloud)
@@ -351,6 +435,15 @@ void PerceptionNode::timerCallback()
             output_cloud_map[name].insert(output_cloud_map[name].end(), layer.cloud.begin(), layer.cloud.end());
             output_cloud.insert(output_cloud.end(), layer.cloud.begin(), layer.cloud.end());
         }
+    }
+
+    for (const auto& [key, layer] : this->drop_off_layer_map)
+    {
+        if (layer.cloud.empty())
+        {
+            continue;
+        }
+        output_cloud.insert(output_cloud.end(), layer.cloud.begin(), layer.cloud.end());
     }
 
     auto output_msg = this->convertToPointCloud2(output_cloud);

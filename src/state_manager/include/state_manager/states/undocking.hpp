@@ -14,7 +14,6 @@ public:
   void publishVelocityCommand(double v, double w);
   void processLinearMoving();
   void enableLinearTargetMoving();
-  double getDistance(pose base, pose current);
   // undocking function
   void unDockingMove(const float dist);
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;

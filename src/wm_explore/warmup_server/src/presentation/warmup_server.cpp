@@ -70,7 +70,7 @@ void explore::WarmupServer::warmup_server_execute(const std::shared_ptr<WarmUpAc
         goal_handle->publish_feedback(feedback);
 
         geometry_msgs::msg::Twist temp_twist;
-        temp_twist.linear.x = 0.4;
+        temp_twist.linear.x = 0.2;
         temp_twist.angular.z = 0.0;
         pub_cmdvel_->publish(temp_twist);
         auto duration = this->now() - start_clock;

@@ -3,8 +3,8 @@
 <package format="3">
   <name>airbot_error_manager</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="shyoon@everybot.net">everybot</maintainer>
+  <description>Transmit Error Information to Quber via UDP Interface</description>
+  <maintainer email="hyjoe@everybot.net">everybot</maintainer>
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

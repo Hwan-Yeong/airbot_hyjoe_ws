@@ -12,6 +12,7 @@
 #include <yaml-cpp/yaml.h>
 #include <Eigen/Dense>
 #include <pcl/segmentation/impl/extract_polygonal_prism_data.hpp>
+#include "motor_status.hpp"
 
 #include "filter/filter_factory.hpp"
 #include "perception_node.hpp"
@@ -189,7 +190,7 @@ LayerVector DensityFilter::updateImpl(LayerVector layer_vector)
 
     RCLCPP_DEBUG(
         this->node_ptr->get_logger(),
-        "%s():%d: DensityFilter: %d points are removed.",
+        "%s():%d: DensityFilter: %ld points are removed.",
         __FUNCTION__,
         __LINE__,
         std::count(removed.begin(), removed.end(), true));
@@ -280,8 +281,8 @@ SectorRoIFilter::SectorRoIFilter(std::shared_ptr<PerceptionNode> node_ptr_, cons
 {
     this->min_range = config["min_range"].as<float>();
     this->max_range = config["max_range"].as<float>();
-    this->min_angle = config["min_angle"].as<float>();
-    this->max_angle = config["max_angle"].as<float>();
+    this->min_angle = config["min_angle"].as<float>() * M_PI / 180.0;
+    this->max_angle = config["max_angle"].as<float>() * M_PI / 180.0;
 }
 
 bool SectorRoIFilter::isInside(pcl::PointXY point)
@@ -289,6 +290,116 @@ bool SectorRoIFilter::isInside(pcl::PointXY point)
     float range = std::sqrt(point.x * point.x + point.y * point.y);
     float angle = std::atan2(point.y, point.x);
     return range >= this->min_range && range <= this->max_range && angle >= this->min_angle && angle <= this->max_angle;
+}
+
+DropOffFilter::DropOffFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config)
+    : BaseFilter(node_ptr_)
+{
+    this->min_range = config["min_range"].as<float>();
+    this->max_range = config["max_range"].as<float>();
+    this->line_length = config["line_length"].as<float>();
+    this->resolution = config["resolution"].as<float>();
+}
+
+LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
+{
+    // coordinate transform
+    auto node = this->getNodePtr();
+    auto position = node->getPosition();
+    geometry_msgs::msg::Transform transform_msg;
+    tf2::toMsg(position.getTransform().inverse(), transform_msg);
+    Eigen::Affine3f inverse_transform = tf2::transformToEigen(transform_msg).cast<float>();
+
+    auto now = node->now();
+
+    double heading_x = cos(position.yaw);
+    double heading_y = sin(position.yaw);
+
+    double orthogonal_x = -heading_y;
+    double orthogonal_y = heading_x;
+    double length = this->line_length;
+    double resolution = this->resolution;
+
+    MotorStatus motor_status = node->getMotorStatus();
+
+    for (auto& layer : layer_vector)
+    {
+        auto layer_base_link = layer;
+        pcl::transformPointCloud(layer.cloud, layer_base_link.cloud, inverse_transform);
+
+        auto it = layer.cloud.begin();
+        auto jt = layer_base_link.cloud.begin();
+
+        for (; it != layer.cloud.end();)
+        {
+            if (motor_status.isMoveToFoward())
+            {
+                pcl::PointXY point{jt->x, jt->y};
+                pcl::PointXY point_global{it->x, it->y};
+                float distance = std::sqrt(point.x * point.x + point.y * point.y);
+                if (distance >= this->min_range && distance <= this->max_range)
+                {
+                    std::string key =
+                        std::to_string(point_global.x).substr(0, std::to_string(point_global.x).find(".") + 3) + "," +
+                        std::to_string(point_global.y).substr(0, std::to_string(point_global.y).find(".") + 3);
+                    if (node->getDropOffLayerMap().find(key) == node->getDropOffLayerMap().end())
+                    {
+                        double start_x = point_global.x - orthogonal_x * length;
+                        double start_y = point_global.y - orthogonal_y * length;
+                        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+                        for (double t = 0; t <= length * 2; t += resolution)
+                        {
+                            pcl::PointXYZ new_point;
+                            new_point.x = start_x + orthogonal_x * t;
+                            new_point.y = start_y + orthogonal_y * t;
+                            new_point.z = 0.0;
+                            cloud->points.push_back(new_point);
+                        }
+                        auto line_layer = Layer();
+                        line_layer.sensor_timestamp = layer.sensor_timestamp;
+                        line_layer.timestamp = now;
+                        line_layer.cloud = *cloud;
+                        node->getDropOffLayerMap()[key] = line_layer;
+
+                        // 1 -> DROP_OFF STOP
+                        node->sendActionStop(1);
+                    }
+                }
+            }
+            it = layer.cloud.erase(it);
+            jt = layer_base_link.cloud.erase(jt);
+        }
+    }
+
+    return layer_vector;
+}
+
+OneDTofFilter::OneDTofFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config)
+    : BaseFilter(node_ptr_)
+{
+    this->layer_vector_size = 0;
+}
+
+LayerVector OneDTofFilter::updateImpl(LayerVector layer_vector)
+{
+    // coordinate transform
+    auto node = this->getNodePtr();
+    int size_sum = 0;
+    for (auto& layer : layer_vector)
+    {
+        size_sum += layer.cloud.size();
+    }
+    if (this->layer_vector_size < size_sum)
+    {
+        MotorStatus motor_status = node->getMotorStatus();
+        if (motor_status.isMoveToFoward())
+        {
+            // 2 -> One_D_TOF STOP
+            node->sendActionStop(2);
+        }
+    }
+    this->layer_vector_size = size_sum;
+    return layer_vector;
 }
 
 }  // namespace A1::perception

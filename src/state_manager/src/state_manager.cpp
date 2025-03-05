@@ -119,6 +119,8 @@ void StateManager::checkTransition( const state_cmd &cmd_ids )
       setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
     } else if (getCurrentStateID() == ROBOT_STATE::RETURN_CHARGER) {
       setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
+    } else if (getCurrentStateID() == ROBOT_STATE::DOCKING) {
+      setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
     } else {
       // fail - abort command
     }

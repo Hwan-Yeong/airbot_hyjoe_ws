@@ -14,7 +14,10 @@ void ReturnCharger::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
   req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
   target_pose_pub_ = node_->create_publisher<geometry_msgs::msg::Pose>("/target_pose", 10);
   client_ = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(node_, "navigate_to_pose");
-  
+  if(future_goal_handle_)
+  {
+    future_goal_handle_.reset();
+  }
 
   state_utils->setMovingStateID( NAVI_STATE::IDLE);
   state_utils->setStatusID(ROBOT_STATUS::READY);
@@ -25,7 +28,7 @@ void ReturnCharger::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
     setReadyNavigation(READY_NAVIGATION::LAUCN_NODE);
   }
   
-  state_utils->publishAllSensorOn();
+  state_utils->startSensorMonitor();
 }
 
 void ReturnCharger::setReadyNavigation(READY_NAVIGATION set)
@@ -108,12 +111,19 @@ void ReturnCharger::post_run(const std::shared_ptr<StateUtils> &state_utils) {
       // exitNavigationNode();
     }
   }
+  if(future_goal_handle_ && state_utils->getMovingStateID() == NAVI_STATE::MOVE_GOAL)
+  {
+    client_->async_cancel_goal(future_goal_handle_);
+    future_goal_handle_.reset();
+  }
+  client_.reset();
 }
 
 ROBOT_STATUS ReturnCharger::processNavigationReady()
 {
   ROBOT_STATUS ret = ROBOT_STATUS::READY;
   int localize_result = 0;
+  int node_result = 0;
   switch (readyNavi)
   {
   case READY_NAVIGATION::LAUCN_NODE :
@@ -125,24 +135,24 @@ ROBOT_STATUS ReturnCharger::processNavigationReady()
       }
     break;
   case READY_NAVIGATION::CHECK_NODE :
-     if(naviNodeChecker()){
-        setReadyNavigation(READY_NAVIGATION::CHECK_SENSOR);
-      }
+    node_result = naviNodeChecker();
+    if(node_result > 0){
+      setReadyNavigation(READY_NAVIGATION::CHECK_SENSOR);
+    }else if(node_result < 0){
+      setReadyNavigation(READY_NAVIGATION::FAIL);
+    }
     break;
   case READY_NAVIGATION::CHECK_SENSOR :
-  #if USE_TOF_ONOFF > 0
-    if(state_utils->isLidarSensorOK() && state_utils->isMultiToFSensorOK()){
-      state_utils->disableSensorcallback();
-      setReadyMoving(READY_MOVING::REQUEST_POSE_ESTIMATE);
+    if(state_utils->isSensorReady()){
+      setReadyNavigation(READY_NAVIGATION::REQUEST_POSE_ESTIMATE);
+    }else if(state_utils->isLidarError()){
+      RCLCPP_INFO(node_->get_logger(), "lidar error");
+    }else if(state_utils->isToFError()){
+      RCLCPP_INFO(node_->get_logger(), "tof error");
     }
-    #else
-    if(state_utils->isLidarSensorOK()){
-      state_utils->disableSensorcallback();
-      setReadyMoving(READY_MOVING::REQUEST_POSE_ESTIMATE);
-    }
-    #endif   
+    break;
   case READY_NAVIGATION::REQUEST_POSE_ESTIMATE :
-      state_utils->publishLocalizePose();
+      state_utils->startLocalizationMonitor(LOCALIZATION_TYPE::SAVED_POSE);
       setReadyNavigation(READY_NAVIGATION::CHECK_POSE_ESTIMATE);
     break;
   case READY_NAVIGATION::CHECK_POSE_ESTIMATE :
@@ -193,17 +203,18 @@ bool ReturnCharger::naviNodeLauncher()
   return ret;
 }
 
-bool ReturnCharger::naviNodeChecker()
+int ReturnCharger::naviNodeChecker()
 {
-  bool ret = false;
+  int ret = 0;
   double wait_navi_launch = node_->now().seconds()-node_start_time;
   RCLCPP_INFO(node_->get_logger(), "[Navigation] Navigation NODE ALL RUNNING -> launch time %f sec", wait_navi_launch);
   if(state_utils->isValidNavigation("/home/airbot/navigation_pid.txt", node_start_time)){
       waitNodeLaunching();
       RCLCPP_INFO(node_->get_logger(), "Navi node launch Complete time : %f", wait_navi_launch);
-      ret = true;
+      ret = 1;
   }else if(wait_navi_launch >= 30){
     RCLCPP_INFO(node_->get_logger(), "Navi node launch Fail time : %f", wait_navi_launch);
+    ret = -1;
   }
   return ret;
 }
@@ -217,8 +228,8 @@ int8_t ReturnCharger::localizationChecker()
     if(state_utils->getLocalizationComplete()){
       RCLCPP_INFO(node_->get_logger(), "localization Done ");
       ret = 1;
-    }else if(wait_localize_time >= 30){
-      RCLCPP_INFO(node_->get_logger(), "localization TimeOut ");
+    }else if(state_utils->isLocalizationError()){
+      RCLCPP_INFO(node_->get_logger(), "localization Error ");
       ret = -1;
     }
   }else{
@@ -235,20 +246,16 @@ void ReturnCharger::processMoveTarget()
   switch (readyMoving)
   {
   case READY_MOVING::CHECK_SENSOR :
-  #if USE_TOF_ONOFF > 0
-    if(state_utils->isLidarSensorOK() && state_utils->isMultiToFSensorOK()){
-      state_utils->disableSensorcallback();
+    if(state_utils->isSensorReady()){
       setReadyMoving(READY_MOVING::REQUEST_POSE_ESTIMATE);
+    }else if(state_utils->isLidarError()){
+      setReadyMoving(READY_MOVING::FAIL);
+    }else if(state_utils->isToFError()){
+      setReadyMoving(READY_MOVING::FAIL);
     }
-    #else
-    if(state_utils->isLidarSensorOK()){
-      state_utils->disableSensorcallback();
-      setReadyMoving(READY_MOVING::REQUEST_POSE_ESTIMATE);
-    }
-    #endif
     break;
   case READY_MOVING::REQUEST_POSE_ESTIMATE :
-    state_utils->publishLocalizePose();
+    state_utils->startLocalizationMonitor(LOCALIZATION_TYPE::SAVED_POSE);
     setReadyMoving(READY_MOVING::CHECK_POSE_ESTIMATE);
     break;
   case READY_MOVING::CHECK_POSE_ESTIMATE :
@@ -385,6 +392,7 @@ void ReturnCharger::moveToDock(double x, double y, double theta) {
     }
   };
   client_->async_send_goal(nearDockGoal, docking_goal_options);
+  RCLCPP_INFO(node_->get_logger(), "send goal X : %f, Y : %f, Theta : %f",x,y,theta);
 }
 
 void ReturnCharger::publishTargetPosition(double x, double y, double theta) {
@@ -461,7 +469,7 @@ void ReturnCharger::reset_timerNaviStatus() {
 //////////////saving map
 void ReturnCharger::map_saver() {
   int map_save_result = std::system(
-      "ros2 run nav2_map_server map_saver_cli -f /home/airbot/test1_map "
+      "ros2 run nav2_map_server map_saver_cli -f /home/airbot/app_rw/map/airbot_map_00 "
       "--ros-args -p save_map_timeout:=10.0");
   int map_save_cnt = 0;
 
@@ -471,35 +479,12 @@ void ReturnCharger::map_saver() {
                    "Map save command failed with error code, trying again: %d",
                    map_save_result);
       map_save_result = std::system(
-          "ros2 run nav2_map_server map_saver_cli -f /home/airbot/test1_map "
+          "ros2 run nav2_map_server map_saver_cli -f /home/airbot/app_rw/map/airbot_map_00 "
           "--ros-args -p save_map_timeout:=10.0");
     } else {
       RCLCPP_ERROR(node_->get_logger(), "Map save command failed over 10times");
       break;
     }
-  }
-
-  if (map_save_result == 0) {
-    RCLCPP_INFO(node_->get_logger(), "Map save command executed successfully.");
-    // API_FileDelete(MapEditFile);
-    bSavedMap = true;
-    //**Saving the copy the map****
-    const std::string original_map_file = "/home/airbot/test1_map.pgm";
-    const std::string copy_map_file =
-        "/home/airbot/OriginalMap.pgm"; // Path for the duplicate map
-
-    try {
-      // Use std::filesystem to copy the original map file to a new name
-      std::filesystem::copy(original_map_file, copy_map_file,
-                            std::filesystem::copy_options::overwrite_existing);
-      RCLCPP_INFO(node_->get_logger(),
-                  "Map successfully saved as OriginalMap.pgm");
-    } catch (const std::filesystem::filesystem_error &e) {
-      RCLCPP_INFO(node_->get_logger(), "OriginalMap.pgm save fail ");
-      return;
-    }
-  } else {
-    RCLCPP_INFO(node_->get_logger(), "Map save fail");
   }
 }
 

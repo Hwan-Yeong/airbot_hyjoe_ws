@@ -11,6 +11,7 @@
 #include <thread>
 
 using namespace std::chrono;
+std::chrono::time_point<std::chrono::steady_clock> last_data_time;
 
 class MinimalSubscriber
 {
@@ -32,6 +33,7 @@ class MinimalSubscriber
 		if (lidarCmd)
 		{
 			//turn on lidar
+			last_data_time = std::chrono::steady_clock::now();
 			node_lidar.lidar_status.lidar_ready = true;
 			node_lidar.lidar_status.lidar_abnormal_state = 0;
 			RCLCPP_INFO(rclcpp::get_logger("cmd_lidar"), "lidar is start ");	
@@ -80,7 +82,7 @@ int main(int argc, char **argv)
 	error_pub = node->create_publisher<std_msgs::msg::String>("lsd_error", 10);
 	std_msgs::msg::String pubdata;
     //error_check 마지막 데이터 수신 시간
-	auto last_data_time = std::chrono::steady_clock::now();
+	last_data_time = std::chrono::steady_clock::now();
 	auto laser_pub = node->create_publisher<sensor_msgs::msg::LaserScan>("scan", 10);
     //lidar of the error of the remap from lidar_dual_launch.py
 	auto laser_error_pub = node->create_publisher<std_msgs::msg::Bool>("scan_error", 10);
@@ -126,7 +128,7 @@ int main(int argc, char **argv)
 				// node_lidar.serial_port->write_data(end_lidar,4);
 				// node_lidar.lidar_status.lidar_ready = false;
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
+				// std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 			LaserScan scan;
 			
@@ -162,7 +164,7 @@ int main(int argc, char **argv)
 					if (angle >= min_angle && angle <= max_angle) {
 						filtered_ranges.push_back(scan.points[i].range);
 						// filtered_intensities.push_back(scan.points[i].intensity);
-						if (scan.points[i].range <= min_range_th) {
+						if (scan.points[i].range > 1e-6 && scan.points[i].range <= min_range_th) {
 							dirty_points += 1;
 						}
 					}

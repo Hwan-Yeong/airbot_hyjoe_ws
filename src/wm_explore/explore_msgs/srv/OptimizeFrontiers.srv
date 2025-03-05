@@ -1,0 +1,9 @@
+#request definition
+std_msgs/Header header
+geometry_msgs/PoseArray pose_array
+---
+
+#response definition
+std_msgs/Header header
+geometry_msgs/PoseArray optimized_pose_array
+

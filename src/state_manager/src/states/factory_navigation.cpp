@@ -20,7 +20,7 @@ void FactoryNavigation::pre_run(const std::shared_ptr<StateUtils> &state_utils) 
   state_utils->setStatusID(ROBOT_STATUS::READY);
   setReadyMoving(READY_MOVING::IDLE);
   setReadyNavigation(READY_NAVIGATION::LAUCN_NODE);
-  state_utils->publishAllSensorOn();
+  state_utils->startSensorMonitor();
 }
 
 void FactoryNavigation::setReadyNavigation(READY_NAVIGATION set)
@@ -235,20 +235,18 @@ void FactoryNavigation::processMoveTarget()
   switch (readyMoving)
   {
   case READY_MOVING::CHECK_SENSOR :
-    #if USE_TOF_ONOFF > 0
-    if(state_utils->isLidarSensorOK() && state_utils->isMultiToFSensorOK()){
-      state_utils->disableSensorcallback();
+    if(state_utils->isSensorReady()){
       setReadyMoving(READY_MOVING::REQUEST_POSE_ESTIMATE);
+    }else if(state_utils->isLidarError()){
+      RCLCPP_INFO(node_->get_logger(), "LidarError");
+      setReadyMoving(READY_MOVING::FAIL);
+    }else if(state_utils->isToFError()){
+      RCLCPP_INFO(node_->get_logger(), "ToFError");
+      setReadyMoving(READY_MOVING::FAIL);
     }
-    #else
-    if(state_utils->isLidarSensorOK()){
-      state_utils->disableSensorcallback();
-      setReadyMoving(READY_MOVING::REQUEST_POSE_ESTIMATE);
-    }
-    #endif
     break;
   case READY_MOVING::REQUEST_POSE_ESTIMATE :
-    state_utils->publishLocalizePose();
+    state_utils->startLocalizationMonitor(LOCALIZATION_TYPE::INIT_POSE);
     setReadyMoving(READY_MOVING::CHECK_POSE_ESTIMATE);
     break;
   case READY_MOVING::CHECK_POSE_ESTIMATE :
@@ -273,6 +271,7 @@ ROBOT_STATUS FactoryNavigation::processNavigationReady()
 {
   ROBOT_STATUS ret = ROBOT_STATUS::READY;
   int localize_result = 0;
+  int node_result = 0;
   switch (readyNavi)
   {
   case READY_NAVIGATION::LAUCN_NODE :
@@ -284,25 +283,28 @@ ROBOT_STATUS FactoryNavigation::processNavigationReady()
     }
     break;
     case READY_NAVIGATION::CHECK_NODE :
-    if(naviNodeChecker()){
+    node_result = naviNodeChecker();
+    if(node_result > 0){
       setReadyNavigation(READY_NAVIGATION::CHECK_SENSOR);
+    }else if(node_result < 0){
+      setReadyNavigation(READY_NAVIGATION::FAIL);
     }
     break;
     case READY_NAVIGATION::CHECK_SENSOR :
-    #if USE_TOF_ONOFF > 0
-    if(state_utils->isLidarSensorOK() && state_utils->isMultiToFSensorOK()){
-      state_utils->disableSensorcallback();
+    if(state_utils->isSensorReady()){
       setReadyNavigation(READY_NAVIGATION::CHECK_ODOM_RESET);
+    }else if(state_utils->isLidarError()){
+      RCLCPP_INFO(node_->get_logger(), "LidarError");
+      ret = ROBOT_STATUS::FAIL;
+      setReadyNavigation(READY_NAVIGATION::FAIL);
+    }else if(state_utils->isToFError()){
+      RCLCPP_INFO(node_->get_logger(), "ToFError");
+      ret = ROBOT_STATUS::FAIL;
+      setReadyNavigation(READY_NAVIGATION::FAIL);
     }
-    #else
-    if(state_utils->isLidarSensorOK()){
-      state_utils->disableSensorcallback();
-      setReadyNavigation(READY_NAVIGATION::CHECK_ODOM_RESET);
-    }
-    #endif
     break;     
   case READY_NAVIGATION::CHECK_ODOM_RESET :
-    if(state_utils->isOdomREsetError()){
+    if(state_utils->isOdomResetError()){
       RCLCPP_INFO(node_->get_logger(), "odom reset Error");
       ret = ROBOT_STATUS::FAIL;
       setReadyNavigation(READY_NAVIGATION::FAIL);
@@ -312,13 +314,12 @@ ROBOT_STATUS FactoryNavigation::processNavigationReady()
     }
     break;
   case READY_NAVIGATION::REQUEST_POSE_ESTIMATE :
-      state_utils->publishLocalizeInitPose();
+      state_utils->startLocalizationMonitor(LOCALIZATION_TYPE::INIT_POSE);
       setReadyNavigation(READY_NAVIGATION::CHECK_POSE_ESTIMATE);
     break;
   case READY_NAVIGATION::CHECK_POSE_ESTIMATE :
       localize_result = localizationChecker();
       if(localize_result > 0){
-        state_utils->publishAllSensorOff();
         setReadyNavigation(READY_NAVIGATION::COMPLETE);
         ret = ROBOT_STATUS::START;
       }else if(localize_result < 0){
@@ -353,18 +354,22 @@ bool FactoryNavigation::naviNodeLauncher()
   return ret;
 }
 
-bool FactoryNavigation::naviNodeChecker()
+int FactoryNavigation::naviNodeChecker()
 {
-  bool ret = false;
+  int ret = 0;
   double wait_navi_launch = node_->now().seconds()-node_start_time;
   RCLCPP_INFO(node_->get_logger(), "[Navigation] Navigation NODE ALL RUNNING -> launch time %f sec", wait_navi_launch);
   if(state_utils->isValidNavigation("/home/airbot/navigation_pid.txt", node_start_time)){
       waitNodeLaunching();
       RCLCPP_INFO(node_->get_logger(), "Navi node launch Complete time : %f", wait_navi_launch);
-      ret = true;
+      ret = 1;
   }else if(wait_navi_launch >= 30){
     RCLCPP_INFO(node_->get_logger(), "Navi node launch Fail time : %f", wait_navi_launch);
+    ret = -1;
   }
+  //else{
+  //   RCLCPP_INFO(node_->get_logger(), "Navi node launch Fail time : %f", wait_navi_launch);
+  // }
   return ret;
 }
 
@@ -391,7 +396,7 @@ int8_t FactoryNavigation::localizationChecker()
     if(state_utils->getLocalizationComplete()){
       RCLCPP_INFO(node_->get_logger(), "localization Done ");
       ret = 1;
-    }else if(wait_localize_time >= 30){
+    }else if(state_utils->isLocalizationError()){
       RCLCPP_INFO(node_->get_logger(), "localization TimeOut ");
       ret = -1;
     }

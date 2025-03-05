@@ -26,9 +26,7 @@ public:
   bool startNavigation();
   void pauseNavigation();
   void resumeNavigation();
-  
-  void map_saver();
-  void exitMappingNode();
+
   void exitNavigationNode();
   ///Rotation
   int checkRotationDirection(double diff);
@@ -42,6 +40,7 @@ public:
   bool startRotation(int type, double targetAngle);
   double normalize_angle(double angle);
   void publishVelocityCommand(double v, double w);
+  void clearMoveTarget();
 
   rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr client_;
   rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr future_goal_handle_;
@@ -60,16 +59,18 @@ public:
   NAVI_STATE movingState;
   READY_NAVIGATION readyNavi;
   READY_MOVING  readyMoving;
+
+  bool new_targetcall_flag = false;
   
+  double node_start_time;
+
   void setReadyNavigation(READY_NAVIGATION set);
   void setReadyMoving(READY_MOVING set);
-  
-  bool bSavedMap;
-  double node_start_time;
+
   void processMoveTarget();
   ROBOT_STATUS processNavigationReady();
   bool naviNodeLauncher();
-  bool naviNodeChecker();
+  int naviNodeChecker();
   bool resetOdomChecker();
   int8_t localizationChecker();
   void rotation_callback(const robot_custom_msgs::msg::TestPosition::SharedPtr msg);

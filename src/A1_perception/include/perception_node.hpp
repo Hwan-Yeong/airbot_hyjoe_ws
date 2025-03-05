@@ -8,10 +8,12 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
+#include "std_msgs/msg/empty.hpp"
 #include "yaml-cpp/yaml.h"
 
 #include "filter/filter.hpp"
 #include "layer.hpp"
+#include "motor_status.hpp"
 #include "position.hpp"
 
 namespace A1::perception
@@ -47,13 +49,20 @@ class PerceptionNode : public rclcpp::Node
 
     void setSensorLayerMap(const std::string& name, const Layer& layer);
     Layer getSensorLayer(const std::string& name) const;
-
     Position getPosition();
+    MotorStatus getMotorStatus();
+
+    void resetLayers();
+    void sendActionStop(int data);
+    std::unordered_map<std::string, Layer>& getDropOffLayerMap();
+
+    int last_drop_off_size = 0;
 
    private:
     void initSubscribers(const YAML::Node& config);
     void initPublishers(const YAML::Node& config);
     void initFilters(const YAML::Node& config);
+    void initController();
 
     void timerCallback();
 
@@ -62,14 +71,16 @@ class PerceptionNode : public rclcpp::Node
     YAML::Node config{};
 
     Position robot_position{};
+    MotorStatus motor_status{};
 
     rclcpp::TimerBase::SharedPtr timer{};
 
+    std::unordered_map<std::string, std::any> controller_subscribers{};
     std::unordered_map<std::string, std::any> subscribers{};
     std::unordered_map<std::string, std::any> publishers{};
 
     std::unordered_map<std::string, BaseFilterPtr> filters{};
-
+    std::unordered_map<std::string, Layer> drop_off_layer_map{};
     std::unordered_map<std::string, Layer> sensor_layer_map{};
     std::unordered_map<std::string, LayerVector> layers{};
 };

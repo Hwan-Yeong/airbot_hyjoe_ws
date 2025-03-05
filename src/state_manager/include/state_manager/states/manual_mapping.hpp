@@ -22,7 +22,7 @@ public:
   void map_saver();
   void exitMappingNode();
   void exitNavigationNode();
-  bool bSavedMap;
+  
 
   void stationData_callback(const robot_custom_msgs::msg::StationData::SharedPtr msg);
 

@@ -4,6 +4,31 @@
 #include <string>
 namespace airbot_state {
 
+enum class LOCALIZATION_TYPE {
+  INIT_POSE,
+  ROBOT_POSE,
+  SAVED_POSE,
+};
+
+inline std::string enumToString(LOCALIZATION_TYPE in) {
+  std::string out;
+  switch (in) {
+  case LOCALIZATION_TYPE::INIT_POSE:
+    out = std::string("INIT_POSE");
+    break;
+  case LOCALIZATION_TYPE::ROBOT_POSE:
+    out = std::string("ROBOT_POSE");
+    break;
+  case LOCALIZATION_TYPE::SAVED_POSE:
+    out = std::string("SAVED_POSE");
+    break;
+  default:
+    out = std::string("ERROR");
+    break;
+  }
+  return out;
+};
+  
 enum class NODE_STATUS {
   IDLE,
   AUTO_MAPPING,

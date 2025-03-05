@@ -10,11 +10,20 @@ find_package(ament_cmake REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+
+set(dependencies 
+	rosidl_default_generators
+	builtin_interfaces
+	geometry_msgs
+	std_msgs
+)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
         # "srv/WarmupRequest.srv"
 	"action/Warmup.action"
-        DEPENDENCIES builtin_interfaces
+	"srv/OptimizeFrontiers.srv"
+        DEPENDENCIES ${dependencies}
 )
 
 ament_export_dependencies(rosidl_default_runtime)

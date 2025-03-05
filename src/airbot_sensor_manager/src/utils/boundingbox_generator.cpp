@@ -55,12 +55,13 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
                 auto bbox = vision_msgs::msg::BoundingBox2D();
 
                 tPoint point_on_sensor_frame, point_on_robot_frame;
+                double height = std::min(static_cast<double>(obj.width), 0.3);
 
                 if (direction) {
-                    point_on_sensor_frame.x = obj.distance * std::cos(obj.theta) + obj.height/2;
+                    point_on_sensor_frame.x = obj.distance * std::cos(obj.theta) + height/2;
                     point_on_sensor_frame.y = obj.distance * std::sin(obj.theta);
                 } else {
-                    point_on_sensor_frame.x = obj.distance * std::cos(-obj.theta) + obj.height/2;
+                    point_on_sensor_frame.x = obj.distance * std::cos(-obj.theta) + height/2;
                     point_on_sensor_frame.y = obj.distance * std::sin(-obj.theta);
                 }
                 // point_on_sensor_frame.z = -sensor_frame_translation_.z;
@@ -78,7 +79,7 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
                     RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Select Wrong Target Frame: %s", target_frame_.c_str());
                 }
                 bbox.center.theta = 0.0;
-                bbox.size_x = obj.height;
+                bbox.size_x = height;
                 bbox.size_y = obj.width;
                 bbox_array.boxes.push_back(bbox);
             }
@@ -124,12 +125,13 @@ std::pair<robot_custom_msgs::msg::CameraDataArray, vision_msgs::msg::BoundingBox
                 auto bbox = vision_msgs::msg::BoundingBox2D();
 
                 tPoint point_on_sensor_frame, point_on_robot_frame;
+                double height = std::min(static_cast<double>(obj.width), 0.3);
 
                 if (direction) {
-                    point_on_sensor_frame.x = obj.distance * std::cos(obj.theta) + obj.height/2;
+                    point_on_sensor_frame.x = obj.distance * std::cos(obj.theta) + height/2;
                     point_on_sensor_frame.y = obj.distance * std::sin(obj.theta);
                 } else {
-                    point_on_sensor_frame.x = obj.distance * std::cos(-obj.theta) + obj.height/2;
+                    point_on_sensor_frame.x = obj.distance * std::cos(-obj.theta) + height/2;
                     point_on_sensor_frame.y = obj.distance * std::sin(-obj.theta);
                 }
                 // point_on_sensor_frame.z = -sensor_frame_translation_.z;
@@ -141,7 +143,7 @@ std::pair<robot_custom_msgs::msg::CameraDataArray, vision_msgs::msg::BoundingBox
                 bbox.center.position.x = point_on_robot_frame.x*robot_cos - point_on_robot_frame.y*robot_sin + robot_pose_.position.x;
                 bbox.center.position.y = point_on_robot_frame.x*robot_sin + point_on_robot_frame.y*robot_cos + robot_pose_.position.y;
                 bbox.center.theta = 0.0;
-                bbox.size_x = obj.height;
+                bbox.size_x = height;
                 bbox.size_y = obj.width;
                 bbox_array.boxes.push_back(bbox);
             }

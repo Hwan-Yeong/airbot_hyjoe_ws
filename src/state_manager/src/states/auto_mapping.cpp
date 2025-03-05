@@ -11,29 +11,31 @@ void AutoMapping::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
   stateBase::pre_run(state_utils);
   RCLCPP_INFO(node_->get_logger(), "[AutoMapping] Preparing AutoMapping STATE");
 
-  req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
-  bSavedMap = false;
+  req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);  
   mapping_start_time = std::numeric_limits<double>::max();
   if(state_utils->getNodeStatusID() == NODE_STATUS::AUTO_MAPPING || state_utils->getNodeStatusID() == NODE_STATUS::MANUAL_MAPPING){
-      exitMappingNode();
+    exitMappingNode();
   }else if(state_utils->getNodeStatusID() == NODE_STATUS::NAVI){
-      exitNavigationNode();
+    exitNavigationNode();
   }
   
-  if( state_utils->getRobotCMDID().robot_cmd != REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_AUTO_MAPPING ){
-    state_utils->startMonitorOdomReset();
-  }
-  
-  state_utils->publishAllSensorOn();
+  state_utils->startMonitorOdomReset();
+  state_utils->startSensorMonitor();
 }
 
 void AutoMapping::run(const std::shared_ptr<StateUtils> &state_utils) {
 
-  if(state_utils->isLidarSensorOK())
+  if(state_utils->isSensorReady())
   {
     if (state_utils->getOdomResetDone()){
       runAutoMapping();
+    }else if(state_utils->isOdomResetError()){
+      RCLCPP_INFO(node_->get_logger(), "[AutoMapping] Preparing OdomResetError");
     }
+  }else if(state_utils->isLidarError()){
+    RCLCPP_INFO(node_->get_logger(), "[AutoMapping] Preparing LidarError");
+  }else if(state_utils->isToFError()){
+    RCLCPP_INFO(node_->get_logger(), "[AutoMapping] Preparing ToFError");
   }
 }
 
@@ -110,7 +112,7 @@ void AutoMapping::exitNavigationNode() {
 
 void AutoMapping::map_saver() {
   int map_save_result = std::system(
-      "ros2 run nav2_map_server map_saver_cli -f /home/airbot/test1_map "
+      "ros2 run nav2_map_server map_saver_cli -f /home/airbot/app_rw/map/airbot_map_00 "
       "--ros-args -p save_map_timeout:=10.0");
   int map_save_cnt = 0;
 
@@ -120,35 +122,12 @@ void AutoMapping::map_saver() {
                    "Map save command failed with error code, trying again: %d",
                    map_save_result);
       map_save_result = std::system(
-          "ros2 run nav2_map_server map_saver_cli -f /home/airbot/test1_map "
+          "ros2 run nav2_map_server map_saver_cli -f /home/airbot/app_rw/map/airbot_map_00 "
           "--ros-args -p save_map_timeout:=10.0");
     } else {
       RCLCPP_ERROR(node_->get_logger(), "Map save command failed over 10times");
       break;
     }
-  }
-
-  if (map_save_result == 0) {
-    RCLCPP_INFO(node_->get_logger(), "Map save command executed successfully.");
-    // API_FileDelete(MapEditFile);
-    bSavedMap = true;
-    //**Saving the copy the map****
-    const std::string original_map_file = "/home/airbot/test1_map.pgm";
-    const std::string copy_map_file =
-        "/home/airbot/OriginalMap.pgm"; // Path for the duplicate map
-
-    try {
-      // Use std::filesystem to copy the original map file to a new name
-      std::filesystem::copy(original_map_file, copy_map_file,
-                            std::filesystem::copy_options::overwrite_existing);
-      RCLCPP_INFO(node_->get_logger(),
-                  "Map successfully saved as OriginalMap.pgm");
-    } catch (const std::filesystem::filesystem_error &e) {
-      RCLCPP_INFO(node_->get_logger(), "OriginalMap.pgm save fail ");
-      return;
-    }
-  } else {
-    RCLCPP_INFO(node_->get_logger(), "Map save fail");
   }
 }
 

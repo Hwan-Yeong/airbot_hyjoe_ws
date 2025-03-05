@@ -1,0 +1,37 @@
+A1_perception:
+  node:
+    period_ms: 10
+    inputs:
+      robot_position:
+        topic: "/amcl_pose"
+        type: "PoseWithCovarianceStamped"
+      multi_tof_left_row4:
+        topic: "/sensor_to_pointcloud/tof/multi/left/row_4"
+        type: "PointCloud2"
+      multi_tof_right_row4:
+        topic: "/sensor_to_pointcloud/tof/multi/right/row_4"
+        type: "PointCloud2"
+
+    layers:
+      multi_tof_4_left:
+        inputs:
+        - "multi_tof_left_row4"
+        filter:
+          compose:
+            filters:
+              drop_off:
+                min_range: 0.43
+                max_range: 0.54
+                line_length: 0.05
+                resolution: 0.05
+      multi_tof_4_right:
+        inputs:
+        - "multi_tof_right_row4"
+        filter:
+          compose:
+            filters:
+              drop_off:
+                min_range: 0.44
+                max_range: 0.50
+                line_length: 0.05
+                resolution: 0.05

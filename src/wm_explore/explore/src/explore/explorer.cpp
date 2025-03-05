@@ -44,7 +44,6 @@ namespace explore {
 
         progress_timeout_ = rclcpp::Duration(timeout_, 0.0);
 
-
         check_finish_ = 0;
         state = false;
         // init transform server
@@ -57,23 +56,21 @@ namespace explore {
                                  min_frontier_size_);
 
         RCLCPP_INFO(this->get_logger(), "potential_scale_: %f", potential_scale_);
-        // timed callback to make plan
-        unsigned int planner_period = 200; // in milli secs
-        timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(planner_period),
-            std::bind(&Explore::makePlan, this));
 
         // map subscribers
         // ros2 has no waitForMessage yet
         costmap_sub_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
-            "map", 10, std::bind(&Explore::mapReceived, this, _1));
+            "map", 10, std::bind(&Explore::mapReceived, this, _1)
+        );
 
         costmap_updates_sub_ = this->create_subscription<map_msgs::msg::OccupancyGridUpdate>(
-            "map_updates", 10, std::bind(&Explore::mapUpdateReceived, this, _1));
+            "map_updates", 10, std::bind(&Explore::mapUpdateReceived, this, _1)
+        );
 
         // visualization publisher
         marker_array_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("frontiers", 1);
         finish_pub_ = this->create_publisher<std_msgs::msg::Empty>("explore_finish", 1);
+
         // action client
         nav_to_pose_client_ = rclcpp_action::create_client<ClientT>(
             this->get_node_base_interface(),
@@ -86,9 +83,111 @@ namespace explore {
         // warmup server service client
         explore_warmup_client_ = rclcpp_action::create_client<explore_msgs::action::Warmup>(this, "/explore/warm_up");
 
+        // lifecycle node state client
+        bt_navigator_state_client = create_client<lifecycle_msgs::srv::GetState>("bt_navigator/get_state");
+        velocity_smoother_state_client = create_client<lifecycle_msgs::srv::GetState>("velocity_smoother/get_state");
+
+        if (!(wait_for_bt_navigator_active() && wait_for_velocity_smoother_active())) {
+            RCL_LOG_FATAL(this->get_logger(), "bt_navigator or velocity_smoother is not active");
+            rclcpp::shutdown();
+            return;
+        }
+
+        geometry_msgs::msg::Pose pose = get_translated_pose();
+        std::vector<Frontier> frontiers = search_.searchFrom(pose.position);
+
+        if (visualize_) {
+            visualizeFrontiers(frontiers);
+        }
+
+        if (frontiers.size() < 2) {
+            RCL_LOG_INFO(get_logger(), "frontier size is less than 2... start warm up request!");
+            sendWarmupRequest(false);
+        }
+
         debug_same_goal_cnt = 0; //debug.
 
-        sendWarmupRequest();
+        // timed callback to make plan
+        unsigned int planner_period = 200; // in milli secs
+        timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(planner_period),
+            std::bind(&Explore::makePlan, this));
+    }
+
+    bool Explore::wait_for_bt_navigator_active() {
+        if (!bt_navigator_state_client->wait_for_service(std::chrono::seconds(30))) {
+            RCLCPP_ERROR(get_logger(), "Service %s is not available.", "bt_navigator");
+            return false;
+        }
+
+        RCL_LOG_INFO(get_logger(), "Send request for check bt_navigator state");
+
+        // 요청 객체 생성 및 비동기 요청 전송
+        auto request = std::make_shared<lifecycle_msgs::srv::GetState::Request>();
+        auto future = bt_navigator_state_client->async_send_request(request);
+
+        // Send request and wait synchronously for the response
+        auto future_status = rclcpp::spin_until_future_complete(this->get_node_base_interface(), future, std::chrono::seconds(5));
+        uint8_t state_id = lifecycle_msgs::msg::State::PRIMARY_STATE_UNKNOWN;
+
+        if (future_status == rclcpp::FutureReturnCode::SUCCESS) {
+            auto response = future.get();
+            state_id = response->current_state.id;
+        } else if (future_status == rclcpp::FutureReturnCode::TIMEOUT) {
+            RCL_LOG_ERROR(get_logger(), "Timeout waiting for GetState response.");
+
+            return false;
+        } else {
+            RCL_LOG_ERROR(get_logger(), "Failed to receive a response from GetState service");
+            return false;
+        }
+
+        RCL_LOG_INFO(get_logger(), "bt_navigator state: %d", state_id);
+
+        if (valid_states_.count(state_id) > 0) {
+            RCL_LOG_INFO(get_logger(), "bt_navigator is active");
+            return true;
+        }
+
+        RCL_LOG_ERROR(get_logger(), "bt_navigator is not active");
+        return false;
+    }
+
+    bool Explore::wait_for_velocity_smoother_active() {
+        if (!velocity_smoother_state_client->wait_for_service(std::chrono::seconds(30))) {
+            RCLCPP_ERROR(get_logger(), "Service <velocity_smoother> is not available.");
+            return false;
+        }
+
+        RCL_LOG_INFO(get_logger(), "Send request for check <velocity_smoother> state");
+
+        // 요청 객체 생성 및 비동기 요청 전송
+        auto request = std::make_shared<lifecycle_msgs::srv::GetState::Request>();
+        auto future = velocity_smoother_state_client->async_send_request(request);
+
+        // Send request and wait synchronously for the response
+        auto future_status = rclcpp::spin_until_future_complete(this->get_node_base_interface(), future, std::chrono::seconds(5));
+        uint8_t state_id = lifecycle_msgs::msg::State::PRIMARY_STATE_UNKNOWN;
+
+        if (future_status == rclcpp::FutureReturnCode::SUCCESS) {
+            auto response = future.get();
+            state_id = response->current_state.id;
+        } else if (future_status == rclcpp::FutureReturnCode::TIMEOUT) {
+            RCL_LOG_ERROR(get_logger(), "Timeout waiting for <velocity_smoother> GetState response.");
+
+            return false;
+        } else {
+            RCL_LOG_ERROR(get_logger(), "Failed to receive a response from <velocity_smoother> GetState service");
+            return false;
+        }
+
+        if (valid_states_.count(state_id) > 0) {
+            RCL_LOG_INFO(get_logger(), "velocity_smoother is active");
+            return true;
+        }
+
+        RCL_LOG_ERROR(get_logger(), "velocity_smoother is not active");
+        return false;
     }
 
     void Explore::setState(EXPLORE_STATE set) {
@@ -103,6 +202,22 @@ namespace explore {
     EXPLORE_STATE Explore::getState() {
         return state_explore;
     }
+
+    geometry_msgs::msg::Pose Explore::get_translated_pose() {
+        geometry_msgs::msg::TransformStamped map_to_base_link;
+        try {
+            map_to_base_link = tf_buffer_->lookupTransform("map", "base_link", tf2::TimePointZero);
+            // RCLCPP_INFO(this->get_logger(), "Got pose");
+        } catch (tf2::TransformException &ex) {
+            // RCLCPP_INFO(this->get_logger(), "No pose");
+        }
+
+        geometry_msgs::msg::Pose pose;
+        pose.position.x = map_to_base_link.transform.translation.x;
+        pose.position.y = map_to_base_link.transform.translation.y;
+        pose.position.z = map_to_base_link.transform.translation.z;
+    }
+
 
     void Explore::mapReceived(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
         // RCLCPP_INFO(this->get_logger(), "Got new map");
@@ -122,8 +237,7 @@ namespace explore {
             // geometry_msgs::msg::Pose curr_pose = getRobotPose();
             geometry_msgs::msg::TransformStamped map_to_base_link;
             try {
-                map_to_base_link = tf_buffer_->lookupTransform(
-                    "map", "base_link", tf2::TimePointZero);
+                map_to_base_link = tf_buffer_->lookupTransform("map", "base_link", tf2::TimePointZero);
                 // RCLCPP_INFO(this->get_logger(), "Got pose");
             } catch (tf2::TransformException &ex) {
                 // RCLCPP_INFO(this->get_logger(), "No pose");
@@ -214,22 +328,22 @@ namespace explore {
             debug_same_goal_cnt = 0;
 
             // send goal to nav2
-                ClientT::Goal client_goal;
-                client_goal.pose.pose.position = target_position;
-                client_goal.pose.pose.orientation.w = 1.;
-                client_goal.pose.header.frame_id = "map";
-                client_goal.pose.header.stamp = this->now();
+            ClientT::Goal client_goal;
+            client_goal.pose.pose.position = target_position;
+            client_goal.pose.pose.orientation.w = 1.;
+            client_goal.pose.header.frame_id = "map";
+            client_goal.pose.header.stamp = this->now();
 
-                auto send_goal_options = rclcpp_action::Client<ClientT>::SendGoalOptions();
+            auto send_goal_options = rclcpp_action::Client<ClientT>::SendGoalOptions();
 
-                send_goal_options.goal_response_callback =
-                        std::bind(&Explore::goalResponseCallback, this, std::placeholders::_1);
+            send_goal_options.goal_response_callback =
+                    std::bind(&Explore::goalResponseCallback, this, std::placeholders::_1);
 
-                send_goal_options.result_callback =
-                        std::bind(&Explore::goalResultCallback, this, std::placeholders::_1);
+            send_goal_options.result_callback =
+                    std::bind(&Explore::goalResultCallback, this, std::placeholders::_1);
 
-                future_goal_handle_ =
-                        nav_to_pose_client_->async_send_goal(client_goal, send_goal_options);
+            future_goal_handle_ =
+                    nav_to_pose_client_->async_send_goal(client_goal, send_goal_options);
         }
     }
 
@@ -355,21 +469,26 @@ namespace explore {
         return true;
     }
 
-    void Explore::sendWarmupRequest() {
-        while (rclcpp::ok() && !explore_warmup_client_->wait_for_action_server(std::chrono::seconds(5))) {
-            RCLCPP_INFO(this->get_logger(), "%s():%d:Waiting for Warmup server...", __func__, __LINE__);
+    void Explore::sendWarmupRequest(bool use_angle) {
+        RCLCPP_INFO(this->get_logger(), "%s():%d:Waiting for Warmup server...", __func__, __LINE__);
+        if (!explore_warmup_client_->wait_for_action_server(std::chrono::seconds(30))) {
+            RCLCPP_FATAL(this->get_logger(), "%s():%d:Warm up server is not valid!", __func__, __LINE__);
+            rclcpp::shutdown();
+            return;
         }
 
         explore_msgs::action::Warmup::Goal goal_msg;
-        goal_msg.req_angle = false;
+        goal_msg.req_angle = use_angle;
 
         RCLCPP_INFO(this->get_logger(), "%s():%d:Send warm up request.", __func__, __LINE__);
 
         auto send_goal_options = rclcpp_action::Client<explore_msgs::action::Warmup>::SendGoalOptions();
-        send_goal_options.goal_response_callback = std::bind(&Explore::warmupResponseCallback, this,std::placeholders::_1);
+        send_goal_options.goal_response_callback = std::bind(&Explore::warmupResponseCallback, this, std::placeholders::_1);
         send_goal_options.feedback_callback = std::bind(&Explore::warmupFeedbackCallback, this, std::placeholders::_1, std::placeholders::_2);
         send_goal_options.result_callback = std::bind(&Explore::warmupResultCallback, this, std::placeholders::_1);
         this->explore_warmup_client_->async_send_goal(goal_msg, send_goal_options);
+
+        warmup_cnt_++;
     }
 
     void Explore::warmupResponseCallback(
@@ -386,15 +505,13 @@ namespace explore {
     void Explore::warmupFeedbackCallback(rclcpp_action::ClientGoalHandle<explore_msgs::action::Warmup>::SharedPtr,
                                          const std::shared_ptr<const explore_msgs::action::Warmup::Feedback> &
                                          feedback) {
-        RCLCPP_INFO(this->get_logger(), "%s():%d:Warmup in progress. {sequence: %d}\n", __func__, __LINE__,
-                    feedback->sequence);
+        RCLCPP_INFO(this->get_logger(), "%s():%d:Warmup in progress. {sequence: %d}\n", __func__, __LINE__, feedback->sequence);
     }
 
     void Explore::warmupResultCallback(
         const rclcpp_action::ClientGoalHandle<explore_msgs::action::Warmup>::WrappedResult &result) {
         switch (result.code) {
             case rclcpp_action::ResultCode::SUCCEEDED:
-                is_warm_up_completed_ = true;
                 RCLCPP_INFO(this->get_logger(), "%s():%d:Warmup request succeeded!", __func__, __LINE__);
                 break;
             case rclcpp_action::ResultCode::ABORTED:
@@ -404,6 +521,24 @@ namespace explore {
                 RCLCPP_WARN(this->get_logger(), "%s():%d:Warmup request canceled!", __func__, __LINE__);
                 break;
         }
-        sleep(2);
+
+        geometry_msgs::msg::Pose pose = get_translated_pose();
+        std::vector<Frontier> frontiers = search_.searchFrom(pose.position);
+        if (visualize_) {
+            visualizeFrontiers(frontiers);
+        }
+
+        sleep(1);
+
+        if (warmup_cnt_ >= 2) {
+            is_warm_up_completed_ = true;
+            return;
+        }
+
+        if (frontiers.size() < 2) {
+            sendWarmupRequest(false);
+        } else {
+            is_warm_up_completed_ = true;
+        }
     }
 } // namespace explore

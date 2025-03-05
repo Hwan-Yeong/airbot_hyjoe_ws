@@ -13,7 +13,7 @@ find_package(rclpy REQUIRED)
 # find_package(<dependency> REQUIRED)
 
 
-install(DIRECTORY launch rviz params maps behavior_tree
+install(DIRECTORY launch rviz params behavior_tree
   DESTINATION share/${PROJECT_NAME})
 
 

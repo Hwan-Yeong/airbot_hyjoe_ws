@@ -26,8 +26,7 @@ public:
   void exitMappingNode();
   void exitNavigationNode();
 
-  double mapping_start_time;
-  bool bSavedMap;
+  double mapping_start_time;  
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_robot_cmd_pub_;
 
 };
