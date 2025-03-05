@@ -38,37 +38,45 @@ include_directories(
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-
-add_executable(airbot_lidar sdk/mtime.cpp sdk/node_lidar.cpp sdk/serial_port.cpp sdk/timer.cpp sdk/lidar_data_processing.cpp sdk/point_cloud_optimize.cpp sdk/calibration.cpp src/lidar/node_lidar_ros.cpp)
-
+####### airbot_lidar #######
+add_executable(airbot_lidar
+  src/lidar/node_lidar_ros.cpp
+  sdk/calibration.cpp
+  sdk/lidar_data_processing.cpp
+  sdk/mtime.cpp
+  sdk/node_lidar.cpp
+  sdk/point_cloud_optimize.cpp
+  sdk/serial_port.cpp
+  sdk/timer.cpp
+)
 ament_target_dependencies(airbot_lidar
-  "rclcpp"
-  "sensor_msgs"
-  "visualization_msgs"
-  "geometry_msgs"
+  rclcpp
+  sensor_msgs
+  visualization_msgs
+  geometry_msgs
+)
+install(TARGETS airbot_lidar
+  DESTINATION lib/${PROJECT_NAME}
 )
 
-install(TARGETS
-  airbot_lidar
-  DESTINATION lib/${PROJECT_NAME})
-
-# merger 
-
-add_executable(airbot_lidar_merger src/scan_merger/laser_scan_merger.cpp)
+####### airbot_scan_merger #######
+add_executable(airbot_lidar_merger
+  src/scan_merger/laser_scan_merger.cpp
+)
 ament_target_dependencies(airbot_lidar_merger 
-    rclcpp 
-    std_msgs 
-    sensor_msgs
-    pcl_conversions
-    rcl_interfaces
-    rcutils
-    tf2_geometry_msgs
-    geometry_msgs
-  )
+  rclcpp 
+  std_msgs 
+  sensor_msgs
+  pcl_conversions
+  rcl_interfaces
+  rcutils
+  tf2_geometry_msgs
+  geometry_msgs
+)
+install(TARGETS airbot_lidar_merger
+  DESTINATION lib/${PROJECT_NAME}
+)
 
-install(TARGETS
-airbot_lidar_merger
-  DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch config sdk 
   DESTINATION share/${PROJECT_NAME})

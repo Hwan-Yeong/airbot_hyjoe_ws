@@ -6,28 +6,16 @@ from launch.substitutions import LaunchConfiguration
 import os
 
 def generate_launch_description():
-    scan_front_param_file = LaunchConfiguration('scan_front_params_file')
-    scan_back_param_file = LaunchConfiguration('scan_back_params_file')
-    # 기본 노드 파라미터 파일
-    scan_front_params_declare = DeclareLaunchArgument(
-        'scan_front_params_file',
-        default_value=os.path.join(
-            get_package_share_directory('airbot_lidar'),
-            'config',
-            'airbot_lidar_front.yaml'
-        ),
-        description='Path to scan_front parameters file.'
-    )
+    param_file = LaunchConfiguration('airbot_lidar_params')
 
-    # 추가 파라미터 파일
-    scan_back_params_declare = DeclareLaunchArgument(
-        'scan_back_params_file',
+    scan_params_declare = DeclareLaunchArgument(
+        'airbot_lidar_params',
         default_value=os.path.join(
             get_package_share_directory('airbot_lidar'),
             'config',
-            'airbot_lidar_back.yaml'
+            'airbot_lidar_params.yaml'
         ),
-        description='Path to scan_back parameters file.'
+        description='Path to airbot_lidar parameters file.'
     )
 
     scan_front_node = Node(
@@ -36,7 +24,7 @@ def generate_launch_description():
         name='airbot_lidar_front',
         output='screen',
         emulate_tty=True,
-        parameters=[scan_front_param_file],
+        parameters=[param_file],
         namespace='/',
         remappings=[
             ('/scan', '/scan_front'),  # '/scan'을 '/scan2'로 remap
@@ -51,7 +39,7 @@ def generate_launch_description():
         name='airbot_lidar_back',
         output='screen',
         emulate_tty=True,
-        parameters=[scan_back_param_file],
+        parameters=[param_file],
         namespace='/',
         remappings=[
             ('/scan', '/scan_back'),  # '/scan'을 '/scan2'로 remap
@@ -61,8 +49,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        scan_front_params_declare,
-        scan_back_params_declare,
+        scan_params_declare,
         scan_front_node,
         scan_back_node,
     ])
