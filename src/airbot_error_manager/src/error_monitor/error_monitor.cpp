@@ -42,7 +42,7 @@ void ErrorMonitor::errorMonitor()
     // board temperature monitor
     if(board_temperature_monitor_.errorMonitor()) {
         error_msg.data = true;
-        fall_down_error_pub_->publish(error_msg);
+        board_temperature_error_pub_->publish(error_msg);
     } else {
         // 해제 조건 결정되면 false로 보내든가...
     }
