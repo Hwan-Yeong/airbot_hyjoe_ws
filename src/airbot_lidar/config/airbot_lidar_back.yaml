@@ -1,4 +1,4 @@
-airbot_lidar_2:
+airbot_lidar_back:
   ros__parameters:
     port: "/dev/sc_mini2"
     frame_id: "base_scan_back"

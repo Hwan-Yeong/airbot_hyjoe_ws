@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-
+cmake_policy(SET CMP0074 NEW)
 project(airbot_lidar)
 
 # Default to C++14
@@ -70,7 +70,7 @@ install(TARGETS
 airbot_lidar_merger
   DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY launch params config sdk 
+install(DIRECTORY launch config sdk 
   DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)

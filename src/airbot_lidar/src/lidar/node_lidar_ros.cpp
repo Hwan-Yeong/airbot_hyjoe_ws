@@ -161,7 +161,7 @@ int main(int argc, char **argv)
 				std::vector<float> filtered_ranges;
 				std::vector<float> filtered_intensities;
 
-				for (int i = 0; i < scan.points.size(); i++) {
+				for (size_t i = 0; i < scan.points.size(); i++) {
 					float angle = scan.config.min_angle + i * scan.config.angle_increment;
 
 					if (angle >= min_angle && angle <= max_angle) {
