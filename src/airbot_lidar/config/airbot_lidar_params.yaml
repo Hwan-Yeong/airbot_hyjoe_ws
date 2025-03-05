@@ -70,8 +70,11 @@
     qos_overrides./parameter_events.publisher.reliability: best_effort
     use_sim_time: false #false
 
-/pointcloud_to_laserscan:
+/airbot_pointcloud_to_laserscan:
   ros__parameters:
+    target_frame: base_scan
+    pointcloud_topic: /scan_merged_pointcloud
+    laserscan_topic: /scan
     angle_increment: 0.0157 #2.68/400 = 0.0157 #이전 값 : 0.0087
     angle_max: 3.14
     angle_min: -3.14
@@ -87,7 +90,6 @@
     range_max: 8.0
     range_min: 0.1
     scan_time: 0.1
-    target_frame: base_scan
     transform_tolerance: 0.01
     use_inf: true
     use_sim_time: false #false

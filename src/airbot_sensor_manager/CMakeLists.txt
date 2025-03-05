@@ -48,15 +48,6 @@ ament_target_dependencies(sensor_to_pointcloud
 install(TARGETS sensor_to_pointcloud
 DESTINATION lib/${PROJECT_NAME}
 )
-install(DIRECTORY include/airbot_sensor_to_pointcloud/
-  DESTINATION include/airbot_sensor_to_pointcloud
-)
-install(DIRECTORY include/logger/
-  DESTINATION include/logger
-)
-install(DIRECTORY include/utils/
-  DESTINATION include/utils
-)
 
 ################################
 ######### PARAM_SETTER #########
@@ -71,12 +62,12 @@ ament_target_dependencies(param_setter
 install(TARGETS param_setter
   DESTINATION lib/${PROJECT_NAME}
 )
-install(DIRECTORY include/dynamic_param_setter/
-  DESTINATION include/dynamic_param_setter
-)
 
 ################################
 ############ GENERAL ###########
+install(DIRECTORY include/
+  DESTINATION include
+)
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}
 )

@@ -23,8 +23,10 @@ find_package(std_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(rcutils REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_sensor_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
+find_package(message_filters REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(PCL REQUIRED)
 #find_package(rosidl_default_generators REQUIRED)
@@ -77,7 +79,25 @@ install(TARGETS airbot_lidar_merger
   DESTINATION lib/${PROJECT_NAME}
 )
 
+####### airbot_pointcloud_to_laserscan #######
+add_executable(pointcloud_to_laserscan_node
+  src/pointcloud_to_laserscan/pointcloud_to_laserscan_node.cpp
+)
+ament_target_dependencies(pointcloud_to_laserscan_node 
+  rclcpp
+  tf2_ros
+  tf2_sensor_msgs
+  sensor_msgs
+  message_filters
+)
+install(TARGETS pointcloud_to_laserscan_node
+  DESTINATION lib/${PROJECT_NAME}
+)
 
+####### general #######
+install(DIRECTORY include/
+  DESTINATION include
+)
 install(DIRECTORY launch config sdk 
   DESTINATION share/${PROJECT_NAME})
 
