@@ -95,7 +95,7 @@ SensorToPointcloud::SensorToPointcloud()
     cliff_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
         "bottom_ir_data", 10, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1));
     collision_sub_ = this->create_subscription<robot_custom_msgs::msg::AbnormalEventData>(
-        "collision_detection", 10, std::bind(&SensorToPointcloud::collisionMsgUpdate, this, std::placeholders::_1));
+        "collision_detected", 10, std::bind(&SensorToPointcloud::collisionMsgUpdate, this, std::placeholders::_1));
 
     // Msg Publishers
     if (use_tof_) {
