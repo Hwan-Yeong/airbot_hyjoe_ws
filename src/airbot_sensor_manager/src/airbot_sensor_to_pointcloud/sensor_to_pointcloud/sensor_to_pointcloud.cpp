@@ -53,10 +53,7 @@ SensorToPointcloud::SensorToPointcloud()
             if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
                 std::string before = target_frame_;
                 target_frame_ = param.as_string();
-                point_cloud_tof_.updateTargetFrame(target_frame_);
-                bounding_box_generator_.updateTargetFrame(target_frame_);
-                point_cloud_cliff_.updateTargetFrame(target_frame_);
-                point_cloud_collosion_.updateTargetFrame(target_frame_);
+                updateTargetFrames(target_frame_);
                 std::string after;
                 if (this->get_parameter("target_frame", after)) {
                     RCLCPP_INFO(this->get_logger(), "[=== Updating target_frame: %s -> %s ===]", before.c_str(), after.c_str());
@@ -68,10 +65,7 @@ SensorToPointcloud::SensorToPointcloud()
     );
 
     // Update Parameters
-    point_cloud_tof_.updateTargetFrame(target_frame_);
-    bounding_box_generator_.updateTargetFrame(target_frame_);
-    point_cloud_cliff_.updateTargetFrame(target_frame_);
-    point_cloud_collosion_.updateTargetFrame(target_frame_);
+    updateTargetFrames(target_frame_);
     camera_object_logger_.updateParams(camera_logger_distance_margin_,camera_logger_width_margin_,camera_logger_height_margin_);
     for (const auto& item : camera_param_raw_vector_) {
         std::istringstream ss(item);
@@ -150,6 +144,36 @@ SensorToPointcloud::SensorToPointcloud()
 SensorToPointcloud::~SensorToPointcloud()
 {
     param_handler_.reset();
+}
+
+void SensorToPointcloud::publisherMonitor()
+{
+    static int inactive_cnt = 0;
+    if (!isActiveSensorToPointcloud) {
+        inactive_cnt++;
+        if (inactive_cnt >= 1000) { // 10초에 한번 출력
+            RCLCPP_INFO(this->get_logger(), "Sensor to Pointcloud is not active yet.");
+            inactive_cnt = 0;
+        }
+        initVariables();
+        return;
+    }
+    inactive_cnt = 0;
+
+    // publish_cnt
+    countPublishHz();
+    
+    // msg Reset
+    pc_msgReset();
+    
+    // publish pointCloud Data
+    pubTofPointcloudMsg();
+    pubCameraPointcloudMsg();
+    pubCliffPointcloudMsg();
+    pubCollisionPointcloudMsg();
+    
+    // Adjust the publishing rate for each sensor independently
+    checkPublishCnt();
 }
 
 void SensorToPointcloud::declareParams()
@@ -279,132 +303,6 @@ void SensorToPointcloud::initVariables()
     publish_cnt_collision_ = 0;
 }
 
-void SensorToPointcloud::publisherMonitor()
-{
-    static int inactive_cnt = 0;
-    if (!isActiveSensorToPointcloud) {
-        inactive_cnt++;
-        if (inactive_cnt >= 1000) {
-            RCLCPP_INFO(this->get_logger(), "Sensor to Pointcloud is not active yet.");
-            inactive_cnt = 0;
-        }
-        initVariables();
-        return;
-    }
-    inactive_cnt = 0;
-
-    publish_cnt_1d_tof_ += 10;
-    publish_cnt_multi_tof_ += 10;
-    publish_cnt_row_tof_ += 10;
-    publish_cnt_camera_ += 10;
-    publish_cnt_cliff_ += 10;
-    publish_cnt_collision_ += 10;
-
-    // msg Reset
-    if (!isTofUpdating) {
-        if (use_tof_1D_) {
-            pc_tof_1d_msg = sensor_msgs::msg::PointCloud2(); //clear
-        }
-        if (use_tof_left_ || use_tof_right_) {
-            pc_tof_multi_msg = sensor_msgs::msg::PointCloud2(); //clear
-        }
-        if (use_tof_row_) {
-            if (use_tof_left_) {
-                pc_tof_left_row1_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_left_row2_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_left_row3_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_left_row4_msg = sensor_msgs::msg::PointCloud2(); //clear
-            }
-            if (use_tof_right_) {
-                pc_tof_right_row1_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_right_row2_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_right_row3_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_right_row4_msg = sensor_msgs::msg::PointCloud2(); //clear
-            }
-        }
-    }
-    if (!isCameraUpdating) {
-        if (use_camera_) {
-            pc_camera_msg = sensor_msgs::msg::PointCloud2(); //clear
-            bbox_msg = vision_msgs::msg::BoundingBox2DArray(); //clear
-            marker_msg = visualization_msgs::msg::MarkerArray(); //clear
-        }
-    }
-    if (!isCliffUpdating) {
-        if (use_cliff_) {
-            pc_cliff_msg = sensor_msgs::msg::PointCloud2();
-        }
-    }
-    if (!isCollisionUpdating) {
-        if (use_collision_) {
-            pc_collision_msg = sensor_msgs::msg::PointCloud2();
-        }
-    }
-
-    // publish pointCloud Data
-    if (use_tof_ && isTofUpdating) { // ToF
-        if (use_tof_1D_) {
-            if (publish_cnt_1d_tof_ >= publish_rate_1d_tof_) {
-                pc_tof_1d_pub_->publish(pc_tof_1d_msg);
-                publish_cnt_1d_tof_ = 0;
-            }
-        }
-        if (use_tof_left_ || use_tof_right_) {
-            if (publish_cnt_multi_tof_ >= publish_rate_multi_tof_) {
-                pc_tof_multi_pub_->publish(pc_tof_multi_msg);
-                publish_cnt_multi_tof_ = 0;
-            }
-        }
-        if (use_tof_row_) {
-            if (publish_cnt_row_tof_ >= publish_rate_row_tof_) {
-                if (use_tof_left_) {
-                    pc_tof_left_row1_pub_->publish(pc_tof_left_row1_msg);
-                    pc_tof_left_row2_pub_->publish(pc_tof_left_row2_msg);
-                    pc_tof_left_row3_pub_->publish(pc_tof_left_row3_msg);
-                    pc_tof_left_row4_pub_->publish(pc_tof_left_row4_msg);
-                }
-                if (use_tof_right_) {
-                    pc_tof_right_row1_pub_->publish(pc_tof_right_row1_msg);
-                    pc_tof_right_row2_pub_->publish(pc_tof_right_row2_msg);
-                    pc_tof_right_row3_pub_->publish(pc_tof_right_row3_msg);
-                    pc_tof_right_row4_pub_->publish(pc_tof_right_row4_msg);
-                }
-                publish_cnt_row_tof_ = 0;
-            }
-        }
-        isTofUpdating = false;
-    }
-    if (use_camera_ && isCameraUpdating) { // Camera
-        if (publish_cnt_camera_ >= publish_rate_camera_) {
-            pc_camera_pub_->publish(pc_camera_msg);
-            bbox_array_camera_pub_->publish(bbox_msg);
-            isCameraUpdating = false;
-            publish_cnt_camera_ = 0;
-        }
-    }
-    if (use_cliff_ && isCliffUpdating) {
-        if (publish_cnt_cliff_ >= publish_rate_cliff_) {
-            pc_cliff_pub_->publish(pc_cliff_msg);
-            isCliffUpdating = false;
-            publish_cnt_cliff_ = 0;
-        }
-    }
-    if (use_collision_ && isCollisionUpdating) {
-        if (publish_cnt_collision_ >= publish_rate_collision_) {
-            pc_collision_pub_->publish(pc_collision_msg);
-            isCollisionUpdating = false;
-            publish_cnt_collision_ = 0;
-        }
-    }
-
-    if (publish_cnt_1d_tof_ > 10000)     publish_cnt_1d_tof_ = 0;
-    if (publish_cnt_multi_tof_ > 10000)  publish_cnt_multi_tof_ = 0;
-    if (publish_cnt_row_tof_ > 10000)    publish_cnt_row_tof_ = 0;
-    if (publish_cnt_camera_ > 10000)     publish_cnt_camera_ = 0;
-    if (publish_cnt_cliff_ > 10000)      publish_cnt_cliff_ = 0;
-    if (publish_cnt_collision_ > 10000)  publish_cnt_collision_ = 0;
-}
-
 void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg)
 {
     if (msg) {
@@ -505,4 +403,146 @@ void SensorToPointcloud::collisionMsgUpdate(const robot_custom_msgs::msg::Abnorm
     }
 
     isCollisionUpdating = true;
+}
+
+void SensorToPointcloud::updateTargetFrames(std::string target_frame)
+{
+    point_cloud_tof_.updateTargetFrame(target_frame);
+    bounding_box_generator_.updateTargetFrame(target_frame);
+    point_cloud_cliff_.updateTargetFrame(target_frame);
+    point_cloud_collosion_.updateTargetFrame(target_frame);
+}
+
+// Reset point cloud when the message is not updated
+void SensorToPointcloud::pc_msgReset()
+{
+    if (!isTofUpdating) {
+        if (use_tof_1D_) {
+            pc_tof_1d_msg = sensor_msgs::msg::PointCloud2(); //clear
+        }
+        if (use_tof_left_ || use_tof_right_) {
+            pc_tof_multi_msg = sensor_msgs::msg::PointCloud2(); //clear
+        }
+        if (use_tof_row_) {
+            if (use_tof_left_) {
+                pc_tof_left_row1_msg = sensor_msgs::msg::PointCloud2(); //clear
+                pc_tof_left_row2_msg = sensor_msgs::msg::PointCloud2(); //clear
+                pc_tof_left_row3_msg = sensor_msgs::msg::PointCloud2(); //clear
+                pc_tof_left_row4_msg = sensor_msgs::msg::PointCloud2(); //clear
+            }
+            if (use_tof_right_) {
+                pc_tof_right_row1_msg = sensor_msgs::msg::PointCloud2(); //clear
+                pc_tof_right_row2_msg = sensor_msgs::msg::PointCloud2(); //clear
+                pc_tof_right_row3_msg = sensor_msgs::msg::PointCloud2(); //clear
+                pc_tof_right_row4_msg = sensor_msgs::msg::PointCloud2(); //clear
+            }
+        }
+    }
+    if (!isCameraUpdating) {
+        if (use_camera_) {
+            pc_camera_msg = sensor_msgs::msg::PointCloud2(); //clear
+            bbox_msg = vision_msgs::msg::BoundingBox2DArray(); //clear
+            marker_msg = visualization_msgs::msg::MarkerArray(); //clear
+        }
+    }
+    if (!isCliffUpdating) {
+        if (use_cliff_) {
+            pc_cliff_msg = sensor_msgs::msg::PointCloud2();
+        }
+    }
+    if (!isCollisionUpdating) {
+        if (use_collision_) {
+            pc_collision_msg = sensor_msgs::msg::PointCloud2();
+        }
+    }
+}
+
+void SensorToPointcloud::pubTofPointcloudMsg()
+{
+    if (use_tof_ && isTofUpdating) {
+        if (use_tof_1D_) {
+            if (publish_cnt_1d_tof_ >= publish_rate_1d_tof_) {
+                pc_tof_1d_pub_->publish(pc_tof_1d_msg);
+                publish_cnt_1d_tof_ = 0;
+            }
+        }
+        if (use_tof_left_ || use_tof_right_) {
+            if (publish_cnt_multi_tof_ >= publish_rate_multi_tof_) {
+                pc_tof_multi_pub_->publish(pc_tof_multi_msg);
+                publish_cnt_multi_tof_ = 0;
+            }
+        }
+        if (use_tof_row_) {
+            if (publish_cnt_row_tof_ >= publish_rate_row_tof_) {
+                if (use_tof_left_) {
+                    pc_tof_left_row1_pub_->publish(pc_tof_left_row1_msg);
+                    pc_tof_left_row2_pub_->publish(pc_tof_left_row2_msg);
+                    pc_tof_left_row3_pub_->publish(pc_tof_left_row3_msg);
+                    pc_tof_left_row4_pub_->publish(pc_tof_left_row4_msg);
+                }
+                if (use_tof_right_) {
+                    pc_tof_right_row1_pub_->publish(pc_tof_right_row1_msg);
+                    pc_tof_right_row2_pub_->publish(pc_tof_right_row2_msg);
+                    pc_tof_right_row3_pub_->publish(pc_tof_right_row3_msg);
+                    pc_tof_right_row4_pub_->publish(pc_tof_right_row4_msg);
+                }
+                publish_cnt_row_tof_ = 0;
+            }
+        }
+        isTofUpdating = false;
+    }
+}
+
+void SensorToPointcloud::pubCameraPointcloudMsg()
+{
+    if (use_camera_ && isCameraUpdating) {
+        if (publish_cnt_camera_ >= publish_rate_camera_) {
+            pc_camera_pub_->publish(pc_camera_msg);
+            bbox_array_camera_pub_->publish(bbox_msg);
+            isCameraUpdating = false;
+            publish_cnt_camera_ = 0;
+        }
+    }
+}
+
+void SensorToPointcloud::pubCliffPointcloudMsg()
+{
+    if (use_cliff_ && isCliffUpdating) {
+        if (publish_cnt_cliff_ >= publish_rate_cliff_) {
+            pc_cliff_pub_->publish(pc_cliff_msg);
+            isCliffUpdating = false;
+            publish_cnt_cliff_ = 0;
+        }
+    }
+}
+
+void SensorToPointcloud::pubCollisionPointcloudMsg()
+{
+    if (use_collision_ && isCollisionUpdating) {
+        if (publish_cnt_collision_ >= publish_rate_collision_) {
+            pc_collision_pub_->publish(pc_collision_msg);
+            isCollisionUpdating = false;
+            publish_cnt_collision_ = 0;
+        }
+    }
+}
+
+void SensorToPointcloud::countPublishHz()
+{
+    publish_cnt_1d_tof_ += 10;
+    publish_cnt_multi_tof_ += 10;
+    publish_cnt_row_tof_ += 10;
+    publish_cnt_camera_ += 10;
+    publish_cnt_cliff_ += 10;
+    publish_cnt_collision_ += 10;
+}
+
+void SensorToPointcloud::checkPublishCnt()
+{
+    if (publish_cnt_1d_tof_ > 10000)     publish_cnt_1d_tof_ = 0;
+    if (publish_cnt_multi_tof_ > 10000)  publish_cnt_multi_tof_ = 0;
+    if (publish_cnt_row_tof_ > 10000)    publish_cnt_row_tof_ = 0;
+    if (publish_cnt_camera_ > 10000)     publish_cnt_camera_ = 0;
+    if (publish_cnt_cliff_ > 10000)      publish_cnt_cliff_ = 0;
+    if (publish_cnt_collision_ > 10000)  publish_cnt_collision_ = 0;
 }

@@ -91,16 +91,24 @@ private:
 
     bool isTofUpdating, isCameraUpdating, isCliffUpdating, isCollisionUpdating;
 
+    void publisherMonitor();
     void declareParams();
     void setParams();
     void printParams();
     void initVariables();
-    void publisherMonitor();
     void activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
     void cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
     void collisionMsgUpdate(const robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg);
+    void updateTargetFrames(std::string target_frame);
+    void pc_msgReset();
+    void pubTofPointcloudMsg();
+    void pubCameraPointcloudMsg();
+    void pubCliffPointcloudMsg();
+    void pubCollisionPointcloudMsg();
+    void countPublishHz();
+    void checkPublishCnt();
 };
 
 #endif // SENSOR_TO_POINTCLOUD
