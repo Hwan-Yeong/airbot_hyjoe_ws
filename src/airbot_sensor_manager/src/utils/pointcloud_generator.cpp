@@ -123,7 +123,7 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(co
     field_z.count = 1;
 
     msg.fields = {field_x, field_y, field_z};
-    
+
     msg.data.resize(msg.row_step);
     size_t max_size = msg.data.size();
     uint8_t* ptr = msg.data.data();

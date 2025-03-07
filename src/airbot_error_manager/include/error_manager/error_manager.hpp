@@ -60,7 +60,7 @@ private:
 
 private:
     void publishErrorList();
-    
+
     void leftMotorStuckErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void rightMotorStuckErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void scanDirtyFrontErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);

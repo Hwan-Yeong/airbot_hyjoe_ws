@@ -30,7 +30,7 @@ ErrorManager::ErrorManager()
         "/todo4",
         100,std::bind(&ErrorManager::chargingErrorCallback, this, std::placeholders::_1)
     );
-    
+
     // F-error
     f_battery_charging_overcurrent_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
         "/todo5",
@@ -98,7 +98,7 @@ ErrorManager::ErrorManager()
         "/todo18",
         100,std::bind(&ErrorManager::stationOverHeatErrorCallback, this, std::placeholders::_1)
     );
-    
+
     error_list_pub_ = this->create_publisher<robot_custom_msgs::msg::ErrorListArray>("/error_list", 10);
 
     pub_timer_ = this->create_wall_timer(
@@ -117,7 +117,7 @@ void ErrorManager::publishErrorList()
     for (auto it = error_list_.begin(); it != error_list_.end();) {
         auto& error = **it;
         error.count++;
-        
+
         robot_custom_msgs::msg::ErrorList error_msg;
         error_msg.count = error.count;
         error_msg.rank = error.rank;
@@ -539,8 +539,8 @@ void ErrorManager::printErrorList(){
         "================= Num of error: %d =================",
         static_cast<int>(error_list_.size()));
     for (const auto& error : error_list_) {
-        RCLCPP_INFO(this->get_logger(), 
-            "Error - Rank: %d, Code: %s, Count: %d", 
+        RCLCPP_INFO(this->get_logger(),
+            "Error - Rank: %d, Code: %s, Count: %d",
             error->rank, error->error_code.c_str(), error->count);
     }
 }

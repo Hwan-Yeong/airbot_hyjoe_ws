@@ -162,16 +162,16 @@ void SensorToPointcloud::publisherMonitor()
 
     // publish_cnt
     countPublishHz();
-    
+
     // msg Reset
     pc_msgReset();
-    
+
     // publish pointCloud Data
     pubTofPointcloudMsg();
     pubCameraPointcloudMsg();
     pubCliffPointcloudMsg();
     pubCollisionPointcloudMsg();
-    
+
     // Adjust the publishing rate for each sensor independently
     checkPublishCnt();
 }
@@ -269,9 +269,9 @@ void SensorToPointcloud::printParams()
         RCLCPP_INFO(this->get_logger(), "    Class ID: %d, Confidence: %d", conf.first, conf.second);
     }
     RCLCPP_INFO(this->get_logger(), "  Camera Logger Use: %d", use_camera_object_logger_);
-    RCLCPP_INFO(this->get_logger(), "  Camera Logger Margins: Distance Diff: %.2f, Width Diff: %.2f, Height Diff: %.2f", 
-                camera_logger_distance_margin_, 
-                camera_logger_width_margin_, 
+    RCLCPP_INFO(this->get_logger(), "  Camera Logger Margins: Distance Diff: %.2f, Width Diff: %.2f, Height Diff: %.2f",
+                camera_logger_distance_margin_,
+                camera_logger_width_margin_,
                 camera_logger_height_margin_);
 
     // Cliff Settings

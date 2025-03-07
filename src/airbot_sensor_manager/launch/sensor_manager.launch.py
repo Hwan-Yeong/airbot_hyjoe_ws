@@ -14,13 +14,13 @@ def generate_launch_description():
         'launch',
         'sensor_to_pointcloud.launch.py'
     )
-    
+
     param_setter_launch = os.path.join(
         get_package_share_directory('airbot_sensor_manager'),
         'launch',
         'param_setter.launch.py'
     )
-    
+
     return LaunchDescription([
         DeclareLaunchArgument(
             'params_file',

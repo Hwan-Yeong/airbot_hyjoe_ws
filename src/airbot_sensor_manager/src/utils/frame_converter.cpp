@@ -79,11 +79,11 @@ std::vector<tPoint> FrameConverter::transformCollisionData2RobotFrame(robot_cust
     std::vector<tPoint> points;
     if (msg->event_trigger) {
         tPoint collision_point;
-    
+
         collision_point.x = offset_m;
         collision_point.y = 0.0;
         collision_point.z = 0.0;
-    
+
         points.push_back(collision_point);
     }
     return points;

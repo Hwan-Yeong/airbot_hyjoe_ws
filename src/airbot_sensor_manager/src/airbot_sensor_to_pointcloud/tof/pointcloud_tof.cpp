@@ -130,11 +130,11 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
                                                                                                 tof_bot_right_sensor_frame_yaw_ang_,
                                                                                                 tof_bot_right_sensor_frame_pitch_ang_,
                                                                                                 tof_bot_translation_);
-        multi_tof_points_on_robot_frame.insert(multi_tof_points_on_robot_frame.end(), 
-                                               multi_left_tof_points_on_robot_frame.begin(), 
+        multi_tof_points_on_robot_frame.insert(multi_tof_points_on_robot_frame.end(),
+                                               multi_left_tof_points_on_robot_frame.begin(),
                                                multi_left_tof_points_on_robot_frame.end());
-        multi_tof_points_on_robot_frame.insert(multi_tof_points_on_robot_frame.end(), 
-                                               multi_right_tof_points_on_robot_frame.begin(), 
+        multi_tof_points_on_robot_frame.insert(multi_tof_points_on_robot_frame.end(),
+                                               multi_right_tof_points_on_robot_frame.begin(),
                                                multi_right_tof_points_on_robot_frame.end());
         if (target_frame_ == "map") {
             multi_tof_points_on_map_frame = frame_converter_.transformRobot2GlobalFrame(multi_tof_points_on_robot_frame,
@@ -153,10 +153,10 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
                                                 multi_tof_points_on_map_frame.begin() + start_index);
             zero_dist_index.erase(zero_dist_index.begin(),
                                   zero_dist_index.begin() + start_index);
-            if ((end_index - start_index) < static_cast<int>(multi_tof_points_on_map_frame.size())) {  
-                multi_tof_points_on_map_frame.erase(multi_tof_points_on_map_frame.begin() + (end_index - start_index), 
+            if ((end_index - start_index) < static_cast<int>(multi_tof_points_on_map_frame.size())) {
+                multi_tof_points_on_map_frame.erase(multi_tof_points_on_map_frame.begin() + (end_index - start_index),
                                                     multi_tof_points_on_map_frame.end());
-                zero_dist_index.erase(zero_dist_index.begin() + (end_index - start_index), 
+                zero_dist_index.erase(zero_dist_index.begin() + (end_index - start_index),
                                       zero_dist_index.end());
             }
         } else if (target_frame_ == "base_link") {
@@ -164,10 +164,10 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
                                                   multi_tof_points_on_robot_frame.begin() + start_index);
             zero_dist_index.erase(zero_dist_index.begin(),
                                   zero_dist_index.begin() + start_index);
-            if ((end_index - start_index) < static_cast<int>(multi_tof_points_on_robot_frame.size())) {  
-                multi_tof_points_on_robot_frame.erase(multi_tof_points_on_robot_frame.begin() + (end_index - start_index), 
+            if ((end_index - start_index) < static_cast<int>(multi_tof_points_on_robot_frame.size())) {
+                multi_tof_points_on_robot_frame.erase(multi_tof_points_on_robot_frame.begin() + (end_index - start_index),
                                                       multi_tof_points_on_robot_frame.end());
-                zero_dist_index.erase(zero_dist_index.begin() + (end_index - start_index), 
+                zero_dist_index.erase(zero_dist_index.begin() + (end_index - start_index),
                                       zero_dist_index.end());
             }
         }
@@ -196,11 +196,11 @@ std::vector<tPoint> PointCloudTof::transformTofMsg2PointsOnSensorFrame(std::vect
                                   tof_bot_col_2_xy_tan_, tof_bot_col_1_xy_tan_};
     const double z_sine[ROWS] = {tof_bot_row_1_z_tan_, tof_bot_row_2_z_tan_,
                                  tof_bot_row_3_z_tan_, tof_bot_row_4_z_tan_};
-    
+
     for (int row = 0; row < ROWS; ++row) {
         for (int col = 0; col < COLS; ++col) {
             int index = row * COLS + col;
-            
+
             if (!isBothSide) {
                 if (input_tof_dist[index] > 0.001) { // 0값 필터링을 위한 인덱스 저장
                     zero_dist_index[index] = false;
@@ -222,7 +222,7 @@ std::vector<tPoint> PointCloudTof::transformTofMsg2PointsOnSensorFrame(std::vect
             points.push_back(p);
         }
     }
-    
+
     return points;
 }
 

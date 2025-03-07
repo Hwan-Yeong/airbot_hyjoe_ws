@@ -12,7 +12,7 @@ ErrorMonitor::ErrorMonitor()
     imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
         "imu_data", 10, std::bind(&ErrorMonitor::imuCallback, this, std::placeholders::_1)
     );
-    
+
     // Publisher
     board_temperature_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/board_temp", 10);
     fall_down_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/fall_down", 10);

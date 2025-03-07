@@ -1,6 +1,6 @@
 airbot_sensor_to_pointcloud:
   ros__parameters:
-  
+
     target_frame: "map" # "map" or "base_link"
 
     tof:
@@ -19,7 +19,7 @@ airbot_sensor_to_pointcloud:
         row:
           use: true
           publish_rate_ms: 50
-    
+
     camera:
       use: true
       publish_rate_ms: 100
@@ -35,7 +35,7 @@ airbot_sensor_to_pointcloud:
           distance_diff: 0.5
           width_diff: 0.1
           height_diff: 0.1
-    
+
     cliff:
       use: true
       publish_rate_ms: 10
@@ -43,7 +43,7 @@ airbot_sensor_to_pointcloud:
     collision:
       use: true
       publish_rate_ms: 10
-  
+
     use_sim_time: false
 
 ################################

@@ -69,7 +69,7 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
                 point_on_robot_frame.x = point_on_sensor_frame.x + sensor_frame_translation_.x;
                 point_on_robot_frame.y = point_on_sensor_frame.y + sensor_frame_translation_.y;
                 // point_on_robot_frame.z = point_on_sensor_frame.z + sensor_frame_translation_.z;
-                if (target_frame_ == "map") {    
+                if (target_frame_ == "map") {
                     bbox.center.position.x = point_on_robot_frame.x*robot_cos - point_on_robot_frame.y*robot_sin + robot_pose_.position.x;
                     bbox.center.position.y = point_on_robot_frame.x*robot_sin + point_on_robot_frame.y*robot_cos + robot_pose_.position.y;
                 } else if (target_frame_ == "base_link") {

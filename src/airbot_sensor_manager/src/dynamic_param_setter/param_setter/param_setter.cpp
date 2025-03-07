@@ -9,7 +9,7 @@ ParamSetterNode::ParamSetterNode() : Node("param_setter") {
 
     subscription_ = this->create_subscription<std_msgs::msg::UInt8>(
         "/soc_cmd", 10,
-        std::bind(&ParamSetterNode::socCmdCallback, this, std::placeholders::_1));        
+        std::bind(&ParamSetterNode::socCmdCallback, this, std::placeholders::_1));
     RCLCPP_INFO(this->get_logger(), "[param_setter] Node init finished!");
 }
 
@@ -33,13 +33,13 @@ void ParamSetterNode::socCmdCallback(const std_msgs::msg::UInt8::SharedPtr msg) 
         RCLCPP_WARN(this->get_logger(), "Received empty frame_id. Ignoring.");
         return;
     }
-    
+
     RCLCPP_INFO(this->get_logger(), "Setting parameter 'target_frame' to: %s", frame_id.c_str());
 
     auto future = parameters_client_->set_parameters(
         {rclcpp::Parameter("target_frame", frame_id)}
     );
-    
+
     std::thread([future]() mutable {
         try {
             future.get();
