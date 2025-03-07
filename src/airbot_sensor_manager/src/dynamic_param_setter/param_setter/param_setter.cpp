@@ -22,7 +22,7 @@ void ParamSetterNode::socCmdCallback(const std_msgs::msg::UInt8::SharedPtr msg) 
     std::string frame_id;
 
     if (msg->data == 1) { // Auto Mapping
-        frame_id = "base_link";
+        frame_id = "map";
     } else if (msg->data == 3) { // Navigation
         frame_id = "map";
     } else {
