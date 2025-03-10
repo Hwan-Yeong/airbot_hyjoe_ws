@@ -45,7 +45,7 @@ ErrorManager::ErrorManager()
         100,std::bind(&ErrorManager::topTofErrorCallback, this, std::placeholders::_1)
     );
     f_camera_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo8",
+        "/error/camera",
         100,std::bind(&ErrorManager::cameraErrorCallback, this, std::placeholders::_1)
     );
     f_right_motor_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
