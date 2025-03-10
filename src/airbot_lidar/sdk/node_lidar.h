@@ -25,7 +25,7 @@ using namespace std;
 typedef struct{
   int version = 4; //雷达版本
   string port = "/dev/sc_mini";     //
-  int m_SerialBaudrate = 115200;   //
+  int m_SerialBaudrate = 230400;   //
   bool m_intensities = false;
   uint64_t m_PointTime = 1e9/3800; 
   uint32_t trans_delay = 0;

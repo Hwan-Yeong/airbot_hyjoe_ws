@@ -1,0 +1,24 @@
+collision_detector:
+  ros__parameters:
+    # General Parameters
+    pitch_duration_threshold: 0.5  # Time (seconds) pitch must stay negative to detect collision
+    pitch_slope_duration_threshold: 2.0  # Time (seconds) pitch must stay low for slope detection
+
+    # IMU Thresholds
+    acceleration_threshold_low: -0.3  # If velocity is low (cmd_vel_x < 0.2)
+    acceleration_threshold_high: -0.6  # If velocity is higher
+    pitch_threshold_collision: -0.03  # Pitch threshold for collision detection
+    pitch_threshold_min: -0.0872  # 5 degree =0.0872 Pitch threshold for slope detection
+    pitch_threshold_max: 0.0872
+
+    # Motor Current Limits
+    motor_current_threshold_front: 6500.0  # Front motor collision threshold
+    motor_current_threshold_back: 4000.0  # Back motor collision threshold
+    motor_current_exceed_limit: 50  # Number of consecutive exceedances before collision detected
+
+    # ROS Topics
+    imu_topic: "/imu_data"
+    motor_status_topic: "/motor_status"
+    cmd_vel_topic: "/cmd_vel"
+    collision_topic: "/collision_detected"
+    slope_topic: "/slope_detected"

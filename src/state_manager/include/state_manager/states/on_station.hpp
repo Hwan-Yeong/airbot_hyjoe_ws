@@ -17,8 +17,6 @@ public:
 
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_robot_cmd_pub_;
   int docking_status;
-  bool bLocalizationComplete;
-  bool bSensorOffComplete;
 };
 
 } // namespace airbot_state

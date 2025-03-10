@@ -10,6 +10,8 @@
 #include <string>
 #include <dlfcn.h>
 #include "airbot_log/libNetwork.h"
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/ini_parser.hpp>
 
 const std::string folderPath = "/home/airbot/app_rw/log";
 
@@ -32,30 +34,67 @@ class UnifiedLogger : public rclcpp::Node
 public:
     UnifiedLogger() : Node("airbot_logging")
     {
+        load_config();
         std::filesystem::create_directories(folderPath);  // 폴더 생성
         // spdlog 로거 설정
-        // 25.02.18 기준 사양 :  10MB단위 10개파일로 순환구조로 한 파일로 관리한다.
+        
         auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-            "/home/airbot/app_rw/log/airbot_log.txt", 10 * 1024 * 1024, 9);  // 10MB 크기 제한, 10개의 백업 파일
+            "/home/airbot/app_rw/log/airbot_log.txt", log_file_size, log_backup_count); 
         logger_ = std::make_shared<spdlog::logger>("ros2_logger", rotating_sink);
         spdlog::set_default_logger(logger_);
-        spdlog::set_level(spdlog::level::debug);
+        spdlog::set_level(spdlog::level::debug);        
+        logger_->set_pattern("%v");  // 메시지만 출력
 
         // /rosout 토픽 구독
         subscription_ = this->create_subscription<rcl_interfaces::msg::Log>(
-            "/rosout", 10, std::bind(&UnifiedLogger::log_callback, this, std::placeholders::_1));
+            "/rosout", 100, std::bind(&UnifiedLogger::log_callback, this, std::placeholders::_1));
 
         // 주기적 로그 처리를 위한 타이머 설정
         timer_ = this->create_wall_timer(
-            std::chrono::seconds(1),
+            std::chrono::milliseconds(500),
             std::bind(&UnifiedLogger::process_log_queue, this));
     }
 
 private:
-    // 로그 메시지 수신 콜백
-    void log_callback(const rcl_interfaces::msg::Log::SharedPtr msg)
-    {
+
+    size_t log_file_size = 10 * 1024 * 1024; // 기본값 10MB
+    size_t log_backup_count = 9; // 기본값 9개
+    std::vector<std::string> filtered_nodes;
+     std::string config_path = "/home/airbot/app_rw/config/airbotconfig.ini";
+
+    void load_config() {
+        // 설정 파일이 없으면 기본값으로 생성
+        if (!std::filesystem::exists(config_path)) {
+            std::filesystem::create_directories("/home/airbot/app_rw/config");
+            std::ofstream config_file(config_path);
+            config_file << "[Logging]\n";
+            config_file << "FileSize=10485760\n";  // 10MB
+            config_file << "BackupCount=9\n";
+            config_file << "FilteredNodes=amcl\n";
+            config_file.close();
+        }
+
+        boost::property_tree::ptree pt;
+        boost::property_tree::ini_parser::read_ini(config_path, pt);
+        
+        log_file_size = pt.get<size_t>("Logging.FileSize", 10 * 1024 * 1024);
+        log_backup_count = pt.get<size_t>("Logging.BackupCount", 9);
+        
+        std::string nodes = pt.get<std::string>("Logging.FilteredNodes", "");
+        std::istringstream ss(nodes);
+        std::string node;
+        while (std::getline(ss, node, ',')) {
+            filtered_nodes.push_back(node);
+            RCLCPP_INFO(this->get_logger(), "filtered_nodes : %s", node.c_str());
+        }
+    }
+
+    // 로그 메시지 수신 콜백        
+    void log_callback(const rcl_interfaces::msg::Log::SharedPtr msg) {
         std::lock_guard<std::mutex> lock(queue_mutex_);
+        if (std::find(filtered_nodes.begin(), filtered_nodes.end(), msg->name) != filtered_nodes.end()) {
+            return;
+        }
         log_queue_.push({msg->stamp, format_log_message(msg)});
     }
 

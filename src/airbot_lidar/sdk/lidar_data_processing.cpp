@@ -91,7 +91,7 @@ result_t Lidar_Data_Processing::sendData(const uint8_t *data, size_t size)
   return RESULT_OK;
 }
 
-result_t Lidar_Data_Processing::waitSpeedRight(uint8_t cmd,uint64_t timeout)
+result_t Lidar_Data_Processing::waitSpeedRight(uint64_t timeout)
 {
     int  recvPos     = 0;
     uint32_t startTs = getms();
@@ -362,7 +362,7 @@ result_t Lidar_Data_Processing::waitResponseHeader(uint8_t cmd, uint64_t timeout
               node_lidar.lidar_version[pos] = recvBuffer[pos];
             }
       }
-      printf("data**%d,%d,%d\n",check_sum_cal,recvBuffer[remainSize-1],remainSize);
+      printf("data**%d,%d,%ld\n",check_sum_cal,recvBuffer[remainSize-1],remainSize);
       if(check_sum_cal == recvBuffer[remainSize-1])
       {
         return RESULT_OK;
@@ -753,12 +753,9 @@ result_t Lidar_Data_Processing::waitPackage_coin(node_info *node,uint32_t timeou
 
   uint8_t *packageBuffer = (uint8_t *)&node_lidar.scan_packages.package_coin.headL;
   uint8_t package_Sample_Num = 0;
-  int32_t AngleCorrectForDistance = 0;
+  // int32_t AngleCorrectForDistance = 0;
   int package_recvPos = 0;
-  uint8_t package_type = 0;
 
-  uint16_t start;
-  uint16_t stop;
   float sampleAngle_t = 0.0;
 
 
@@ -853,7 +850,7 @@ result_t Lidar_Data_Processing::waitPackage_coin(node_info *node,uint32_t timeou
         break;
       }
     }
-    int k;
+
     if (PackagePaidBytes == recvPos)
     {
       startTs = getms();
@@ -1021,11 +1018,11 @@ result_t Lidar_Data_Processing::waitPackage_coin(node_info *node,uint32_t timeou
 
     if ((*node).distance_q2 != 0)
     {
-      AngleCorrectForDistance = 0; 
+      // AngleCorrectForDistance = 0; 
     }
     else
     {
-      AngleCorrectForDistance = 0;
+      // AngleCorrectForDistance = 0;
     }
 
     sampleAngle_t = IntervalSampleAngle * package_Sample_Index + start_t;

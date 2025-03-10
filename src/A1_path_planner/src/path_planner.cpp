@@ -35,7 +35,7 @@ void PathPlanner::configure(
     tf_ = tf;
     planner_->costmap_ = costmap_ros->getCostmap();
     global_frame_ = costmap_ros->getGlobalFrameID();
-    RCLCPP_INFO(node->get_logger(), "A1_path_planner start !");
+    RCLCPP_INFO(node->get_logger(), "%s():%d: A1_path_planner start !", __FUNCTION__, __LINE__);
 
     nav2_util::declare_parameter_if_not_declared(node, name_ + ".how_many_corners", rclcpp::ParameterValue(8));
 
@@ -64,17 +64,19 @@ void PathPlanner::configure(
     nav2_util::declare_parameter_if_not_declared(
         node, name + ".use_final_approach_orientation", rclcpp::ParameterValue(false));
     node->get_parameter(name + ".use_final_approach_orientation", use_final_approach_orientation_);
+
+    dest_publisher_ = node->create_publisher<std_msgs::msg::Int8>("/path_planning/destination", 1);
 }
 
 void PathPlanner::cleanup()
 {
-    RCLCPP_INFO(logger_, "CleaningUp plugin %s of type A1_path_planner", name_.c_str());
+    // RCLCPP_INFO(logger_, "CleaningUp plugin %s of type A1_path_planner", name_.c_str());
     planner_.reset();
 }
 
 void PathPlanner::activate()
 {
-    RCLCPP_INFO(logger_, "Activating plugin %s of type A1_path_planner", name_.c_str());
+    // RCLCPP_INFO(logger_, "Activating plugin %s of type A1_path_planner", name_.c_str());
     // Add callback for dynamic parameters
     auto node = parent_node_.lock();
     dyn_params_handler_ = node->add_on_set_parameters_callback(
@@ -83,7 +85,7 @@ void PathPlanner::activate()
 
 void PathPlanner::deactivate()
 {
-    RCLCPP_INFO(logger_, "Deactivating plugin %s of type A1_path_planner", name_.c_str());
+    // RCLCPP_INFO(logger_, "Deactivating plugin %s of type A1_path_planner", name_.c_str());
 }
 
 nav_msgs::msg::Path PathPlanner::createPlan(
@@ -100,14 +102,14 @@ nav_msgs::msg::Path PathPlanner::createPlan(
     // 시작 위치 유효성 확인
     if (!planner_->costmap_->worldToMap(start.pose.position.x, start.pose.position.y, mx_start, my_start))
     {
-        RCLCPP_WARN(logger_, "Start Coordinates were outside map bounds");
+        // RCLCPP_WARN(logger_, "Start Coordinates were outside map bounds");
         return global_path;
     }
 
     // 목표 위치 유효성 확인
     if (!planner_->costmap_->worldToMap(goal.pose.position.x, goal.pose.position.y, mx_goal, my_goal))
     {
-        RCLCPP_WARN(logger_, "Goal Coordinates were outside map bounds");
+        // RCLCPP_WARN(logger_, "Goal Coordinates were outside map bounds");
         return global_path;
     }
 
@@ -116,8 +118,8 @@ nav_msgs::msg::Path PathPlanner::createPlan(
     // cost value 255->250
     if (goal_cost >= 250)
     {
-        RCLCPP_WARN(logger_, "Cost at goal (%u, %u):%u", mx_goal, my_goal, goal_cost);
-        RCLCPP_WARN(logger_, "Goal pose is on an obstacle, adjusting goal position.");
+        // RCLCPP_WARN(logger_, "Cost at goal (%u, %u):%u", mx_goal, my_goal, goal_cost);
+        // RCLCPP_WARN(logger_, "Goal pose is on an obstacle, adjusting goal position.");
 
         // -1m 이동한 목표 좌표 계산
         geometry_msgs::msg::PoseStamped adjusted_goal = goal;
@@ -156,7 +158,10 @@ nav_msgs::msg::Path PathPlanner::createPlan(
         {
             planner_->setStartAndGoal(start, adjusted_goal);
             getPlan(global_path);
-            // RCLCPP_INFO(logger_, "plan_size -> %ld", global_path.poses.size());
+            std_msgs::msg::Int8 msg;
+            msg.data = 1;
+            dest_publisher_->publish(msg);
+            RCLCPP_INFO(logger_, "%s():%d: Create path to alternative destination", __FUNCTION__, __LINE__);
         }
         else
         {
@@ -167,6 +172,10 @@ nav_msgs::msg::Path PathPlanner::createPlan(
     {
         planner_->setStartAndGoal(start, goal);
         getPlan(global_path);
+        std_msgs::msg::Int8 msg;
+        msg.data = 0;
+        dest_publisher_->publish(msg);
+        RCLCPP_INFO(logger_, "%s():%d: Create path to original destination", __FUNCTION__, __LINE__);
     }
 
     size_t plan_size = global_path.poses.size();

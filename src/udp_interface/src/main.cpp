@@ -12,7 +12,7 @@ void (*g_stop_server)() = nullptr;
 // 종료 시 실행될 함수
 void cleanup() {
     if (g_stop_server) {
-        std::cout << "Stopping UDP server..." << std::endl;
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Stopping UDP server...");
         g_stop_server();
     }
     if (g_handle) {
@@ -26,23 +26,30 @@ void signal_handler(int signal) {
     void *array[50];
     size_t size = backtrace(array, 50);
 
-    std::cerr << "\nError: Signal " << signal << " received.\n";
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"Error: Signal received : %d", signal);
     backtrace_symbols_fd(array, size, STDERR_FILENO);
-    std::cerr << "Stack trace (with source line info):\n";
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"Stack trace (with source line info):");
 
     char exe_path[256];
     ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
     if (len != -1) {
-        exe_path[len] = '\0'; // Ensure null termination
+        exe_path[len] = '\0';
         for (size_t i = 0; i < size; i++) {
             char command[512];
-            snprintf(command, sizeof(command), "addr2line -e %s -f -p %p", exe_path, array[i]);
-            system(command);
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"addr2line -e %s -f -p %p", exe_path, array[i]);
+            int result = system(command);
+            if (result != 0) {
+                RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"Command failed with result: %d", result);
+                RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"Error: %s", strerror(errno));  // 실패 원인 출력
+            } else {
+                RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"Command executed successfully.");
+            }
         }
     }
 
     cleanup();
     exit(1);
+    return;
 }
 
 int main(int argc, char *argv[]) {
@@ -50,7 +57,7 @@ int main(int argc, char *argv[]) {
 
     g_handle = dlopen("/home/airbot/airbot_ws/install/udp_interface/include/udp_interface/libNetwork.so", RTLD_LAZY);
     if (!g_handle) {
-        std::cerr << "Cannot open library: " << dlerror() << '\n';
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"Cannot open library: %s", dlerror());
         return -1;
     }
 
@@ -60,30 +67,21 @@ int main(int argc, char *argv[]) {
     auto APISetEnc = (void(*)(bool))dlsym(g_handle, "APISetEnc");
 
     if (!start_server || !g_stop_server || !APIGetVersion || !APISetEnc) {
-        std::cerr << "Cannot load symbols: " << dlerror() << '\n';
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"Cannot open library: %s", dlerror());
         cleanup();
         return -1;
     }
 
-    start_server();  // UDP 서버 시작
+    start_server();
     std::string version;
     APIGetVersion(version);
     APISetEnc(false);
-    std::cout << "API Version: " << version << std::endl;
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"API Version: %s", version.c_str());
 
-    std::atexit(cleanup); // 정상 종료 시 cleanup 실행
-
-    //std::signal(SIGINT, signal_handler);
-    //std::signal(SIGSEGV, signal_handler);
-    //std::signal(SIGABRT, signal_handler);
-    //std::signal(SIGFPE, signal_handler);
+    std::atexit(cleanup);
 
     auto udp_node = std::make_shared<UdpCommunication>();
     rclcpp::spin(udp_node);
-    // rclcpp::executors::MultiThreadedExecutor executor;
-    // executor.add_node(udp_node);
-    // executor.add_node(state_node);
-    // executor.spin();
 
     cleanup();
     return 0;

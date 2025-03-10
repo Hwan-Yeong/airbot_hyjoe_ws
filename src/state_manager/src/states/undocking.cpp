@@ -13,13 +13,17 @@ void UnDocking::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
   req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
   bUndockStart = false;
   state_utils->setStartOnStation(true);
-  RCLCPP_INFO(node_->get_logger(), "[UnDocking] Preparing UnDocking STATE");
+  RCLCPP_INFO(node_->get_logger(), "[UnDocking] pre_run() -> Preparing UnDocking state");
   state_utils->enableOdomcallback();
 }
 
 void UnDocking::run(const std::shared_ptr<StateUtils> &state_utils) {
- //RCLCPP_INFO(node_->get_logger(), "[UnDocking] Running UnDocking with shared data: ");
- auto undock_state_msg = std_msgs::msg::UInt8();
+ 
+  if( isFirstRunning() ){
+    RCLCPP_INFO(node_->get_logger(), "[UnDocking] run() -> Running UnDocking state");
+  }
+
+  auto undock_state_msg = std_msgs::msg::UInt8();
   ROBOT_STATUS ready_check;
   switch (state_utils->getStatusID()) {
   case ROBOT_STATUS::READY:
@@ -69,7 +73,7 @@ void UnDocking::run(const std::shared_ptr<StateUtils> &state_utils) {
 }
 
 void UnDocking::post_run(const std::shared_ptr<StateUtils> &state_utils) {
-  RCLCPP_INFO(node_->get_logger(), "[UnDocking] Exiting UnDocking STATE");
+  RCLCPP_INFO(node_->get_logger(), "[UnDocking] post_run() -> Exiting UnDocking state");
   stateBase::post_run(state_utils);
   req_robot_cmd_pub_.reset();
   cmd_vel_pub_.reset();
@@ -86,9 +90,9 @@ void UnDocking::enableLinearTargetMoving()
     base_odom = state_utils->getCurrentOdom();
     if(!linear_target_timer_){
         linear_target_timer_ = node_->create_wall_timer( std::chrono::milliseconds(20), std::bind(&UnDocking::processLinearMoving, this));
-        RCLCPP_WARN(node_->get_logger(), "enableLinearTargetMoving");
+        RCLCPP_INFO(node_->get_logger(), "[UnDocking] enableLinearTargetMoving");
     }else{
-        RCLCPP_WARN(node_->get_logger(), "LinearTargetMoving is already enabled!!");
+      RCLCPP_INFO(node_->get_logger(), "[UnDocking] LinearTargetMoving is already enabled!!");
     }
 }
 void UnDocking::processLinearMoving()
@@ -99,7 +103,7 @@ void UnDocking::processLinearMoving()
     {
         end_linear_target = true;
         publishVelocityCommand(0.0,0.0);
-        RCLCPP_WARN(node_->get_logger(), "moving 0.3m over distance : %f , base X : %f, Y : %f, current X : %f, Y : %f ",
+        RCLCPP_INFO(node_->get_logger(), "[UnDocking] moving 0.3m over distance : %f , base X : %f, Y : %f, current X : %f, Y : %f ",
         distance,base_odom.x,base_odom.y,current.x,current.y);
         bUndockStart = true;
     }else{

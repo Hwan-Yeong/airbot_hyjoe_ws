@@ -1,6 +1,11 @@
 A1_perception:
   node:
     period_ms: 10
+    climb_condition:
+      pitch_alpha: 0.001
+      enable_climbing_threshold: -1.15
+      disable_climbing_threshold: -1.15
+      timeout_ms: 500
     inputs:
       robot_position:
         topic: "/amcl_pose"
@@ -14,9 +19,6 @@ A1_perception:
       multi_tof_left_row2:
         topic: "/sensor_to_pointcloud/tof/multi/left/row_2"
         type: "PointCloud2"
-      multi_tof_left_row3:
-        topic: "/sensor_to_pointcloud/tof/multi/left/row_3"
-        type: "PointCloud2"
       multi_tof_left_row4:
         topic: "/sensor_to_pointcloud/tof/multi/left/row_4"
         type: "PointCloud2"
@@ -26,15 +28,15 @@ A1_perception:
       multi_tof_right_row2:
         topic: "/sensor_to_pointcloud/tof/multi/right/row_2"
         type: "PointCloud2"
-      multi_tof_right_row3:
-        topic: "/sensor_to_pointcloud/tof/multi/right/row_3"
-        type: "PointCloud2"
       multi_tof_right_row4:
         topic: "/sensor_to_pointcloud/tof/multi/right/row_4"
         type: "PointCloud2"
       camera_points:
         topic: "/sensor_to_pointcloud/camera_object"
         type: "PointCloud2"
+      imu:
+        topic: "/imu_data"
+        type: "sensor_msgs/msg/Imu"
       # lidar_points:
       #   # 에브리봇 코드 확인후 수정해야 함
       #   topic: "/scan"
@@ -48,15 +50,17 @@ A1_perception:
           compose:
             filters:
               timeout:
-                timeout_milliseconds: 30000
+                timeout_milliseconds: 60000
               polygon_roi:
                 use_inside: true
-                polygon: [ [0.65, -0.65], [0.65, 0.65], [-1.0,1.0], [-1.0,-1.0]]
+                polygon: [ [0.60, -0.60], [0.60, 0.60], [-1.0,1.0], [-1.0,-1.0]]
               polygon_roi:
                 use_inside: false
                 polygon: [ [0.18, -0.18], [0.18, 0.18], [0,0.18], [0,-0.18]]
-              one_d_tof_stop:
+              one_d_tof:
                 use_stop: true
+                line_length: 0.10
+                resolution: 0.05
       camera_points:
         inputs:
         - "camera_points"
@@ -65,15 +69,6 @@ A1_perception:
             filters:
               timeout:
                 timeout_milliseconds: 10000
-              sector_roi:
-                use_inside: true
-                min_range: 0.0
-                max_range: 1.0
-                min_angle: -150
-                max_angle: 150
-              density:
-                max_count: 3
-                radius: 0.1
       multi_tof_12:
         inputs:
         - "multi_tof_left_row1"
@@ -107,35 +102,13 @@ A1_perception:
                 timeout_milliseconds: 100
               sector_roi:
                 use_inside: true
-                min_range: 0.24
+                min_range: 0.3
                 max_range: 1.0
                 min_angle: -50.3
                 max_angle: 50.3
               density:
                 max_count: 3
                 radius: 0.1
-      # multi_tof_3_left:
-      #   inputs:
-      #   - "multi_tof_left_row3"
-      #   filter:
-      #     compose:
-      #       filters:
-      #         drop_off:
-      #           min_range: 0.59
-      #           max_range: 0.7
-      #           line_length: 0.05
-      #           resolution: 0.05
-      # multi_tof_3_right:
-      #   inputs:
-      #   - "multi_tof_right_row3"
-      #   filter:
-      #     compose:
-      #       filters:
-      #         drop_off:
-      #           min_range: 0.61
-      #           max_range: 0.7
-      #           line_length: 0.05
-      #           resolution: 0.05
                 
       multi_tof_4_left:
         inputs:
@@ -143,9 +116,14 @@ A1_perception:
         filter:
           compose:
             filters:
+              dist_check:
+                min_range: 0.0
+                max_range: 0.15
+                inputs:
+                - multi_tof_left_row1
+                - multi_tof_left_row2
               drop_off:
-                min_range: 0.43
-                max_range: 0.54
+                min_range: 0.5
                 line_length: 0.05
                 resolution: 0.05
       multi_tof_4_right:
@@ -154,8 +132,13 @@ A1_perception:
         filter:
           compose:
             filters:
+              dist_check:
+                min_range: 0.0
+                max_range: 0.15
+                inputs:
+                - multi_tof_right_row1
+                - multi_tof_right_row2
               drop_off:
-                min_range: 0.44
-                max_range: 0.50
+                min_range: 0.5
                 line_length: 0.05
                 resolution: 0.05

@@ -36,6 +36,7 @@
 #include "robot_custom_msgs/msg/imu_calibration.hpp"
 #include "robot_custom_msgs/msg/rpm_control.hpp"
 #include "robot_custom_msgs/msg/station_data.hpp"
+#include "robot_custom_msgs/msg/bottom_ir_data.hpp"
 
 #include "robot_bringup/uart_helpers.h"
 
@@ -127,6 +128,7 @@ private:
     rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr odom_status_pub_;
 
     rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr bottom_status_pub_;
+    rclcpp::Publisher<robot_custom_msgs::msg::BottomIrData>::SharedPtr bottom_ir_data_pub_;
 
     rclcpp::Publisher<robot_custom_msgs::msg::BatteryStatus>::SharedPtr battery_status_pub_;
     rclcpp::Publisher<robot_custom_msgs::msg::TofData>::SharedPtr tof_data_pub_;
@@ -173,6 +175,7 @@ private:
     sensor_msgs::msg::Imu imu_msg;
     std_msgs::msg::UInt8 imu_odom_status_msg;
     std_msgs::msg::UInt8 bottom_status_msg;          // cliff & lift
+    robot_custom_msgs::msg::BottomIrData bottom_ir_msg;
     robot_custom_msgs::msg::StationData station_msg; // signal & docking status
     robot_custom_msgs::msg::BatteryStatus battery_msg;
     robot_custom_msgs::msg::TofData tof_msg;

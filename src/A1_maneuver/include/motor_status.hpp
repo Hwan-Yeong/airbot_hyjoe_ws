@@ -2,26 +2,58 @@
 #define __MOTOR_STATUS_HPP__
 #include <cmath>
 
-namespace A1::maneuver {
-class MotorStatus {
-public:
-  MotorStatus() = default;
-  ~MotorStatus() = default;
+namespace A1::maneuver
+{
+class MotorStatus
+{
+   public:
+    MotorStatus() = default;
+    ~MotorStatus() = default;
 
-  bool isMoveToFoward() { return left_rpm > 0 && right_rpm < 0; }
-  bool isMoveToBack() { return left_rpm < 0 && right_rpm > 0; }
-  bool isLowRpm() {
-    return std::fabs(left_rpm) < 5 && std::fabs(right_rpm) < 5;
-  }
-  bool isRotate() { return left_rpm * right_rpm > 0; }
+    bool isMoveToFoward()
+    {
+        return left_rpm > 0 && right_rpm < 0;
+    }
 
-  void setLeftRpm(float left_motor_rpm) { left_rpm = left_motor_rpm; }
-  void setRightRpm(float right_motor_rpm) { right_rpm = right_motor_rpm; }
+    bool isMoveToBack()
+    {
+        return left_rpm < 0 && right_rpm > 0;
+    }
 
-private:
-  float left_rpm = 0.0;
-  float right_rpm = 0.0;
+    bool isLowRpm()
+    {
+        return std::fabs(left_rpm) < 5 && std::fabs(right_rpm) < 5;
+    }
+
+    bool isRotate()
+    {
+        return left_rpm * right_rpm > 0;
+    }
+
+    bool isStop()
+    {
+        return left_rpm == 0 && right_rpm == 0;
+    }
+
+    void setLeftRpm(float left_motor_rpm)
+    {
+        left_rpm = left_motor_rpm;
+    }
+    void setRightRpm(float right_motor_rpm)
+    {
+        right_rpm = right_motor_rpm;
+    }
+
+    double getVelocity()
+    {
+        double r_rpm = right_rpm * (-1);
+        return ((left_rpm + r_rpm) / 2.0) * (0.102 * M_PI) / 60;
+    }
+
+   private:
+    float left_rpm = 0.0;
+    float right_rpm = 0.0;
 };
-} // namespace A1::maneuver
+}  // namespace A1::maneuver
 
-#endif // __MOTOR_STATUS_HPP__
+#endif  // __MOTOR_STATUS_HPP__

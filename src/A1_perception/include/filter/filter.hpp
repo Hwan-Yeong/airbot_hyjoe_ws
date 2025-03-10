@@ -2,8 +2,8 @@
 #define __FILTER_HPP__
 
 #include <memory>
+#include <string>
 #include <vector>
-
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 #include "rclcpp/rclcpp.hpp"
@@ -17,6 +17,21 @@ namespace A1::perception
 {
 // Forward declaration
 class PerceptionNode;
+
+template <typename T>
+T getYamlValue(const std::string func, const YAML::Node& config, const std ::string& key, const T& default_value)
+{
+    if (config[key])
+    {
+        return config[key].as<T>();
+    }
+    else
+    {
+        std::cout << __FUNCTION__ << "():" << __LINE__ << ": [" << func << "] - [" << key << "] yaml key is empty"
+                  << std::endl;
+        return default_value;
+    }
+}
 
 /**
  * @brief BaseFilter 클래스는 모든 필터 클래스의 기본 인터페이스를 제공하는 추상 클래스입니다.
@@ -224,7 +239,7 @@ class ComposeFilter : public BaseFilter
 };
 
 /**
- * @brief DropOffFilter 단차 검증을 위해 만든 필터입니다..
+ * @brief DropOffFilter 단차 검증을 위해 만든 필터입니다.
  *
  * [YAML 설정 예시]
  * --------------------------------------------------
@@ -250,7 +265,6 @@ class DropOffFilter : public BaseFilter
    private:
     LayerVector updateImpl(LayerVector layer_vector) override;
     float min_range{};
-    float max_range{};
     float line_length{};
     float resolution{};
 };
@@ -266,7 +280,41 @@ class OneDTofFilter : public BaseFilter
    private:
     LayerVector updateImpl(LayerVector layer_vector) override;
     int layer_vector_size{};
+    float line_length{};
+    float resolution{};
     bool use_stop{false};
+};
+
+/**
+ * @brief DistCheckFilter 벽인지 검사하기 위해 체크하기 위한 필터.
+ *
+ * [YAML 설정 예시]
+ * --------------------------------------------------
+ * compose:
+ *   filters:
+ *     timeout:
+ *       timeout_milliseconds: 100   # TimeoutFilter: 데이터를 무효화할 시간 (밀리초)
+ *     dist_check:
+ *       min_range: 0.0              # DistCheckFilter: 거리 검사를 위한 최소 거리값
+ *       max_range: 0.30             # DistCheckFilter: 거리 검사를 위한 최대 거리값
+ *       inputs:                     # DistCheckFilter: 거리 검사를 input layers
+ *       - multi_tof_right_row1
+ *       - multi_tof_right_row2
+ *     density:
+ *       max_count: 3                # DensityFilter: 유지할 최대 점 수
+ *       radius: 0.1                 # DensityFilter: 밀도 평가 반경
+ * --------------------------------------------------
+ */
+class DistCheckFilter : public BaseFilter
+{
+   public:
+    DistCheckFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config);
+
+   private:
+    LayerVector updateImpl(LayerVector layer_vector) override;
+    float min_range{};
+    float max_range{};
+    std::vector<std::string> inputs{};
 };
 }  // namespace A1::perception
 

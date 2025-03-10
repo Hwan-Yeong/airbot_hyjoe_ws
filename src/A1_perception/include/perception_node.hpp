@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "std_msgs/msg/empty.hpp"
 #include "yaml-cpp/yaml.h"
@@ -51,19 +52,24 @@ class PerceptionNode : public rclcpp::Node
     Layer getSensorLayer(const std::string& name) const;
     Position getPosition();
     MotorStatus getMotorStatus();
+    Position getIMUdata();
+    Position setPosition();
 
     void resetLayers();
+    void clearDropOffLayerMap();
     void sendActionStop(int data);
     std::unordered_map<std::string, Layer>& getDropOffLayerMap();
 
-    int last_drop_off_size = 0;
+    void setClimb(bool is_climb);
+    bool isClimb();
 
    private:
     void initSubscribers(const YAML::Node& config);
     void initPublishers(const YAML::Node& config);
     void initFilters(const YAML::Node& config);
     void initController();
-
+    void climbCheck();
+    double compute_exponential_weight_moving_average(double prev, double curr);
     void timerCallback();
 
     sensor_msgs::msg::PointCloud2 convertToPointCloud2(const pcl::PointCloud<pcl::PointXYZ>& cloud);
@@ -71,6 +77,7 @@ class PerceptionNode : public rclcpp::Node
     YAML::Node config{};
 
     Position robot_position{};
+    Position imu_data{};
     MotorStatus motor_status{};
 
     rclcpp::TimerBase::SharedPtr timer{};
@@ -83,6 +90,14 @@ class PerceptionNode : public rclcpp::Node
     std::unordered_map<std::string, Layer> drop_off_layer_map{};
     std::unordered_map<std::string, Layer> sensor_layer_map{};
     std::unordered_map<std::string, LayerVector> layers{};
+
+    float climbing_pitch_alpha{};
+    float enable_climbing_threshold{};
+    float disable_climbing_threshold{};
+    float estimated_bias{};
+    int climbing_timeout;
+    rclcpp::Time climbing_time{};
+    bool climb_flag{false};
 };
 }  // namespace A1::perception
 

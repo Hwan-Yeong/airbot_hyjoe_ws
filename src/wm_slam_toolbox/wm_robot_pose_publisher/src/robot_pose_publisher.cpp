@@ -42,7 +42,8 @@ void RobotPosePublisher::FnTimerCallback(){
   robot_pose_stamped.pose.pose.position.y = transformStamped.transform.translation.y;
   robot_pose_stamped.pose.pose.position.z = transformStamped.transform.translation.z;
 
-  RCL_LOG_INFO(this->get_logger(),"x : %lf, y : %lf, z : %lf, w : %lf",robot_pose_stamped.pose.pose.position.x, robot_pose_stamped.pose.pose.position.y,  robot_pose_stamped.pose.pose.orientation.z,robot_pose_stamped.pose.pose.orientation.w);
+ // RCL_LOG_INFO(this->get_logger(),"x : %lf, y : %lf, z : %lf, w : %lf",robot_pose_stamped.pose.pose.position.x, robot_pose_stamped.pose.pose.position.y,  robot_pose_stamped.pose.pose.orientation.z,robot_pose_stamped.pose.pose.orientation.w);
+
   publisher_robot_pose_->publish(robot_pose_stamped);
 
 }

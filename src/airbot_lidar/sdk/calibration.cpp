@@ -41,9 +41,9 @@ void pcloud_clear(pcloud_t &pcloud)
 void pcloud_build_by_scan(LaserScan &outscan, pcloud_t &pcloud)
 {
   point_t point;
-  for (int i = 0; i < outscan.points.size(); i++)
+  for (size_t i = 0; i < outscan.points.size(); i++)
   {
-    memset(&point, 0, sizeof(point_t));
+    point = {};
     // 阈值滤波
     // if (scan->lasers[i].dis < lidar_min_range || scan->lasers[i].dis > lidar_max_range || scan->lasers[i].quality)
     if (outscan.points[i].range * 1000 <= 0 || outscan.points[i].range * 1000 > 10 * 1000)
@@ -102,7 +102,7 @@ void pcloud_build_by_pos_scan(LaserScan &outscan, pcloud_t &pcloud)
 int find_index(point_t point, pcloud_t &pcloud)
 {
   point_t point_min;
-  memset(&point_min, 0, sizeof(point_t));
+  point_min = {};
   float legth = 15000;
   for (auto p_point : pcloud.data)
   {
@@ -121,7 +121,7 @@ int find_index(point_t point, pcloud_t &pcloud)
   }
   // std::cout <<"p-x:"<< point.x << "p-y:" << point.y << std::endl;
   // std::cout <<"min-x:"<< point_min.x << "min-y:" << point_min.y << std::endl;
-  if (point_min.index > pcloud.data.size())
+  if (point_min.index > static_cast<int>(pcloud.data.size()))
   {
     return 0;
   }
@@ -160,11 +160,11 @@ bool intersect(LineSegment line1, LineSegment line2, Vector2D &intersection)
   }
 
   // 计算线段起点位置向量
-  Vector2D position1 = {line2.p1.x - line1.p1.x, line2.p1.y - line1.p1.y};
+  // Vector2D position1 = {line2.p1.x - line1.p1.x, line2.p1.y - line1.p1.y};
   Vector2D position2 = {line1.p1.x - line2.p1.x, line1.p1.y - line2.p1.y};
 
   // 计算向量叉积
-  double cross1 = position1.x * direction1.y - position1.y * direction1.x;
+  // double cross1 = position1.x * direction1.y - position1.y * direction1.x;
   double cross2 = position2.x * direction2.y - position2.y * direction2.x;
 
   // 计算交点坐标
@@ -172,7 +172,7 @@ bool intersect(LineSegment line1, LineSegment line2, Vector2D &intersection)
   intersection.y = line1.p1.y + direction1.y * cross2 / cross;
 
   // 判断交点是否在两个线段上
-  /*
+  
   if (intersection.x < min(line1.p1.x, line1.p2.x) || intersection.x > max(line1.p1.x, line1.p2.x) ||
       intersection.x < min(line2.p1.x, line2.p2.x) || intersection.x > max(line2.p1.x, line2.p2.x)) {
       return false;
@@ -181,7 +181,7 @@ bool intersect(LineSegment line1, LineSegment line2, Vector2D &intersection)
   if (intersection.y < min(line1.p1.y, line1.p2.y) || intersection.y > max(line1.p1.y, line1.p2.y) ||
       intersection.y < min(line2.p1.y, line2.p2.y) || intersection.y > max(line2.p1.y, line2.p2.y)) {
       return false;
-  }*/
+  }
 
   // 两个线段相交，返回true
   return true;
@@ -435,8 +435,8 @@ double pointToLineDist(point_t point, double k, double b)
   }
 
   // 计算直线上一个任意点的坐标
-  double x0 = 0.0;
-  double y0 = k * x0 + b;
+  // double x0 = 0.0;
+  // double y0 = k * x0 + b;
 
   // 计算垂线斜率和截距
   double kt = -1.0 / k;
@@ -455,7 +455,7 @@ bool line_judgment(std::vector<point_t> line, point_t point)
   point_t start_point = line.front();
   point_t end_point = line.back();
   double k, b;
-  int reference = 10;
+  size_t reference = 10;
   static point_t reference_point;
   double d = 0;
 
@@ -468,7 +468,7 @@ bool line_judgment(std::vector<point_t> line, point_t point)
   {
     getLineKB(start_point, end_point, k, b);
     
-    for (int i = 1; i < line.size() - 1; i++)
+    for (size_t i = 1; i < line.size() - 1; i++)
     {
       if(isnan(k))
       {
@@ -539,7 +539,7 @@ void fitting_line(pcloud_t &pcloud)
       // 直线拟合判断
       if (line_judgment(line, point) == false)
       {
-        if (line.size() >= calibration_params.line_judgment_point_num)
+        if (static_cast<int>(line.size()) >= calibration_params.line_judgment_point_num)
         {
           if (lines.empty())
           {
@@ -557,7 +557,7 @@ void fitting_line(pcloud_t &pcloud)
           line.clear();
         }
       }else{
-        if(point.index == point_last_one.index && line.size() >= calibration_params.line_judgment_point_num)
+        if(point.index == point_last_one.index && static_cast<int>(line.size()) >= calibration_params.line_judgment_point_num)
         {
           lines.emplace_back(line);
         }
@@ -568,9 +568,9 @@ void fitting_line(pcloud_t &pcloud)
   line.clear();
 
   point_t point_append,point_append_last;
-  if(point_record2.index < pcloud.data.size() 
-  &&  point_last_one.index < pcloud.data.size()
-  &&  point_record1.index < pcloud.data.size())
+  if(point_record2.index < static_cast<int>(pcloud.data.size()) 
+  &&  point_last_one.index < static_cast<int>(pcloud.data.size())
+  &&  point_record1.index < static_cast<int>(pcloud.data.size()))
   {
      if (point_record2.index + 1 < point_last_one.index)
     {
@@ -594,7 +594,7 @@ void fitting_line(pcloud_t &pcloud)
   {
     point_append_last = line_append.back();
 
-    if (line_append.size() >= calibration_params.line_judgment_point_num)
+    if (static_cast<int>(line_append.size()) >= calibration_params.line_judgment_point_num)
     {
       for (auto &point : line_append)
       {
@@ -603,7 +603,7 @@ void fitting_line(pcloud_t &pcloud)
           // 直线拟合判断
           if (line_judgment(line, point) == false)
           {
-            if (line.size() >= calibration_params.line_judgment_point_num)
+            if (static_cast<int>(line.size()) >= calibration_params.line_judgment_point_num)
             {
               lines.emplace_back(line);
               line.clear();
@@ -614,7 +614,7 @@ void fitting_line(pcloud_t &pcloud)
             }
           }
         }else{
-          if(point.index == point_append_last.index && line.size() >= calibration_params.line_judgment_point_num)
+          if(point.index == point_append_last.index && static_cast<int>(line.size()) >= calibration_params.line_judgment_point_num)
           {
             lines.emplace_back(line);
           }
@@ -629,7 +629,7 @@ void fitting_line(pcloud_t &pcloud)
   if (lines.size() >= 2)
   {
     neighbor_lines_new(lines.back(), lines.front(), pcloud);
-    for (int i = 0; i < lines.size() - 1; i++)
+    for (size_t i = 0; i < lines.size() - 1; i++)
     {
       neighbor_lines_new(lines[i], lines[i + 1], pcloud);
     }
@@ -659,7 +659,7 @@ void lidar_calibration(LaserScan &outscan)
   // 清空带发布的点云
   for (auto &outscan_point : outscan.points)
   {
-    memset(&outscan_point, 0, sizeof(LaserPoint));
+    outscan_point = {};
   }
 
   for (auto point : pcloud.data)

@@ -56,12 +56,4 @@ struct tPose
     }
 };
 
-struct tLidarParam
-{
-    tPoint offset;
-    double alpha;
-    double angle_min;
-    double angle_max;
-};
-
 #endif

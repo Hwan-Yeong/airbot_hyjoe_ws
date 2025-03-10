@@ -98,6 +98,7 @@ namespace airbot_state {
   struct MOVING_DATA
   {
     bool bStartMoving = false;
+    uint8_t type;
     pose target_position;
   };
 } // namespace airbot_state

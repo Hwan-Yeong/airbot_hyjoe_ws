@@ -44,23 +44,21 @@ void flushSerial()
 		return;
 	}
 	
-	size_t len = node_lidar.serial_port->available();
+	// size_t len = node_lidar.serial_port->available();
 	
-	if (len)
-	{
-		uint8_t *buffer = static_cast<uint8_t *>(alloca(len * sizeof(uint8_t)));
-		size_t bytes_read = node_lidar.serial_port->read_data(buffer, len);
-	}
+	// if (len)
+	// {
+	// 	uint8_t *buffer = static_cast<uint8_t *>(alloca(len * sizeof(uint8_t)));
+	// }
 
 	sleep_ms(20);
 }
 
 bool lidar_state_judgment()
 {
-	static bool status_judge = false;     
 	static bool lidar_flush = false;      
 	static bool wait_speed_right = false; 
-	static bool lidar_start_flag = false; 
+	// static bool lidar_start_flag = false; 
 
 	static uint64_t lidar_status_time = 0; 
 
@@ -73,7 +71,7 @@ bool lidar_state_judgment()
 
 		lidar_flush = false;
 		wait_speed_right = false;
-		lidar_start_flag = false;
+		// lidar_start_flag = false;
 
 		lidar_status_time = current_times();
 		flushSerial();
@@ -90,7 +88,7 @@ bool lidar_state_judgment()
 		
 		wait_speed_right = false;
 		lidar_flush = false;
-		lidar_start_flag = false;
+		// lidar_start_flag = false;
 
 		lidar_status_time = current_times();
 		node_lidar.serial_port->write_data(end_lidar,4);
@@ -357,10 +355,10 @@ void send_lidar_data(LaserScan &outscan)
 			node_lidar.optimize_lidar.lidar_blocked_judge(count);
 
 
-			if (node_lidar.lidar_status.FilterEnable)
-			{
-				node_lidar.optimize_lidar.PointCloudFilter(&outscan);
-			}
+			// if (node_lidar.lidar_status.FilterEnable)
+			// {
+			// 	node_lidar.optimize_lidar.PointCloudFilter(&outscan);
+			// }
 
 
 		}

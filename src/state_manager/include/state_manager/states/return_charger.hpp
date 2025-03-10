@@ -17,7 +17,7 @@ public:
 
   // return charger function
   void publishTargetPosition(double x, double y, double theta);
-  void moveToDock(double x, double y, double theta);
+  void moveToDock();
   void startMonitorReturnCharger();
   void stopMonitorReturnCharger();
   void reset_timerNaviStatus();
@@ -54,7 +54,7 @@ public:
   bool dock_pose_estimate = false;
   std_msgs::msg::UInt8 dock_cmd_;
 
-  pose station_pose;  
+  pose return_pose;  
 
   MOVING_DATA movingData;
   NAVI_STATE movingState;

@@ -9,7 +9,7 @@ AutoMapping::AutoMapping(const int actionID, std::shared_ptr<rclcpp::Node> node,
 
 void AutoMapping::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
   stateBase::pre_run(state_utils);
-  RCLCPP_INFO(node_->get_logger(), "[AutoMapping] Preparing AutoMapping STATE");
+  RCLCPP_INFO(node_->get_logger(), "[AUTO_MAPPING] Preparing auto_mapping state");
 
   req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);  
   mapping_start_time = std::numeric_limits<double>::max();
@@ -30,19 +30,19 @@ void AutoMapping::run(const std::shared_ptr<StateUtils> &state_utils) {
     if (state_utils->getOdomResetDone()){
       runAutoMapping();
     }else if(state_utils->isOdomResetError()){
-      RCLCPP_INFO(node_->get_logger(), "[AutoMapping] Preparing OdomResetError");
+      RCLCPP_INFO(node_->get_logger(), "[AUTO_MAPPING] Preparing OdomResetError");
     }
   }else if(state_utils->isLidarError()){
-    RCLCPP_INFO(node_->get_logger(), "[AutoMapping] Preparing LidarError");
+    RCLCPP_INFO(node_->get_logger(), "[AUTO_MAPPING] Preparing LidarError");
   }else if(state_utils->isToFError()){
-    RCLCPP_INFO(node_->get_logger(), "[AutoMapping] Preparing ToFError");
+    RCLCPP_INFO(node_->get_logger(), "[AUTO_MAPPING] Preparing ToFError");
   }
 }
 
 void AutoMapping::post_run(const std::shared_ptr<StateUtils> &state_utils) {
   stateBase::post_run(state_utils);
+  RCLCPP_INFO(node_->get_logger(), "[AUTO_MAPPING] post_run() -> exiting auto_mapping state");
   state_utils->saveLastPosition();
-  RCLCPP_INFO(node_->get_logger(), "[AutoMapping] Exiting AutoMapping STATE");
   if(state_utils->getRobotCMDID().soc_cmd == REQUEST_SOC_CMD::STOP_AUTO_MAPPING ){
     map_saver();
     exitMappingNode();

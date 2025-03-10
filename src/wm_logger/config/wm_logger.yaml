@@ -1,0 +1,32 @@
+/wm_logger:
+  ros__parameters:
+    topic:
+      warm_up_status: "/warmup/start"
+      frontier_status: "/explore/frontier/search/start"
+      navigate_to_pose: "/navigate_to_pose/_action/status"
+      cmd_vel: "/cmd_vel"
+      cmd_vel_nav: "/cmd_vel_nav"
+    node:
+      process_command: "ps aux | grep ros | grep -Ev 'ros2cli|echo|/usr/bin/cmake|/usr/bin/c++|wm_logger|grep'"
+      wavem:
+        list: [
+          "/wm_robot_pose_publisher",
+          "/slam_toolbox", 
+          "/warmup_server_node",
+          "/costmap_logger",
+          "/frontier_optimizer",
+          "/explore",
+          "/goal_saver"
+        ]
+      common:
+        list: [
+          "/controller_server",
+          "/smoother_server",
+          "/planner_server",
+          "/bt_navigator",
+          "/waypoint_follower"
+        ]
+    timer:
+      # milliseconds
+      frequency:
+        logging: 500

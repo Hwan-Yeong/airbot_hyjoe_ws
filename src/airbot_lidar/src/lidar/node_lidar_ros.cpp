@@ -12,6 +12,7 @@
 
 using namespace std::chrono;
 std::chrono::time_point<std::chrono::steady_clock> last_data_time;
+bool isLidarCmd = false;
 
 class MinimalSubscriber
 {
@@ -28,13 +29,14 @@ class MinimalSubscriber
 		bool lidarCmd = msg->data;
 		size_t r;
 
-		RCLCPP_INFO(rclcpp::get_logger("cmd_lidar"), "lidar is %s ", lidarCmd ? "true" : "false");
+		// RCLCPP_INFO(rclcpp::get_logger("cmd_lidar"), "lidar is %s ", lidarCmd ? "true" : "false");
 
 		if (lidarCmd)
 		{
 			//turn on lidar
 			last_data_time = std::chrono::steady_clock::now();
 			node_lidar.lidar_status.lidar_ready = true;
+			isLidarCmd = true;
 			node_lidar.lidar_status.lidar_abnormal_state = 0;
 			RCLCPP_INFO(rclcpp::get_logger("cmd_lidar"), "lidar is start ");	
 		}
@@ -43,6 +45,7 @@ class MinimalSubscriber
 			//turn off lidar
 			node_lidar.lidar_status.lidar_ready = false;
 			node_lidar.lidar_status.close_lidar = true;
+			isLidarCmd = false;
 
 			r = node_lidar.serial_port->write_data(end_lidar,4);
 			if (r < 1)
@@ -111,19 +114,19 @@ int main(int argc, char **argv)
 				{
 					pubdata.data="node_lidar is trapped\n";
 					error_pub->publish(pubdata);
-					RCLCPP_INFO(node->get_logger(), "trapped");
+					RCLCPP_INFO(node->get_logger(), "[error/lidar] lsd_error: trapped");
 				}
 				if(node_lidar.lidar_status.lidar_abnormal_state & 0x02)
 				{
 					pubdata.data="node_lidar frequence abnormal\n";
 					error_pub->publish(pubdata);
-					RCLCPP_INFO(node->get_logger(), "frequence abnormal");
+					RCLCPP_INFO(node->get_logger(), "[error/lidar] lsd_error: frequence abnormal");
 				}
 				if(node_lidar.lidar_status.lidar_abnormal_state & 0x04)
 				{
 					pubdata.data="node_lidar is blocked\n";
 					error_pub->publish(pubdata);
-					RCLCPP_INFO(node->get_logger(), "blocked");
+					RCLCPP_INFO(node->get_logger(), "[error/lidar] lsd_error: blocked");
 				}
 				// node_lidar.serial_port->write_data(end_lidar,4);
 				// node_lidar.lidar_status.lidar_ready = false;
@@ -136,8 +139,8 @@ int main(int argc, char **argv)
 			{
 				auto scan_msg = std::make_shared<sensor_msgs::msg::LaserScan>();
 
-				float min_angle = 90 * M_PI/180;
-				float max_angle = 270 * M_PI/180;
+				float min_angle = 60 * M_PI/180;
+				float max_angle = 300 * M_PI/180;
 
 				// scan_msg->ranges.resize(scan.points.size());
 				// scan_msg->intensities.resize(scan.points.size());
@@ -158,7 +161,7 @@ int main(int argc, char **argv)
 				std::vector<float> filtered_ranges;
 				std::vector<float> filtered_intensities;
 
-				for (int i = 0; i < scan.points.size(); i++) {
+				for (size_t i = 0; i < scan.points.size(); i++) {
 					float angle = scan.config.min_angle + i * scan.config.angle_increment;
 
 					if (angle >= min_angle && angle <= max_angle) {
@@ -172,7 +175,9 @@ int main(int argc, char **argv)
 
 				if (dirty_points > dirty_points_th) {
 					dirty_cnt += 1;
-					// RCLCPP_INFO(node->get_logger(), "cnt: %d", dirty_cnt);
+					if (dirty_cnt % 20 == 0) {
+						RCLCPP_INFO(node->get_logger(), "[error/lidar] dirty_cnt: %d", dirty_cnt);
+					}
 				} else {
 					dirty_cnt = 0;
 				}
@@ -180,6 +185,7 @@ int main(int argc, char **argv)
 				if (dirty_cnt > dirty_cnt_th) {
 					dirty_msg.data = true;
 					laser_dirty_pub->publish(dirty_msg);
+					RCLCPP_INFO(node->get_logger(), "[error/lidar] scan_dirty: lidar pollution error");
 				}
 				
 				dirty_points = 0;
@@ -212,13 +218,26 @@ int main(int argc, char **argv)
 						//lidar time out = 2sec
 						auto current_time = std::chrono::steady_clock::now();
 						std::chrono::duration<double> elapsed_time = current_time - last_data_time;
-						if (elapsed_time.count() >= 3.0)
-						{
-							// 3초 이상 데이터가 없는 경우 에러 메시지 퍼블리시
-							auto error_msg = std::make_shared<std_msgs::msg::Bool>();
-							error_msg->data = true;
-							laser_error_pub->publish(*error_msg);
-							RCLCPP_INFO(node->get_logger(), "No scan data received for 3 seconds!");
+						if (isLidarCmd) {
+							if (elapsed_time.count() >= 10.0) {
+								// 라이다 On 명령이 들어오고 나서, 10초 이상 데이터가 없는 경우 에러 메시지 퍼블리시
+								auto error_msg = std::make_shared<std_msgs::msg::Bool>();
+								error_msg->data = true;
+								laser_error_pub->publish(*error_msg);
+								RCLCPP_INFO(node->get_logger(), "[error/lidar] scan_error: lidar communication error - No scan data for 10 seconds [lidar: ON]");
+							} else {
+								// RCLCPP_INFO(node->get_logger(), "[Lidar ON] elapsed_time: %.2f seconds",elapsed_time.count());
+							}
+						} else {
+							if (elapsed_time.count() >= 3.0) {
+								// normal 상태에서 3초 이상 데이터가 없는 경우 에러 메시지 퍼블리시
+								auto error_msg = std::make_shared<std_msgs::msg::Bool>();
+								error_msg->data = true;
+								laser_error_pub->publish(*error_msg);
+								RCLCPP_INFO(node->get_logger(), "[error/lidar] scan_error: lidar communication error - No scan data for 3 seconds");
+							} else {
+								// RCLCPP_INFO(node->get_logger(), "[Lidar Normal] elapsed_time: %.2f seconds",elapsed_time.count());
+							}
 						}
 					}
 				}

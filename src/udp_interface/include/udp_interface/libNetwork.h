@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 
-#define BASE_VERSION "0.35"
+#define BASE_VERSION "0.36"
 
 #ifdef LOG_SETTING
     #ifdef DEBUG_MODE
@@ -283,6 +283,13 @@ struct TargetPosition_t {
     double x;
     double y;
     double theta;
+};
+
+struct TargetPositionType_t {
+    double x;
+    double y;
+    double theta;
+    int type;
 };
 
 struct StationRepositioning_t
@@ -576,6 +583,7 @@ struct otadata_t {
 struct otadataB_t {
     std::string	checksum;
     std::vector<unsigned char>	data;
+     std::string	filename;
 };
 
 struct SettingCommand_t {
@@ -784,6 +792,7 @@ bool reqSetMaxDrivingSpeed(MaxDrivingSpeed_t& settings);
 bool reqSetMotorManual_RPM(MotorManual_RPM_t& settings);
 bool reqSetMotorManual_VW(MotorManual_VW_t& settings);
 bool reqSetTargetPosition(TargetPosition_t& settings);
+bool reqSetTargetPositionType(TargetPositionType_t &settings);
 bool reqSetStationRepositioning(StationRepositioning_t &settings);
 bool reqSetDriving(Driving_t& settings);
 bool reqSetMapping(Mapping_t& settings);
@@ -822,6 +831,8 @@ void resSetMaxDrivingSpeed(bool Result);
 void resSetMotorManual_RPM(bool Result);
 void resSetMotorManual_VW(bool Result);
 void resSetTargetPosition(bool Result);
+void resSetTargetPositionType(bool Result);
+
 void resSetStationRepositioningIdx(bool Result);
 void resSetDriving(bool Result);
 void resSetMapping(bool Result);

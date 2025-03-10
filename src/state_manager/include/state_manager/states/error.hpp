@@ -14,7 +14,13 @@ public:
   virtual void run(const std::shared_ptr<StateUtils> &state_utils) override;
   virtual void post_run(const std::shared_ptr<StateUtils> &state_utils) override;
 
+  bool exitAllNode();
+  void sendStopCMD();
+
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_robot_cmd_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
+
+  bool error_onstation = false;
 };
 
 } // namespace airbot_state

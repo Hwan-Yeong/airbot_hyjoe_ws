@@ -93,5 +93,11 @@ def generate_launch_description():
               'A1_perception'), '/launch/A1_perception.launch.py'])
         ),
 
+        # 2025.02.27 clabil
+        # navigation 꺼지면서 연결 끊김 이슈로 이동
+        IncludeLaunchDescription(
+           PythonLaunchDescriptionSource([get_package_share_directory(
+              'A1_localization'), '/launch/localization.launch.py'])
+        ),
 
     ])

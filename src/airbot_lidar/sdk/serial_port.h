@@ -89,19 +89,17 @@ class Serial_Port
 {
 private:
   string port_;
-  
   unsigned long baudrate_;    // Baudrate
+  Timeout timeout_;           // Timeout for read operations
+  bytesize_t bytesize_;       // Size of the bytes
+  parity_t parity_;           // Parity
+  stopbits_t stopbits_;       // Stop Bits
+  flowcontrol_t flowcontrol_; // Flow Control
+
   int fd_;
   pid_t pid;
   bool is_open_ = false;
   uint32_t byte_time_ns_; // Nanoseconds to transmit/receive a single byte
-
-  Timeout timeout_;           // Timeout for read operations
-
-  parity_t parity_;           // Parity
-  bytesize_t bytesize_;       // Size of the bytes
-  stopbits_t stopbits_;       // Stop Bits
-  flowcontrol_t flowcontrol_; // Flow Control
 
 public:
   Serial_Port(const std::string &port = "",

@@ -81,7 +81,8 @@ TimeoutFilter::TimeoutFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YA
     : BaseFilter(node_ptr_)
 {
     auto s = YAML::Dump(config);
-    this->timeout = rclcpp::Duration(std::chrono::milliseconds(config["timeout_milliseconds"].as<uint32_t>()));
+    auto timeout_ms = getYamlValue<uint32_t>(__FUNCTION__, config, "timeout_milliseconds", 100);
+    this->timeout = rclcpp::Duration(std::chrono::milliseconds(timeout_ms));
 }
 
 LayerVector TimeoutFilter::updateImpl(LayerVector layer_vector)
@@ -100,8 +101,8 @@ LayerVector TimeoutFilter::updateImpl(LayerVector layer_vector)
 DensityFilter::DensityFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config)
     : BaseFilter(node_ptr_)
 {
-    this->max_count = config["max_count"].as<int32_t>();
-    this->radius = config["radius"].as<float>();
+    this->max_count = getYamlValue<int>(__FUNCTION__, config, "max_count", 3);
+    this->radius = getYamlValue<float>(__FUNCTION__, config, "radius", 0.3);
 }
 
 LayerVector DensityFilter::updateImpl(LayerVector layer_vector)
@@ -217,7 +218,7 @@ LayerVector DensityFilter::updateImpl(LayerVector layer_vector)
 
 RoIFilter::RoIFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config) : BaseFilter(node_ptr_)
 {
-    this->use_inside = config["use_inside"].as<bool>();
+    this->use_inside = getYamlValue<bool>(__FUNCTION__, config, "use_inside", true);
 }
 
 LayerVector RoIFilter::updateImpl(LayerVector layer_vector)
@@ -279,10 +280,10 @@ bool PolygonRoIFilter::isInside(pcl::PointXY point)
 SectorRoIFilter::SectorRoIFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config)
     : RoIFilter(node_ptr_, config)
 {
-    this->min_range = config["min_range"].as<float>();
-    this->max_range = config["max_range"].as<float>();
-    this->min_angle = config["min_angle"].as<float>() * M_PI / 180.0;
-    this->max_angle = config["max_angle"].as<float>() * M_PI / 180.0;
+    this->min_range = getYamlValue<float>(__FUNCTION__, config, "min_range", 0.3);
+    this->max_range = getYamlValue<float>(__FUNCTION__, config, "max_range", 1.0);
+    this->min_angle = getYamlValue<float>(__FUNCTION__, config, "max_angle", -50.3) * M_PI / 180.0;
+    this->max_angle = getYamlValue<float>(__FUNCTION__, config, "max_angle", 50.3) * M_PI / 180.0;
 }
 
 bool SectorRoIFilter::isInside(pcl::PointXY point)
@@ -295,10 +296,9 @@ bool SectorRoIFilter::isInside(pcl::PointXY point)
 DropOffFilter::DropOffFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config)
     : BaseFilter(node_ptr_)
 {
-    this->min_range = config["min_range"].as<float>();
-    this->max_range = config["max_range"].as<float>();
-    this->line_length = config["line_length"].as<float>();
-    this->resolution = config["resolution"].as<float>();
+    this->min_range = getYamlValue<float>(__FUNCTION__, config, "min_range", 0.45);
+    this->line_length = getYamlValue<float>(__FUNCTION__, config, "line_length", 0.05);
+    this->resolution = getYamlValue<float>(__FUNCTION__, config, "resolution", 0.05);
 }
 
 LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
@@ -309,7 +309,6 @@ LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
     geometry_msgs::msg::Transform transform_msg;
     tf2::toMsg(position.getTransform().inverse(), transform_msg);
     Eigen::Affine3f inverse_transform = tf2::transformToEigen(transform_msg).cast<float>();
-
     auto now = node->now();
 
     double heading_x = cos(position.yaw);
@@ -332,18 +331,19 @@ LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
 
         for (; it != layer.cloud.end();)
         {
-            if (motor_status.isMoveToFoward())
+            if (motor_status.isMoveToFoward() && node->isClimb() == false)
             {
                 pcl::PointXY point{jt->x, jt->y};
                 pcl::PointXY point_global{it->x, it->y};
                 float distance = std::sqrt(point.x * point.x + point.y * point.y);
-                if (distance >= this->min_range && distance <= this->max_range)
+                if (distance >= this->min_range)
                 {
                     std::string key =
                         std::to_string(point_global.x).substr(0, std::to_string(point_global.x).find(".") + 3) + "," +
                         std::to_string(point_global.y).substr(0, std::to_string(point_global.y).find(".") + 3);
                     if (node->getDropOffLayerMap().find(key) == node->getDropOffLayerMap().end())
                     {
+                        auto line_layer = Layer();
                         double start_x = point_global.x - orthogonal_x * length;
                         double start_y = point_global.y - orthogonal_y * length;
                         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -355,14 +355,20 @@ LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
                             new_point.z = 0.0;
                             cloud->points.push_back(new_point);
                         }
-                        auto line_layer = Layer();
                         line_layer.sensor_timestamp = layer.sensor_timestamp;
                         line_layer.timestamp = now;
                         line_layer.cloud = *cloud;
                         node->getDropOffLayerMap()[key] = line_layer;
-
                         // 1 -> DROP_OFF STOP
                         node->sendActionStop(1);
+                        RCLCPP_INFO(
+                            node->get_logger(),
+                            "%s:%d: Detect drop off area. (x: %f, y: %f, dist: %f)",
+                            __FUNCTION__,
+                            __LINE__,
+                            point_global.x,
+                            point_global.y,
+                            distance);
                     }
                 }
             }
@@ -378,28 +384,131 @@ OneDTofFilter::OneDTofFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YA
     : BaseFilter(node_ptr_)
 {
     this->layer_vector_size = 0;
+    this->line_length = getYamlValue<float>(__FUNCTION__, config, "line_length", 0.05);
+    this->resolution = getYamlValue<float>(__FUNCTION__, config, "resolution", 0.05);
 }
 
 LayerVector OneDTofFilter::updateImpl(LayerVector layer_vector)
 {
     // coordinate transform
     auto node = this->getNodePtr();
-    int size_sum = 0;
-    for (auto& layer : layer_vector)
+    // int cloud_size_sum = 0;
+    auto position = node->getPosition();
+    double heading_x = cos(position.yaw);
+    double heading_y = sin(position.yaw);
+
+    double orthogonal_x = -heading_y;
+    double orthogonal_y = heading_x;
+    double length = this->line_length;
+    double resolution = this->resolution;
+    MotorStatus motor_status = node->getMotorStatus();
+
+    for (auto it = layer_vector.begin(); it != layer_vector.end();)
     {
-        size_sum += layer.cloud.size();
+        if (it->cloud.size() == 0)
+        {
+            layer_vector.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
     }
-    if (this->layer_vector_size < size_sum)
+    const int layer_size = layer_vector.size();
+    if (layer_size > 0)
     {
-        MotorStatus motor_status = node->getMotorStatus();
-        if (motor_status.isMoveToFoward())
+        auto now = this->getNodePtr()->now();
+        auto& last_layer = *layer_vector.rbegin();
+        rclcpp::Duration diff = now - last_layer.timestamp;
+        if (last_layer.cloud.size() == 1 && diff.seconds() < 0.01)
+        {
+            auto it = last_layer.cloud.begin();
+            pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+            pcl::PointXY point_global{it->x, it->y};
+            auto line_layer = Layer();
+            double start_x = point_global.x - orthogonal_x * length;
+            double start_y = point_global.y - orthogonal_y * length;
+
+            for (double t = 0; t <= length * 2; t += resolution)
+            {
+                pcl::PointXYZ new_point;
+                new_point.x = start_x + orthogonal_x * t;
+                new_point.y = start_y + orthogonal_y * t;
+                new_point.z = 0.0;
+                cloud->points.push_back(new_point);
+            }
+            last_layer.cloud.insert(last_layer.cloud.end(), cloud->begin(), cloud->end());
+        }
+    }
+
+    if (this->layer_vector_size < layer_size)
+    {
+        if (motor_status.isMoveToFoward() || motor_status.isRotate())
         {
             // 2 -> One_D_TOF STOP
             node->sendActionStop(2);
+            RCLCPP_INFO(node->get_logger(), "%s:%d: 1D ToF detected. Request move to back.", __FUNCTION__, __LINE__);
         }
     }
-    this->layer_vector_size = size_sum;
+    this->layer_vector_size = layer_size;
     return layer_vector;
 }
 
+DistCheckFilter::DistCheckFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config)
+    : BaseFilter(node_ptr_)
+{
+    this->min_range = getYamlValue<float>(__FUNCTION__, config, "min_range", 0.0);
+    this->max_range = getYamlValue<float>(__FUNCTION__, config, "max_range", 0.4);
+    this->inputs = getYamlValue<std::vector<std::string>>(__FUNCTION__, config, "inputs", std::vector<std::string>{});
+}
+
+LayerVector DistCheckFilter::updateImpl(LayerVector layer_vector)
+{
+    auto node = this->getNodePtr();
+    Layer target_layer;
+    for (auto input : this->inputs)
+    {
+        auto target_sensor_layer = node->getSensorLayer(input);
+        target_layer.cloud.insert(
+            target_layer.cloud.end(), target_sensor_layer.cloud.begin(), target_sensor_layer.cloud.end());
+    }
+
+    for (auto& layer : layer_vector)
+    {
+        for (auto it = layer.cloud.begin(); it != layer.cloud.end();)
+        {
+            bool remained = true;
+            pcl::PointXY candidate{it->x, it->y};
+            for (auto jt = target_layer.cloud.begin(); jt != target_layer.cloud.end(); ++jt)
+            {
+                pcl::PointXY upper_row{jt->x, jt->y};
+                float distance = std::sqrt(
+                    (upper_row.x - candidate.x) * (upper_row.x - candidate.x) +
+                    (upper_row.y - candidate.y) * (upper_row.y - candidate.y));
+                if (this->min_range<distance&& this->max_range> distance)
+                {
+                    layer.cloud.erase(it);
+                    remained = false;
+                    break;
+                }
+            }
+            if (remained)
+            {
+                ++it;
+                if (it >= layer.cloud.end())
+                {
+                    break;
+                }
+            }
+        }
+
+        if (layer.cloud.empty())
+        {
+            layer_vector.push_back(layer);
+        }
+    }
+
+    return layer_vector;
+}
 }  // namespace A1::perception

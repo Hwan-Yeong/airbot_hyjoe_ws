@@ -27,31 +27,34 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "robot_custom_msgs/msg/camera_data.hpp"
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
-#include "robot_custom_msgs/msg/line_laser_data.hpp"
-#include "robot_custom_msgs/msg/line_laser_data_array.hpp"
+//#include "robot_custom_msgs/msg/line_laser_data.hpp"
+//#include "robot_custom_msgs/msg/line_laser_data_array.hpp"
 #include <builtin_interfaces/msg/time.hpp>
 #include "nav_msgs/msg/odometry.hpp"
 #include "std_msgs/msg/string.hpp"
 
 #define USE_DEBUG_LOG false
 
+#define USE_LINELASER_SENSOR 0
+
 enum class CommandNumber : uint8_t {
     ProtocolV0 = 0x10,               // Protocol V0
     ProtocolV1_Objects = 0x11,       // Protocol V1 (Objects)
     ProtocolV1_2LL = 0x12,           // Protocol V1 (2LL)
     ProtocolV2_Objects = 0x13,       // Protocol V2 (Objects)
-    ProtocolV2_2LL = 0x14,           // Protocol V2 (2LL)
+    ProtocolV2_2LL = 0x14,              // Protocol V2 (2LL)
     
-    Error = 0x20,                    // Error
+    Error = 0x20,                       // Error
 
-    OTA_Start = 0x30,                // OTA Start
+    OTA_Start = 0x30,                   // OTA Start
 
-    VersionRequest = 0x50,           // Version Sequest (Request)
-    CalibrationRequest = 0x51,           // Clibration Start Request (Request)
+    VersionRequest = 0x50,              // Version Sequest (Request)
+    CalibrationRequest = 0x51,          // Clibration Start Request (Request)
+    SensorControlRequest = 0x52,        // Sensor Control Request (Request)
 
-    VersionResponse = 0x60,           // Version Response ( Response )
-    CalibrationResponse  = 0x61,     // Clibration Start Response  (Response )
-
+    VersionResponse = 0x60,             // Version Response ( Response )
+    CalibrationResponse  = 0x61,        // Clibration Start Response  (Response )
+    SensorControlResponse = 0x62,       // Sensor Control Response (Request)
 };
 
 struct LagacyPacketData
@@ -120,6 +123,7 @@ struct ObjectV2PacketData
     uint8_t checksum;                // Checksum for the packet
 };
 
+#if USE_LINELASER_SENSOR > 0
 struct LLData
 {
     int16_t x;
@@ -165,6 +169,7 @@ struct LLV2PacketData
     std::vector<LLDataV2> LL;
     uint8_t checksum;
 };
+#endif
 
 struct ErrorSection {
     uint8_t occurred;        // Error 발생 여부 (1: 발생, 0: Clear)
@@ -205,6 +210,17 @@ struct CalibrationResultPacket
     uint8_t CHECKSUM;
 };
 
+struct SensorControPacket
+{
+    uint8_t PRE_AMBLE_0;
+    uint8_t PRE_AMBLE_1;
+    uint8_t Data_Size;
+    uint8_t Header_Command;
+    uint8_t Result;
+    uint8_t CHECKSUM;
+};
+
+
 double current_pose_x = 0.0;
 double current_pose_y = 0.0;
 double current_pose_theta = 0.0;
@@ -212,10 +228,6 @@ double current_pose_theta = 0.0;
 double amcl_pose_x = 0.0;
 double amcl_pose_y = 0.0;
 double amcl_pose_angle = 0.0;
-
-double odom_pose_x = 0.0;
-double odom_pose_y = 0.0;
-double odom_pose_angle = 0.0;
 
 std::string aiVersion = "0.0";
 
@@ -239,15 +251,19 @@ public:
         RCLCPP_INFO(this->get_logger(), "use_cam : %d, use_2LL: %d", use_cam_, use_2LL_);
 
         amcl_pose_sub = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("amcl_pose", 10, std::bind(&AIInterface::amcl_pose_callback, this, std::placeholders::_1));
-        odom_sub = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&AIInterface::odom_callback, this, std::placeholders::_1));
-        lineLaser_cmd_sub = this->create_subscription<std_msgs::msg::Bool>("/cmd_linelaser", 10, std::bind(&AIInterface::lineLaserCommand_callback, this, std::placeholders::_1));
+        
         //publisher
         camera_data_publisher_ = this->create_publisher<robot_custom_msgs::msg::CameraDataArray>("camera_data", 10);
-        line_laser_data_publisher_ = this->create_publisher<robot_custom_msgs::msg::LineLaserDataArray>("line_laser_data", 10);
+        
         ai_version_publisher_ = this->create_publisher<std_msgs::msg::String>("ai_version", 1);
 
-        //UDP 패지지 -> AP -> AI FOR OTA START CMD    
-        ai_command_subscriber_ = this->create_subscription<std_msgs::msg::UInt8>("/req_version", 10, std::bind(&AIInterface::aiCommandCallback, this, std::placeholders::_1));
+        #if USE_LINELASER_SENSOR > 0
+        lineLaser_cmd_sub = this->create_subscription<std_msgs::msg::Bool>("/cmd_linelaser", 10, std::bind(&AIInterface::lineLaserCommand_callback, this, std::placeholders::_1));
+        line_laser_data_publisher_ = this->create_publisher<robot_custom_msgs::msg::LineLaserDataArray>("line_laser_data", 10);
+        #endif
+
+        req_version_sub_ = this->create_subscription<std_msgs::msg::UInt8>("/req_version", 10, std::bind(&AIInterface::requestVersionCallback, this, std::placeholders::_1));
+        cmd_camera_sub_ = this->create_subscription<std_msgs::msg::Bool>("/cmd_camera", 10, std::bind(&AIInterface::cameraOnOffCallback, this, std::placeholders::_1));
 
         // Set up the serial connection
         try
@@ -297,12 +313,14 @@ private:
     std::vector<uint8_t> buffer_;
 
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr amcl_pose_sub;
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr lineLaser_cmd_sub;
     rclcpp::Publisher<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_data_publisher_;
+    #if USE_LINELASER_SENSOR > 0
     rclcpp::Publisher<robot_custom_msgs::msg::LineLaserDataArray>::SharedPtr line_laser_data_publisher_;
+    #endif
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr ai_version_publisher_;
-    rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr ai_command_subscriber_;
+    rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr req_version_sub_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr cmd_camera_sub_;
 
     std::pair<double, double> convertSensorPosition(double sensor_offset_x, double sensor_offset_y, double obstacle_distance, double sensor_orientation)
     {
@@ -312,24 +330,32 @@ private:
         return std::make_pair(obstacle_x_in_robot_frame, obstacle_y_in_robot_frame);
     }
 
-    //ota
-    void aiCommandCallback(const std_msgs::msg::UInt8::SharedPtr msg)
+    void requestVersionCallback(const std_msgs::msg::UInt8::SharedPtr msg)
     {   
-        if(msg->data & 0x02){
-            std_msgs::msg::String msg;
-            msg.data = aiVersion;  // unsigned short -> uint8_t로 캐스팅
-            ai_version_publisher_->publish(msg);
-            sendVersionRequest();
-        }
+        publishVersion();
+        sendVersionRequest();
+    }
 
-        int otaAICmd = msg->data;
-        #if USE_DEBUG_LOG
-        RCLCPP_INFO(this->get_logger(), "otaAICmd is %s ", otaAICmd ? "true" : "false");
-        #endif
-        if (otaAICmd)
-        {
-            //TDOD
-            // sendData() 와 같은 함수를 사용해서 커맨드를 보내면 됩니다.
+    void cameraOnOffCallback(const std_msgs::msg::Bool::SharedPtr msg)
+    {   
+        bool on = msg->data;
+        RCLCPP_INFO(this->get_logger(), "cameraOnOffCallback ");
+        if(on){
+            sendSensorControl(true);
+            RCLCPP_INFO(this->get_logger(), "cameraOn ");
+        }else{
+            sendSensorControl(false);
+            RCLCPP_INFO(this->get_logger(), "cameraOff ");
+        }
+    }
+
+    void calibrationCallback(const std_msgs::msg::Bool::SharedPtr msg)
+    {   
+        bool calib = msg->data;
+        if(calib){
+            sendCalibrationRequest(true);
+        }else{
+            sendCalibrationRequest(false);
         }
     }
 
@@ -356,24 +382,17 @@ private:
         
     }
 
-    void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
-    {
-        odom_pose_x = msg->pose.pose.position.x;
-        odom_pose_y = msg->pose.pose.position.y;
-        odom_pose_angle = quaternion_to_euler(msg->pose.pose.orientation);
-
-    }
-
+    #if USE_LINELASER_SENSOR > 0
     void lineLaserCommand_callback(const std_msgs::msg::Bool::SharedPtr msg)
     {
-        //bool bLineLaserOnOff = msg->data;
-        //if(bLineLaserOnOff){
-        //  lineLaserSensorOn();
-        // }else{
-        //  lineLaserSensorOff();
-        // }
+        bool bLineLaserOnOff = msg->data;
+        if(bLineLaserOnOff){
+         lineLaserSensorOn();
+        }else{
+         lineLaserSensorOff();
+        }
     }
-
+    #endif
 
     // 발신 전용 함수: 특정 데이터를 발신할 때 호출 (필요시 추가 사용 가능)
     // AP->AI로 보내는 경우가 있을 경우를 대비해서
@@ -426,11 +445,28 @@ private:
         // Fill in the packet fields
         data[0] = 0xAA;        // PRE_AMBLE_0
         data[1] = 0x55;        // PRE_AMBLE_1
-        data[2] = 2;           // Data_Size
+        data[2] = 3;           // Data_Size
         data[3] = static_cast<uint8_t>(CommandNumber::CalibrationRequest);
         data[4] = start ? 1 : 0; // Start/Stop (1 for Start, 0 for Stop)
 
         // Calculate checksum: ADD(4, 5) = Header + Start/Stop
+        data[5] = data[3] + data[4]; // CHECKSUM
+
+        // Send the data
+        serial_.write(data);
+    }
+
+    void sendSensorControl(bool enable)
+    {
+        // Create a vector for the data
+        std::vector<uint8_t> data(6); // Size is 6 based on your structure
+
+        // Fill in the packet fields
+        data[0] = 0xAA;        // PRE_AMBLE_0
+        data[1] = 0x55;        // PRE_AMBLE_1
+        data[2] = 3;           // Data_Size
+        data[3] = static_cast<uint8_t>(CommandNumber::SensorControlRequest);
+        data[4] = enable ? 1 : 0; // on/off (1 for on, 0 for off)
         data[5] = data[3] + data[4]; // CHECKSUM
 
         // Send the data
@@ -662,7 +698,8 @@ private:
 
         return (computed_checksum == packet.checksum);
     }
-        
+    
+    #if USE_LINELASER_SENSOR > 0
     bool LLParsePacket(const std::vector<uint8_t> &data, LLPacketData &packet)
     {
         packet.pre_amble_0 = data[0];
@@ -752,7 +789,7 @@ private:
 
         return (computed_checksum == packet.checksum);
     }
-
+    #endif
 
     bool parseErrorDataPacket(const std::vector<uint8_t> &data, ErrorDataPacket &packet) {
         // Ensure the packet has the minimum size
@@ -891,9 +928,41 @@ private:
         return computed_checksum == packet.CHECKSUM;
     }
 
+    bool parseSensorControlPacket(const std::vector<uint8_t> &data, SensorControPacket &packet)
+    {
+        // Validate minimum size of the packet
+        if (data.size() < 6)
+        {
+            return false; // Packet too small
+        }
+
+        // Parse fixed fields
+        packet.PRE_AMBLE_0 = data[0];
+        packet.PRE_AMBLE_1 = data[1];
+        packet.Data_Size = data[2];
+        packet.Header_Command = data[3];
+        packet.Result = data[4];
+        packet.CHECKSUM = data[5];
+
+        // Compute checksum
+        uint8_t computed_checksum = data[3] + data[4]; // ADD(4,5) = Header_Command + Result
+        return computed_checksum == packet.CHECKSUM;
+    }
+
     void logCalibrationResultPacket(const CalibrationResultPacket &packet)
     {
         std::cout << "Calibration Result Packet Parsed Successfully!" << std::endl;
+        std::cout << "PRE_AMBLE_0: 0x" << std::hex << static_cast<int>(packet.PRE_AMBLE_0) << std::endl;
+        std::cout << "PRE_AMBLE_1: 0x" << std::hex << static_cast<int>(packet.PRE_AMBLE_1) << std::endl;
+        std::cout << "Data_Size: " << std::dec << static_cast<int>(packet.Data_Size) << std::endl;
+        std::cout << "Header_Command: 0x" << std::hex << static_cast<int>(packet.Header_Command) << " (CalibrationResult)" << std::endl;
+        std::cout << "Result: " << std::dec << static_cast<int>(packet.Result) << std::endl;
+        std::cout << "CHECKSUM: 0x" << std::hex << static_cast<int>(packet.CHECKSUM) << std::endl;
+    }
+
+    void logSensorControResultPacket(const SensorControPacket &packet)
+    {
+        std::cout << "SensorContorl Result Packet Parsed Successfully!" << std::endl;
         std::cout << "PRE_AMBLE_0: 0x" << std::hex << static_cast<int>(packet.PRE_AMBLE_0) << std::endl;
         std::cout << "PRE_AMBLE_1: 0x" << std::hex << static_cast<int>(packet.PRE_AMBLE_1) << std::endl;
         std::cout << "Data_Size: " << std::dec << static_cast<int>(packet.Data_Size) << std::endl;
@@ -943,30 +1012,32 @@ private:
             camera_data_array.robot_angle = amcl_pose_angle;
             camera_data_publisher_->publish(camera_data_array);
         }
-        // else if (data[3] == static_cast<uint8_t>(CommandNumber::ProtocolV1_2LL)) // 2LL
-        // {
-        //     if(use_2LL_ == 0)
-        //     {
-        //         // RCLCPP_INFO(this->get_logger(), "set 2LL Packet parsed remove option");
-        //         return;
-        //     }
+        #if USE_LINELASER_SENSOR > 0
+        else if (data[3] == static_cast<uint8_t>(CommandNumber::ProtocolV1_2LL)) // 2LL
+        {
+            if(use_2LL_ == 0)
+            {
+                // RCLCPP_INFO(this->get_logger(), "set 2LL Packet parsed remove option");
+                return;
+            }
 
-        //     LLPacketData packet;
-        //     LLParsePacket(data, packet);
+            LLPacketData packet;
+            LLParsePacket(data, packet);
 
-            // robot_custom_msgs::msg::AIData LL_data;
-            // for (const auto &L2 : packet.LL)
-            // {
-            //     // LL_data.timestamp = this->get_clock()->now();
-            //     LL_data.x = static_cast<double>(L2.x * 0.001);
-            //     LL_data.y = static_cast<double>(L2.y * 0.001);
-            //     LL_data.theta = static_cast<double>(L2.theta * M_PI/180); // [rad]
-            //     LL_data.width = static_cast<double>(L2.width * 0.001);
-            //     LL_data.height = static_cast<double>(L2.height * 0.001);
-            //     LL_data.distance = static_cast<double>(L2.distance * 0.001);
-            //     line_laser_data_publisher_->publish(LL_data); // [m]
-            // }
-        //}
+            robot_custom_msgs::msg::AIData LL_data;
+            for (const auto &L2 : packet.LL)
+            {
+                // LL_data.timestamp = this->get_clock()->now();
+                LL_data.x = static_cast<double>(L2.x * 0.001);
+                LL_data.y = static_cast<double>(L2.y * 0.001);
+                LL_data.theta = static_cast<double>(L2.theta * M_PI/180); // [rad]
+                LL_data.width = static_cast<double>(L2.width * 0.001);
+                LL_data.height = static_cast<double>(L2.height * 0.001);
+                LL_data.distance = static_cast<double>(L2.distance * 0.001);
+                line_laser_data_publisher_->publish(LL_data); // [m]
+            }
+        }
+        #endif
         else if (data[3] == static_cast<uint8_t>(CommandNumber::ProtocolV2_Objects )) // 카메라
         {
             ObjectV2PacketData packet;
@@ -996,7 +1067,7 @@ private:
                 camera_data.score = obj.confidence;     // confidence score [0,100]
                 camera_data.x = std::round(static_cast<double>(obj.x * 0.001) * 1000) / 1000;
                 camera_data.y = std::round(static_cast<double>(obj.y * 0.001) * 1000) / 1000;
-                camera_data.theta = static_cast<double>(obj.theta * M_PI/180); //[rad]
+                camera_data.theta = -static_cast<double>(obj.theta * M_PI/180); //[rad] - cw(+) // 카메라 장애물 좌표계는 로봇과 y축 반전 ( 오른쪽 + , 왼쪽 - )
                 camera_data.width = std::round(static_cast<double>(obj.width * 0.001) * 1000) / 1000;
                 camera_data.height = std::round(static_cast<double>(obj.height * 0.001) * 1000) / 1000;
                 camera_data.distance = std::round(static_cast<double>(obj.distance * 0.001) * 1000) / 1000;
@@ -1007,6 +1078,7 @@ private:
             camera_data_array.robot_angle = amcl_pose_angle;
             camera_data_publisher_->publish(camera_data_array);
         }
+        #if USE_LINELASER_SENSOR > 0
         else if (data[3] == static_cast<uint8_t>(CommandNumber::ProtocolV2_2LL)) // 2LL
         {
             //RCLCPP_INFO(this->get_logger(), "linelaserData received");
@@ -1051,6 +1123,7 @@ private:
             LL_data_array.robot_angle = amcl_pose_angle;
             line_laser_data_publisher_->publish(LL_data_array);
         }
+        #endif
         else if (data[3] == static_cast<uint8_t>(CommandNumber::Error )) // Error
         {
             ErrorDataPacket packet;
@@ -1066,12 +1139,15 @@ private:
             if (parseVersionResponsePacket(data, packet)) {
                 logVersionResponsePacket(packet);
                 std::string tmp = std::to_string(packet.Version1)+'.'+std::to_string(packet.Version2);
+                RCLCPP_INFO(this->get_logger(), "resPonse AI VERSION : %s", tmp.c_str());
+                
                 if( aiVersion != tmp){ 
                     aiVersion = tmp;
                     // RCLCPP_INFO(this->get_logger(), "packet.Version1 : %u", packet.Version1);
                     // RCLCPP_INFO(this->get_logger(), "packet.Version2 : %u", packet.Version2);
 
                     // UInt8 메시지 생성
+                    RCLCPP_INFO(this->get_logger(), "resPonse AI VERSION UPDATE: %s", tmp.c_str());
                     std_msgs::msg::String msg;
                     msg.data = tmp;  // unsigned short -> uint8_t로 캐스팅
 
@@ -1087,6 +1163,14 @@ private:
                 logCalibrationResultPacket(packet);
             } else {
                 std::cerr << "Failed to parse Calibration Result Packet(." << std::endl;
+            }
+        }else if (data[3] == static_cast<uint8_t>(CommandNumber::SensorControlResponse)) {
+            SensorControPacket packet;
+            RCLCPP_INFO(this->get_logger(), "resPonse Camera ON-OFF ");
+            if (parseSensorControlPacket(data, packet)) {
+                logSensorControResultPacket(packet);
+            } else {
+                std::cerr << "Failed to parse Sensor Control Result Packet(." << std::endl;
             }
         }
         else
@@ -1141,6 +1225,13 @@ private:
         }
 
         RCLCPP_INFO(this->get_logger(), "File transmission completed. Total bytes sent: %zu", total_bytes_sent);
+    }
+
+    void publishVersion()
+    {
+        std_msgs::msg::String msg;
+        msg.data = aiVersion;  // unsigned short -> uint8_t로 캐스팅
+        ai_version_publisher_->publish(msg);
     }
 
 };

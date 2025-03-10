@@ -83,22 +83,22 @@ void laserScanCallback(
     node->setSensorLayerMap(name, layer);
 }
 
-void boundingBox2DArrayCallback(
-    const std::string& name,
-    std::shared_ptr<PerceptionNode> node,
-    const vision_msgs::msg::BoundingBox2DArray::SharedPtr& msg)
-{
-    // TODO (sw): Implement this function (layer is not good choice)
-    auto layer = Layer();
+// void boundingBox2DArrayCallback(
+//     const std::string& name,
+//     std::shared_ptr<PerceptionNode> node,
+//     const vision_msgs::msg::BoundingBox2DArray::SharedPtr& msg)
+// {
+//     // TODO (sw): Implement this function (layer is not good choice)
+//     auto layer = Layer();
 
-    for (const auto& box : msg->boxes)
-    {
-        // object.x = box.center.position.x;
-        // object.y = box.center.position.y;
-        // object.width = box.size_x;
-        // object.height = box.size_y;
-    }
-}
+//     for (const auto& box : msg->boxes)
+//     {
+//         // object.x = box.center.position.x;
+//         // object.y = box.center.position.y;
+//         // object.width = box.size_x;
+//         // object.height = box.size_y;
+//     }
+// }
 
 PerceptionNode::PerceptionNode() : Node("A1_perception")
 {
@@ -149,19 +149,15 @@ void PerceptionNode::initFilters(const YAML::Node& config)
 
 void PerceptionNode::initController()
 {
-    auto callback = [this](const std_msgs::msg::Empty::SharedPtr msg)
-    {
-        this->resetLayers();
-        RCLCPP_INFO(this->get_logger(), "%s():%d: Costmap has been cleared.", __FUNCTION__, __LINE__);
-    };
     this->controller_subscribers["clear_request_from_udp"] = this->create_subscription<std_msgs::msg::Empty>(
         "/localization/clear/costmap",
         10,
         [this](const std_msgs::msg::Empty::SharedPtr msg)
         {
+            (void)msg;
             this->resetLayers();
             RCLCPP_INFO(
-                this->get_logger(), "%s:%ld: Perception's all layers cleared by UDP commnad.", __FUNCTION__, __LINE__);
+                this->get_logger(), "%s:%d: Perception's all layers cleared by UDP commnad.", __FUNCTION__, __LINE__);
         });
 
     this->controller_subscribers["clear_request_from_rviz_init_pose"] =
@@ -170,10 +166,11 @@ void PerceptionNode::initController()
             10,
             [this](const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
             {
+                (void)msg;
                 this->resetLayers();
                 RCLCPP_INFO(
                     this->get_logger(),
-                    "%s:%ld: Perception's all layers cleared by initial pose estimate.",
+                    "%s:%d: Perception's all layers cleared by initial pose estimate.",
                     __FUNCTION__,
                     __LINE__);
             });
@@ -183,6 +180,7 @@ void PerceptionNode::initController()
             10,
             [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg)
             {
+                (void)msg;
                 this->resetLayers();
                 RCLCPP_INFO(
                     this->get_logger(), "%s:%d: Perception's all layers cleared by goal pose.", __FUNCTION__, __LINE__);
@@ -233,13 +231,13 @@ void PerceptionNode::initSubscribers(const YAML::Node& config)
             auto subs = this->create_subscription<sensor_msgs::msg::LaserScan>(input_topic, qos_profile, callback);
             this->subscribers[input_name] = subs;
         }
-        else if (input_type == "BoundingBox2DArray")
-        {
-            auto callback = [this, pnode, input_name](vision_msgs::msg::BoundingBox2DArray::SharedPtr msg)
-            { boundingBox2DArrayCallback(input_name, pnode, msg); };
-            auto subs = this->create_subscription<vision_msgs::msg::BoundingBox2DArray>(input_topic, 10, callback);
-            this->subscribers[input_name] = subs;
-        }
+        // else if (input_type == "BoundingBox2DArray")
+        // {
+        //     auto callback = [this, pnode, input_name](vision_msgs::msg::BoundingBox2DArray::SharedPtr msg)
+        //     { boundingBox2DArrayCallback(input_name, pnode, msg); };
+        //     auto subs = this->create_subscription<vision_msgs::msg::BoundingBox2DArray>(input_topic, 10, callback);
+        //     this->subscribers[input_name] = subs;
+        // }
         else if (input_type == "PoseWithCovarianceStamped")
         {
             auto callback = [this](geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
@@ -257,6 +255,20 @@ void PerceptionNode::initSubscribers(const YAML::Node& config)
             };
             auto subs =
                 this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(input_topic, 10, callback);
+            this->subscribers[input_name] = subs;
+        }
+        else if (input_type == "sensor_msgs/msg/Imu")
+        {
+            auto callback = [this, input_name](const sensor_msgs::msg::Imu::SharedPtr msg)
+            {
+                tf2::Quaternion q;
+                q.setX(msg->orientation.x);
+                q.setY(msg->orientation.y);
+                q.setZ(msg->orientation.z);
+                q.setW(msg->orientation.w);
+                this->imu_data.setFromQuaternion(q);
+            };
+            auto subs = this->create_subscription<sensor_msgs::msg::Imu>(input_topic, 10, callback);
             this->subscribers[input_name] = subs;
         }
         else
@@ -294,6 +306,13 @@ void PerceptionNode::init()
 
     auto timer_callback = std::bind(&PerceptionNode::timerCallback, this);
     auto period = std::chrono::milliseconds(this->config["period_ms"].as<int>());
+
+    auto climb_condition = this->config["climb_condition"];
+    this->climbing_timeout = climb_condition["timeout_ms"].as<int>();
+    this->climbing_pitch_alpha = climb_condition["pitch_alpha"].as<float>();
+    this->enable_climbing_threshold = climb_condition["enable_climbing_threshold"].as<float>() * M_PI / 180;
+    this->disable_climbing_threshold = climb_condition["disable_climbing_threshold"].as<float>() * M_PI / 180;
+
     this->timer = this->create_wall_timer(period, timer_callback);
 }
 
@@ -323,12 +342,18 @@ Position PerceptionNode::getPosition()
 {
     return this->robot_position;
 }
-
+Position PerceptionNode::getIMUdata()
+{
+    return this->imu_data;
+}
 std::unordered_map<std::string, Layer>& PerceptionNode::getDropOffLayerMap()
 {
     return this->drop_off_layer_map;
 }
-
+void PerceptionNode::clearDropOffLayerMap()
+{
+    this->drop_off_layer_map.clear();
+}
 void PerceptionNode::sendActionStop(int data)
 {
     auto action_stop_pub =
@@ -345,6 +370,8 @@ void PerceptionNode::resetLayers()
 {
     this->layers.clear();
     this->drop_off_layer_map.clear();
+    this->climb_flag = false;
+    this->estimated_bias = 0;
 }
 
 sensor_msgs::msg::PointCloud2 PerceptionNode::convertToPointCloud2(const pcl::PointCloud<pcl::PointXYZ>& cloud)
@@ -391,6 +418,7 @@ sensor_msgs::msg::PointCloud2 PerceptionNode::convertToPointCloud2(const pcl::Po
 
 void PerceptionNode::timerCallback()
 {
+    climbCheck();
     // Accumulate data from sensors
     auto layers_node = this->config["layers"];
     for (auto it = layers_node.begin(); it != layers_node.end(); ++it)
@@ -475,4 +503,46 @@ void PerceptionNode::timerCallback()
     }
 }
 
+void PerceptionNode::setClimb(bool is_climb)
+{
+    this->climb_flag = is_climb;
+}
+
+bool PerceptionNode::isClimb()
+{
+    return this->climb_flag;
+}
+
+void PerceptionNode::climbCheck()
+{
+    float pitch = this->getIMUdata().pitch;
+    if ((!this->isClimb()) && ((pitch - this->estimated_bias) < this->enable_climbing_threshold))
+    {
+        RCLCPP_INFO(this->get_logger(), "%s():%d: Remove All Drop off data by climb", __FUNCTION__, __LINE__);
+        this->setClimb(true);
+        this->climbing_time = this->now();
+    }
+    else if (this->isClimb() && (pitch - this->estimated_bias) >= this->disable_climbing_threshold)
+    {
+        if ((this->now() - this->climbing_time) > rclcpp::Duration::from_seconds(this->climbing_timeout / 1000.0))
+        {
+            this->setClimb(false);
+            this->estimated_bias = 0;
+        }
+    }
+
+    if (this->isClimb())
+    {
+        this->clearDropOffLayerMap();
+    }
+    else
+    {
+        this->estimated_bias = this->compute_exponential_weight_moving_average(this->estimated_bias, pitch);
+    }
+}
+
+double PerceptionNode::compute_exponential_weight_moving_average(double prev, double curr)
+{
+    return (1.0 - this->climbing_pitch_alpha) * prev + this->climbing_pitch_alpha * curr;
+}
 }  // namespace A1::perception

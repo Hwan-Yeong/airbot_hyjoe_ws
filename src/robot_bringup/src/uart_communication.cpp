@@ -44,6 +44,8 @@ UARTCommunication::UARTCommunication()
 
     bottom_status_pub_ = this->create_publisher<std_msgs::msg::UInt8>("bottom_status", 10);
 
+    bottom_ir_data_pub_ = this->create_publisher<robot_custom_msgs::msg::BottomIrData>("bottom_ir_data", 10);
+
     imu_data_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu_data", 10);
 
     odom_status_pub_ = this->create_publisher<std_msgs::msg::UInt8>("/odom_status", 10);
@@ -201,6 +203,7 @@ void UARTCommunication::pubTopic()
     tf_broadcaster_->sendTransform(transform);
     imu_data_pub_->publish(imu_msg);
     bottom_status_pub_->publish(bottom_status_msg);
+    bottom_ir_data_pub_->publish(bottom_ir_msg);
     tof_data_pub_->publish(tof_msg);
     motor_status_pub_->publish(motor_msg);
     station_data_pub_->publish(station_msg);
@@ -396,7 +399,9 @@ void UARTCommunication::setCharge(DockingChargeCommand set)
 // 도킹 관련 설정 함수 (하위 4 비트)
 void UARTCommunication::setDocking(DockingChargeCommand set)
 {
-    uint8_t status = getUpperBits(g_transmission_data.docking_flags);
+    uint8_t new_status = static_cast<uint8_t>(set);
+    uint8_t status = getLowerBits(g_transmission_data.docking_flags);
+    //RCLCPP_INFO(this->get_logger(), "setDocking status: %u --> new status: %u", status,new_status);
     if(set != static_cast<DockingChargeCommand>(status)){
         if (set == DockingChargeCommand::DOCKING_START){
             RCLCPP_INFO(this->get_logger(), "DOCKING_START");
@@ -640,6 +645,7 @@ uint8_t UARTCommunication::getUpperBits(uint8_t byte)
 {
     return (byte >> 4);
 }
+
 uint8_t UARTCommunication::getLowerBits(uint8_t byte)
 {
     return (byte & 0x0F);
@@ -803,6 +809,7 @@ float calculateAverage(const uint16_t *array, size_t size)
 
 void UARTCommunication::setTofMsg(const V1DataPacket &packet)
 {
+    tof_msg.timestamp = this->get_clock()->now();
     tof_msg.top = static_cast<double>(packet.top_tof) / 1000.0f;
 
     // Left ToF Remapping
@@ -886,6 +893,20 @@ void UARTCommunication::setDockingMsg(const V1DataPacket &packet)
 void UARTCommunication::setBottomMsg(const V1DataPacket &packet)
 {
     bottom_status_msg.data = packet.bottom_wheel_lifting_sensor;
+
+    bottom_ir_msg.timestamp = this->get_clock()->now();
+
+    bottom_ir_msg.ff = (packet.bottom_wheel_lifting_sensor & (1 << 0)) != 0;
+    bottom_ir_msg.fl = (packet.bottom_wheel_lifting_sensor & (1 << 1)) != 0;
+    bottom_ir_msg.bl = (packet.bottom_wheel_lifting_sensor & (1 << 2)) != 0;
+    bottom_ir_msg.bb = (packet.bottom_wheel_lifting_sensor & (1 << 3)) != 0;
+    bottom_ir_msg.br = (packet.bottom_wheel_lifting_sensor & (1 << 4)) != 0;
+    bottom_ir_msg.fr = (packet.bottom_wheel_lifting_sensor & (1 << 5)) != 0;
+
+    // amcl pose
+    bottom_ir_msg.robot_x = amcl_pose_x_;
+    bottom_ir_msg.robot_y = amcl_pose_y_;
+    bottom_ir_msg.robot_angle = amcl_pose_angle_;
 }
 
 void UARTCommunication::setOdomStatusMsg(const V1DataPacket &packet)

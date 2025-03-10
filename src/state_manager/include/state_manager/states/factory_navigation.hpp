@@ -48,7 +48,7 @@ public:
   rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr target_pose_pub_;
   rclcpp::Subscription<robot_custom_msgs::msg::Position>::SharedPtr req_target_sub_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr rotation_move_pub_;
-  rclcpp::Subscription<robot_custom_msgs::msg::TestPosition>::SharedPtr req_rotation_target_sub_;
+
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_robot_cmd_pub_;
   std::shared_ptr<nav2_msgs::action::NavigateToPose::Goal> goal_msg;
   rclcpp::TimerBase::SharedPtr rotation_target_timer_;
@@ -73,7 +73,6 @@ public:
   int naviNodeChecker();
   bool resetOdomChecker();
   int8_t localizationChecker();
-  void rotation_callback(const robot_custom_msgs::msg::TestPosition::SharedPtr msg);
 
 };
 

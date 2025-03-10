@@ -34,6 +34,7 @@ def generate_launch_description():
              parameters=[
                  {'reqeust_time_ms'   : 5000},
                 #  {'json_file_path'    : '/home/airbot/keepout_json/'}
+                {'json_file_path'    : '/home/airbot/app_rw/A1_keepout/'}
             ]
         ),    
     ])

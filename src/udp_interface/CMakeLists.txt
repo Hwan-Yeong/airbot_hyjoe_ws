@@ -3,9 +3,8 @@ project(udp_interface)
 
 set(CMAKE_BUILD_TYPE Release) #set(CMAKE_BUILD_TYPE Debug) 
 
-# Debug 심볼 옵션 제거 또는 조건부 추가
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  add_compile_options(-g)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
 find_package(ament_cmake REQUIRED)
@@ -18,13 +17,6 @@ find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(robot_custom_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
-
-
-# Add compile options for security and optimization
-add_compile_options(
-  -fstack-protector-strong  # Enable stack protector
-  -flto                     # Enable link-time optimization
-)
 
 # Add linker flags for memory protections
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro,-z,now")

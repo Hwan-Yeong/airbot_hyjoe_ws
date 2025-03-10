@@ -231,7 +231,9 @@ enum class REQUEST_ROBOT_CMD{
   DONE_DOCKING, // DOCKING 완료 시
 
   DONE_RETURN_CHARGER, // RETURN_CHARGER완료 시
-  FAIL_RETURN_CHARGER  // RETURN_CHARGER FAIL 시
+  FAIL_RETURN_CHARGER_TRY_DOCKING,  // RETURN_CHARGER FAIL 시
+
+  ERROR
 };
 
 inline std::string enumToString(const REQUEST_ROBOT_CMD in) {
@@ -267,8 +269,11 @@ inline std::string enumToString(const REQUEST_ROBOT_CMD in) {
   case REQUEST_ROBOT_CMD::DONE_RETURN_CHARGER:
     out = std::string("DONE_RETURN_CHARGER");
     break;
-  case REQUEST_ROBOT_CMD::FAIL_RETURN_CHARGER:
-    out = std::string("FAIL_RETURN_CHARGER");
+  case REQUEST_ROBOT_CMD::FAIL_RETURN_CHARGER_TRY_DOCKING:
+    out = std::string("FAIL_RETURN_CHARGER_TRY_DOCKING");
+    break;  
+  case REQUEST_ROBOT_CMD::ERROR:
+    out = std::string("ERROR");
     break;
   }
   return out;

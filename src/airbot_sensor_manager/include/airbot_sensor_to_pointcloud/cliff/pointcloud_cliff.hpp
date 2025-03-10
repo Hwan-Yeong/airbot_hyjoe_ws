@@ -3,7 +3,7 @@
 
 #include <cmath>
 #include <string>
-#include "std_msgs/msg/u_int8.hpp"
+#include "robot_custom_msgs/msg/bottom_ir_data.hpp"
 #include "utils/pointcloud_generator.hpp"
 #include "utils/frame_converter.hpp"
 
@@ -16,7 +16,7 @@ public:
 
     void updateTargetFrame(std::string &updated_frame);
     void updateRobotPose(tPose &pose);
-    sensor_msgs::msg::PointCloud2 updateCliffPointCloudMsg(std_msgs::msg::UInt8::SharedPtr msg);
+    sensor_msgs::msg::PointCloud2 updateCliffPointCloudMsg(robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
 
 private:
     PointCloudGenerator pointcloud_generator_;

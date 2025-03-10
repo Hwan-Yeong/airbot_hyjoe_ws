@@ -33,9 +33,13 @@ FilterFactory::create(std::shared_ptr<PerceptionNode> node_ptr, const std::strin
     {
         return std::make_shared<DropOffFilter>(node_ptr, config);
     }
-    else if (type == "one_d_tof_stop")
+    else if (type == "one_d_tof")
     {
         return std::make_shared<OneDTofFilter>(node_ptr, config);
+    }
+    else if (type == "dist_check")
+    {
+        return std::make_shared<DistCheckFilter>(node_ptr, config);
     }
     else
     {

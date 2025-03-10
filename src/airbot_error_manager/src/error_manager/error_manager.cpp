@@ -77,11 +77,11 @@ ErrorManager::ErrorManager()
 
     // S-error
     s_unreachable_goal_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo13",
+        "/move_fail_error",
         100,std::bind(&ErrorManager::unReachableGoalErrorCallback, this, std::placeholders::_1)
     );
     s_change_temporary_goal_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo14",
+        "/alternative_dest_error",
         100,std::bind(&ErrorManager::changeTempGoalErrorCallback, this, std::placeholders::_1)
     );
     s_fall_down_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
@@ -89,7 +89,7 @@ ErrorManager::ErrorManager()
         100,std::bind(&ErrorManager::fallDownErrorCallback, this, std::placeholders::_1)
     );
     s_unable_to_docking_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo16",
+        "/docking_error",
         100,std::bind(&ErrorManager::unableToDockingErrorCallback, this, std::placeholders::_1)
     );
     s_board_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(

@@ -1,39 +1,123 @@
-
-<!--
-This Behavior Tree replans the global path periodically at 1 Hz and it also has
-recovery actions specific to planning / control as well as general system issues.
-This will be continuous if a kinematically valid planner is selected.
--->
-<root main_tree_to_execute="MainTree">
-	<BehaviorTree ID="MainTree">
-		<RecoveryNode number_of_retries="2" name="NavigateRecovery">
-			<PipelineSequence name="NavigateWithReplanning">
-				<RateController hz="1.0">
-					<RecoveryNode number_of_retries="1" name="ComputePathToPose">
-						<ComputePathToPose goal="{goal}" path="{path}" planner_id="GridBased"/>
-						<Sequence name="ClearingGlobal">
-							<ClearCostmapExceptRegion  name="ClearGlobalCostmap-Subtree1" service_name="global_costmap/clear_except_global_costmap"/>
-							<ClearCostmapAroundRobot  name="ClearGlobaalCostmap-Subtree2" service_name="global_costmap/clear_around_global_costmap"/>
-						</Sequence>
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4">
+	<BehaviorTree ID="Untitled">
+		<Sequence>
+			<ClearCostmapExceptRegion service_name="global_costmap/clear_except_global_costmap"
+				server_timeout="3"
+				reset_distance="1.0"/>
+			<ClearCostmapAroundRobot service_name="global_costmap/clear_around_global_costmap"
+				server_timeout="3"
+				reset_distance="0.7"/>
+			<ClearCostmapExceptRegion service_name="local_costmap/clear_except_local_costmap"
+				server_timeout="3"
+				reset_distance="1.0"/>
+			<ClearCostmapAroundRobot service_name="local_costmap/clear_around_local_costmap"
+				server_timeout="3"
+				reset_distance="0.7"/>
+			<RecoveryNode number_of_retries="4">
+				<PipelineSequence name="NavigateWithReplanning">
+					<RateController hz="1">
+						<RecoveryNode number_of_retries="1">
+							<ComputePathToPose goal="{goal}"
+								start="{start}"
+								planner_id="GridBased"
+								server_timeout="10"
+								path="{path}"
+								/>
+							<ReactiveSequence>
+								<ClearCostmapExceptRegion service_name="global_costmap/clear_except_global_costmap"
+									server_timeout="10"
+									reset_distance="2"/>
+								<ClearCostmapAroundRobot service_name="global_costmap/clear_around_global_costmap"
+									server_timeout="10"
+									reset_distance="0.8"/>
+								<ClearCostmapExceptRegion service_name="local_costmap/clear_except_local_costmap"
+									server_timeout="10"
+									reset_distance="2"/>
+								<ClearCostmapAroundRobot service_name="local_costmap/clear_around_local_costmap"
+									server_timeout="10"
+									reset_distance="0.8"/>
+							</ReactiveSequence>
+						</RecoveryNode>
+					</RateController>
+					<RecoveryNode number_of_retries="1">
+						<FollowPath controller_id="FollowPath"
+							path="{path}"
+							goal_checker_id="general_goal_checker"
+							server_timeout="10"
+							/>
+						<ReactiveSequence>
+							<ClearCostmapExceptRegion service_name="global_costmap/clear_except_global_costmap"
+								server_timeout="10"
+								reset_distance="1.0"/>
+							<ClearCostmapAroundRobot service_name="global_costmap/clear_around_global_costmap"
+								server_timeout="10"
+								reset_distance="0.7"/>
+							<ClearCostmapExceptRegion service_name="local_costmap/clear_except_local_costmap"
+								server_timeout="10"
+								reset_distance="1.0"/>
+							<ClearCostmapAroundRobot service_name="local_costmap/clear_around_local_costmap"
+								server_timeout="10"
+								reset_distance="0.7"/>
+						</ReactiveSequence>
 					</RecoveryNode>
-				</RateController>
-				<RecoveryNode number_of_retries="1" name="FollowPath">
-					<FollowPath path="{path}" controller_id="FollowPath"/>
-					<Sequence name="ClearingLocal">
-						<ClearCostmapExceptRegion name="ClearLocalCostmap-Subtree3" service_name="local_costmap/clear_except_local_costmap"/>
-						<ClearCostmapAroundRobot  name="ClearLocalCostmap-Subtree4" service_name="local_costmap/clear_around_local_costmap"/>
-					</Sequence>
-				</RecoveryNode>
-			</PipelineSequence>
-			<ReactiveFallback name="RecoveryFallback">
-				<GoalUpdated/>
-				<RoundRobin name="RecoveryActions">
-					<Sequence name="ClearingActions">
-						<ClearEntireCostmap name="ClearLocalCostmap-Subtree" service_name="local_costmap/clear_entirely_local_costmap"/>
-						<ClearEntireCostmap name="ClearGlobalCostmap-Subtree" service_name="global_costmap/clear_entirely_global_costmap"/>
-					</Sequence>
-				</RoundRobin>
-			</ReactiveFallback>
-		</RecoveryNode>
+				</PipelineSequence>
+				<PipelineSequence>
+					<GoalUpdated/>
+					<ReactiveSequence>
+						<ClearEntireCostmap service_name="local_costmap/clear_entirely_local_costmap"
+							server_timeout="10"/>
+						<ClearEntireCostmap service_name="global_costmap/clear_entirely_global_costmap"
+							server_timeout="10"/>
+					</ReactiveSequence>
+				</PipelineSequence>
+			</RecoveryNode>
+		</Sequence>
 	</BehaviorTree>
+
+	<!-- Description of Node Models (used by Groot) -->
+	<TreeNodesModel>
+		<Action ID="ClearCostmapAroundRobot">
+			<input_port name="service_name">Service name</input_port>
+			<input_port name="server_timeout">Server timeout</input_port>
+			<input_port name="reset_distance">Distance from the robot under which obstacles are cleared</input_port>
+		</Action>
+		<Action ID="ClearCostmapExceptRegion">
+			<input_port name="service_name">Service name</input_port>
+			<input_port name="server_timeout">Server timeout</input_port>
+			<input_port name="reset_distance">Distance from the robot above which obstacles are cleared</input_port>
+		</Action>
+		<Action ID="ClearEntireCostmap">
+			<input_port name="service_name">Service name</input_port>
+			<input_port name="server_timeout">Server timeout</input_port>
+		</Action>
+		<Action ID="ComputePathToPose">
+			<input_port name="goal">Destination to plan to</input_port>
+			<input_port name="start">Start pose of the path if overriding current robot pose</input_port>
+			<input_port name="planner_id">Mapped name to the planner plugin type to use</input_port>
+			<input_port name="server_name">Server name</input_port>
+			<input_port name="server_timeout">Server timeout</input_port>
+			<output_port name="path">Path created by ComputePathToPose node</output_port>
+			<output_port name="error_code_id">"Compute path to pose error code"</output_port>
+		</Action>
+		<Action ID="FollowPath">
+			<input_port name="controller_id"
+				default="FollowPath"/>
+			<input_port name="path">Path to follow</input_port>
+			<input_port name="goal_checker_id">Goal checker</input_port>
+			<input_port name="progress_checker_id">Progress checker</input_port>
+			<input_port name="service_name">Service name</input_port>
+			<input_port name="server_timeout">Server timeout</input_port>
+			<output_port name="error_code_id">Follow Path error code</output_port>
+		</Action>
+		<Control ID="PipelineSequence"/>
+		<Decorator ID="RateController">
+			<input_port name="hz">Rate</input_port>
+		</Decorator>
+		<Control ID="RecoveryNode">
+			<input_port name="number_of_retries">Number of retries</input_port>
+		</Control>
+		<Control ID="RoundRobin"/>
+	</TreeNodesModel>
+
 </root>

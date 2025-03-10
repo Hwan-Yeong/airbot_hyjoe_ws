@@ -568,6 +568,7 @@ bool Serial_Port::setCustomBaudRate(unsigned long baudrate) {
       return true;
     }
   }
+  return false;
 }
 
 bool Serial_Port::setBaudrate(unsigned long baudrate) {
@@ -575,7 +576,6 @@ bool Serial_Port::setBaudrate(unsigned long baudrate) {
   if (fd_ == -1) {
     return false;
   }
-  speed_t new_baud = static_cast<speed_t>(baudrate);
 
   return setCustomBaudRate(baudrate);
 }

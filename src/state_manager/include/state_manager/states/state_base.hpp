@@ -16,8 +16,6 @@
 #include "robot_custom_msgs/msg/position.hpp"
 #include "robot_custom_msgs/msg/station_data.hpp"
 #include "robot_custom_msgs/msg/robot_state.hpp"
-//testcode
-#include "robot_custom_msgs/msg/test_position.hpp"
 
 #include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/twist.hpp"
@@ -59,7 +57,7 @@ struct pose {
 struct rotationData
 {
     bool progress;
-    int type;
+    uint8_t type;
     double target;
     double accAngle;
     double preTheta;

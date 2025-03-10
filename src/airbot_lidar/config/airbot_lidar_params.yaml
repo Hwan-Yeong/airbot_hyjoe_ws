@@ -1,0 +1,95 @@
+/airbot_lidar_front:
+  ros__parameters:
+    port: "/dev/sc_mini"
+    frame_id: "base_scan_front"
+    ignore_array: ""
+    baudrate: 230400
+    samp_rate: 9
+    resolution_fixed: true
+    singleChannel: false
+    auto_reconnect: true
+    reversion: true
+    isToFLidar: false
+    angle_max: 360.0
+    angle_min: 0.0
+    max_range: 12.0
+    min_range: 0.1
+    frequency: 10.0
+    angle_increment: 0.1
+    version: 4
+
+/airbot_lidar_back:
+  ros__parameters:
+    port: "/dev/sc_mini2"
+    frame_id: "base_scan_back"
+    ignore_array: ""
+    baudrate: 230400
+    samp_rate: 9
+    resolution_fixed: true
+    singleChannel: false
+    auto_reconnect: true
+    reversion: true
+    isToFLidar: false
+    angle_max: 360.0
+    angle_min: 0.0
+    max_range: 12.0
+    min_range: 0.1
+    frequency: 10.0
+    angle_increment: 0.1
+    version: 4
+
+/airbot_lidar_merger:
+  ros__parameters:
+    pointCloudTopic: /scan_merged_pointcloud
+    pointCloutFrameId: base_scan
+    scan_front:
+      topic: /scan_front
+      range:
+        angle_min: 60.0
+        angle_max: 300.0
+      geometry:
+        flip: false
+        offset:
+          x: 0.15
+          y: 0.0
+          z: 0.0
+          alpha: 180.0
+    scan_back:
+      topic: /scan_back
+      range:
+        angle_min: 60.0
+        angle_max: 300.0
+      geometry:
+        flip: false
+        offset:
+          x: -0.15
+          y: 0.0
+          z: 0.0
+          alpha: 0.0
+    qos_overrides./parameter_events.publisher.depth: 1000
+    qos_overrides./parameter_events.publisher.reliability: best_effort
+    use_sim_time: false #false
+
+/airbot_pointcloud_to_laserscan:
+  ros__parameters:
+    target_frame: base_scan
+    pointcloud_topic: /scan_merged_pointcloud
+    laserscan_topic: /scan
+    angle_increment: 0.0157 #2.68/400 = 0.0157 #이전 값 : 0.0087
+    angle_max: 3.14
+    angle_min: -3.14
+    inf_epsilon: 1.0
+    max_height: 1.0
+    min_height: 0.0
+    qos_overrides:
+      /parameter_events:
+        publisher:
+          depth: 1000
+          reliability: best_effort
+    queue_size: 10000
+    range_max: 8.0
+    range_min: 0.1
+    scan_time: 0.1
+    transform_tolerance: 0.01
+    use_inf: true
+    use_sim_time: false #false

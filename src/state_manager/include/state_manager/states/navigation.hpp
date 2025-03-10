@@ -6,6 +6,7 @@
 #include "nav2_msgs/action/navigate_to_pose.hpp"
 #include "robot_custom_msgs/msg/position.hpp"
 #include "state_manager/utils/navi_defines.hpp"
+#include <cmath>
 
 
 namespace airbot_state {
@@ -20,6 +21,7 @@ public:
   virtual void post_run(const std::shared_ptr<StateUtils> &state_utils) override;
 
   // navigation behavior
+  void rotation_callback(const robot_custom_msgs::msg::MoveNRotation::SharedPtr msg);
   void moveToTarget(double x, double y, double theta);
   void publishTargetPosition(double x, double y, double theta);
   void waitNodeLaunching();
@@ -37,16 +39,24 @@ public:
   void startRotateMonitor();
   void progressRotation();
   void stopMonitorRotate();
-  bool startRotation(int type, double targetAngle);
+  bool startRotation(uint8_t type, double targetAngle);
   double normalize_angle(double angle);
   void publishVelocityCommand(double v, double w);
   void clearMoveTarget();
 
+  void startSearchOpenSpace();
+  void disableSearchOpenSpace();
+  void scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg);
+  bool isSearchedCompleteOpenSpace();
+  double getOpenSpaceHeading();
+
+  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub;
+  rclcpp::Subscription<robot_custom_msgs::msg::MoveNRotation>::SharedPtr rotation_sub_;
+
   rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr client_;
   rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr future_goal_handle_;
   rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr target_pose_pub_;
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr rotation_move_pub_;
-  rclcpp::Subscription<robot_custom_msgs::msg::TestPosition>::SharedPtr req_rotation_target_sub_;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr rotation_vel_pub_;
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_robot_cmd_pub_;
   std::shared_ptr<nav2_msgs::action::NavigateToPose::Goal> goal_msg;
   rclcpp::TimerBase::SharedPtr rotation_target_timer_;
@@ -63,6 +73,8 @@ public:
   bool new_targetcall_flag = false;
   
   double node_start_time;
+  bool bSearched = false;
+  double openspaceRad;
 
   void setReadyNavigation(READY_NAVIGATION set);
   void setReadyMoving(READY_MOVING set);
@@ -73,7 +85,6 @@ public:
   int naviNodeChecker();
   bool resetOdomChecker();
   int8_t localizationChecker();
-  void rotation_callback(const robot_custom_msgs::msg::TestPosition::SharedPtr msg);
 
 };
 

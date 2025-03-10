@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.5)
 project(robot_bringup)
 
+set(CMAKE_BUILD_TYPE Release) #set(CMAKE_BUILD_TYPE Debug) 
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -12,6 +18,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(robot_custom_msgs REQUIRED)
 find_package(nav2_msgs REQUIRED)
+find_package(builtin_interfaces REQUIRED)
 
 # Include directories
 include_directories(
@@ -32,6 +39,7 @@ ament_target_dependencies(robot_bringup
   serial
   robot_custom_msgs
   nav2_msgs
+  builtin_interfaces
 )
 
 # Install targets (adjust DESTINATION paths if necessary)

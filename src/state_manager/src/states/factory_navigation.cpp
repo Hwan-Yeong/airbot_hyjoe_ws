@@ -13,7 +13,6 @@ void FactoryNavigation::pre_run(const std::shared_ptr<StateUtils> &state_utils) 
   req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
 
   req_target_sub_ = node_->create_subscription<robot_custom_msgs::msg::Position>("/move_target", 10,std::bind(&FactoryNavigation::target_callback, this, std::placeholders::_1));
-  req_rotation_target_sub_ = node_->create_subscription<robot_custom_msgs::msg::TestPosition>("/test_move_target", 10,std::bind(&FactoryNavigation::rotation_callback, this, std::placeholders::_1));
   client_ = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(node_, "navigate_to_pose");
 
   state_utils->setMovingStateID( NAVI_STATE::IDLE);
@@ -359,7 +358,7 @@ int FactoryNavigation::naviNodeChecker()
   int ret = 0;
   double wait_navi_launch = node_->now().seconds()-node_start_time;
   RCLCPP_INFO(node_->get_logger(), "[Navigation] Navigation NODE ALL RUNNING -> launch time %f sec", wait_navi_launch);
-  if(state_utils->isValidNavigation("/home/airbot/navigation_pid.txt", node_start_time)){
+  if(state_utils->isValidateNode(NODE_STATUS::NAVI, node_start_time)){
       waitNodeLaunching();
       RCLCPP_INFO(node_->get_logger(), "Navi node launch Complete time : %f", wait_navi_launch);
       ret = 1;
@@ -392,12 +391,12 @@ int8_t FactoryNavigation::localizationChecker()
 {
   int8_t ret = 0;
   if(state_utils->isStartLocalization()){
-    double wait_localize_time = node_->now().seconds()-state_utils->getLocalizationStartTime();
+    // double wait_localize_time = node_->now().seconds()-state_utils->getLocalizationStartTime();
     if(state_utils->getLocalizationComplete()){
       RCLCPP_INFO(node_->get_logger(), "localization Done ");
       ret = 1;
     }else if(state_utils->isLocalizationError()){
-      RCLCPP_INFO(node_->get_logger(), "localization TimeOut ");
+      RCLCPP_INFO(node_->get_logger(), "localization Error ");
       ret = -1;
     }
   }else{
@@ -577,14 +576,6 @@ void FactoryNavigation::publishVelocityCommand(double v, double w)
     cmd_msg.angular.z = w;
     rotation_move_pub_->publish(cmd_msg);
     // RCLCPP_INFO(node_->get_logger(), "publishVelocityCommand V : %f, W : %f ", v,w);
-}
-
-//test..
-void FactoryNavigation::rotation_callback(const robot_custom_msgs::msg::TestPosition::SharedPtr msg) {
-  movingData.target_position.x = msg->x;
-  movingData.target_position.y = msg->y;
-  movingData.target_position.theta = msg->theta;
-  startRotation(msg->type, msg->theta);
 }
 
 

@@ -7,23 +7,23 @@ namespace airbot_state {
 StateManager::StateManager() : Node("state_manager") {
   state_utils = std::make_shared<StateUtils>(std::shared_ptr<rclcpp::Node>(this));
   idle = std::make_shared<Idle>(int(ROBOT_STATE::IDLE), std::shared_ptr<rclcpp::Node>(this), state_utils);
-  on_station = std::make_shared<OnStation>(int(ROBOT_STATE::ONSTATION), std::shared_ptr<rclcpp::Node>(this), state_utils);
-  undocking = std::make_shared<UnDocking>(int(ROBOT_STATE::UNDOCKING), std::shared_ptr<rclcpp::Node>(this), state_utils);
-  docking = std::make_shared<Docking>(int(ROBOT_STATE::DOCKING), std::shared_ptr<rclcpp::Node>(this), state_utils);
-  navigation = std::make_shared<Navigation>(int(ROBOT_STATE::NAVIGATION), std::shared_ptr<rclcpp::Node>(this), state_utils);
   auto_mapping = std::make_shared<AutoMapping>(int(ROBOT_STATE::AUTO_MAPPING), std::shared_ptr<rclcpp::Node>(this), state_utils);
   manual_mapping = std::make_shared<ManualMapping>(int(ROBOT_STATE::MANUAL_MAPPING), std::shared_ptr<rclcpp::Node>(this), state_utils);
+  navigation = std::make_shared<Navigation>(int(ROBOT_STATE::NAVIGATION), std::shared_ptr<rclcpp::Node>(this), state_utils);
   return_charger = std::make_shared<ReturnCharger>(int(ROBOT_STATE::RETURN_CHARGER), std::shared_ptr<rclcpp::Node>(this), state_utils);
+  docking = std::make_shared<Docking>(int(ROBOT_STATE::DOCKING), std::shared_ptr<rclcpp::Node>(this), state_utils);
+  undocking = std::make_shared<UnDocking>(int(ROBOT_STATE::UNDOCKING), std::shared_ptr<rclcpp::Node>(this), state_utils);
+  on_station = std::make_shared<OnStation>(int(ROBOT_STATE::ONSTATION), std::shared_ptr<rclcpp::Node>(this), state_utils);
   factory_navigation = std::make_shared<FactoryNavigation>(int(ROBOT_STATE::FACTORY_NAVIGATION), std::shared_ptr<rclcpp::Node>(this), state_utils);
   error = std::make_shared<Error>(int(ROBOT_STATE::ERROR), std::shared_ptr<rclcpp::Node>(this), state_utils);
   states_[ROBOT_STATE::IDLE] = idle;
-  states_[ROBOT_STATE::ONSTATION] = on_station;
-  states_[ROBOT_STATE::UNDOCKING] = undocking;
-  states_[ROBOT_STATE::DOCKING] = docking;
-  states_[ROBOT_STATE::NAVIGATION] = navigation;
   states_[ROBOT_STATE::AUTO_MAPPING] = auto_mapping;
   states_[ROBOT_STATE::MANUAL_MAPPING] = manual_mapping;
+  states_[ROBOT_STATE::NAVIGATION] = navigation;
   states_[ROBOT_STATE::RETURN_CHARGER] = return_charger;
+  states_[ROBOT_STATE::DOCKING] = docking;
+  states_[ROBOT_STATE::UNDOCKING] = undocking;
+  states_[ROBOT_STATE::ONSTATION] = on_station;
   states_[ROBOT_STATE::FACTORY_NAVIGATION] = factory_navigation;
   states_[ROBOT_STATE::ERROR] = error;
   current_state_ = idle;
@@ -31,25 +31,32 @@ StateManager::StateManager() : Node("state_manager") {
 
   robot_cmd_sub_ = this->create_subscription<std_msgs::msg::UInt8>("robot_state_cmd", 10, std::bind(&StateManager::handleRobotCMD, this,std::placeholders::_1));
   soc_cmd_sub_ = this->create_subscription<std_msgs::msg::UInt8>("/soc_cmd", 10, std::bind(&StateManager::handleSoCCMD, this, std::placeholders::_1));
+  error_list_sub_ = this->create_subscription<robot_custom_msgs::msg::ErrorListArray>("/error_list", 10, std::bind(&StateManager::handleError, this, std::placeholders::_1));
 
   robot_state_pub_ = this->create_publisher<robot_custom_msgs::msg::RobotState>("/state_datas", 10);
-  navi_state_pub_ = this->create_publisher<robot_custom_msgs::msg::NaviState>("/navi_datas", 10);
   node_status_pub_ = this->create_publisher<std_msgs::msg::UInt8>("/node_status", 10);
+  navi_state_pub_ = this->create_publisher<robot_custom_msgs::msg::NaviState>("/navi_datas", 10);
 
   timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&StateManager::runCurrentState, this));
-  RCLCPP_INFO(this->get_logger(), "StateManager Node initialized.");
+  RCLCPP_INFO(this->get_logger(), "[StateManager] Node initialized.");
 }
 
 StateManager::~StateManager() {
-  RCLCPP_INFO(this->get_logger(), "State Manager shutting down.");
+  RCLCPP_INFO(this->get_logger(), "[StateManager] Node shutting down.");
 }
 
 void StateManager::setState(ROBOT_STATE state_id, ROBOT_STATUS status_id, const state_cmd &cmd_ids) {
   if (states_.find(state_id) == states_.end()) {
-    RCLCPP_WARN(this->get_logger(), "State ID %d not found!", int(state_id));
+    RCLCPP_ERROR(this->get_logger(), "[StateManager] UNDEFINED STATE ID: %d ", int(state_id));
     return;
   }
   state_utils->setRobotCMDID(cmd_ids);
+  RCLCPP_INFO(this->get_logger(),
+              "[StateManager] EXIT STATE: [%s] -> Transition by SOC:[%s]|ROBOT:[%s] -> RUN STATE: [%s]",
+              enumToString(state_utils->getStateID()).c_str(),
+              enumToString(state_utils->getRobotCMDID().soc_cmd).c_str(), enumToString(state_utils->getRobotCMDID().robot_cmd).c_str(),
+              enumToString(state_id).c_str());
+
   if (getCurrentStateID() != state_id) {
     // off current state
     if (current_state_) {
@@ -59,41 +66,14 @@ void StateManager::setState(ROBOT_STATE state_id, ROBOT_STATUS status_id, const 
     pre_cmds = cmd_ids;
     current_state_ = states_[state_id];
     current_state_->pre_run(state_utils);
-    RCLCPP_INFO(this->get_logger(), "Changed to state ID: %d", int(state_id));
     setCurrentStateID(state_id);
   }
   state_utils->setAllRobotStateIDs(state_id, status_id, cmd_ids);
-  
-  RCLCPP_INFO(this->get_logger(),
-              "CURRENT STATE: [%s] -> NEXT STATE: [%s] -> Transition SOC:[%s]| ROBOT:[%s] / STATUS: [%s]",
-              enumToString(state_utils->getPreStateID()).c_str(),
-              enumToString(state_utils->getStateID()).c_str(),
-              enumToString(state_utils->getRobotCMDID().soc_cmd).c_str(),enumToString(state_utils->getRobotCMDID().robot_cmd).c_str(),
-              enumToString(state_utils->getStatusID()).c_str() );
-}
-
-void StateManager::handleSoCCMD(const std_msgs::msg::UInt8::SharedPtr msg) {
-  state_cmd cmds;
-  const REQUEST_SOC_CMD req_cmd = static_cast<REQUEST_SOC_CMD>(msg->data);
-  RCLCPP_INFO(this->get_logger(),">>>>>>>>GET CMD FROM SOC : [%s]",enumToString(req_cmd).c_str());
-  cmds.soc_cmd = req_cmd;
-  // cmds.robot_cmd = REQUEST_ROBOT_CMD::VOID;
-  state_utils->setStartOnStation(false);
-  checkTransition(cmds);
-}
-void StateManager::handleRobotCMD(const std_msgs::msg::UInt8::SharedPtr msg) {
-  state_cmd cmds;
-  const REQUEST_ROBOT_CMD req_cmd = static_cast<REQUEST_ROBOT_CMD>(msg->data);
-  RCLCPP_INFO(this->get_logger(),">>>>>>>>GET CMD FROM ROBOT : [%s]",enumToString(req_cmd).c_str());
-  // cmds.soc_cmd = REQUEST_SOC_CMD::VOID;
-  cmds.robot_cmd = req_cmd;
-  checkTransition(cmds);
 }
 
 void StateManager::checkTransition( const state_cmd &cmd_ids )
 {
   // TRANSITION BY SOC COMMAND
-  //cmds.robot_cmd = REQUEST_ROBOT_CMD::VOID;
   if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::START_AUTO_MAPPING) {
     if (getCurrentStateID() == ROBOT_STATE::IDLE) {
       setState(ROBOT_STATE::AUTO_MAPPING, ROBOT_STATUS::START, cmd_ids);
@@ -268,7 +248,7 @@ void StateManager::checkTransition( const state_cmd &cmd_ids )
       } else {
         // fail - abort command
       }
-    } else if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::FAIL_RETURN_CHARGER) {
+    } else if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::FAIL_RETURN_CHARGER_TRY_DOCKING) {
       if (getCurrentStateID() == ROBOT_STATE::RETURN_CHARGER) {
         setState(ROBOT_STATE::DOCKING, ROBOT_STATUS::START, cmd_ids);
       } else {
@@ -288,7 +268,65 @@ void StateManager::checkTransition( const state_cmd &cmd_ids )
 void StateManager::setCurrentStateID(const ROBOT_STATE data) {
   current_state = data;
 }
-ROBOT_STATE StateManager::getCurrentStateID() { return current_state; }
+
+ROBOT_STATE StateManager::getCurrentStateID() { 
+  return current_state;
+}
+
+void StateManager::handleSoCCMD(const std_msgs::msg::UInt8::SharedPtr msg) {
+  state_cmd cmds;
+  const REQUEST_SOC_CMD req_cmd = static_cast<REQUEST_SOC_CMD>(msg->data);
+  RCLCPP_INFO(this->get_logger(),"[StateManager] GET CMD FROM SOC(udp_interface) : [%s]",enumToString(req_cmd).c_str());
+  cmds.soc_cmd = req_cmd;
+  state_utils->setStartOnStation(false);
+  checkTransition(cmds);
+}
+
+void StateManager::handleRobotCMD(const std_msgs::msg::UInt8::SharedPtr msg) {
+  state_cmd cmds;
+  const REQUEST_ROBOT_CMD req_cmd = static_cast<REQUEST_ROBOT_CMD>(msg->data);
+  RCLCPP_INFO(this->get_logger(),"[StateManager] GET CMD FROM ROBOT : [%s]",enumToString(req_cmd).c_str());
+  cmds.robot_cmd = req_cmd;
+  checkTransition(cmds);
+}
+
+void StateManager::handleError(const robot_custom_msgs::msg::ErrorListArray::SharedPtr msg)
+{
+  if( getCurrentStateID() != ROBOT_STATE::ERROR ) { //에러발생.
+    state_cmd cmds;
+    int array_size = msg->data_array.size();
+    for (int i=0; i<array_size; ++i) {
+      const auto& error = msg->data_array[i];
+
+      bool isSameRank = false;
+      for (const auto& existing_error : error_list) {
+          if (existing_error.error_code == error.error_code) {
+              isSameRank = true;
+              break;
+          }
+      }
+      if (!isSameRank) {
+          RCLCPP_INFO(this->get_logger(), "[StateManager] Error Detected by error_manager : [RANK = %d / ERROR_CODE = %s]",
+                      error.rank, error.error_code.c_str());
+        error_list.push_back(error);
+      }
+    }
+
+    for(const auto& occur_error : error_list)
+    {
+      if(occur_error.error_code.find("S05") != std::string::npos){ //이동불가는 에러발생 제외.
+        continue;
+      }
+      else{
+        error_occured = true;
+        cmds.robot_cmd = REQUEST_ROBOT_CMD::ERROR;
+        setState(ROBOT_STATE::ERROR, ROBOT_STATUS::READY, cmds);
+        error_list.clear();
+        break;
+      }
+    }
+  }
+}
 
 void StateManager::runCurrentState() {
   try {

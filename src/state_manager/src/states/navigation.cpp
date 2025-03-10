@@ -1,5 +1,9 @@
 #include "state_manager/states/navigation.hpp"
 
+#define USE_AUTO_ROTATION 0
+
+const int num_sections = (int)(360 / 30);  // 360도 / 30도
+
 namespace airbot_state {
 
 Navigation::Navigation(const int actionID, std::shared_ptr<rclcpp::Node> node, const std::shared_ptr<StateUtils> &utils)
@@ -7,13 +11,14 @@ Navigation::Navigation(const int actionID, std::shared_ptr<rclcpp::Node> node, c
 
 void Navigation::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
   stateBase::pre_run(state_utils);
-  RCLCPP_INFO(node_->get_logger(), "[Navigation] Preparing Navigation STATE");
+  RCLCPP_INFO(node_->get_logger(), "[Navigation] pre_run() -> Preparing Navigation state");
+
+  rotation_sub_ = node_->create_subscription<robot_custom_msgs::msg::MoveNRotation>("/rotation", 10,std::bind(&Navigation::rotation_callback, this, std::placeholders::_1));
+
   target_pose_pub_ = node_->create_publisher<geometry_msgs::msg::Pose>("/target_pose", 10);
-  rotation_move_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+  rotation_vel_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
   req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
 
-  
-  req_rotation_target_sub_ = node_->create_subscription<robot_custom_msgs::msg::TestPosition>("/test_move_target", 10,std::bind(&Navigation::rotation_callback, this, std::placeholders::_1));
   client_ = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(node_, "navigate_to_pose");
 
   state_utils->setMovingStateID( NAVI_STATE::IDLE);
@@ -39,6 +44,9 @@ void Navigation::setReadyMoving(READY_MOVING set)
   readyMoving = set;
 }
 void Navigation::run(const std::shared_ptr<StateUtils> &state_utils) {
+  if( isFirstRunning() ){
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] run() -> Running Navigation state");
+  }
   //1. sensor On (before move-target)
   //2. poseEstimate (before move-target) - pub(current.pose); 
   //3. pub TargetPose to Navi
@@ -57,6 +65,9 @@ void Navigation::run(const std::shared_ptr<StateUtils> &state_utils) {
     movingData = state_utils->getTargetPosition(); //getTargetPosition을 받으면 state_utils의 bstartmoving이 토글로 false됨.
     if( movingData.bStartMoving ) // 새 target을 받으면 bstartmoving이 true상태로 센서 체크로 넘어감.
     {
+      if(rotation.progress){
+        stopMonitorRotate();
+      }
       if( state_utils->getMovingStateID() != NAVI_STATE::ARRIVED_GOAL && state_utils->getMovingStateID() != NAVI_STATE::FAIL) {// result가 명확하게 나온상황은 제외한다.
         new_targetcall_flag = true; //abort skip flag.
         state_utils->setMovingStateID(NAVI_STATE::READY);
@@ -113,13 +124,14 @@ void Navigation::run(const std::shared_ptr<StateUtils> &state_utils) {
 void Navigation::post_run(const std::shared_ptr<StateUtils> &state_utils) {
   stateBase::post_run(state_utils);
   state_utils->saveLastPosition();
-  RCLCPP_INFO(node_->get_logger(), "[Navigation] Exiting Navigation STATE");
+  RCLCPP_INFO(node_->get_logger(), "[Navigation] post_run() -> Exiting Navigation state");
   req_robot_cmd_pub_.reset();
   target_pose_pub_.reset();
   if (state_utils->getRobotCMDID().soc_cmd == REQUEST_SOC_CMD::STOP_NAVIGATION) {
     exitNavigationNode();
   }
   state_utils->stopMonitorOdom();
+  state_utils->disableArrivedGoalSensorsOffTimer();
   if(future_goal_handle_)
   {
     clearMoveTarget();
@@ -132,9 +144,9 @@ void Navigation::post_run(const std::shared_ptr<StateUtils> &state_utils) {
 
 void Navigation::exitNavigationNode() {
   if (state_utils->stopProcess("/home/airbot/navigation_pid.txt")) {
-    RCLCPP_INFO(node_->get_logger(), "exit Navigation Node");
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] exit Navigation Node");
   } else {
-    RCLCPP_INFO(node_->get_logger(), "Fail - kill Navigation Node");
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] Fail - kill Navigation Node");
   }
   state_utils->setNodeStatusID( NODE_STATUS::IDLE );
 }
@@ -145,17 +157,17 @@ bool Navigation::startNavigation() {
   if (state_utils->startProcess("ros2 launch airbot_navigation navigation.launch.py","/home/airbot/navigation_pid.txt")) {
     nav_node_start_time = node_->get_clock()->now();
     node_start_time = node_->now().seconds();
-    RCLCPP_INFO(node_->get_logger(), "Navigation Node Start Success");
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] Navigation Node Start Success");
     ret = true;
   }else {
     // reqStatus = REQUEST_STATUS::FAIL;
-    RCLCPP_INFO(node_->get_logger(), "Navigation Node Start FAIL");
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] Navigation Node Start Fail");
   }
   return ret;
 }
 
 void Navigation::pauseNavigation() {
-  RCLCPP_INFO(node_->get_logger(), "PAUSE Signal");
+  RCLCPP_INFO(node_->get_logger(), "[Navigation] Pause move to target");
 
   // Check if the goal handle exists and is in an active state
   if (future_goal_handle_) {
@@ -164,13 +176,13 @@ void Navigation::pauseNavigation() {
         status == rclcpp_action::GoalStatus::STATUS_ACCEPTED) {
       client_->async_cancel_goal(future_goal_handle_);
       state_utils->setMovingStateID(NAVI_STATE::PAUSE);
-      RCLCPP_INFO(node_->get_logger(), "Navigation paused");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] Navigation paused");
     } else {
       RCLCPP_WARN(node_->get_logger(),
-                  "Cannot pause, goal is not active. Status: %d", status);
+                  "[Navigation] Cannot pause, goal is not active. Status: %d", status);
     }
   } else {
-    RCLCPP_WARN(node_->get_logger(), "Cannot pause, no valid goal handle");
+    RCLCPP_WARN(node_->get_logger(), "[Navigation] Cannot pause, no valid goal handle");
   }
 }
 
@@ -181,7 +193,7 @@ void Navigation::waitNodeLaunching() {
 
   if (waitSec > 0) {
     std::this_thread::sleep_for(std::chrono::seconds(waitSec));
-    RCLCPP_INFO(node_->get_logger(), "START_NAVIGATION wait sec : %d ",
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] START_NAVIGATION wait sec : %d ",
                 waitSec);
   }
 }
@@ -190,7 +202,7 @@ void Navigation::moveToTarget(double x, double y, double theta) {
   
   if (!client_->wait_for_action_server(std::chrono::seconds(10))) {
     RCLCPP_ERROR(node_->get_logger(),
-                 "Action server not available after waiting");
+                 "[Navigation] Action server not available after waiting");
     state_utils->setMovingStateID(NAVI_STATE::FAIL);
     state_utils->setMovingFailID(NAVI_FAIL_REASON::SERVER_NO_ACTION);
     state_utils->setStatusID(ROBOT_STATUS::FAIL);
@@ -199,17 +211,17 @@ void Navigation::moveToTarget(double x, double y, double theta) {
 
   // Cancel the previous goal if a new target is received
   if (new_targetcall_flag && future_goal_handle_) {
-    RCLCPP_INFO(node_->get_logger(), "Cancelling previous goal due to new target.");
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] Cancelling previous goal due to new target.");
 
     auto cancel_callback = [this](std::shared_ptr<action_msgs::srv::CancelGoal_Response> response) {
         if (response) {
             if (response->return_code == action_msgs::srv::CancelGoal_Response::ERROR_NONE) {
-                RCLCPP_INFO(node_->get_logger(), "Previous goal successfully canceled due to new target.");
+                RCLCPP_INFO(node_->get_logger(), "[Navigation] Previous goal successfully canceled due to new target.");
             } else {
-                RCLCPP_WARN(node_->get_logger(), "Failed to cancel previous goal: %d", response->return_code);
+                RCLCPP_WARN(node_->get_logger(), "[Navigation] Failed to cancel previous goal: %d", response->return_code);
             }
         } else {
-            RCLCPP_WARN(node_->get_logger(), "Cancel goal response is null.");
+            RCLCPP_WARN(node_->get_logger(), "[Navigation] Cancel goal response is null.");
         }
         new_targetcall_flag = false; // Reset the flag after attempting to cancel
         future_goal_handle_.reset(); // Release the handle to prevent reuse
@@ -220,6 +232,7 @@ void Navigation::moveToTarget(double x, double y, double theta) {
     // Don't send the new goal until the cancellation of the old one is complete!
     return; // Very important: Exit so we don't immediately send a new goal
   }
+
   goal_msg = std::make_shared<nav2_msgs::action::NavigateToPose::Goal>();
   // Prepare the goal message
   goal_msg->pose.pose.position.x = x;
@@ -237,23 +250,27 @@ void Navigation::moveToTarget(double x, double y, double theta) {
   send_goal_options.result_callback = [this](const auto &result) {
     switch (result.code) {
     case rclcpp_action::ResultCode::SUCCEEDED:
-      RCLCPP_INFO(node_->get_logger(), "Goal reached successfully.");
-      state_utils->setMovingStateID(NAVI_STATE::ARRIVED_GOAL);
-      state_utils->setStatusID(ROBOT_STATUS::COMPLETE);
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] Goal reached successfully.");
+      if(state_utils->getPathPlanDestination()){
+        state_utils->publishAlternativeDestinationError();
+      }
+      startRotation(movingData.type,movingData.target_position.theta);
       break;
     case rclcpp_action::ResultCode::ABORTED:
-      RCLCPP_INFO(node_->get_logger(), "Goal was aborted.");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] Goal was aborted.");
       state_utils->setMovingStateID(NAVI_STATE::FAIL);
       state_utils->setMovingFailID(NAVI_FAIL_REASON::GOAL_ABORT);
+      state_utils->publishMoveFailError();
       break;
     case rclcpp_action::ResultCode::CANCELED:
-      RCLCPP_INFO(node_->get_logger(), "Goal was canceled.");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] Goal was canceled.");
       break;
     default:
-      RCLCPP_INFO(node_->get_logger(), "Unknown result code.");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] Unknown result code.");
       state_utils->setMovingStateID(NAVI_STATE::FAIL);
       state_utils->setMovingFailID(NAVI_FAIL_REASON::UNKWON);
       state_utils->setStatusID(ROBOT_STATUS::FAIL);
+      state_utils->publishMoveFailError();
       break;
     }
     future_goal_handle_.reset(); // Clear the goal handle after completion/abortion
@@ -261,18 +278,18 @@ void Navigation::moveToTarget(double x, double y, double theta) {
 
   send_goal_options.goal_response_callback = [this](std::shared_ptr<rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>> goal_handle) {
     if (!goal_handle) {
-      RCLCPP_INFO(node_->get_logger(), "Goal was rejected by the server.");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] Goal was rejected by the server.");
       state_utils->setMovingStateID(NAVI_STATE::FAIL);
       state_utils->setMovingFailID(NAVI_FAIL_REASON::GOAL_REJECT);
     } else {
-      RCLCPP_INFO(node_->get_logger(), "Goal accepted by the server.");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] Goal accepted by the server.");
       future_goal_handle_ = goal_handle; // Store the handle for pause/resume
       state_utils->setMovingStateID(NAVI_STATE::MOVE_GOAL);
     }
   };
 
   client_->async_send_goal(*goal_msg, send_goal_options);
-  RCLCPP_INFO(node_->get_logger(), "send goal X : %f, Y : %f, Theta : %f",x,y,theta);
+  RCLCPP_INFO(node_->get_logger(), "[Navigation] send goal X : %f, Y : %f, Theta : %f",x,y,theta);
 }
 
 void Navigation::processMoveTarget()
@@ -284,10 +301,10 @@ void Navigation::processMoveTarget()
     if(state_utils->isSensorReady()){
       setReadyMoving(READY_MOVING::REQUEST_POSE_ESTIMATE);
     }else if(state_utils->isLidarError()){
-      RCLCPP_INFO(node_->get_logger(), "LidarError");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] LidarError");
       setReadyMoving(READY_MOVING::FAIL);
     }else if(state_utils->isToFError()){
-      RCLCPP_INFO(node_->get_logger(), "ToFError");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] ToFError");
       setReadyMoving(READY_MOVING::FAIL);
     }
     break;
@@ -324,7 +341,7 @@ ROBOT_STATUS Navigation::processNavigationReady()
     if(naviNodeLauncher()){
       setReadyNavigation(READY_NAVIGATION::CHECK_NODE);
     }else{
-      RCLCPP_INFO(node_->get_logger(), "navi node launch Fail");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] Navigation Node Launch Fail");
       setReadyNavigation(READY_NAVIGATION::FAIL);
       ret = ROBOT_STATUS::FAIL;
     }
@@ -341,18 +358,18 @@ ROBOT_STATUS Navigation::processNavigationReady()
     if(state_utils->isSensorReady()){
       setReadyNavigation(READY_NAVIGATION::CHECK_ODOM_RESET);
     }else if(state_utils->isLidarError()){
-      RCLCPP_INFO(node_->get_logger(), "lidar Error");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] lidar Error");
       ret = ROBOT_STATUS::FAIL;
       setReadyNavigation(READY_NAVIGATION::FAIL);
     }else if(state_utils->isToFError()){
-      RCLCPP_INFO(node_->get_logger(), "tof Error");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] tof Error");
       ret = ROBOT_STATUS::FAIL;
       setReadyNavigation(READY_NAVIGATION::FAIL);
     }
     break;     
   case READY_NAVIGATION::CHECK_ODOM_RESET :
     if(state_utils->isOdomResetError()){
-      RCLCPP_INFO(node_->get_logger(), "odom reset Error");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] odom reset Error");
       ret = ROBOT_STATUS::FAIL;
       setReadyNavigation(READY_NAVIGATION::FAIL);
     }
@@ -381,7 +398,7 @@ ROBOT_STATUS Navigation::processNavigationReady()
       }
     break;    
   default:
-  RCLCPP_INFO(node_->get_logger(), "processNavigationReady readyState Error!! : %d", static_cast<int>(readyNavi));
+  RCLCPP_INFO(node_->get_logger(), "[Navigation] processNavigationReady readyState Error!! : %d", static_cast<int>(readyNavi));
     break;
   }
 
@@ -392,15 +409,15 @@ bool Navigation::naviNodeLauncher()
 {
   bool ret = false;
   if(state_utils->getNodeStatusID() == NODE_STATUS::NAVI){
-    RCLCPP_INFO(node_->get_logger(), "Node status already Navi skip node launch ");
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] Node status already Navi skip node launch ");
     ret = true;
   }else{
     if(startNavigation()){
-	      RCLCPP_INFO(node_->get_logger(), "Navi node launch Success");
+	      RCLCPP_INFO(node_->get_logger(), "[Navigation] Navigation Node Launch Success");
 	      ret = true;
 		}else{
       ret = false;
-      RCLCPP_INFO(node_->get_logger(), "Navi node launch Fail");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] Navigation Node Launch Fail");
     }
   }
   return ret;
@@ -411,12 +428,12 @@ int Navigation::naviNodeChecker()
   int ret = 0;
   double wait_navi_launch = node_->now().seconds()-node_start_time;
   //RCLCPP_INFO(node_->get_logger(), "[Navigation] Navigation NODE ALL RUNNING -> launch time %f sec", wait_navi_launch);
-  if(state_utils->isValidNavigation("/home/airbot/navigation_pid.txt", node_start_time)){
+  if(state_utils->isValidateNode(NODE_STATUS::NAVI, node_start_time)){
       waitNodeLaunching();
-      RCLCPP_INFO(node_->get_logger(), "Navi node launch Complete time : %f", wait_navi_launch);
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] Navigation Node Launch Complete Time : %f", wait_navi_launch);
       ret = 1;
   }else if(wait_navi_launch >= 30){
-      RCLCPP_INFO(node_->get_logger(), "Navi node launch Fail time : %f", wait_navi_launch);
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] Navigation Node Launch Fail Time : %f", wait_navi_launch);
       ret = -1;
   }
   return ret;
@@ -426,11 +443,11 @@ bool Navigation::resetOdomChecker()
 {
   bool ret = false;
   if(!state_utils->isStartOdomReset()){
-    RCLCPP_INFO(node_->get_logger(), "skip odom reset Checker ");
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] skip odom reset Checker ");
     ret = true;
   }
   else if(state_utils->getOdomResetDone()){
-    RCLCPP_INFO(node_->get_logger(), "odom reset Done ");
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] odom reset Done ");
     ret = true;
   } 
 
@@ -443,14 +460,14 @@ int8_t Navigation::localizationChecker()
   if(state_utils->isStartLocalization()){
     // double wait_localize_time = node_->now().seconds()-state_utils->getLocalizationStartTime();
     if(state_utils->getLocalizationComplete()){
-      RCLCPP_INFO(node_->get_logger(), "localization Done ");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] localization Done ");
       ret = 1;
     }else if(state_utils->isLocalizationError()){
-      RCLCPP_INFO(node_->get_logger(), "localization Error ");
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] localization Error ");
       ret = -1;
     }
   }else{
-    RCLCPP_INFO(node_->get_logger(), "skip localization");
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] skip localization");
     ret = 1;
   }
 
@@ -477,7 +494,7 @@ void Navigation::publishTargetPosition(double x, double y, double theta) {
   target_pose_pub_->publish(req_target_position);
 }
 
-bool Navigation::startRotation(int type, double targetAngle)
+bool Navigation::startRotation(uint8_t type, double targetAngle)
 {
     bool ret = false;
     pose robotPose = state_utils->getRobotPose();
@@ -489,12 +506,24 @@ bool Navigation::startRotation(int type, double targetAngle)
     }else if(type==1){
         rotation.target = targetAngle;
         ret = true;
-    }else if(type==2 || type==3){
-        rotation.accAngle = 0.0;
-        rotation.preTheta = normalize_angle(robotPose.theta);
+    }
+    #if USE_AUTO_ROTATION > 0
+    else if(type==2){
+        startSearchOpenSpace();
         ret = true;
-    }else{
-        RCLCPP_INFO(node_->get_logger(), "Request Rotate type error : %d", type);
+    }
+    #else	
+    else if(type == 2 || type == 3){
+         rotation.accAngle = 0.0;
+         rotation.preTheta = normalize_angle(robotPose.theta);
+         ret = true;
+    }
+	#endif
+	else{
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] no rotation ");
+      state_utils->setMovingStateID(NAVI_STATE::ARRIVED_GOAL);
+      state_utils->setStatusID(ROBOT_STATUS::COMPLETE);
+      state_utils->enableArrivedGoalSensorsOffTimer();
     }
 
     if(ret){
@@ -510,52 +539,69 @@ void Navigation::reset_Rotationtimer()
 {
     rotation.progress = false;
     if(rotation_target_timer_){
-        RCLCPP_INFO(node_->get_logger(), "reset_Rotationtimer");
+        RCLCPP_INFO(node_->get_logger(), "[Navigation] reset_Rotationtimer");
         rotation_target_timer_.reset();
-        RCLCPP_INFO(node_->get_logger(), "reset_Rotationtimer - end ");
+        RCLCPP_INFO(node_->get_logger(), "[Navigation] reset_Rotationtimer - end ");
     }else{
-        RCLCPP_INFO(node_->get_logger(), "odom_target_timeris allready reset ");
+        RCLCPP_INFO(node_->get_logger(), "[Navigation] odom_target_timeris allready reset ");
     }
 }
 
 void Navigation::startRotateMonitor()
 {
+    bSearched = false;
     if(!rotation.progress){
         rotation_target_timer_ = node_->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Navigation::progressRotation, this));
         rotation.progress = true;
     }else{
-        RCLCPP_INFO(node_->get_logger(), "already Rotation progressing");
+        RCLCPP_INFO(node_->get_logger(), "[Navigation] already Rotation progressing");
     }
     
 }
 
 void Navigation::stopMonitorRotate()
 {
-    reset_Rotationtimer();
+  bSearched = false;
+  reset_Rotationtimer();
 }
 
 void Navigation::progressRotation()
 {
-    // If navigation is enabled, use amcl_pose
-    pose current = state_utils->getRobotPose();
-    if(rotation.type == 0 || rotation.type == 1){
-        progressRotationTarget(rotation.target,current.theta);
+  pose current = state_utils->getRobotPose();
+
+  if(rotation.type == 0 || rotation.type == 1){
+      progressRotationTarget(rotation.target,current.theta);
+  }
+  #if USE_AUTO_ROTATION > 0
+  else if(rotation.type == 2){
+    if(isSearchedCompleteOpenSpace()){
+      double targetHeading = getOpenSpaceHeading();
+      progressRotationTarget(targetHeading,current.theta);
     }else{
-        int direction = (rotation.type == 3) ? 1 : -1;
-        progressRotation360(direction,current.theta);
+      RCLCPP_INFO(node_->get_logger(), "[Navigation] waiting calculate target Radian....");
     }
+  }else{
+    int direction = (rotation.type == 3) ? -1 : 1;
+    progressRotation360(direction,current.theta);
+}
+  #else
+  else{
+      int direction = (rotation.type == 3) ? 1 : -1;
+      progressRotation360(direction,current.theta);
+  }
+  #endif
 }
 
 int Navigation::checkRotationDirection(double diff)
 {
-    return (diff > 0) ? 1 : -1;
+  return (diff > 0) ? 1 : -1;
 }
 
 bool Navigation::checkRotationTarget(double diff)
 {
     bool ret = false;
     if (std::fabs(diff) < 0.175){
-        RCLCPP_INFO(node_->get_logger(), "Target angle reached"); 
+        RCLCPP_INFO(node_->get_logger(), "[Navigation] Target angle reached"); 
         ret = true;
     }
     return ret;
@@ -569,8 +615,9 @@ void Navigation::progressRotationTarget(double target, double current)
     double angle_diff = normalize_angle(nomalize_target-nomalize_current);
 
     if(checkRotationTarget(angle_diff)){
+        state_utils->setMovingStateID(NAVI_STATE::ARRIVED_GOAL);
+        state_utils->setStatusID(ROBOT_STATUS::COMPLETE);
         publishVelocityCommand(v,w);
-        //movingState = NAVI_STATE::COMPLETE_ROTATION;//node_->robot_status = 6;
         stopMonitorRotate();
         state_utils->enableArrivedGoalSensorsOffTimer();
         return;
@@ -591,10 +638,11 @@ void Navigation::progressRotation360(int direction, double current)
     rotation.preTheta = nomalizeTheta;
 
     if (rotation.accAngle >= 2*M_PI){
-        RCLCPP_INFO(node_->get_logger(), "Completed 360-degree rotation");
+        RCLCPP_INFO(node_->get_logger(), "[Navigation] Completed 360-degree rotation");
+        state_utils->setMovingStateID(NAVI_STATE::ARRIVED_GOAL);
+        state_utils->setStatusID(ROBOT_STATUS::COMPLETE);
         publishVelocityCommand(v,w);
         state_utils->enableArrivedGoalSensorsOffTimer();
-        // movingState = NAVI_STATE::COMPLETE_ROTATION;//node_->robot_status = 6;
         stopMonitorRotate();
         return;
     }
@@ -615,35 +663,142 @@ void Navigation::publishVelocityCommand(double v, double w)
     auto cmd_msg = geometry_msgs::msg::Twist();
     cmd_msg.linear.x = v;
     cmd_msg.angular.z = w;
-    rotation_move_pub_->publish(cmd_msg);
-    RCLCPP_INFO(node_->get_logger(), "publishVelocityCommand V : %f, W : %f ", v,w);
+    rotation_vel_pub_->publish(cmd_msg);
+    //RCLCPP_INFO(node_->get_logger(), "publishVelocityCommand V : %f, W : %f ", v,w);
 }
 
-//test..
-void Navigation::rotation_callback(const robot_custom_msgs::msg::TestPosition::SharedPtr msg) {
-  state_utils->disableArrivedGoalSensorsOffTimer();
-  movingData.target_position.x = msg->x;
-  movingData.target_position.y = msg->y;
-  movingData.target_position.theta = msg->theta;
+void Navigation::rotation_callback(const robot_custom_msgs::msg::MoveNRotation::SharedPtr msg) {
+  state_utils->startSensorMonitor();
   startRotation(msg->type, msg->theta);
 }
+
 
 void Navigation::clearMoveTarget(){
   auto cancel_callback = [this](std::shared_ptr<action_msgs::srv::CancelGoal_Response> response) {
     if (response) {
         if (response->return_code == action_msgs::srv::CancelGoal_Response::ERROR_NONE) {
-            RCLCPP_INFO(node_->get_logger(), "Previous goal successfully canceled due to new target.");
+            RCLCPP_INFO(node_->get_logger(), "[Navigation] Previous goal successfully canceled due to new target.");
         } else {
-            RCLCPP_WARN(node_->get_logger(), "Failed to cancel previous goal: %d", response->return_code);
+            RCLCPP_WARN(node_->get_logger(), "[Navigation] Failed to cancel previous goal: %d", response->return_code);
         }
     } else {
-        RCLCPP_WARN(node_->get_logger(), "Cancel goal response is null.");
+        RCLCPP_WARN(node_->get_logger(), "[Navigation] Cancel goal response is null.");
     }
     future_goal_handle_.reset(); // Release the handle to prevent reuse
     client_.reset();
   };
 
   client_->async_cancel_goal(future_goal_handle_, std::bind(cancel_callback, std::placeholders::_1));
+}
+
+void Navigation::startSearchOpenSpace()
+{
+  scan_sub = node_->create_subscription<sensor_msgs::msg::LaserScan>("/scan", 
+    rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_sensor_data)).reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT),
+    std::bind(&Navigation::scan_callback, this, std::placeholders::_1));
+
+  RCLCPP_INFO(node_->get_logger(), "[Navigation] startSearchOpenSpace");
+}
+
+void Navigation::disableSearchOpenSpace()
+{
+  if (scan_sub) {  // 등록되어 있다면 해제
+    scan_sub.reset();
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] disableSearchOpenSpace");
+  }
+}
+
+void Navigation::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+
+  std::vector<std::vector<float>> sections(num_sections);
+  float angle_increment = msg->angle_increment;
+  float angle_min = msg->angle_min;
+  float max_dist = 3.0;
+
+  // 데이터를 섹션별로 분류
+  for (size_t i = 0; i < msg->ranges.size(); ++i)
+  {
+      float angle = angle_min + i * angle_increment;
+      float distance = msg->ranges[i];
+
+      if (distance > 0.0)
+      {
+          int section_index =
+              static_cast<int>(std::floor((angle + M_PI) / (M_PI / (num_sections / 2)))) % num_sections;
+          sections[section_index].push_back(distance > max_dist ? 0 : distance);
+      }
+  }
+
+  // 각 섹션의 평균 거리 계산, sum이 0이면 inf로 계산
+  std::vector<float> section_averages(num_sections, 0.0);
+  for (int i = 0; i < num_sections; ++i)
+  {
+      if (!sections[i].empty())
+      {
+          float sum = 0.0;
+          int count = 0;
+          for (float d : sections[i])
+          {
+              if (d != 0)
+              {
+                  sum += d;
+                  count++;
+              }
+          }
+          section_averages[i] = sum > 0 ? sum / count : std::numeric_limits<float>::infinity();
+      }
+      else
+      {
+          section_averages[i] = std::numeric_limits<float>::infinity();
+      }
+  }
+
+  int max_index = -1;
+  float min_heading_diff = std::numeric_limits<float>::infinity();
+  bool has_inf = false;
+  float max_distance = 0.0;
+
+  for (int i = 0; i < num_sections; ++i)
+  {
+      float section_rad = -M_PI + (i * M_PI / (num_sections / 2)) + (M_PI / num_sections);
+      //float heading_diff = std::abs(section_rad - robot_pose.theta);
+
+      if (section_averages[i] == std::numeric_limits<float>::infinity())
+      {
+          has_inf = true;
+          if (section_rad < min_heading_diff)
+          {
+              min_heading_diff = section_rad;
+              max_index = i;
+              max_distance = std::numeric_limits<float>::infinity();
+          }
+      }
+
+      if(!has_inf && section_averages[i] > max_distance)
+      {
+          max_distance = section_averages[i];
+          max_index = i;
+      }
+  }
+
+  if(max_index != -1){
+    bSearched = true;
+    pose robot_pose = state_utils->getRobotPose();
+    double scan_base = -M_PI + (max_index * M_PI / (num_sections / 2)) + (M_PI / num_sections);
+    openspaceRad = robot_pose.theta + scan_base;
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] openspaceRad : %f, robot theta : %f, scan theta : %f",openspaceRad,robot_pose.theta,scan_base);
+    disableSearchOpenSpace();
+  }
+}
+
+bool Navigation::isSearchedCompleteOpenSpace()
+{
+  return bSearched;
+}
+
+double Navigation::getOpenSpaceHeading()
+{
+  return openspaceRad;
 }
 
 

@@ -9,6 +9,7 @@
 
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/u_int8.hpp"
+#include "std_msgs/msg/int8.hpp"
 #include <std_msgs/msg/string.hpp>
 #include "std_msgs/msg/empty.hpp"
 #include "robot_custom_msgs/msg/tof_data.hpp"
@@ -21,6 +22,9 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "robot_custom_msgs/msg/station_data.hpp"
 #include "robot_custom_msgs/msg/position.hpp"
+#include "robot_custom_msgs/msg/camera_data.hpp"
+#include "robot_custom_msgs/msg/camera_data_array.hpp"
+#include "robot_custom_msgs/msg/move_n_rotation.hpp"
 
 #include "state_defines.hpp"
 #include "navi_defines.hpp"
@@ -34,7 +38,10 @@ namespace airbot_state {
 class StateUtils{
 public:
   StateUtils(std::shared_ptr<rclcpp::Node> node);
-
+  
+  void initializeData();
+  void initInitPose();
+  void initStationPose();
   void enableOdomcallback();
   void disableOdomcallback();
 
@@ -53,6 +60,8 @@ public:
   void stationPoseCallack(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
   void scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg);
   void tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg);
+  void cameraCallback(const robot_custom_msgs::msg::CameraDataArray::SharedPtr /*msg*/);
+  void pathPlanDestinationCallback(const std_msgs::msg::Int8::SharedPtr msg);
   
 
   double quaternion_to_euler(const geometry_msgs::msg::Quaternion &quat);
@@ -87,6 +96,8 @@ public:
   void publishLidarOn();
   void publishMultiTofOff();
   void publishMultiTofOn();
+  void publishCameraOff();
+  void publishCameraOn();
   void publishAllSensorOff();
   void publishAllSensorOn();
   void publishClearCostMap();
@@ -117,6 +128,8 @@ public:
   ROBOT_STATE getPreStateID();
 
   pose getRobotPose();
+  pose getInitPose();
+  pose getStationPose();
   
   void setStartOnStation(bool set);
   bool isStartOnStation();
@@ -131,7 +144,7 @@ public:
   bool isLocalizationError();
   void setSensorReady(bool set);
   bool isSensorReady();
-
+  int getPathPlanDestination();
   double getLocalizationStartTime();
 
   void setOnstationStatus(const bool &data);
@@ -140,20 +153,25 @@ public:
 
   void saveLastPosition();
 
-  bool isValidNavigation(const std::string &pidFilePath, double start_time);
+  bool isValidateNode(const NODE_STATUS &node, double start_time);
 
   bool startProcess(const std::string &command, const std::string &pidFilePath);
   bool stopProcess(const std::string &pidFilePath);
   
   void processMoveTarget();
 
-  void target_callback(const robot_custom_msgs::msg::Position::SharedPtr msg);
+  void move_target_callback(const robot_custom_msgs::msg::Position::SharedPtr msg);
+  void move_rotation_callback(const robot_custom_msgs::msg::MoveNRotation::SharedPtr msg);
   MOVING_DATA getTargetPosition();
 
   bool getPrepareOdomFlag();
   pose getCurrentOdom();
 
   double getDistance(pose base, pose current);
+
+  void publishMoveFailError();
+  void publishAlternativeDestinationError();
+
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr localize_complete_sub;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr odom_status_sub_;
@@ -161,18 +179,24 @@ public:
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr slam_pose_sub;
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr initial_pose_sub;
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr station_pose_sub;
+  rclcpp::Subscription<std_msgs::msg::Int8>::SharedPtr path_plan_destination_sub;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub;
   rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_status_sub;
+  rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_data_sub;
   rclcpp::Subscription<robot_custom_msgs::msg::StationData>::SharedPtr station_data_sub;
   rclcpp::Subscription<robot_custom_msgs::msg::Position>::SharedPtr req_target_sub_;
+  rclcpp::Subscription<robot_custom_msgs::msg::MoveNRotation>::SharedPtr req_rotation_target_sub_;
   
 
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr reset_odom_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr tof_cmd_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr lidar_cmd_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr camera_cmd_pub_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr req_nomotion_local_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr req_estimatePose_pub_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr req_clear_costmap_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr move_fail_error_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr alternative_dest_error_pub_;
   
   rclcpp::TimerBase::SharedPtr odom_reset_timer_;
   rclcpp::TimerBase::SharedPtr sensor_monitor_timer_;
@@ -180,12 +204,12 @@ public:
   rclcpp::TimerBase::SharedPtr arrivedgoal_sensoroff_timer_;
 
   geometry_msgs::msg::PoseWithCovarianceStamped robot_position_msg;
-  geometry_msgs::msg::PoseWithCovarianceStamped undock_init_pose_msg;
+  geometry_msgs::msg::PoseWithCovarianceStamped init_pose_msg;
   geometry_msgs::msg::PoseWithCovarianceStamped station_position_msg;
   geometry_msgs::msg::PoseWithCovarianceStamped last_position_msg;
   
   pose robot_pose;
-  pose undock_init_pose;
+  pose init_pose;
   pose odom_;
   pose last_pose;
   pose station_pose;
@@ -198,10 +222,12 @@ public:
   double arrived_goal_start_time_;
   double lidarOn_time;
   double tofOn_time;
+  double cameraOn_time;
   double localize_start_time;
   uint8_t odom_reset_cnt_ = 0;
   uint8_t lidar_retry_cnt = 0;
   uint8_t tof_retry_cnt = 0;
+  uint8_t camera_retry_cnt = 0;
   uint8_t localization_retry_cnt = 0;
   bool bStartOnStation = false;
   bool bStartOdomReset = false;
@@ -209,6 +235,7 @@ public:
   bool bSendResetOdomCmd = false;
   bool bSendLidarCmd = false;
   bool bSendTofCmd = false;
+  bool bSendCameraCmd = false;
   LOCALIZATION_TYPE Localtype;
   bool bStartLocalizationStart = false;
   bool bLocalizationComplete = false;
@@ -219,8 +246,10 @@ public:
   bool bStartSensorOn = false;
   bool bLidarSensorOK = false;
   bool bMultiToFSensorOK = false;
+  bool bCameraSensorOK = false;
   bool on_station_status = false;
   bool bSensorReady = false;
+  int pathPlanDestination = 0;
   
   std::shared_ptr<rclcpp::Node> node_;
 

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.8)
 project(robot_custom_msgs)
 
+set(CMAKE_BUILD_TYPE Release) #set(CMAKE_BUILD_TYPE Debug) 
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -12,9 +14,11 @@ find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/AbnormalEventData.msg"  
   "msg/BatteryStatus.msg"
   "msg/BlockArea.msg"
   "msg/BlockAreaList.msg"
+  "msg/BottomIrData.msg"
   "msg/Position.msg"
   "msg/MotorStatus.msg"
   "msg/TofData.msg"
@@ -29,7 +33,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/LineLaserDataArray.msg"
   "msg/RobotState.msg"
   "msg/NaviState.msg"
-  "msg/TestPosition.msg"
+  "msg/MoveNRotation.msg"
   DEPENDENCIES std_msgs
 )
 

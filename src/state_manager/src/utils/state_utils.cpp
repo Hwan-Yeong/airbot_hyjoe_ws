@@ -2,31 +2,28 @@
 #include "rclcpp/qos.hpp"
 
 #define USE_TOF_ONOFF 0
+#define USE_CAMERA_ONOFF 1
 #define ODOM_RESET_TIMEOUT 5.0
 #define ODOE_RESET_RETRY_COUNT 6
 #define LOCALIZATION_TIMEOUT 10.0
 #define LIDAR_WAIT_TIMEOUT 5.0
 #define TOF_WAIT_TIMEOUT 5.0
+#define CAMERA_WAIT_TIMEOUT 5.0
 
 namespace airbot_state {
 
 StateUtils::StateUtils(std::shared_ptr<rclcpp::Node> node) : node_(node)
 {
-  pre_state_id = ROBOT_STATE::IDLE;
-  pre_status_id = ROBOT_STATUS::VOID;
-  state_id = ROBOT_STATE::IDLE;
-  status_id = ROBOT_STATUS::VOID;
-  movingstate_id = NAVI_STATE::IDLE;
-  movingfail_id = NAVI_FAIL_REASON::VOID;
-  node_status_id = NODE_STATUS::IDLE;
-  scan_callback_time_ = rclcpp::Time(0);
-
+  initializeData();
   req_clear_costmap_pub_ = node_->create_publisher<std_msgs::msg::Empty>("/localization/clear/costmap", 1);
   req_nomotion_local_pub_ = node_->create_publisher<std_msgs::msg::Empty>("/localization/request", 1);
   req_estimatePose_pub_ = node_->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("/localization/request/pose", 1);
   reset_odom_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/odom_imu_reset_cmd", 1);
   lidar_cmd_pub_ = node_->create_publisher<std_msgs::msg::Bool>("/cmd_lidar", 10);
   tof_cmd_pub_ = node_->create_publisher<std_msgs::msg::Bool>("/cmd_tof", 10);
+  camera_cmd_pub_ = node_->create_publisher<std_msgs::msg::Bool>("/cmd_camera", 10);
+  move_fail_error_pub_ = node_->create_publisher<std_msgs::msg::Bool>("/move_fail_error", 10);
+  alternative_dest_error_pub_ = node_->create_publisher<std_msgs::msg::Bool>("/alternative_dest_error", 10);
 
   amcl_pose_sub = node_->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/amcl_pose", 10,
     std::bind(&StateUtils::amclCallback, this, std::placeholders::_1));
@@ -39,9 +36,71 @@ StateUtils::StateUtils(std::shared_ptr<rclcpp::Node> node) : node_(node)
 
   station_pose_sub = node_->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/station_pose", 1,
     std::bind(&StateUtils::stationPoseCallack, this, std::placeholders::_1));
+  
+  path_plan_destination_sub = node_->create_subscription<std_msgs::msg::Int8>("/path_planning/destination", 1,
+    std::bind(&StateUtils::pathPlanDestinationCallback, this, std::placeholders::_1));
 
   req_target_sub_ = node_->create_subscription<robot_custom_msgs::msg::Position>("/move_target", 10,
-    std::bind(&StateUtils::target_callback, this, std::placeholders::_1));
+    std::bind(&StateUtils::move_target_callback, this, std::placeholders::_1));
+
+  req_rotation_target_sub_ = node_->create_subscription<robot_custom_msgs::msg::MoveNRotation>("/move_n_rotation", 10,
+    std::bind(&StateUtils::move_rotation_callback, this, std::placeholders::_1));
+}
+
+void StateUtils::initializeData()
+{
+  initInitPose();
+  initStationPose();
+  pre_state_id = ROBOT_STATE::IDLE;
+  pre_status_id = ROBOT_STATUS::VOID;
+  state_id = ROBOT_STATE::IDLE;
+  status_id = ROBOT_STATUS::VOID;
+  movingstate_id = NAVI_STATE::IDLE;
+  movingfail_id = NAVI_FAIL_REASON::VOID;
+  node_status_id = NODE_STATUS::IDLE;
+  scan_callback_time_ = rclcpp::Time(0);
+}
+
+void StateUtils::initInitPose()
+{ 
+  init_pose.x = 0.0;
+  init_pose.y = 0.0;
+  init_pose.theta = 0.0; 
+
+  init_pose_msg.header.stamp = rclcpp::Time(0);  // 타임스탬프 초기화 (예: 0초)
+  init_pose_msg.header.frame_id = "map";  // 좌표계 설정
+
+  init_pose_msg.pose.pose.position.x = init_pose.x;
+  init_pose_msg.pose.pose.position.y = init_pose.y;
+  init_pose_msg.pose.pose.position.z = 0.0;
+
+  init_pose_msg.pose.pose.orientation.x = 0.0;
+  init_pose_msg.pose.pose.orientation.y = 0.0;
+  init_pose_msg.pose.pose.orientation.z = init_pose.theta;
+  init_pose_msg.pose.pose.orientation.w = 1.0;
+  init_pose_msg.pose.covariance.fill(0.0);
+
+}
+
+void StateUtils::initStationPose()
+{
+  station_pose.x = init_pose.x - 0.3 * std::cos(init_pose.theta);
+  station_pose.y = init_pose.y - 0.3 * std::sin(init_pose.theta);
+  station_pose.theta = 0.0;
+
+  station_position_msg.header.stamp = rclcpp::Time(0);  // 타임스탬프 초기화 (예: 0초)
+  station_position_msg.header.frame_id = "map";  // 좌표계 설정
+
+  station_position_msg.pose.pose.position.x = station_pose.x;
+  station_position_msg.pose.pose.position.y = station_pose.y;
+  station_position_msg.pose.pose.position.z = 0.0;
+
+  station_position_msg.pose.pose.orientation.x = 0.0;
+  station_position_msg.pose.pose.orientation.y = 0.0;
+  station_position_msg.pose.pose.orientation.z = station_pose.theta;
+  station_position_msg.pose.pose.orientation.w = 1.0;
+  station_position_msg.pose.covariance.fill(0.0);
+
 }
 
 void StateUtils::enableArrivedGoalSensorsOffTimer()
@@ -128,6 +187,9 @@ void StateUtils::enableSensorcallback()
     std::bind(&StateUtils::scan_callback, this, std::placeholders::_1));
   #if USE_TOF_ONOFF > 0  
   tof_status_sub = node_->create_subscription<robot_custom_msgs::msg::TofData>("/tof_data", 10, std::bind(&StateUtils::tofCallback, this, std::placeholders::_1));
+  #endif
+  #if USE_CAMERA_ONOFF > 0 
+  camera_data_sub = node_->create_subscription<robot_custom_msgs::msg::CameraDataArray>("/camera_data", 10, std::bind(&StateUtils::cameraCallback, this, std::placeholders::_1));
   #endif
   RCLCPP_INFO(node_->get_logger(), "enableSensorcallback");
 }
@@ -220,9 +282,21 @@ void StateUtils::startSensorMonitor()
   {
     tof_retry_cnt = 0;
     lidar_retry_cnt = 0;
+    camera_retry_cnt = 0;
     bStartSensorOn = true;
     bLidarSensorOK = false;
+    #if USE_TOF_ONOFF > 0
     bMultiToFSensorOK = false;
+    #else
+    bMultiToFSensorOK = true;
+    #endif
+
+    #if USE_CAMERA_ONOFF > 0
+    bCameraSensorOK = false;
+    #else
+    bCameraSensorOK = true;
+    #endif
+
     setLidarError(false);
     setToFError(false);
     setSensorReady(false);
@@ -233,6 +307,7 @@ void StateUtils::startSensorMonitor()
     sensor_monitor_timer_ = node_->create_wall_timer(std::chrono::milliseconds(100),std::bind(&StateUtils::monitor_sensor, this));
   } else {
     RCLCPP_ERROR(node_->get_logger(), "Sensor Already ON...");
+    disableArrivedGoalSensorsOffTimer();
   }
 }
 
@@ -248,33 +323,30 @@ void StateUtils::monitor_sensor()
     bSendLidarCmd = false;
     publishLidarOn();
     RCLCPP_INFO(node_->get_logger(), "retry lidar On count : %u",lidar_retry_cnt);
-    sensor_monitor_start_time_ = node_->now().seconds();
   }
   #if USE_TOF_ONOFF > 0
   if(bSendTofCmd){
     bSendTofCmd = false;
     publishMultiTofOn();
     RCLCPP_INFO(node_->get_logger(), "retry Tof On count : %u",tof_retry_cnt);
-    sensor_monitor_start_time_ = node_->now().seconds();
+  }
+  #endif
+
+  #if USE_CAMERA_ONOFF > 0
+  if(bSendCameraCmd){
+    bSendCameraCmd = false;
+    publishCameraOn();
+    RCLCPP_INFO(node_->get_logger(), "retry Tof On count : %u",camera_retry_cnt);
   }
   #endif
 
   double waitLidar = node_->now().seconds()-lidarOn_time;
+#if USE_TOF_ONOFF > 0
   double waitTof = node_->now().seconds()-tofOn_time;
-  #if USE_TOF_ONOFF > 0
-  if(bLidarSensorOK && bMultiToFSensorOK){
-    RCLCPP_INFO(node_->get_logger(), "SenSor is OK");
-    setSensorReady(true);
-    stopSensorMonitor();
-  }
-  #else
-  if(bLidarSensorOK){
-    RCLCPP_INFO(node_->get_logger(), "SenSor is OK");
-    setSensorReady(true);
-    stopSensorMonitor();
-  }
-  #endif
-  if(bLidarSensorOK && bMultiToFSensorOK){
+#endif
+  double waitCamera = node_->now().seconds()-cameraOn_time;
+  
+  if(bLidarSensorOK && bMultiToFSensorOK && bCameraSensorOK){
     RCLCPP_INFO(node_->get_logger(), "SenSor is OK");
     setSensorReady(true);
     stopSensorMonitor();
@@ -300,10 +372,23 @@ void StateUtils::monitor_sensor()
       }
   }
   #endif
+  #if USE_CAMERA_ONOFF > 0
+  else if(waitCamera >= CAMERA_WAIT_TIMEOUT && !bCameraSensorOK){
+      if(++camera_retry_cnt >= 6){
+        RCLCPP_INFO(node_->get_logger(), "Camera Error");
+        setToFError(true);
+        stopSensorMonitor();
+      }else{
+        publishCameraOff();
+        bSendCameraCmd = true;
+      }
+  }
+  #endif
 }
 
 void StateUtils::startLocalizationMonitor(LOCALIZATION_TYPE type)
 {
+  localization_retry_cnt = 0;
   Localtype = type;
   bStartLocalizationStart = true;
   bLocalizationComplete = false;
@@ -337,7 +422,6 @@ void StateUtils::monitor_localization()
     if(++localization_retry_cnt >= 6){
       setLocalizationError(true);
       RCLCPP_INFO(node_->get_logger(), "Localization Error");
-      
       stopLocalizationMonitor();
     }else{
       RCLCPP_INFO(node_->get_logger(), "localization retry count : %u",localization_retry_cnt);
@@ -409,7 +493,6 @@ void StateUtils::initial_pose_callback(const geometry_msgs::msg::PoseWithCovaria
 void StateUtils::localizationComplete_callback(const std_msgs::msg::Empty::SharedPtr) {
     RCLCPP_INFO(node_->get_logger(), "localizationComplete_callback");
     bLocalizationComplete = true;
-    disableLocalizationcallback();
 }
 
 void StateUtils::amclCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
@@ -434,36 +517,34 @@ void StateUtils::slamPoseCallback(const geometry_msgs::msg::PoseWithCovarianceSt
 void StateUtils::stationPoseCallack(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
 {
   station_position_msg.header = msg->header;
-  undock_init_pose_msg.header = msg->header;
+  init_pose_msg.header = msg->header;
   station_position_msg.pose = msg->pose;
 
   station_pose.x = static_cast<int>(station_position_msg.pose.pose.position.x * 1000000 + 0.5) / 1000000.0;
   station_pose.y = static_cast<int>(station_position_msg.pose.pose.position.y * 1000000 + 0.5) / 1000000.0;
   station_pose.theta = quaternion_to_euler(station_position_msg.pose.pose.orientation);
+
+  init_pose.x = station_pose.x + 0.3 * std::cos(station_pose.theta);
+  init_pose.y = station_pose.y + 0.3 * std::sin(station_pose.theta);
+  init_pose.theta = station_pose.theta;
+
+  init_pose_msg.pose.pose.position.x = init_pose.x;
+  init_pose_msg.pose.pose.position.y = init_pose.y;
+  init_pose_msg.pose.pose.position.z = station_position_msg.pose.pose.position.z;
+  init_pose_msg.pose.pose.orientation = station_position_msg.pose.pose.orientation;
+
   RCLCPP_INFO(node_->get_logger(), "SET STATION POSE  %f | %f |%f ", station_pose.x, station_pose.y, station_pose.theta);
+  RCLCPP_INFO(node_->get_logger(), "SET INIT POSE  %f | %f |%f ", init_pose.x, init_pose.y, init_pose.theta);
+}
 
-  double charger_x = station_position_msg.pose.pose.position.x;
-  double charger_y = station_position_msg.pose.pose.position.y;
-
-  // 충전기의 방향 (Quaternion -> Yaw 변환)
-  tf2::Quaternion q(
-    station_position_msg.pose.pose.orientation.x,
-    station_position_msg.pose.pose.orientation.y,
-    station_position_msg.pose.pose.orientation.z,
-    station_position_msg.pose.pose.orientation.w
-  );
-
-  double yaw = tf2::getYaw(q);  // 라디안 단위
-
-  undock_init_pose_msg.pose.pose.position.x = charger_x + 0.3 * std::cos(yaw);
-  undock_init_pose_msg.pose.pose.position.y = charger_y + 0.3 * std::sin(yaw);
-  undock_init_pose_msg.pose.pose.position.z = station_position_msg.pose.pose.position.z;
-  undock_init_pose_msg.pose.pose.orientation = station_position_msg.pose.pose.orientation;
-
-  undock_init_pose.x = static_cast<int>(undock_init_pose_msg.pose.pose.position.x * 1000000 + 0.5) / 1000000.0;
-  undock_init_pose.y = static_cast<int>(undock_init_pose_msg.pose.pose.position.y * 1000000 + 0.5) / 1000000.0;
-  undock_init_pose.theta = quaternion_to_euler(undock_init_pose_msg.pose.pose.orientation);
-  RCLCPP_INFO(node_->get_logger(), "SET INIT POSE  %f | %f |%f ", undock_init_pose.x, undock_init_pose.y, undock_init_pose.theta);
+void StateUtils::pathPlanDestinationCallback(const std_msgs::msg::Int8::SharedPtr msg)
+{
+  pathPlanDestination = msg->data;
+    // robot_position_msg.header = msg->header;
+    // robot_position_msg.pose = msg->pose;
+    // robot_pose.x = static_cast<int>(robot_position_msg.pose.pose.position.x * 1000000 + 0.5) / 1000000.0;
+    // robot_pose.y = static_cast<int>(robot_position_msg.pose.pose.position.y * 1000000 + 0.5) / 1000000.0;
+    // robot_pose.theta = quaternion_to_euler(robot_position_msg.pose.pose.orientation);
 }
 
 void StateUtils::scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
@@ -507,6 +588,16 @@ void StateUtils::tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr ms
     }
 }
 
+void StateUtils::cameraCallback(const robot_custom_msgs::msg::CameraDataArray::SharedPtr /*msg*/)
+{
+  double diff = node_->now().seconds()-cameraOn_time;
+
+    if(!bCameraSensorOK){
+      RCLCPP_INFO(node_->get_logger(), "camera Sensor is OK Diff : %f",diff);
+    }
+    bCameraSensorOK = true;
+}
+
 bool StateUtils::isStartLocalization()
 {
     return bStartLocalizationStart; 
@@ -514,13 +605,7 @@ bool StateUtils::isStartLocalization()
 
 bool StateUtils::getLocalizationComplete()
 {
-    bool ret = false; // 임시로 true로 만듬 준연. 02/13
-    if(bStartLocalizationStart && bLocalizationComplete){
-      bLocalizationComplete = false;
-      bStartLocalizationStart = false;
-      ret = true;
-    } 
-    return ret;
+    return bLocalizationComplete;
 }
 
 bool StateUtils::isStartOdomReset()
@@ -660,10 +745,30 @@ void StateUtils::publishMultiTofOff()
     RCLCPP_INFO(node_->get_logger(), "publishMultiTofOff");
 }
 
+void StateUtils::publishCameraOff()
+{
+  bCameraSensorOK = false;
+  std_msgs::msg::Bool camera_cmd;
+  camera_cmd.data = false;
+  camera_cmd_pub_->publish(camera_cmd);
+  RCLCPP_INFO(node_->get_logger(), "publishCameraOff");
+}
+void StateUtils::publishCameraOn()
+{
+  std_msgs::msg::Bool camera_cmd;
+  camera_cmd.data = true;
+  camera_cmd_pub_->publish(camera_cmd);
+  cameraOn_time = node_->now().seconds();
+  RCLCPP_INFO(node_->get_logger(), "publishCameraOn");
+}
+
 void StateUtils::publishAllSensorOn()
 {
     #if USE_TOF_ONOFF > 0
     publishMultiTofOn();
+    #endif
+    #if USE_TOF_ONOFF > 0
+    publishCameraOn();
     #endif
     publishLidarOn();
     RCLCPP_INFO(node_->get_logger(), "publishAllSensorOn");
@@ -673,6 +778,9 @@ void StateUtils::publishAllSensorOff()
 {
     #if USE_TOF_ONOFF > 0
     publishMultiTofOff();
+    #endif
+    #if USE_TOF_ONOFF > 0
+    publishCameraOff();
     #endif
     publishLidarOff();
     RCLCPP_INFO(node_->get_logger(), "publishAllSensorOff");
@@ -690,8 +798,8 @@ void StateUtils::publishLocalizeUndockPose()
     bStartLocalizationStart = true;
     bLocalizationComplete = false;
     localize_start_time = node_->now().seconds();
-    req_estimatePose_pub_->publish(undock_init_pose_msg); //station pose set enable
-    RCLCPP_INFO(node_->get_logger(), "publishLocalizeUndockPose X : %f , Y : %f, THETA : %f,", undock_init_pose.x,undock_init_pose.y,undock_init_pose.theta);
+    req_estimatePose_pub_->publish(init_pose_msg); //station pose set enable
+    RCLCPP_INFO(node_->get_logger(), "publishLocalizeUndockPose X : %f , Y : %f, THETA : %f,", init_pose.x,init_pose.y,init_pose.theta);
 }
 
 void StateUtils::publishLocalizePose()
@@ -752,10 +860,10 @@ state_cmd StateUtils::getRobotCMDID(){
 
 void StateUtils::setMovingStateID(const NAVI_STATE &id){
   if(movingstate_id != id){
-    if(id == NAVI_STATE::READY && !bLidarSensorOK ){
-      startSensorMonitor();//publishAllSensorOn();
+    if(id == NAVI_STATE::READY){
+      startSensorMonitor();
     }else if( (id == NAVI_STATE::ARRIVED_GOAL || id == NAVI_STATE::PAUSE) && state_id != ROBOT_STATE::RETURN_CHARGER ){
-      enableArrivedGoalSensorsOffTimer();//publishAllSensorOff();
+      enableArrivedGoalSensorsOffTimer();
     }
     RCLCPP_INFO(node_->get_logger(), "[Navigation] SET Navigation STATE : NAVI_STATE::%s", enumToString(id).c_str());
   }
@@ -800,9 +908,24 @@ pose StateUtils::getRobotPose()
   return robot_pose;
 }
 
+pose StateUtils::getInitPose()
+{
+  return init_pose;
+}
+
+pose StateUtils::getStationPose()
+{
+  return station_pose;
+}
+
 bool StateUtils::isStartOnStation()
 {
   return bStartOnStation;
+}
+
+int StateUtils::getPathPlanDestination()
+{
+  return pathPlanDestination;
 }
 
 
@@ -829,61 +952,80 @@ void StateUtils::stationData_callback(const robot_custom_msgs::msg::StationData:
   setOnstationStatus(bOnStation);
 }
 
-bool StateUtils::isValidNavigation(const std::string &pidFilePath, double start_time) {
-  std::vector<std::string> required_nodes = {
-    "/amcl",
-    "/behavior_server",
-    "/bt_navigator",
-    "/bt_navigator_navigate_to_pose_rclcpp_node",
-    "/global_costmap/global_costmap",
-    "/local_costmap/local_costmap",
-    "/controller_server",
-    "/planner_server",
-    "/map_server",
-    "/velocity_smoother",
-    "/lifecycle_manager",
-    "/nav2_container",
-    "/smoother_server",
-    "/velocity_smoother",
-    "/waypoint_follower"
-  }; // navi 필수 node.
+bool StateUtils::isValidateNode(const NODE_STATUS &node, double start_time) {
+  std::vector<std::string> require_nodes;
+  if( node ==  NODE_STATUS::AUTO_MAPPING){
+    require_nodes = {
+      "/behavior_server",
+      "/bt_navigator",
+      "/bt_navigator_navigate_to_pose_rclcpp_node",
+      "/controller_server",
+      "/explorer_node",
+      "/planner_server",
+      "/robot_pose_publisher_node",
+      "/slam_toolbox",
+      "/smoother_server",
+      "/velocity_smoother",
+      "/warmup_server_node",
+      "/waypoint_follower"
+    };
+  } else if( node ==  NODE_STATUS::MANUAL_MAPPING){
+    require_nodes = {
+      "/robot_pose_publisher_node",
+      "/slam_toolbox"
+    };
+  } else if( node ==  NODE_STATUS::NAVI){
+    require_nodes = {
+      "/amcl",
+      "/behavior_server",
+      "/bt_navigator",
+      "/bt_navigator_navigate_to_pose_rclcpp_node",
+      "/global_costmap/global_costmap",
+      "/local_costmap/local_costmap",
+      "/controller_server",
+      "/planner_server",
+      "/map_server",
+      "/lifecycle_manager",
+      "/nav2_container",
+      "/smoother_server",
+      "/velocity_smoother",
+      "/waypoint_follower"
+    };
+  }
 
-  std::ifstream pidFile(pidFilePath);
-  std::string pid;
-  if(pidFile.is_open())
+  static std::vector<std::string> temp_require_nodes;
+
+  if( temp_require_nodes.empty() )
   {
-    std::getline(pidFile, pid);
-    pidFile.close();
-    if (!pid.empty())
-    {
-      pid_t processGroupID = std::stoi(pid);
-      if (kill(-processGroupID, 0) == 0) {
-        // RCLCPP_INFO(node_->get_logger(), "[isValidProcess] Process running / %s", pidFilePath.c_str());
+    temp_require_nodes = require_nodes;
+  }
 
-        std::vector<std::string> running_nodes = node_->get_node_names();
-        RCLCPP_ERROR(node_->get_logger(), "[isValidProcess] running node size : %d",running_nodes.size());
-        for (const auto& required_node : required_nodes) {
-          bool found = false;
-          for (const auto& running_node : running_nodes) {
-            if (running_node.find(required_node) != std::string::npos) {
-              found = true;
-              double wait_navi_launch = node_->now().seconds()-start_time;
-              //RCLCPP_INFO(node_->get_logger(), "Required Node launched [%s]: time %f", required_node.c_str(), wait_navi_launch);
-              break;
-            }
-          }
-          if (!found) {
-            RCLCPP_ERROR(node_->get_logger(), "Required Nav2 node not found: %s", required_node.c_str());
-            return false;
-          }
-        }
-      } else {
-        RCLCPP_ERROR(node_->get_logger(), "[isValidProcess] Process not running");
-        return false;
+  std::vector<std::string> running_nodes = node_->get_node_names();
+  int nodes_size = temp_require_nodes.size();
+  RCLCPP_ERROR(node_->get_logger(), "[isValidProcess] running node size : %d | Number of Remaining Checking Node size %d ",running_nodes.size(), nodes_size);
+  for (int i = 0; i < nodes_size; i++) {
+    bool found = false;
+    for (const auto& running_node : running_nodes) {
+      if (running_node.find(temp_require_nodes[i]) != std::string::npos) {
+        found = true;
+        double wait_navi_launch = node_->now().seconds()-start_time;
+        RCLCPP_INFO(node_->get_logger(), "[isValidProcess] Required [%s] node launched [%s]: time %f", enumToString(node).c_str(),running_node.c_str(), wait_navi_launch);
+        break;
       }
     }
+    if (!found) {
+      // RCLCPP_ERROR(node_->get_logger(), "[isValidProcess] Required [%s] node not found: %s", enumToString(node).c_str(),temp_require_nodes[i].c_str());
+      return false;
+    } else{
+      temp_require_nodes.erase(temp_require_nodes.begin() + i);
+    }
   }
-  return true;
+      
+  if( temp_require_nodes.empty() )
+  {
+    return true;
+  }
+  return false;
 }
 
 bool StateUtils::startProcess(const std::string& command, const std::string& pidFilePath) {
@@ -912,25 +1054,37 @@ bool StateUtils::stopProcess(const std::string &pidFilePath) {
     pidFile.close();
     if (!pid.empty()) {
       pid_t processGroupID = std::stoi(pid);
-      if (kill(-processGroupID, SIGINT) == 0) {
+      if (kill(-processGroupID, 0) == -1) { // Process no longer exists
+        RCLCPP_INFO(node_->get_logger(), "[stopProcess] [%s]Process Already terminated ", pidFilePath.c_str());
+        return true; // SIGINT 처리 후 종료 성공
+      }
+
+      if (kill(-processGroupID, SIGINT) == 0) { //SIGINT 전송 성공
         sleep(1); // Wait for process to handle SIGINT
         if (kill(-processGroupID, 0) == -1) { // Process no longer exists
-          RCLCPP_INFO(node_->get_logger(), "Process terminated successfully.");
-          return true;
+          RCLCPP_INFO(node_->get_logger(), "[stopProcess] Process terminated successfully.");
+          return true; // SIGINT 처리 후 종료 성공
         } else {
-          RCLCPP_WARN(node_->get_logger(),
-                      "Process did not terminate, sending SIGKILL.");
+          RCLCPP_WARN(node_->get_logger(),"[stopProcess] Process did not terminate, sending SIGKILL.");
           kill(-processGroupID, SIGKILL);
+          sleep(1);
+          if (kill(-processGroupID, 0) == -1) {
+            RCLCPP_INFO(node_->get_logger(), "[stopProcess] Process terminated by SIGKILL successfully.");
+            return true;
+          }else{
+            RCLCPP_ERROR(node_->get_logger(),"[stopProcess] Process did not terminate by SIGKILL");
+            return false;
+          }
         }
       } else {
-        RCLCPP_ERROR(node_->get_logger(), "Failed to send SIGINT.");
+        RCLCPP_ERROR(node_->get_logger(), "[stopProcess] Failed to send SIGINT.");
       }
     }
   }
   return false;
 }
 
-void StateUtils::target_callback(const robot_custom_msgs::msg::Position::SharedPtr msg) {
+void StateUtils::move_target_callback(const robot_custom_msgs::msg::Position::SharedPtr msg) {
   disableArrivedGoalSensorsOffTimer();
   setStartOnStation(false);
   if(!movingData.bStartMoving){
@@ -938,8 +1092,22 @@ void StateUtils::target_callback(const robot_custom_msgs::msg::Position::SharedP
     movingData.target_position.x = msg->x;
     movingData.target_position.y = msg->y;
     movingData.target_position.theta = msg->theta;
+    movingData.type = std::numeric_limits<uint8_t>::max();
     
-    RCLCPP_INFO(node_->get_logger(), "target_callback x : %f , y : %f, theta : %f ", movingData.target_position.x,movingData.target_position.y,movingData.target_position.theta);
+    RCLCPP_INFO(node_->get_logger(), "move_target_callback x : %f , y : %f, theta : %f ", movingData.target_position.x,movingData.target_position.y,movingData.target_position.theta);
+  }
+}
+
+void StateUtils::move_rotation_callback(const robot_custom_msgs::msg::MoveNRotation::SharedPtr msg) {
+  disableArrivedGoalSensorsOffTimer();
+  setStartOnStation(false);
+  if(!movingData.bStartMoving){
+    movingData.bStartMoving = true;
+    movingData.target_position.x = msg->x;
+    movingData.target_position.y = msg->y;
+    movingData.target_position.theta = msg->theta;
+    movingData.type = msg->type;
+    RCLCPP_INFO(node_->get_logger(), "move_rotation_callback x : %f , y : %f, theta : %f ", movingData.target_position.x,movingData.target_position.y,movingData.target_position.theta);
   }
 }
 
@@ -970,4 +1138,18 @@ double StateUtils::getDistance(pose base, pose current) {
   return std::sqrt((current.x - base.x) * (current.x - base.x) + (current.y - base.y) * (current.y - base.y));
 }
 
-} //end of namespace - airbot_state
+void StateUtils::publishMoveFailError()
+{
+  std_msgs::msg::Bool msg;
+  msg.data = true;
+  move_fail_error_pub_->publish(msg);
+}
+
+void StateUtils::publishAlternativeDestinationError()
+{
+  std_msgs::msg::Bool msg;
+  msg.data = true;
+  alternative_dest_error_pub_->publish(msg);
+}
+
+}

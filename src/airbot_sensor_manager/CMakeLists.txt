@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.8)
 project(airbot_sensor_manager)
 
+set(CMAKE_BUILD_TYPE Release) #set(CMAKE_BUILD_TYPE Debug) 
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -17,15 +19,10 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)
-find_package(pcl_conversions REQUIRED)
 
 include_directories(
   include
-  ${PCL_INCLUDE_DIRS}
 )
-
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
 
 ################################
 ##### SENSOR_TO_POINTCLOUD #####
@@ -35,16 +32,16 @@ add_executable(sensor_to_pointcloud
   src/airbot_sensor_to_pointcloud/tof/pointcloud_tof.cpp
   src/airbot_sensor_to_pointcloud/camera/pointcloud_camera.cpp
   src/airbot_sensor_to_pointcloud/cliff/pointcloud_cliff.cpp
-  src/airbot_sensor_to_pointcloud/lidar/pointcloud_lidar.cpp
+  src/airbot_sensor_to_pointcloud/collision/pointcloud_collision.cpp
   src/utils/frame_converter.cpp
   src/utils/pointcloud_generator.cpp
   src/utils/boundingbox_generator.cpp
   src/logger/camera_object_logger.cpp
 )
 ament_target_dependencies(sensor_to_pointcloud 
-  rclcpp 
+  rclcpp
+  std_msgs
   sensor_msgs
-  pcl_conversions
   robot_custom_msgs
   builtin_interfaces
   tf2
@@ -54,15 +51,6 @@ ament_target_dependencies(sensor_to_pointcloud
 )
 install(TARGETS sensor_to_pointcloud
 DESTINATION lib/${PROJECT_NAME}
-)
-install(DIRECTORY include/airbot_sensor_to_pointcloud/
-  DESTINATION include/airbot_sensor_to_pointcloud
-)
-install(DIRECTORY include/logger/
-  DESTINATION include/logger
-)
-install(DIRECTORY include/utils/
-  DESTINATION include/utils
 )
 
 ################################
@@ -78,12 +66,12 @@ ament_target_dependencies(param_setter
 install(TARGETS param_setter
   DESTINATION lib/${PROJECT_NAME}
 )
-install(DIRECTORY include/dynamic_param_setter/
-  DESTINATION include/dynamic_param_setter
-)
 
 ################################
 ############ GENERAL ###########
+install(DIRECTORY include/
+  DESTINATION include
+)
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}
 )

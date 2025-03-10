@@ -28,7 +28,7 @@ A1_perception:
           compose:
             filters:
               timeout:
-                timeout_milliseconds: 10000
+                timeout_milliseconds: 15000
               sector_roi:
                 use_inside: true
                 min_range: 1.01
@@ -51,7 +51,7 @@ A1_perception:
                 timeout_milliseconds: 100
               sector_roi:
                 use_inside: true
-                min_range: 0
+                min_range: 0.3
                 max_range: 1.0
                 min_angle: -50.3
                 max_angle: 50.3

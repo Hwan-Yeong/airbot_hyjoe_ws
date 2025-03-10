@@ -11,12 +11,12 @@ class MotorStatus
 
     bool isMoveToFoward()
     {
-        return left_rpm > 0 && right_rpm < 0;
+        return (left_rpm > 0 && right_rpm < 0);
     }
 
     bool isMoveToBack()
     {
-        return left_rpm < 0 && right_rpm > 0;
+        return (left_rpm < 0 && right_rpm > 0);
     }
 
     bool isRotate()
@@ -28,6 +28,7 @@ class MotorStatus
     {
         left_rpm = left_motor_rpm;
     }
+
     void setRightRpm(float right_motor_rpm)
     {
         right_rpm = right_motor_rpm;

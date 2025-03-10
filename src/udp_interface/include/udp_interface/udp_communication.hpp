@@ -34,7 +34,7 @@
 #include "robot_custom_msgs/msg/motor_status.hpp"
 #include "robot_custom_msgs/msg/station_data.hpp"
 //testcode
-#include "robot_custom_msgs/msg/test_position.hpp"
+#include "robot_custom_msgs/msg/move_n_rotation.hpp"
 
 #include "robot_custom_msgs/msg/rpm_control.hpp"
 #include "robot_custom_msgs/msg/imu_calibration.hpp"
@@ -56,10 +56,7 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_ros/transform_broadcaster.h>
 
-#define USE_NEW_PROTOCOL 1
-#define PROTOCOL_V17 0
-
-
+#define PROTOCOL_V17 1
 
 enum class REQUEST_STATUS
 {
@@ -122,6 +119,11 @@ enum class REQUEST_DATA_WHAT
     CLIFF_LIFT_DATA,
     DOCK_RECEIVER,
     ALL_STATUS,
+    ROBOT_SPEED,
+    ROBOT_STATE,
+    ACTION_STATE,
+    NOTIFICATION,
+
 };
 
 enum class ROBOT_STATE:int{
@@ -284,9 +286,9 @@ struct cameraData
 struct CarmeraSensorInfo
 {
     uint8_t num;
-    #if USE_NEW_PROTOCOL > 0
+
     std::vector<ObjectDataV2> data;
-    #else
+    #if 0
     std::vector<cameraData> data;
     #endif
 };
@@ -302,9 +304,8 @@ struct lineLaserData
 struct LineLaserInfo
 {
     uint8_t num;
-    #if USE_NEW_PROTOCOL > 0
     std::vector<LLDataV2> data;
-    #else
+    #if 0
     std::vector<lineLaserData> data;
     #endif
     
@@ -333,7 +334,7 @@ struct TofSensorInfo
 
 
 union CliffLiftInfo {
-    struct {
+    struct bits{
         uint8_t cliff_front_center : 1;
         uint8_t cliff_front_left : 1;
         uint8_t cliff_back_left : 1;
@@ -342,18 +343,18 @@ union CliffLiftInfo {
         uint8_t cliff_front_right : 1;
         uint8_t wheel_lift_left : 1;
         uint8_t wheel_lift_right : 1;
-    };
+    }b;
     uint8_t value;
 };
 
 union SigReceiver {
-    struct {
+    struct bits{
         uint8_t front_left : 1;
         uint8_t front_right : 1;
         uint8_t side_left : 1;
         uint8_t side_right : 1;
         uint8_t reserved : 4;
-    };
+    }b;
     uint8_t value;
 };
 
@@ -490,6 +491,7 @@ private :
     rclcpp::Subscription<robot_custom_msgs::msg::RobotState>::SharedPtr req_state_sub;
     rclcpp::Subscription<robot_custom_msgs::msg::NaviState>::SharedPtr req_navi_sub;
     rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr node_status_sub_;
+    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr robot_speed_sub_;
 
     //publisher
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr e_stop_pub;
@@ -501,7 +503,8 @@ private :
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr batterySleep_cmd_pub_;
 
     rclcpp::Publisher<robot_custom_msgs::msg::Position>::SharedPtr move_target_pub_;
-    rclcpp::Publisher<robot_custom_msgs::msg::TestPosition>::SharedPtr test_move_target_pub_;
+    rclcpp::Publisher<robot_custom_msgs::msg::MoveNRotation>::SharedPtr move_rotation_pub_;
+    rclcpp::Publisher<robot_custom_msgs::msg::MoveNRotation>::SharedPtr rotation_pub_;
     rclcpp::Publisher<robot_custom_msgs::msg::BlockAreaList>::SharedPtr block_area_pub_;
     rclcpp::Publisher<robot_custom_msgs::msg::BlockAreaList>::SharedPtr block_wall_pub_;     
 	rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_version_pub_;
@@ -529,6 +532,8 @@ private :
     Driving_t& reqNavigation = ReqNavigation;
     TargetPosition_t ReqTargetPosition;
     TargetPosition_t& reqTargetPosition = ReqTargetPosition;
+    TargetPositionType_t ReqMovenRotation;
+    TargetPositionType_t& reqMovenRotation = ReqMovenRotation;
     DockingStatus_t ReqDocking;
     DockingStatus_t& reqDocking = ReqDocking;
     MotorManual_VW_t ReqManualVWMove;
@@ -621,7 +626,7 @@ public:
     void setSocBatteryData(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg);
     void setSocTargetPosition(double x, double y, double theta);
     void setSocMapData(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
-    void setSocRobotVelocity();
+    void setSocRobotVelocity(double v, double w);
     void setSocRobotState();
     void setSocMovingState();
     void setSocError(const robot_custom_msgs::msg::ErrorListArray::SharedPtr msg);
@@ -657,6 +662,7 @@ public:
     void robotStateCallback(const robot_custom_msgs::msg::RobotState::SharedPtr msg);
     void movingStateCallback(const robot_custom_msgs::msg::NaviState::SharedPtr msg);
     void nodeStateCallback(const std_msgs::msg::UInt8::SharedPtr msg);
+    void robotSpeedCallback(const geometry_msgs::msg::Twist::SharedPtr msg);
 
     //response - data
     void resSocData(REQUEST_DATA_WHAT what);
@@ -664,10 +670,10 @@ public:
     void resSocRobotPose();
     void resSocSoftWareVision();
     void resSocNodeStatus(); //삭제 예정
-    #if USE_NEW_PROTOCOL > 0
+
     void resSocRobotState();
     void resSocRobotStatus();
-    #endif
+
     void resSocTargetPosition();
     void resSocBattData();
     void resSocDockingStatus();
@@ -682,10 +688,10 @@ public:
     void resSocTofData();
     void resSocErrorList();
     void resSocLidarData();
-    #if USE_NEW_PROTOCOL > 0
+
     void resSocCliffLiftData();
     void resSocDockReceiverData();
-    #endif
+
     void resSocAllSensor();
 
     void resPonseJigCommand(int command, const std::vector<uint8_t>& packet);
@@ -725,7 +731,9 @@ public:
     void publishBlockWall(const ByPassOne_t& parsedData);
     void publishClearVirtualWall();
     void publishVersionRequest();
-    void publishTargetPosition(double x,double y,double theta);
+    void publishMoveGoal(double x,double y,double theta);
+    void publishMoveNRotation(double x,double y,double theta, int type);
+    void publishRotation(int type,double theta);
     void publishLidarOnOff(bool on_off);
     void publishSensorOnOff(bool set);
     void publishBatterySleep();
@@ -742,7 +750,7 @@ public:
     bool readPGM(const std::string& pgm_filename, int& width_map, int& height_map, std::vector<uint8_t>& mapData, double& origin_x, double& origin_y);
 
     double quaternion_to_euler(const geometry_msgs::msg::Quaternion& quat);
-    std::vector<uint8_t> mapDataTypeConvert(std::vector<int8_t> src, int height, int width, double origin_x, double origin_y);
+    std::vector<uint8_t> mapDataTypeConvert(std::vector<int8_t> src, int height, int width);
     std::vector<uint8_t> jigDataConvertWheelMotor(const robot_custom_msgs::msg::MotorStatus::SharedPtr msg);
     std::vector<uint8_t> jigDataConvertBattery(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg);
     std::vector<uint8_t> jigDataConvertTof(const robot_custom_msgs::msg::TofData::SharedPtr msg);
@@ -770,9 +778,6 @@ public:
     void disableLinearTargetMovoing();
     double getDistance(pose base, pose current);
     void processLinearMoving();
-
-    //test_code
-    void publishTestTargetPosition(double x,double y,double theta, int type);
 };
 
 #endif // UDP_COMMUNICATION_HPP

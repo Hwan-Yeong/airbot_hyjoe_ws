@@ -51,7 +51,7 @@ public:
   result_t waitResponseHeader(uint8_t cmd,uint64_t timeout = DEFAULT_TIMEOUT);
 
   /*等待激光雷达调速完成*/
-  result_t waitSpeedRight(uint8_t cmd,uint64_t timeout = DEFAULT_TIMEOUT);
+  result_t waitSpeedRight(uint64_t timeout = DEFAULT_TIMEOUT);
 
   /*接收串口上传的雷达数据*/
   result_t waitScanData(node_info *nodebuffer, size_t &count,uint32_t timeout = DEFAULT_TIMEOUT);

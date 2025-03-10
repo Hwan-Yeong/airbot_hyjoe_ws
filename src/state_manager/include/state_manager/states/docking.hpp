@@ -15,16 +15,20 @@ public:
   virtual void run(const std::shared_ptr<StateUtils> &state_utils) override;
   virtual void post_run(const std::shared_ptr<StateUtils> &state_utils) override;
   void startDocking();
+  void stopDocking();
   void exitMappingNode();
   void stationData_callback(const robot_custom_msgs::msg::StationData::SharedPtr msg);
+  void publishDockingError();
 
   std_msgs::msg::UInt8 dock_cmd_;
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr dock_pub;
-  rclcpp::Subscription<robot_custom_msgs::msg::StationData>::SharedPtr station_data_sub;
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_robot_cmd_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr docking_error_pub_;
+  rclcpp::Subscription<robot_custom_msgs::msg::StationData>::SharedPtr station_data_sub;
 
   bool bUndockStart = false;
   bool bDockingError = false;
+  double start_time;
   uint8_t docking_status;
 };
 
