@@ -1,6 +1,12 @@
 #ifndef __ERROR_MONITOR_INTERFACE_HPP__
 #define __ERROR_MONITOR_INTERFACE_HPP__
 
+#include <fstream>
+#include "tf2/LinearMath/Quaternion.hpp"
+#include "tf2/LinearMath/Matrix3x3.hpp"
+#include "sensor_msgs/msg/imu.hpp"
+#include "robot_custom_msgs/msg/bottom_ir_data.hpp"
+#include "robot_custom_msgs/msg/battery_status.hpp"
 #include "error_monitor/error_monitor.hpp"
 
 class ErrorMonitor;
@@ -12,21 +18,42 @@ public:
     virtual ~BaseErrorMonitor() = default;
 
     virtual bool checkError(const T& input) = 0;
-
-protected:
-    // virtual bool checkErrorImpl(const T& input) = 0;
-
-    // std::shared_ptr<ErrorMonitor> node_ptr_{};
 };
 
 class BatteryErrorMonitor : public BaseErrorMonitor<robot_custom_msgs::msg::BatteryStatus>
 {
 public:
     using InputType = robot_custom_msgs::msg::BatteryStatus;
-    // BatteryErrorMonitor(std::shared_ptr<ErrorMonitor> node_ptr_);
+    bool checkError(const InputType& input) override;
+};
+
+class FallDownErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>>
+{
+public:
+    using InputType = std::pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>;
     bool checkError(const InputType& input) override;
 private:
-    // bool checkErrorImpl(const robot_custom_msgs::msg::BatteryStatus& input) override;
+    void get_rpy_from_quaternion(const geometry_msgs::msg::Quaternion& quaternion, double& roll, double& pitch, double& yaw);
+};
+
+class BoardTemperatureErrorMonitor : public BaseErrorMonitor<std::nullptr_t>
+{
+public:
+    using InputType = std::nullptr_t;
+    bool checkError(const InputType& input) override;
+private:
+    float total_temp;
+    int valid_reads ;
+    double avg_temp;
+    std::vector<std::string> temp_files = {
+        "/sys/class/thermal/thermal_zone0/temp",
+        "/sys/class/thermal/thermal_zone1/temp",
+        "/sys/class/thermal/thermal_zone2/temp",
+        "/sys/class/thermal/thermal_zone3/temp",
+        "/sys/class/thermal/thermal_zone4/temp",
+        "/sys/class/thermal/thermal_zone5/temp",
+        "/sys/class/thermal/thermal_zone6/temp"
+    };
 };
 
 #endif // __ERROR_MONITOR_INTERFACE_HPP__

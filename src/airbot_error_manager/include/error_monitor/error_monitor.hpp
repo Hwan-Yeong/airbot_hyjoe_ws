@@ -3,9 +3,6 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/bool.hpp"
-#include "error_monitor/board_temperature_monitor/board_temperature_monitor.hpp"
-#include "error_monitor/fall_down_monitor/fall_down_monitor.hpp"
-#include "error_monitor/battery_monitor/battery_monitor.hpp"
 #include "error_monitor/error_monitor_interface.hpp"
 
 using namespace std::chrono_literals;
@@ -36,10 +33,6 @@ public:
     }
 
 private:
-    BoardTemperatureMonitor board_temperature_monitor_;
-    FallDownMonitor fall_down_monitor_;
-    // BatteryMonitor battery_monitor_;
-
     std::map<std::type_index, std::vector<std::shared_ptr<void>>> monitors_;
 
     // <std_msgs::msg::UInt8>
@@ -54,7 +47,7 @@ private:
 
     rclcpp::TimerBase::SharedPtr timer_;
 
-    robot_custom_msgs::msg::BatteryStatus::SharedPtr battery_data;
+    robot_custom_msgs::msg::BatteryStatus battery_data;
     robot_custom_msgs::msg::BottomIrData bottom_status_data;
     sensor_msgs::msg::Imu imu_data;
 

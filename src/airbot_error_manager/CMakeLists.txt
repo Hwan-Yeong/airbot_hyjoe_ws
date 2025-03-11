@@ -43,9 +43,6 @@ install(TARGETS error_manager
 ################################
 ######## ERROR_MONITOR #########
 add_executable(error_monitor
-  src/error_monitor/board_temperature_monitor/board_temperature_monitor.cpp
-  src/error_monitor/fall_down_monitor/fall_down_monitor.cpp
-  src/error_monitor/battery_monitor/battery_monitor.cpp
   src/error_monitor/error_monitor.cpp
   src/error_monitor/node.cpp
 )
