@@ -1,5 +1,5 @@
-#ifndef ERROR_MONITOR_HPP
-#define ERROR_MONITOR_HPP
+#ifndef __ERROR_MONITOR_NODE_HPP__
+#define __ERROR_MONITOR_NODE_HPP__
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/bool.hpp"
@@ -7,11 +7,11 @@
 
 using namespace std::chrono_literals;
 
-class ErrorMonitor : public rclcpp::Node
+class ErrorMonitorNode : public rclcpp::Node
 {
 public:
-    ErrorMonitor();
-    ~ErrorMonitor();
+    ErrorMonitorNode();
+    ~ErrorMonitorNode();
 
     template<typename T>
     void addMonitor(std::shared_ptr<BaseErrorMonitor<T>> monitor) {
@@ -63,4 +63,4 @@ private:
     void batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg);
 };
 
-#endif // ERROR_MONITOR_HPP
+#endif // __ERROR_MONITOR_NODE_HPP__

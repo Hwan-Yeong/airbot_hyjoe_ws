@@ -7,9 +7,9 @@
 #include "sensor_msgs/msg/imu.hpp"
 #include "robot_custom_msgs/msg/bottom_ir_data.hpp"
 #include "robot_custom_msgs/msg/battery_status.hpp"
-#include "error_monitor/error_monitor.hpp"
+#include "error_monitor/error_monitor_node.hpp"
 
-class ErrorMonitor;
+class ErrorMonitorNode;
 
 template<typename T>
 class BaseErrorMonitor

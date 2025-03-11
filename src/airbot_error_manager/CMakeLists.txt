@@ -42,11 +42,11 @@ install(TARGETS error_manager
 
 ################################
 ######## ERROR_MONITOR #########
-add_executable(error_monitor
-  src/error_monitor/error_monitor.cpp
-  src/error_monitor/node.cpp
+add_executable(error_monitor_node
+  src/error_monitor/error_monitor_node.cpp
+  src/error_monitor/main.cpp
 )
-ament_target_dependencies(error_monitor
+ament_target_dependencies(error_monitor_node
   rclcpp
   sensor_msgs
   std_msgs
@@ -55,7 +55,7 @@ ament_target_dependencies(error_monitor
   tf2
   tf2_ros
 )
-install(TARGETS error_monitor
+install(TARGETS error_monitor_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

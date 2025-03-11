@@ -1,6 +1,6 @@
-#include "error_monitor/error_monitor.hpp"
+#include "error_monitor/error_monitor_node.hpp"
 
-ErrorMonitor::ErrorMonitor()
+ErrorMonitorNode::ErrorMonitorNode()
     : Node("airbot_error_monitor")
 {
     initVariables();
@@ -11,13 +11,13 @@ ErrorMonitor::ErrorMonitor()
 
     // Subscriber
     bottom_status_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
-        "bottom_status", 10, std::bind(&ErrorMonitor::bottomStatusCallback, this, std::placeholders::_1)
+        "bottom_status", 10, std::bind(&ErrorMonitorNode::bottomStatusCallback, this, std::placeholders::_1)
     );
     imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
-        "imu_data", 10, std::bind(&ErrorMonitor::imuCallback, this, std::placeholders::_1)
+        "imu_data", 10, std::bind(&ErrorMonitorNode::imuCallback, this, std::placeholders::_1)
     );
     battery_status_sub_ = this->create_subscription<robot_custom_msgs::msg::BatteryStatus>(
-        "/battery_status", 10, std::bind(&ErrorMonitor::batteryCallback, this, std::placeholders::_1)
+        "/battery_status", 10, std::bind(&ErrorMonitorNode::batteryCallback, this, std::placeholders::_1)
     );
 
     // Publisher
@@ -28,13 +28,13 @@ ErrorMonitor::ErrorMonitor()
     // Timer
     timer_ = this->create_wall_timer(
         10ms,
-        std::bind(&ErrorMonitor::errorMonitor, this));
+        std::bind(&ErrorMonitorNode::errorMonitor, this));
 }
 
-ErrorMonitor::~ErrorMonitor()
+ErrorMonitorNode::~ErrorMonitorNode()
 {
 }
-void ErrorMonitor::initVariables()
+void ErrorMonitorNode::initVariables()
 {
     isBottomStatusUpdate = false;
     isImuUpdate = false;
@@ -44,7 +44,7 @@ void ErrorMonitor::initVariables()
     battery_data = robot_custom_msgs::msg::BatteryStatus();
 }
 
-void ErrorMonitor::errorMonitor()
+void ErrorMonitorNode::errorMonitor()
 {
     std_msgs::msg::Bool error_msg;
 
@@ -91,11 +91,10 @@ void ErrorMonitor::errorMonitor()
     }
 }
 
-void ErrorMonitor::batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg)
+void ErrorMonitorNode::batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg)
 {
     count++;
-    RCLCPP_INFO(this->get_logger(), "count : %d", count); //////////////////////////////////////////////////////////////////////////////
-    if (count >= 1) { // 30초 이상일 경우 //////////////////////////////////////////////////////////////////////////////
+    if (count >= 3000) { // 30초 이상일 경우
         battery_data = *msg;
         isBatteryUpdate = true;
         count = 0;
@@ -104,13 +103,13 @@ void ErrorMonitor::batteryCallback(const robot_custom_msgs::msg::BatteryStatus::
     }
 }
 
-void ErrorMonitor::bottomStatusCallback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg)
+void ErrorMonitorNode::bottomStatusCallback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg)
 {
     bottom_status_data = *msg;
     isBottomStatusUpdate = true;
 }
 
-void ErrorMonitor::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
+void ErrorMonitorNode::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
 {
     imu_data = *msg;
     isImuUpdate = true;
