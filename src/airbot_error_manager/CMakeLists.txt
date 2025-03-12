@@ -43,6 +43,7 @@ install(TARGETS error_manager
 ################################
 ######## ERROR_MONITOR #########
 add_executable(error_monitor_node
+  src/error_monitor/error_monitor.cpp
   src/error_monitor/error_monitor_node.cpp
   src/error_monitor/main.cpp
 )
