@@ -15,20 +15,17 @@ public:
     ErrorMonitorNode();
     ~ErrorMonitorNode();
 
-    template<typename T>
-    void addMonitor(std::shared_ptr<BaseErrorMonitor<T>> monitor) {
-        monitors_[typeid(T)].push_back(monitor);
+    template<typename T, typename MonitorType>
+    void addMonitor(std::shared_ptr<MonitorType> monitor) {
+        monitors_[typeid(MonitorType)] = monitor;
     }
 
     template <typename T>
     bool checkAllErrors(const T& input) {
-        auto it = monitors_.find(typeid(T));
-        if (it != monitors_.end()) {
-            for (const auto& monitor : it->second) {
-                auto typedMonitor = std::static_pointer_cast<BaseErrorMonitor<T>>(monitor);
-                if (typedMonitor->checkError(input)) {
-                    return true;
-                }
+        for (auto& [key, monitor] : monitors_) {
+            auto typedMonitor = std::static_pointer_cast<BaseErrorMonitor<T>>(monitor);
+            if (typedMonitor && typedMonitor->checkError(input)) {
+                return true;
             }
         }
         return false;
@@ -58,7 +55,7 @@ private:
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr fall_down_error_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr board_temperature_error_pub_;
 
-    std::map<std::type_index, std::vector<std::shared_ptr<void>>> monitors_;
+    std::map<std::type_index, std::shared_ptr<void>> monitors_;
 
     rclcpp::TimerBase::SharedPtr timer_;
 };

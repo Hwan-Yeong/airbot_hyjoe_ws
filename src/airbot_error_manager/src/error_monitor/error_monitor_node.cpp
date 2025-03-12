@@ -5,9 +5,9 @@ ErrorMonitorNode::ErrorMonitorNode()
 {
     initVariables();
 
-    addMonitor<BatteryErrorMonitor::InputType>(std::make_shared<BatteryErrorMonitor>());
-    addMonitor<FallDownErrorMonitor::InputType>(std::make_shared<FallDownErrorMonitor>());
-    addMonitor<BoardTemperatureErrorMonitor::InputType>(std::make_shared<BoardTemperatureErrorMonitor>());
+    addMonitor<BatteryErrorMonitor::InputType, BatteryErrorMonitor>(std::make_shared<BatteryErrorMonitor>());
+    addMonitor<FallDownErrorMonitor::InputType, FallDownErrorMonitor>(std::make_shared<FallDownErrorMonitor>());
+    addMonitor<BoardTemperatureErrorMonitor::InputType, BoardTemperatureErrorMonitor>(std::make_shared<BoardTemperatureErrorMonitor>());
 
     // Subscriber
     bottom_status_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
