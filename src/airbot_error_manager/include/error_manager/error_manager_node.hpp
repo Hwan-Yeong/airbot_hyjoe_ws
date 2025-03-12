@@ -20,11 +20,11 @@
 #define CLEAR_CNT 5
 #define ERROR_LIST_SIZE 10
 
-class ErrorManager : public rclcpp::Node
+class ErrorManagerNode : public rclcpp::Node
 {
 public:
-    ErrorManager();
-    ~ErrorManager();
+    ErrorManagerNode();
+    ~ErrorManagerNode();
 
 private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr e_left_motor_stuck_error_sub_;

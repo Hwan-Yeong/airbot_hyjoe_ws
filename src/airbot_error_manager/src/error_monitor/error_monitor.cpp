@@ -84,7 +84,7 @@ void FallDownErrorMonitor::get_rpy_from_quaternion(const geometry_msgs::msg::Qua
 
 bool BoardTemperatureErrorMonitor::checkError(const InputType& input)
 {
-    if (input == nullptr) {
+    if (input != nullptr) {
         return false;
     }
     // AP 보드 온도 에러 판단 (Board temperature error check)

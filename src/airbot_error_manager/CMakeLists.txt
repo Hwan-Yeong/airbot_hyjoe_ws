@@ -25,18 +25,18 @@ include_directories(
 
 ################################
 ######## ERROR_MANAGER #########
-add_executable(error_manager
-  src/error_manager/error_manager.cpp
-  src/error_manager/node.cpp
+add_executable(error_manager_node
+  src/error_manager/error_manager_node.cpp
+  src/error_manager/main.cpp
 )
-ament_target_dependencies(error_manager
+ament_target_dependencies(error_manager_node
   rclcpp
   tf2_geometry_msgs
   tf2
   std_msgs
   robot_custom_msgs
 )
-install(TARGETS error_manager
+install(TARGETS error_manager_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
