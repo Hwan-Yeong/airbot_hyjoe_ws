@@ -1,7 +1,7 @@
 #include "error_monitor/error_monitor.hpp"
 
 
-bool BatteryErrorMonitor::checkError(const InputType& input)
+bool LowBatteryErrorMonitor::checkError(const InputType& input)
 {
     // 배터리 잔량 표시  // 15% 이하일 경우
     double battery_remaining_amount;
@@ -15,6 +15,7 @@ bool BatteryErrorMonitor::checkError(const InputType& input)
     } else {// 베터리가 10프로 이상 15프로 이상일 경우
         return false;
     }
+    // 배터리 잔량 표시  // 10% 이하일 경우
 }
 
 bool FallDownErrorMonitor::checkError(const InputType& input)
@@ -29,7 +30,6 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
     // front - front_L - back_L - back - back_R - front_R
     if (input.first.ff == 1) {
         count++;
-        return false;
     }
     if (input.first.fl == 1) {
         count++;
@@ -82,7 +82,7 @@ void FallDownErrorMonitor::get_rpy_from_quaternion(const geometry_msgs::msg::Qua
     m.getRPY(roll, pitch, yaw);
 }
 
-bool BoardTemperatureErrorMonitor::checkError(const InputType& input)
+bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 {
     if (input != nullptr) {
         return false;

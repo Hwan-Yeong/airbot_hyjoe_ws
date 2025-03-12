@@ -14,12 +14,20 @@ ErrorManagerNode::ErrorManagerNode()
         "/todo2",
         100,std::bind(&ErrorManagerNode::rightMotorStuckErrorCallback, this, std::placeholders::_1)
     );
+    e_left_motor_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+        "/todo19",
+        100,std::bind(&ErrorManagerNode::leftMotorOverHeatErrorCallback, this, std::placeholders::_1)
+    );
+    e_right_motor_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+        "/todo20",
+        100,std::bind(&ErrorManagerNode::rightMotorOverHeatErrorCallback, this, std::placeholders::_1)
+    );
     e_scan_dirty_front_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/scan_dirty_front",
+        "/error/scan_dirty_front",
         100,std::bind(&ErrorManagerNode::scanDirtyFrontErrorCallback, this, std::placeholders::_1)
     );
     e_scan_dirty_back_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/scan_dirty_back",
+        "/error/scan_dirty_back",
         100,std::bind(&ErrorManagerNode::scanDirtyBackErrorCallback, this, std::placeholders::_1)
     );
     e_docking_station_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
@@ -57,16 +65,20 @@ ErrorManagerNode::ErrorManagerNode()
         100,std::bind(&ErrorManagerNode::leftMotorErrorCallback, this, std::placeholders::_1)
     );
     f_scan_front_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/scan_error_front",
+        "/error/scan_error_front",
         100,std::bind(&ErrorManagerNode::scanFrontErrorCallback, this, std::placeholders::_1)
     );
     f_scan_back_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/scan_error_back",
+        "/error/scan_error_back",
         100,std::bind(&ErrorManagerNode::scanBackErrorCallback, this, std::placeholders::_1)
     );
-    f_battery_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+    f_battery_charging_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
         "/todo11",
-        100,std::bind(&ErrorManagerNode::batOverHeatErrorCallback, this, std::placeholders::_1)
+        100,std::bind(&ErrorManagerNode::batChargingOverHeatErrorCallback, this, std::placeholders::_1)
+    );
+    f_battery_discharging_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+        "/todo21",
+        100,std::bind(&ErrorManagerNode::batDisChargingOverHeatErrorCallback, this, std::placeholders::_1)
     );
     f_bot_tof_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
         "/todo12",
@@ -74,6 +86,14 @@ ErrorManagerNode::ErrorManagerNode()
     );
 
     // S-error
+    s_low_battery_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+        "/error/low_battery",
+        100,std::bind(&ErrorManagerNode::lowBatteryErrorCallback, this, std::placeholders::_1)
+    );
+    s_discharging_battery_warning_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+        "/todo23",
+        100,std::bind(&ErrorManagerNode::dischargingBatteryWarningErrorCallback, this, std::placeholders::_1)
+    );
     s_unreachable_goal_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
         "/todo13",
         100,std::bind(&ErrorManagerNode::unReachableGoalErrorCallback, this, std::placeholders::_1)
@@ -83,7 +103,7 @@ ErrorManagerNode::ErrorManagerNode()
         100,std::bind(&ErrorManagerNode::changeTempGoalErrorCallback, this, std::placeholders::_1)
     );
     s_fall_down_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo15",
+        "/error/fall_down",
         100,std::bind(&ErrorManagerNode::fallDownErrorCallback, this, std::placeholders::_1)
     );
     s_unable_to_docking_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
@@ -91,7 +111,7 @@ ErrorManagerNode::ErrorManagerNode()
         100,std::bind(&ErrorManagerNode::unableToDockingErrorCallback, this, std::placeholders::_1)
     );
     s_board_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo17",
+        "/error/board_overheat",
         100,std::bind(&ErrorManagerNode::boardOverHeatErrorCallback, this, std::placeholders::_1)
     );
     s_station_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
@@ -162,6 +182,38 @@ void ErrorManagerNode::rightMotorStuckErrorCallback(const std_msgs::msg::Bool::S
 {
     int rank = 0;
     std::string errorCode = "E04-1";
+    if (msg->data) {
+        updateErrorLists(rank, errorCode);
+    } else {
+        removeFromErrorLists(errorCode);
+    }
+}
+
+/**
+ * @brief Left Motor 과열 시 에러
+ * @note E04-2
+ * @param msg
+ */
+void ErrorManagerNode::leftMotorOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
+{
+    int rank = 0;
+    std::string errorCode = "E04-2";
+    if (msg->data) {
+        updateErrorLists(rank, errorCode);
+    } else {
+        removeFromErrorLists(errorCode);
+    }
+}
+
+/**
+ * @brief Right Motor 과열 시 에러
+ * @note E04-3
+ * @param msg
+ */
+void ErrorManagerNode::rightMotorOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
+{
+    int rank = 0;
+    std::string errorCode = "E04-3";
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
@@ -362,14 +414,30 @@ void ErrorManagerNode::scanBackErrorCallback(const std_msgs::msg::Bool::SharedPt
 }
 
 /**
- * @brief 배터리 과열에 의한 화재 및 파손 방지 에러
+ * @brief 충전시 배터리 과열 에러
  * @note F15
  * @param msg
  */
-void ErrorManagerNode::batOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
+void ErrorManagerNode::batChargingOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
 {
     int rank = 0;
     std::string errorCode = "F15";
+    if (msg->data) {
+        updateErrorLists(rank, errorCode);
+    } else {
+        removeFromErrorLists(errorCode);
+    }
+}
+
+/**
+ * @brief 방전시 배터리 과열 에러
+ * @note F16
+ * @param msg
+ */
+void ErrorManagerNode::batDisChargingOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
+{
+    int rank = 0;
+    std::string errorCode = "F16";
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {
@@ -386,6 +454,38 @@ void ErrorManagerNode::botTofErrorCallback(const std_msgs::msg::Bool::SharedPtr 
 {
     int rank = 0;
     std::string errorCode = "F17";
+    if (msg->data) {
+        updateErrorLists(rank, errorCode);
+    } else {
+        removeFromErrorLists(errorCode);
+    }
+}
+
+/**
+ * @brief 배터리 저전력 에러
+ * @note S02
+ * @param msg
+ */
+void ErrorManagerNode::lowBatteryErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
+{
+    int rank = 0;
+    std::string errorCode = "S02";
+    if (msg->data) {
+        updateErrorLists(rank, errorCode);
+    } else {
+        removeFromErrorLists(errorCode);
+    }
+}
+
+/**
+ * @brief 배터리 방전 경고 에러
+ * @note S03
+ * @param msg
+ */
+void ErrorManagerNode::dischargingBatteryWarningErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
+{
+    int rank = 0;
+    std::string errorCode = "S03";
     if (msg->data) {
         updateErrorLists(rank, errorCode);
     } else {

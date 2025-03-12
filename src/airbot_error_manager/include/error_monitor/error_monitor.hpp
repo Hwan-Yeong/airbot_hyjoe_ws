@@ -23,7 +23,7 @@ public:
     virtual bool checkError(const T& input) = 0;
 };
 
-class BatteryErrorMonitor : public BaseErrorMonitor<robot_custom_msgs::msg::BatteryStatus>
+class LowBatteryErrorMonitor : public BaseErrorMonitor<robot_custom_msgs::msg::BatteryStatus>
 {
 public:
     using InputType = robot_custom_msgs::msg::BatteryStatus;
@@ -39,7 +39,7 @@ private:
     void get_rpy_from_quaternion(const geometry_msgs::msg::Quaternion& quaternion, double& roll, double& pitch, double& yaw);
 };
 
-class BoardTemperatureErrorMonitor : public BaseErrorMonitor<std::nullptr_t>
+class BoardOverheatErrorMonitor : public BaseErrorMonitor<std::nullptr_t>
 {
 public:
     using InputType = std::nullptr_t;

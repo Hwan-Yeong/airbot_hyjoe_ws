@@ -29,6 +29,8 @@ public:
 private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr e_left_motor_stuck_error_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr e_right_motor_stuck_error_sub_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr e_left_motor_overheat_error_sub_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr e_right_motor_overheat_error_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr e_scan_dirty_front_error_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr e_scan_dirty_back_error_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr e_docking_station_error_sub_;
@@ -42,9 +44,12 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr f_left_motor_error_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr f_scan_front_error_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr f_scan_back_error_sub_;
-    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr f_battery_overheat_error_sub_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr f_battery_charging_overheat_error_sub_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr f_battery_discharging_overheat_error_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr f_bot_tof_error_sub_;
 
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr s_low_battery_error_sub_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr s_discharging_battery_warning_error_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr s_unreachable_goal_error_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr s_change_temporary_goal_error_sub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr s_fall_down_error_sub_;
@@ -63,6 +68,8 @@ private:
 
     void leftMotorStuckErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void rightMotorStuckErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
+    void leftMotorOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
+    void rightMotorOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void scanDirtyFrontErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void scanDirtyBackErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void dockingStationErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
@@ -76,9 +83,12 @@ private:
     void leftMotorErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void scanFrontErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void scanBackErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
-    void batOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
+    void batChargingOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
+    void batDisChargingOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void botTofErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
 
+    void lowBatteryErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
+    void dischargingBatteryWarningErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void unReachableGoalErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void changeTempGoalErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void fallDownErrorCallback(const std_msgs::msg::Bool::SharedPtr msg);
