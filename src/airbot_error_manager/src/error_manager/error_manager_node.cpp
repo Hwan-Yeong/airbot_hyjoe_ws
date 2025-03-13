@@ -1,3 +1,4 @@
+#include "ament_index_cpp/get_package_share_directory.hpp"
 #include "error_manager/error_manager_node.hpp"
 
 using namespace std::chrono_literals;
@@ -5,119 +6,29 @@ using namespace std::chrono_literals;
 ErrorManagerNode::ErrorManagerNode()
     : Node("airbot_error_manager")
 {
-    // E-error
-    e_left_motor_stuck_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo1",
-        100,std::bind(&ErrorManagerNode::leftMotorStuckErrorCallback, this, std::placeholders::_1)
-    );
-    e_right_motor_stuck_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo2",
-        100,std::bind(&ErrorManagerNode::rightMotorStuckErrorCallback, this, std::placeholders::_1)
-    );
-    e_left_motor_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo19",
-        100,std::bind(&ErrorManagerNode::leftMotorOverHeatErrorCallback, this, std::placeholders::_1)
-    );
-    e_right_motor_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo20",
-        100,std::bind(&ErrorManagerNode::rightMotorOverHeatErrorCallback, this, std::placeholders::_1)
-    );
-    e_scan_dirty_front_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/error/scan_dirty_front",
-        100,std::bind(&ErrorManagerNode::scanDirtyFrontErrorCallback, this, std::placeholders::_1)
-    );
-    e_scan_dirty_back_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/error/scan_dirty_back",
-        100,std::bind(&ErrorManagerNode::scanDirtyBackErrorCallback, this, std::placeholders::_1)
-    );
-    e_docking_station_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo3",
-        100,std::bind(&ErrorManagerNode::dockingStationErrorCallback, this, std::placeholders::_1)
-    );
-    e_charging_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo4",
-        100,std::bind(&ErrorManagerNode::chargingErrorCallback, this, std::placeholders::_1)
-    );
+    std::string error_list{};
+    this->declare_parameter("error_list", "error_list.yaml");
+    this->get_parameter("error_list", error_list);
 
-    // F-error
-    f_battery_charging_overcurrent_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo5",
-        100,std::bind(&ErrorManagerNode::batChargingOverCurrentErrorCallback, this, std::placeholders::_1)
-    );
-    f_battery_discharging_overcurrent_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo6",
-        100,std::bind(&ErrorManagerNode::batDischargingOverCurrentErrorCallback, this, std::placeholders::_1)
-    );
-    f_top_tof_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo7",
-        100,std::bind(&ErrorManagerNode::topTofErrorCallback, this, std::placeholders::_1)
-    );
-    f_camera_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/error/camera",
-        100,std::bind(&ErrorManagerNode::cameraErrorCallback, this, std::placeholders::_1)
-    );
-    f_right_motor_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo9",
-        100,std::bind(&ErrorManagerNode::rightMotorErrorCallback, this, std::placeholders::_1)
-    );
-    f_left_motor_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo10",
-        100,std::bind(&ErrorManagerNode::leftMotorErrorCallback, this, std::placeholders::_1)
-    );
-    f_scan_front_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/error/scan_error_front",
-        100,std::bind(&ErrorManagerNode::scanFrontErrorCallback, this, std::placeholders::_1)
-    );
-    f_scan_back_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/error/scan_error_back",
-        100,std::bind(&ErrorManagerNode::scanBackErrorCallback, this, std::placeholders::_1)
-    );
-    f_battery_charging_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo11",
-        100,std::bind(&ErrorManagerNode::batChargingOverHeatErrorCallback, this, std::placeholders::_1)
-    );
-    f_battery_discharging_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo21",
-        100,std::bind(&ErrorManagerNode::batDisChargingOverHeatErrorCallback, this, std::placeholders::_1)
-    );
-    f_bot_tof_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo12",
-        100,std::bind(&ErrorManagerNode::botTofErrorCallback, this, std::placeholders::_1)
-    );
+    int log_level{};
+    this->declare_parameter("log_level", 10);
+    this->get_parameter("log_level", log_level);
+    rcutils_ret_t set_logger = rcutils_logging_set_logger_level(this->get_logger().get_name(), static_cast<RCUTILS_LOG_SEVERITY>(log_level));
+    if (set_logger != RCUTILS_RET_OK) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to set logger level (error code: %d)", set_logger);
+    }
 
-    // S-error
-    s_low_battery_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/error/low_battery",
-        100,std::bind(&ErrorManagerNode::lowBatteryErrorCallback, this, std::placeholders::_1)
-    );
-    s_discharging_battery_warning_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo23",
-        100,std::bind(&ErrorManagerNode::dischargingBatteryWarningErrorCallback, this, std::placeholders::_1)
-    );
-    s_unreachable_goal_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo13",
-        100,std::bind(&ErrorManagerNode::unReachableGoalErrorCallback, this, std::placeholders::_1)
-    );
-    s_change_temporary_goal_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo14",
-        100,std::bind(&ErrorManagerNode::changeTempGoalErrorCallback, this, std::placeholders::_1)
-    );
-    s_fall_down_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/error/fall_down",
-        100,std::bind(&ErrorManagerNode::fallDownErrorCallback, this, std::placeholders::_1)
-    );
-    s_unable_to_docking_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo16",
-        100,std::bind(&ErrorManagerNode::unableToDockingErrorCallback, this, std::placeholders::_1)
-    );
-    s_board_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/error/board_overheat",
-        100,std::bind(&ErrorManagerNode::boardOverHeatErrorCallback, this, std::placeholders::_1)
-    );
-    s_station_overheat_error_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/todo18",
-        100,std::bind(&ErrorManagerNode::stationOverHeatErrorCallback, this, std::placeholders::_1)
-    );
+    try {
+        std::string package_share_directory = ament_index_cpp::get_package_share_directory("airbot_error_manager");
+        // RCLCPP_INFO(this->get_logger(), "package_share_directory: %s, file: %s", package_share_directory.c_str(), error_list.c_str());
+        std::string full_path = package_share_directory + "/" + "config" + "/" + error_list;
+        this->config = YAML::LoadFile(full_path)["airbot_error_manager"]["error_list"];
+        // RCLCPP_INFO(this->get_logger(), "YAML Config: \n%s", YAML::Dump(this->config).c_str());
+    } catch (const std::exception& e) { //ament_index_cpp::get_package_share_directory()가 제대로 작동하지 않을 경우
+        RCLCPP_ERROR(this->get_logger(), "Failed to load config file: %s", e.what());
+        std::string fallback_path = "/home/airbot/airbot_ws/install/airbot_error_manager/share/airbot_error_manager/config/" + error_list;
+        this->config = YAML::LoadFile(fallback_path)["airbot_error_manager"]["error_list"];
+    }
 
     error_list_pub_ = this->create_publisher<robot_custom_msgs::msg::ErrorListArray>("/error_list", 10);
 
@@ -128,6 +39,55 @@ ErrorManagerNode::ErrorManagerNode()
 
 ErrorManagerNode::~ErrorManagerNode()
 {
+}
+
+void ErrorManagerNode::init()
+{
+    this->initSubscribers(this->config);
+    RCLCPP_INFO(this->get_logger(), "airbot_error_manager node init finished!");
+}
+
+void ErrorManagerNode::initSubscribers(const YAML::Node& config)
+{
+    auto pnode = std::static_pointer_cast<ErrorManagerNode>(this->shared_from_this());
+    if (!pnode) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to get shared pointer from this");
+        return;
+    }
+
+    if (!config) {
+        RCLCPP_ERROR(this->get_logger(), "YAML does not contain 'error_list' key");
+        return;
+    }
+
+    RCLCPP_INFO(this->get_logger(), "================== ERROR MANAGER SUBSCRIBERS ==================");
+    for (const auto& error_category : config) {
+        std::string category_key = error_category.first.as<std::string>();
+        YAML::Node category_value = error_category.second;
+        for (const auto& error : category_value) {
+            std::string sub_topic = error.second["sub_topic"].as<std::string>();
+            std::string error_code = error.second["error_code"].as<std::string>();
+            int rank = error.second["rank"].as<int>();
+
+            RCLCPP_INFO(this->get_logger(), "Sub topic: %s (error_code: %s, rank: %d)",
+                        sub_topic.c_str(), error_code.c_str(), rank);
+
+            auto callback = [this, pnode, error_code, rank](std_msgs::msg::Bool::SharedPtr msg)
+            { errorCallback(error_code, rank, msg); };
+            auto subs = this->create_subscription<std_msgs::msg::Bool>(sub_topic, 10, callback);
+            this->subscribers_.push_back(subs);
+        }
+    }
+    RCLCPP_INFO(this->get_logger(), "===============================================================");
+}
+
+void ErrorManagerNode::errorCallback(const std::string& error_code, int rank, std_msgs::msg::Bool::SharedPtr msg)
+{
+    if (msg->data) {
+        updateErrorLists(rank, error_code);
+    } else {
+        removeFromErrorLists(error_code);
+    }
 }
 
 void ErrorManagerNode::publishErrorList()
@@ -154,438 +114,6 @@ void ErrorManagerNode::publishErrorList()
     if (!error_list_.empty()) {
         error_list_pub_->publish(error_msg_array);
         printErrorList();
-    }
-}
-
-/**
- * @brief Left Motor 구속 및 제어 불가 시 에러
- * @note E04
- * @param msg
- */
-void ErrorManagerNode::leftMotorStuckErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "E04";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief Right Motor 구속 및 제어 불가 시 에러
- * @note E04-1
- * @param msg
- */
-void ErrorManagerNode::rightMotorStuckErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "E04-1";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief Left Motor 과열 시 에러
- * @note E04-2
- * @param msg
- */
-void ErrorManagerNode::leftMotorOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "E04-2";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief Right Motor 과열 시 에러
- * @note E04-3
- * @param msg
- */
-void ErrorManagerNode::rightMotorOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "E04-3";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief Front Lidar 이물질로 인해 기능을 상실한 경우 에러
- * @note E05
- * @param msg
- */
-void ErrorManagerNode::scanDirtyFrontErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 14;
-    std::string errorCode = "E05";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief Back Lidar 이물질로 인해 기능을 상실한 경우 에러
- * @note E06
- * @param msg
- */
-void ErrorManagerNode::scanDirtyBackErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 15;
-    std::string errorCode = "E06";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief Docking Station을 확인하지 못하는 경우 에러
- * @note E07
- * @param msg
- */
-void ErrorManagerNode::dockingStationErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "E07";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief Docking Station에서 충전이 불가능한 경우 에러
- * @note E08
- * @param msg
- */
-void ErrorManagerNode::chargingErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "E08";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief (충전시) 배터리 과전류에 의한 화재 및 파손 방지 에러
- * @note F01
- * @param msg
- */
-void ErrorManagerNode::batChargingOverCurrentErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "F01";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief (방전시) 배터리 과전류에 의한 화재 및 파손 방지 에러
- * @note F01-1
- * @param msg
- */
-void ErrorManagerNode::batDischargingOverCurrentErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "F01-1";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief 1D ToF 센서와 통신이 안될 경우 에러
- * @note F07
- * @param msg
- */
-void ErrorManagerNode::topTofErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "F07";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief Camera 센서와 통신이 안될 경우 에러
- * @note F09-2
- * @param msg
- */
-void ErrorManagerNode::cameraErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "F09-2";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief Right 구동모터 통신 불가 에러
- * @note F11
- * @param msg
- */
-void ErrorManagerNode::rightMotorErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "F11";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief Left 구동모터 통신 불가 에러
- * @note F12
- * @param msg
- */
-void ErrorManagerNode::leftMotorErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "F12";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief Front Lidar 센서와 통신이 안될 경우 에러
- * @note F13
- * @param msg
- */
-void ErrorManagerNode::scanFrontErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 12;
-    std::string errorCode = "F13";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief Back Lidar 센서와 통신이 안될 경우 에러
- * @note F14
- * @param msg
- */
-void ErrorManagerNode::scanBackErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 13;
-    std::string errorCode = "F14";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief 충전시 배터리 과열 에러
- * @note F15
- * @param msg
- */
-void ErrorManagerNode::batChargingOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "F15";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief 방전시 배터리 과열 에러
- * @note F16
- * @param msg
- */
-void ErrorManagerNode::batDisChargingOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "F16";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief Multi TOF 센서와 통신이 안될 경우 에러
- * @note F17
- * @param msg
- */
-void ErrorManagerNode::botTofErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "F17";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief 배터리 저전력 에러
- * @note S02
- * @param msg
- */
-void ErrorManagerNode::lowBatteryErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "S02";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief 배터리 방전 경고 에러
- * @note S03
- * @param msg
- */
-void ErrorManagerNode::dischargingBatteryWarningErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "S03";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief 현재 구역에서 다른 구역으로 이동이 불가한 경우 목적지 도달 불가 에러
- * @note S05
- * @param msg
- */
-void ErrorManagerNode::unReachableGoalErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "S05";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief 사용자가 설정한 목적지가 아닌 대체 목적지에 도달하였을 경우 목적지 임시 변경 에러
- * @note S05-2
- * @param msg
- */
-void ErrorManagerNode::changeTempGoalErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "S05-2";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief 제품의 전도 발생 시 기기 넘어짐 에러
- * @note S07
- * @param msg
- */
-void ErrorManagerNode::fallDownErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "S07";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief 도킹을 못하는 경우 에러
- * @note S08
- * @param msg
- */
-void ErrorManagerNode::unableToDockingErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "S08";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief SoC 보드의 과열에 의한 화재 및 파손 방지 시스템 보드 과열 에러
- * @note S10-2
- * @param msg
- */
-void ErrorManagerNode::boardOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "S10-2";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
-    }
-}
-
-/**
- * @brief 충전부 과열에 의한 화재 및 파손 방지 에러
- * @note S11
- * @param msg
- */
-void ErrorManagerNode::stationOverHeatErrorCallback(const std_msgs::msg::Bool::SharedPtr msg)
-{
-    int rank = 0;
-    std::string errorCode = "S11";
-    if (msg->data) {
-        updateErrorLists(rank, errorCode);
-    } else {
-        removeFromErrorLists(errorCode);
     }
 }
 
