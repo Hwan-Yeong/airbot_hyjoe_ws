@@ -25,31 +25,29 @@ include_directories(
 
 ################################
 ######## ERROR_MANAGER #########
-add_executable(error_manager
-  src/error_manager/error_manager.cpp
-  src/error_manager/node.cpp
+add_executable(error_manager_node
+  src/error_manager/error_manager_node.cpp
+  src/error_manager/main.cpp
 )
-ament_target_dependencies(error_manager
+ament_target_dependencies(error_manager_node
   rclcpp
   tf2_geometry_msgs
   tf2
   std_msgs
   robot_custom_msgs
 )
-install(TARGETS error_manager
+install(TARGETS error_manager_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
 ################################
 ######## ERROR_MONITOR #########
-add_executable(error_monitor
-  src/error_monitor/board_temperature_monitor/board_temperature_monitor.cpp
-  src/error_monitor/fall_down_monitor/fall_down_monitor.cpp
-  src/error_monitor/battery_monitor/battery_monitor.cpp
+add_executable(error_monitor_node
   src/error_monitor/error_monitor.cpp
-  src/error_monitor/node.cpp
+  src/error_monitor/error_monitor_node.cpp
+  src/error_monitor/main.cpp
 )
-ament_target_dependencies(error_monitor
+ament_target_dependencies(error_monitor_node
   rclcpp
   sensor_msgs
   std_msgs
@@ -58,7 +56,7 @@ ament_target_dependencies(error_monitor
   tf2
   tf2_ros
 )
-install(TARGETS error_monitor
+install(TARGETS error_monitor_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

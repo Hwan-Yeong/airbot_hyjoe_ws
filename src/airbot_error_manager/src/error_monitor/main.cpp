@@ -1,9 +1,9 @@
-#include "error_monitor/error_monitor.hpp"
+#include "error_monitor/error_monitor_node.hpp"
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
 
-    auto node = std::make_shared<ErrorMonitor>();
+    auto node = std::make_shared<ErrorMonitorNode>();
     rclcpp::spin(node);
     rclcpp::shutdown();
 

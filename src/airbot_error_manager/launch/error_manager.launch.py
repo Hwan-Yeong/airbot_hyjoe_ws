@@ -7,13 +7,13 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='airbot_error_manager',
-            executable='error_manager',
+            executable='error_manager_node',
             name='airbot_error_manager',
             output='screen',
         ),
         Node(
             package='airbot_error_manager',
-            executable='error_monitor',
+            executable='error_monitor_node',
             name='airbot_error_monitor',
             output='screen',
         )
