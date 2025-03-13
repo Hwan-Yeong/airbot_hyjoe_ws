@@ -1,8 +1,6 @@
 #include "ament_index_cpp/get_package_share_directory.hpp"
 #include "error_manager/error_manager_node.hpp"
 
-using namespace std::chrono_literals;
-
 ErrorManagerNode::ErrorManagerNode()
     : Node("airbot_error_manager")
 {
@@ -17,6 +15,11 @@ ErrorManagerNode::ErrorManagerNode()
     if (set_logger != RCUTILS_RET_OK) {
         RCLCPP_ERROR(this->get_logger(), "Failed to set logger level (error code: %d)", set_logger);
     }
+
+    int publish_rate{};
+    this->declare_parameter("publish_rate_ms", 1000);
+    this->get_parameter("publish_rate_ms", publish_rate);
+    auto publish_rate_ms = std::chrono::milliseconds(publish_rate);
 
     try {
         std::string package_share_directory = ament_index_cpp::get_package_share_directory("airbot_error_manager");
@@ -33,7 +36,7 @@ ErrorManagerNode::ErrorManagerNode()
     error_list_pub_ = this->create_publisher<robot_custom_msgs::msg::ErrorListArray>("/error_list", 10);
 
     pub_timer_ = this->create_wall_timer(
-        1000ms,
+        publish_rate_ms,
         std::bind(&ErrorManagerNode::publishErrorList, this));
 }
 

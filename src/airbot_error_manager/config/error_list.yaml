@@ -1,5 +1,4 @@
 airbot_error_manager:
-  publish_rate_ms: 1000
   error_list:
     e_error:
       e_04:

@@ -3,4 +3,5 @@ airbot_error_manager:
     log_print: true
     # 0: unset, 10: debug, 20: info, 30: warn, 40: error
     log_level: 20
+    publish_rate_ms: 1000
     error_list: error_list.yaml
