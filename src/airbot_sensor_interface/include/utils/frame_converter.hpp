@@ -22,6 +22,10 @@ enum class ROW_NUMBER
     FOURTH
 };
 
+/**
+ * @brief: point의 좌표계 변환을 수행하는 클래스입니다.
+ * (센서좌표계 -> 로봇좌표계), (로봇좌표계 -> 글로벌좌표계)
+ */
 class FrameConverter
 {
 public:

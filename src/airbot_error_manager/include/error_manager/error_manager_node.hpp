@@ -20,6 +20,11 @@
 #define CLEAR_CNT 5
 #define ERROR_LIST_SIZE 10
 
+/**
+ * @brief 모든 노드에서 발행한 에러(bool)메시지를 구독하고, 업데이트하여
+ * udp_interface 노드에게 /error_lists 토픽을 발행하는 노드입니다.
+ * amr 기능사양서 기준으로 에러 코드를 부여하고, 추가/삭제되는 에러들을 여기서 관리합니다.
+ */
 class ErrorManagerNode : public rclcpp::Node
 {
 public:

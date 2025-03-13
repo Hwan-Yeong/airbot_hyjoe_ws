@@ -7,6 +7,9 @@
 #include <vector>
 #include <thread>
 
+/**
+ * @brief: 런타임에 sensor_interface_node의 파라미터를 동적으로 변경하는 노드입니다.
+ */
 class ParamManagerNode : public rclcpp::Node {
 public:
     ParamManagerNode();

@@ -9,6 +9,10 @@ template<typename T>
 class BaseErrorMonitor;
 using namespace std::chrono_literals;
 
+/**
+ * @brief 에러 판단에 필요한 모든 외부 데이터를 구독하고,
+ * 각각 정해진 주기에 따라 에러를 확인하여, 에러 발생 시 bool 타입의 에러 토픽을 발행하는 노드입니다.
+ */
 class ErrorMonitorNode : public rclcpp::Node
 {
 public:

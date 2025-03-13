@@ -8,6 +8,10 @@
 #include "utils/pointcloud_generator.hpp"
 #include "utils/boundingbox_generator.hpp"
 
+/**
+ * @brief: Camera 객체인식 데이터를 pointcloud로 변환시키는 클래스입니다.
+ * (정확히는 boundingbox 타입의 메시지로 처리된 객체인식 데이터가 input으로 들어옵니다)
+ */
 class PointCloudCamera
 {
 public:

@@ -7,6 +7,9 @@
 #include "utils/frame_converter.hpp"
 #include "utils/pointcloud_generator.hpp"
 
+/**
+ * @brief: 1D/Multi ToF 데이터를 pointcloud로 변환시키는 클래스입니다.
+ */
 class PointCloudTof
 {
 public:

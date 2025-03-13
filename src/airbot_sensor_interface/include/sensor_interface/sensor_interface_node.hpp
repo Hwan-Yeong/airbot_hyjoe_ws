@@ -27,6 +27,11 @@
 #include "sensor_interface/modules/collision/pointcloud_collision.hpp"
 #include "sensor_interface/modules/camera/logging/camera_object_logger.hpp"
 
+/**
+ * @brief: sensor_interface는 각 하드웨어 인터페이스에서 발생한 센서 데이터를 구독하고, 주행(navigation)에 필요한 데이터로 가공하여 발행하는 노드입니다.
+ * sensor_interface_param.yaml 파일에서 센서 사용 여부, 발행주기 등을 설정할 수 있으며
+ * 런타임에 특정 파라미터를 동적으로 변경할 수 있도록 별도의 param_manager_node와 파라미터 서버를 통해 간접적으로 연결되어있습니다.
+ */
 class SensorInterfaceNode : public rclcpp::Node
 {
 public:

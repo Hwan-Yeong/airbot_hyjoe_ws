@@ -10,6 +10,9 @@
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "utils/common_struct.hpp"
 
+/**
+ * @brief: 카메라 객체인식 object를 boundingbox 데이터로 변환시키는 클래스입니다.
+ */
 class BoundingBoxGenerator
 {
 public:

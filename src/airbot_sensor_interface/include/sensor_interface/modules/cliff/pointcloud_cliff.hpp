@@ -7,6 +7,9 @@
 #include "utils/pointcloud_generator.hpp"
 #include "utils/frame_converter.hpp"
 
+/**
+ * @brief: 낙하 IR 데이터를 pointcloud로 변환시키는 클래스입니다.
+ */
 class PointCloudCliff
 {
 public:

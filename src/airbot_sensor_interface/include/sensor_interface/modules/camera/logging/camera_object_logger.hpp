@@ -8,6 +8,10 @@
 #include "vision_msgs/msg/bounding_box2_d.hpp"
 #include "vision_msgs/msg/bounding_box2_d_array.hpp"
 
+/**
+ * @brief: Camera 객체인식 데이터를 RCLCPP_INFO 로그로 남기기 위한 클래스 입니다.
+ * (정확히는 boundingbox 타입의 메시지로 처리된 객체인식 데이터가 input으로 들어옵니다)
+ */
 class CameraObjectLogger
 {
 public:

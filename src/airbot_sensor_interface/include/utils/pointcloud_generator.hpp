@@ -10,6 +10,10 @@
 #include "vision_msgs/msg/bounding_box2_d_array.hpp"
 #include "utils/common_struct.hpp"
 
+/**
+ * @brief: input 데이터를 pointcloud2 데이터 형태로 변환시켜주는 클래스입니다.
+ * @input: std::vector<tPoint>, vision_msgs::msg::BoundingBox2DArray
+ */
 class PointCloudGenerator
 {
 public:

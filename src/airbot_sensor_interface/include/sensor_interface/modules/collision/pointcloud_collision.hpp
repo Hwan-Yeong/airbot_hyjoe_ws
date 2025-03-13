@@ -7,6 +7,9 @@
 #include "utils/pointcloud_generator.hpp"
 #include "utils/frame_converter.hpp"
 
+/**
+ * @brief: 충돌감지 시 전방 offset 길이 앞에 임의의 포인트를 생성하여 pointcloud로 변환시키는 클래스입니다.
+ */
 class PointCloudCollision
 {
 public:

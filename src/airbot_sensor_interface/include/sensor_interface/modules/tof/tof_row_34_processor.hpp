@@ -6,6 +6,9 @@
 #include "std_msgs/msg/float64_multi_array.hpp"
 #include "robot_custom_msgs/msg/tof_data.hpp"
 
+/**
+ * @brief: 낮은장애물 감지 알고리즘에 필요한 멀티존 ToF의 3, 4행 데이터를 처리하는 클래스입니다.
+ */
 class TofRow34Processor
 {
 public:
