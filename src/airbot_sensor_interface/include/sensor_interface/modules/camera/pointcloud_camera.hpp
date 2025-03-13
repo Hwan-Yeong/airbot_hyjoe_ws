@@ -20,4 +20,4 @@ private:
     std::shared_ptr<PointCloudGenerator> pointcloud_generator_;
 };
 
-#endif //POINTCLOUD_CAMERA_HPP
+#endif // __POINTCLOUD_CAMERA_HPP__

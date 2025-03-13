@@ -4,6 +4,7 @@
 #include <chrono>
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
@@ -20,6 +21,7 @@
 #include "visualization_msgs/msg/marker_array.hpp"
 #include <builtin_interfaces/msg/time.hpp>
 #include "sensor_interface/modules/tof/pointcloud_tof.hpp"
+#include "sensor_interface/modules/tof/tof_row_34_processor.hpp"
 #include "sensor_interface/modules/camera/pointcloud_camera.hpp"
 #include "sensor_interface/modules/cliff/pointcloud_cliff.hpp"
 #include "sensor_interface/modules/collision/pointcloud_collision.hpp"
@@ -38,6 +40,7 @@ private:
     PointCloudCollision point_cloud_collosion_;
     BoundingBoxGenerator bounding_box_generator_;
     CameraObjectLogger camera_object_logger_;
+    TofRow34Processor tof_row_34_processor_;
 
     std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> param_callback_handle_;
@@ -62,6 +65,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_cliff_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_collision_pub_;
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr bbox_array_camera_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr tof_row_34_pub_;
 
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
@@ -84,6 +88,8 @@ private:
         pc_tof_left_row1_msg, pc_tof_left_row2_msg, pc_tof_left_row3_msg, pc_tof_left_row4_msg,
         pc_tof_right_row1_msg, pc_tof_right_row2_msg, pc_tof_right_row3_msg, pc_tof_right_row4_msg,
         pc_camera_msg, pc_cliff_msg, pc_collision_msg;
+
+    std_msgs::msg::Float64MultiArray tof_row_34_msg;
 
     vision_msgs::msg::BoundingBox2DArray bbox_msg;
     visualization_msgs::msg::MarkerArray marker_msg;

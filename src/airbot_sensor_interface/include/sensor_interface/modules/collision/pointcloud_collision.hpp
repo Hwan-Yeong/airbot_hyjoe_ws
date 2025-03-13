@@ -26,4 +26,4 @@ private:
     double collosion_point_offset_m_;
 };
 
-#endif //POINTCLOUD_COLLISION_HPP
+#endif // __POINTCLOUD_COLLISION_HPP__

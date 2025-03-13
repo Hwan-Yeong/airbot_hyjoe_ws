@@ -98,6 +98,8 @@ SensorInterfaceNode::SensorInterfaceNode()
             "sensor_to_pointcloud/tof/mono", 10);
         pc_tof_multi_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
             "sensor_to_pointcloud/tof/multi", 10);
+        tof_row_34_pub_ = this->create_publisher<std_msgs::msg::Float64MultiArray>(
+            "sensor_interface/tof/row_34_diff", 10);
         RCLCPP_INFO(this->get_logger(), "1D/Multi TOF init finished!");
         if (use_tof_row_) {
             pc_tof_left_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
@@ -346,7 +348,7 @@ void SensorInterfaceNode::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sh
                 pc_tof_right_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FOURTH);
             }
         }
-        // tof_row_34_msg = tof_row_34_diff_handler_.getTofRow34DiffData(msg);
+        tof_row_34_msg = tof_row_34_processor_.getTofRow34DiffData(msg);
     }
 
     isTofUpdating = true;
@@ -424,6 +426,7 @@ void SensorInterfaceNode::pc_msgReset()
         }
         if (use_tof_left_ || use_tof_right_) {
             pc_tof_multi_msg = sensor_msgs::msg::PointCloud2(); //clear
+            // tof_row_34_msg = std_msgs::msg::Float64MultiArray(); //clear
         }
         if (use_tof_row_) {
             if (use_tof_left_) {
@@ -491,7 +494,7 @@ void SensorInterfaceNode::pubTofPointcloudMsg()
                 publish_cnt_row_tof_ = 0;
             }
         }
-        // tof_34_diff_pub_->publish(tof_34_diff_msg);
+        tof_row_34_pub_->publish(tof_row_34_msg);
         isTofUpdating = false;
     }
 }

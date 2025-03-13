@@ -57,4 +57,4 @@ private:
     std::vector<tPoint> filterPoints(const std::vector<tPoint> &input_points);
 };
 
-#endif //POINTCLOUD_TOF_HPP
+#endif // __POINTCLOUD_TOF_HPP__

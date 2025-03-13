@@ -28,6 +28,7 @@ add_executable(airbot_sensor_interface_node
   src/sensor_interface/main.cpp
   src/sensor_interface/sensor_interface_node.cpp
   src/sensor_interface/modules/tof/pointcloud_tof.cpp
+  src/sensor_interface/modules/tof/tof_row_34_processor.cpp
   src/sensor_interface/modules/camera/pointcloud_camera.cpp
   src/sensor_interface/modules/camera/logging/camera_object_logger.cpp
   src/sensor_interface/modules/cliff/pointcloud_cliff.cpp

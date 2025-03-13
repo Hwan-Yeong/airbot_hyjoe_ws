@@ -28,4 +28,4 @@ private:
     std::vector<tPoint> ir_sensor_points_;
 };
 
-#endif //POINTCLOUD_CLIFF_HPP
+#endif // __POINTCLOUD_CLIFF_HPP__

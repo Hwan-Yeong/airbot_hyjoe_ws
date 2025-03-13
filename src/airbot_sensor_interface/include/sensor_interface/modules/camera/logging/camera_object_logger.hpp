@@ -33,4 +33,4 @@ private:
 
 
 
-#endif // CAMERA_OBJECT_LOGGER
+#endif // __CAMERA_OBJECT_LOGGER__
