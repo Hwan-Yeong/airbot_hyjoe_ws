@@ -95,47 +95,47 @@ SensorInterfaceNode::SensorInterfaceNode()
     // Msg Publishers
     if (use_tof_) {
         pc_tof_1d_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-            "sensor_to_pointcloud/tof/mono", 10);
+            "sensor_interface/tof/mono", 10);
         pc_tof_multi_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-            "sensor_to_pointcloud/tof/multi", 10);
+            "sensor_interface/tof/multi", 10);
         tof_row_34_pub_ = this->create_publisher<std_msgs::msg::Float64MultiArray>(
             "sensor_interface/tof/row_34_diff", 10);
         RCLCPP_INFO(this->get_logger(), "1D/Multi TOF init finished!");
         if (use_tof_row_) {
             pc_tof_left_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/left/row_1", 10);
+                "sensor_interface/tof/multi/left/row_1", 10);
             pc_tof_left_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/left/row_2", 10);
+                "sensor_interface/tof/multi/left/row_2", 10);
             pc_tof_left_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/left/row_3", 10);
+                "sensor_interface/tof/multi/left/row_3", 10);
             pc_tof_left_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/left/row_4", 10);
+                "sensor_interface/tof/multi/left/row_4", 10);
             pc_tof_right_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/right/row_1", 10);
+                "sensor_interface/tof/multi/right/row_1", 10);
             pc_tof_right_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/right/row_2", 10);
+                "sensor_interface/tof/multi/right/row_2", 10);
             pc_tof_right_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/right/row_3", 10);
+                "sensor_interface/tof/multi/right/row_3", 10);
             pc_tof_right_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/right/row_4", 10);
+                "sensor_interface/tof/multi/right/row_4", 10);
         }
         RCLCPP_INFO(this->get_logger(), "Multi TOF Row init finished!");
     }
     if (use_camera_) {
         pc_camera_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-            "sensor_to_pointcloud/camera_object", 10);
+            "sensor_interface/camera_object", 10);
         bbox_array_camera_pub_ = this->create_publisher<vision_msgs::msg::BoundingBox2DArray>(
-            "sensor_to_pointcloud/camera/bbox", 10);
+            "sensor_interface/camera/bbox", 10);
         RCLCPP_INFO(this->get_logger(), "Camera init finished!");
     }
     if (use_cliff_) {
         pc_cliff_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-            "sensor_to_pointcloud/cliff", 10);
+            "sensor_interface/cliff", 10);
         RCLCPP_INFO(this->get_logger(), "Cliff init finished!");
     }
     if (use_collision_) {
         pc_collision_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-            "sensor_to_pointcloud/collision", 10);
+            "sensor_interface/collision", 10);
         RCLCPP_INFO(this->get_logger(), "Collision init finished!");
     }
 

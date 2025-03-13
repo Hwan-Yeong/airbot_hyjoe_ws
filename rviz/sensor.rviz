@@ -377,7 +377,7 @@ Visualization Manager:
                 Filter size: 10
                 History Policy: Keep Last
                 Reliability Policy: Reliable
-                Value: /sensor_to_pointcloud/tof/mono
+                Value: /sensor_interface/tof/mono
               Use Fixed Frame: true
               Use rainbow: false
               Value: true
@@ -411,7 +411,7 @@ Visualization Manager:
                 Filter size: 10
                 History Policy: Keep Last
                 Reliability Policy: Reliable
-                Value: /sensor_to_pointcloud/tof/multi
+                Value: /sensor_interface/tof/multi
               Use Fixed Frame: true
               Use rainbow: false
               Value: true
@@ -445,7 +445,7 @@ Visualization Manager:
                 Filter size: 10
                 History Policy: Keep Last
                 Reliability Policy: Reliable
-                Value: /sensor_to_pointcloud/tof/multi/left/row_3
+                Value: /sensor_interface/tof/multi/left/row_3
               Use Fixed Frame: true
               Use rainbow: true
               Value: true
@@ -483,7 +483,7 @@ Visualization Manager:
                 Filter size: 10
                 History Policy: Keep Last
                 Reliability Policy: Reliable
-                Value: /sensor_to_pointcloud/camera_object
+                Value: /sensor_interface/camera_object
               Use Fixed Frame: true
               Use rainbow: true
               Value: true
@@ -521,7 +521,7 @@ Visualization Manager:
                 Filter size: 10
                 History Policy: Keep Last
                 Reliability Policy: Reliable
-                Value: /sensor_to_pointcloud/cliff
+                Value: /sensor_interface/cliff
               Use Fixed Frame: true
               Use rainbow: true
               Value: true

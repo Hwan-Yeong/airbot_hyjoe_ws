@@ -77,7 +77,7 @@ std_msgs::msg::Float64MultiArray TofRow34Processor::getTofRow34DiffData(const ro
     }
     log_stream << "]";
 
-    RCLCPP_INFO(rclcpp::get_logger("TofRow34Processor"), "%s", log_stream.str().c_str());
+    // RCLCPP_INFO(rclcpp::get_logger("TofRow34Processor"), "%s", log_stream.str().c_str());
 
     return output_msg;
 }
