@@ -1,4 +1,4 @@
-#include "airbot_sensor_to_pointcloud/collision/pointcloud_collision.hpp"
+#include "sensor_interface/collision/pointcloud_collision.hpp"
 
 PointCloudCollision::PointCloudCollision(double collision_forward_point_offset_m = 0.25)
 {

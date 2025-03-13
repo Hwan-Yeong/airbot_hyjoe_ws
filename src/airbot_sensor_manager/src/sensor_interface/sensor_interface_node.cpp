@@ -1,4 +1,4 @@
-#include "airbot_sensor_to_pointcloud/sensor_to_pointcloud/sensor_to_pointcloud.hpp"
+#include "sensor_interface/sensor_interface_node.hpp"
 
 using namespace std::chrono_literals;
 
@@ -21,8 +21,9 @@ double cliff_sensor_distance_center_to_front_ir = 0.15; //[meter]
 double cliff_sensor_angle_to_next_ir_sensor = 50;       //[deg]
 double collision_forward_point_offset = 0.25;           //[meter]
 
-SensorToPointcloud::SensorToPointcloud()
-    : rclcpp::Node("airbot_sensor_to_pointcloud"),
+SensorInterfaceNode::SensorInterfaceNode()
+
+    : rclcpp::Node("airbot_sensor_interface_node"),
     point_cloud_tof_(tof_top_sensor_frame_x_translate,
                      tof_top_sensor_frame_y_translate,
                      tof_top_sensor_frame_z_translate,
@@ -79,17 +80,17 @@ SensorToPointcloud::SensorToPointcloud()
 
     // Cmd Subscribers
     sensor_to_pointcloud_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "cmd_sensor_manager", 10, std::bind(&SensorToPointcloud::activeCmdCallback, this, std::placeholders::_1));
+        "cmd_sensor_manager", 10, std::bind(&SensorInterfaceNode::activeCmdCallback, this, std::placeholders::_1));
 
     // Msg Subscribers
     tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
-        "tof_data", 10, std::bind(&SensorToPointcloud::tofMsgUpdate, this, std::placeholders::_1));
+        "tof_data", 10, std::bind(&SensorInterfaceNode::tofMsgUpdate, this, std::placeholders::_1));
     camera_sub_ = this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
-        "camera_data", 10, std::bind(&SensorToPointcloud::cameraMsgUpdate, this, std::placeholders::_1));
+        "camera_data", 10, std::bind(&SensorInterfaceNode::cameraMsgUpdate, this, std::placeholders::_1));
     cliff_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
-        "bottom_ir_data", 10, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1));
+        "bottom_ir_data", 10, std::bind(&SensorInterfaceNode::cliffMsgUpdate, this, std::placeholders::_1));
     collision_sub_ = this->create_subscription<robot_custom_msgs::msg::AbnormalEventData>(
-        "collision_detected", 10, std::bind(&SensorToPointcloud::collisionMsgUpdate, this, std::placeholders::_1));
+        "collision_detected", 10, std::bind(&SensorInterfaceNode::collisionMsgUpdate, this, std::placeholders::_1));
 
     // Msg Publishers
     if (use_tof_) {
@@ -138,15 +139,15 @@ SensorToPointcloud::SensorToPointcloud()
 
     // Monitor Timer
     poincloud_publish_timer_ = this->create_wall_timer(
-        10ms, std::bind(&SensorToPointcloud::publisherMonitor, this));
+        10ms, std::bind(&SensorInterfaceNode::publisherMonitor, this));
 }
 
-SensorToPointcloud::~SensorToPointcloud()
+SensorInterfaceNode::~SensorInterfaceNode()
 {
     param_handler_.reset();
 }
 
-void SensorToPointcloud::publisherMonitor()
+void SensorInterfaceNode::publisherMonitor()
 {
     static int inactive_cnt = 0;
     if (!isActiveSensorToPointcloud) {
@@ -176,7 +177,7 @@ void SensorToPointcloud::publisherMonitor()
     checkPublishCnt();
 }
 
-void SensorToPointcloud::declareParams()
+void SensorInterfaceNode::declareParams()
 {
     this->declare_parameter("target_frame","base_link");
 
@@ -207,7 +208,7 @@ void SensorToPointcloud::declareParams()
     this->declare_parameter("collision.publish_rate_ms",100);
 }
 
-void SensorToPointcloud::setParams()
+void SensorInterfaceNode::setParams()
 {
     this->get_parameter("target_frame", target_frame_);
 
@@ -238,7 +239,7 @@ void SensorToPointcloud::setParams()
     this->get_parameter("collision.publish_rate_ms", publish_rate_collision_);
 }
 
-void SensorToPointcloud::printParams()
+void SensorInterfaceNode::printParams()
 {
     RCLCPP_INFO(this->get_logger(), "================== SENSOR MANAGER PARAMETERS ==================");
 
@@ -287,7 +288,7 @@ void SensorToPointcloud::printParams()
 
 }
 
-void SensorToPointcloud::initVariables()
+void SensorInterfaceNode::initVariables()
 {
     isActiveSensorToPointcloud = false;
     isTofUpdating = false;
@@ -303,7 +304,7 @@ void SensorToPointcloud::initVariables()
     publish_cnt_collision_ = 0;
 }
 
-void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg)
+void SensorInterfaceNode::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg)
 {
     if (msg) {
         isActiveSensorToPointcloud = msg->data;
@@ -312,7 +313,7 @@ void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr 
     }
 }
 
-void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
+void SensorInterfaceNode::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
     if (target_frame_ == "map") {
         tPose pose;
@@ -350,7 +351,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
     isTofUpdating = true;
 }
 
-void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg)
+void SensorInterfaceNode::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg)
 {
     if (target_frame_ == "map" || use_camera_object_logger_) {
         tPose pose;
@@ -371,7 +372,7 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
     isCameraUpdating = true;
 }
 
-void SensorToPointcloud::cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg)
+void SensorInterfaceNode::cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg)
 {
     if (target_frame_ == "map") {
         tPose pose;
@@ -388,7 +389,7 @@ void SensorToPointcloud::cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrDa
     isCliffUpdating = true;
 }
 
-void SensorToPointcloud::collisionMsgUpdate(const robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg)
+void SensorInterfaceNode::collisionMsgUpdate(const robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg)
 {
     if (target_frame_ == "map") {
         tPose pose;
@@ -405,7 +406,7 @@ void SensorToPointcloud::collisionMsgUpdate(const robot_custom_msgs::msg::Abnorm
     isCollisionUpdating = true;
 }
 
-void SensorToPointcloud::updateTargetFrames(std::string target_frame)
+void SensorInterfaceNode::updateTargetFrames(std::string target_frame)
 {
     point_cloud_tof_.updateTargetFrame(target_frame);
     bounding_box_generator_.updateTargetFrame(target_frame);
@@ -414,7 +415,7 @@ void SensorToPointcloud::updateTargetFrames(std::string target_frame)
 }
 
 // Reset point cloud when the message is not updated
-void SensorToPointcloud::pc_msgReset()
+void SensorInterfaceNode::pc_msgReset()
 {
     if (!isTofUpdating) {
         if (use_tof_1D_) {
@@ -457,7 +458,7 @@ void SensorToPointcloud::pc_msgReset()
     }
 }
 
-void SensorToPointcloud::pubTofPointcloudMsg()
+void SensorInterfaceNode::pubTofPointcloudMsg()
 {
     if (use_tof_ && isTofUpdating) {
         if (use_tof_1D_) {
@@ -493,7 +494,7 @@ void SensorToPointcloud::pubTofPointcloudMsg()
     }
 }
 
-void SensorToPointcloud::pubCameraPointcloudMsg()
+void SensorInterfaceNode::pubCameraPointcloudMsg()
 {
     if (use_camera_ && isCameraUpdating) {
         if (publish_cnt_camera_ >= publish_rate_camera_) {
@@ -505,7 +506,7 @@ void SensorToPointcloud::pubCameraPointcloudMsg()
     }
 }
 
-void SensorToPointcloud::pubCliffPointcloudMsg()
+void SensorInterfaceNode::pubCliffPointcloudMsg()
 {
     if (use_cliff_ && isCliffUpdating) {
         if (publish_cnt_cliff_ >= publish_rate_cliff_) {
@@ -516,7 +517,7 @@ void SensorToPointcloud::pubCliffPointcloudMsg()
     }
 }
 
-void SensorToPointcloud::pubCollisionPointcloudMsg()
+void SensorInterfaceNode::pubCollisionPointcloudMsg()
 {
     if (use_collision_ && isCollisionUpdating) {
         if (publish_cnt_collision_ >= publish_rate_collision_) {
@@ -527,7 +528,7 @@ void SensorToPointcloud::pubCollisionPointcloudMsg()
     }
 }
 
-void SensorToPointcloud::countPublishHz()
+void SensorInterfaceNode::countPublishHz()
 {
     publish_cnt_1d_tof_ += 10;
     publish_cnt_multi_tof_ += 10;
@@ -537,7 +538,7 @@ void SensorToPointcloud::countPublishHz()
     publish_cnt_collision_ += 10;
 }
 
-void SensorToPointcloud::checkPublishCnt()
+void SensorInterfaceNode::checkPublishCnt()
 {
     if (publish_cnt_1d_tof_ > 10000)     publish_cnt_1d_tof_ = 0;
     if (publish_cnt_multi_tof_ > 10000)  publish_cnt_multi_tof_ = 0;

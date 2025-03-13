@@ -1,5 +1,5 @@
-#ifndef __SENSOR_TO_POINTCLOUD__
-#define __SENSOR_TO_POINTCLOUD__
+#ifndef __SENSOR_INTERFACE_NODE_HPP__
+#define __SENSOR_INTERFACE_NODE_HPP__
 
 #include <chrono>
 #include "rclcpp/rclcpp.hpp"
@@ -19,18 +19,18 @@
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 #include <builtin_interfaces/msg/time.hpp>
-#include "airbot_sensor_to_pointcloud/tof/pointcloud_tof.hpp"
-#include "airbot_sensor_to_pointcloud/camera/pointcloud_camera.hpp"
-#include "airbot_sensor_to_pointcloud/cliff/pointcloud_cliff.hpp"
-#include "airbot_sensor_to_pointcloud/collision/pointcloud_collision.hpp"
+#include "sensor_interface/tof/pointcloud_tof.hpp"
+#include "sensor_interface/camera/pointcloud_camera.hpp"
+#include "sensor_interface/cliff/pointcloud_cliff.hpp"
+#include "sensor_interface/collision/pointcloud_collision.hpp"
 #include "logger/camera_object_logger.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 
-class SensorToPointcloud : public rclcpp::Node
+class SensorInterfaceNode : public rclcpp::Node
 {
 public:
-    SensorToPointcloud();
-    ~SensorToPointcloud();
+    SensorInterfaceNode();
+    ~SensorInterfaceNode();
 
 private:
     PointCloudTof point_cloud_tof_;
@@ -111,4 +111,4 @@ private:
     void checkPublishCnt();
 };
 
-#endif // SENSOR_TO_POINTCLOUD
+#endif // __SENSOR_INTERFACE_NODE_HPP__

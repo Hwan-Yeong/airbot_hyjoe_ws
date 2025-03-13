@@ -1,4 +1,4 @@
-#include "airbot_sensor_to_pointcloud/camera/pointcloud_camera.hpp"
+#include "sensor_interface/camera/pointcloud_camera.hpp"
 
 PointCloudCamera::PointCloudCamera()
 {

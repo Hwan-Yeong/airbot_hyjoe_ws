@@ -1,4 +1,4 @@
-airbot_sensor_to_pointcloud:
+airbot_sensor_interface_node:
   ros__parameters:
 
     target_frame: "map" # "map" or "base_link"

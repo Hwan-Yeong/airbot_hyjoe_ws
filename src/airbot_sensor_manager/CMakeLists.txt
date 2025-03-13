@@ -23,20 +23,20 @@ include_directories(
 )
 
 ################################
-##### SENSOR_TO_POINTCLOUD #####
-add_executable(sensor_to_pointcloud
-  src/airbot_sensor_to_pointcloud/node.cpp
-  src/airbot_sensor_to_pointcloud/sensor_to_pointcloud/sensor_to_pointcloud.cpp
-  src/airbot_sensor_to_pointcloud/tof/pointcloud_tof.cpp
-  src/airbot_sensor_to_pointcloud/camera/pointcloud_camera.cpp
-  src/airbot_sensor_to_pointcloud/cliff/pointcloud_cliff.cpp
-  src/airbot_sensor_to_pointcloud/collision/pointcloud_collision.cpp
+####### SENSOR_INTERFACE #######
+add_executable(airbot_sensor_interface_node
+  src/sensor_interface/main.cpp
+  src/sensor_interface/sensor_interface_node.cpp
+  src/sensor_interface/tof/pointcloud_tof.cpp
+  src/sensor_interface/camera/pointcloud_camera.cpp
+  src/sensor_interface/cliff/pointcloud_cliff.cpp
+  src/sensor_interface/collision/pointcloud_collision.cpp
   src/utils/frame_converter.cpp
   src/utils/pointcloud_generator.cpp
   src/utils/boundingbox_generator.cpp
   src/logger/camera_object_logger.cpp
 )
-ament_target_dependencies(sensor_to_pointcloud
+ament_target_dependencies(airbot_sensor_interface_node
   rclcpp
   std_msgs
   sensor_msgs
@@ -47,21 +47,21 @@ ament_target_dependencies(sensor_to_pointcloud
   vision_msgs
   visualization_msgs
 )
-install(TARGETS sensor_to_pointcloud
+install(TARGETS airbot_sensor_interface_node
 DESTINATION lib/${PROJECT_NAME}
 )
 
 ################################
 ######### PARAM_SETTER #########
-add_executable(param_setter
-  src/dynamic_param_setter/param_setter/param_setter.cpp
+add_executable(param_setter_node
+  src/dynamic_param_setter/param_setter_node.cpp
   src/dynamic_param_setter/node.cpp
 )
-ament_target_dependencies(param_setter
+ament_target_dependencies(param_setter_node
   rclcpp
   std_msgs
 )
-install(TARGETS param_setter
+install(TARGETS param_setter_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

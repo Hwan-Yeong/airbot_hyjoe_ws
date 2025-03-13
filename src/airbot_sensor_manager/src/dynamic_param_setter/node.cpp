@@ -1,4 +1,4 @@
-#include "dynamic_param_setter/param_setter/param_setter.hpp"
+#include "dynamic_param_setter/param_setter_node.hpp"
 
 int main(int argc, char **argv) {
     rclcpp::init(argc, argv);

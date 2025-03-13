@@ -4,10 +4,10 @@
 
 int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
-    auto node = rclcpp::Node::make_shared("param_setter");
+    auto node = rclcpp::Node::make_shared("param_setter_node");
 
     // 노드 핸들러를 통해 파라미터 설정
-    auto parameters_client = std::make_shared<rclcpp::SyncParametersClient>(node, "/airbot_sensor_to_pointcloud");
+    auto parameters_client = std::make_shared<rclcpp::SyncParametersClient>(node, "/airbot_sensor_interface_node");
 
     // 서비스가 활성화될 때까지 대기
     while (!parameters_client->wait_for_service(std::chrono::seconds(2))) {

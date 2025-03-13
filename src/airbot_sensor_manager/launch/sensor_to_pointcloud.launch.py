@@ -12,7 +12,7 @@ def generate_launch_description():
         default_value=os.path.join(
             get_package_share_directory('airbot_sensor_manager'),
             'config',
-            'sensor_to_pointcloud_param.yaml'
+            'sensor_interface_param.yaml'
         ),
         description='Path to the ROS2 parameters file to use.'
     )
@@ -20,9 +20,9 @@ def generate_launch_description():
     return LaunchDescription([
         params_declare,
         Node(
-            name='airbot_sensor_to_pointcloud',
+            name='airbot_sensor_interface_node',
             package='airbot_sensor_manager',
-            executable='sensor_to_pointcloud',
+            executable='airbot_sensor_interface_node',
             output='screen',
             parameters=[parameter_file],
         )

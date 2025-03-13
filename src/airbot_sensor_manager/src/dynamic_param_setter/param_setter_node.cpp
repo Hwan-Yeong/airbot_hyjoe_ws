@@ -1,7 +1,7 @@
-#include "dynamic_param_setter/param_setter/param_setter.hpp"
+#include "dynamic_param_setter/param_setter_node.hpp"
 
-ParamSetterNode::ParamSetterNode() : Node("param_setter") {
-    parameters_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "/airbot_sensor_to_pointcloud");
+ParamSetterNode::ParamSetterNode() : Node("param_setter_node") {
+    parameters_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "/airbot_sensor_interface_node");
 
     while (!parameters_client_->wait_for_service(std::chrono::seconds(2))) {
         RCLCPP_WARN(this->get_logger(), "Waiting for parameter server... please check 'sensor_to_pointcloud' node is alive");
@@ -10,7 +10,7 @@ ParamSetterNode::ParamSetterNode() : Node("param_setter") {
     subscription_ = this->create_subscription<std_msgs::msg::UInt8>(
         "/soc_cmd", 10,
         std::bind(&ParamSetterNode::socCmdCallback, this, std::placeholders::_1));
-    RCLCPP_INFO(this->get_logger(), "[param_setter] Node init finished!");
+    RCLCPP_INFO(this->get_logger(), "[param_setter_node] Node init finished!");
 }
 
 ParamSetterNode::~ParamSetterNode()
@@ -43,9 +43,9 @@ void ParamSetterNode::socCmdCallback(const std_msgs::msg::UInt8::SharedPtr msg) 
     std::thread([future]() mutable {
         try {
             future.get();
-            RCLCPP_INFO(rclcpp::get_logger("param_setter"), "Successfully set parameter!");
+            RCLCPP_INFO(rclcpp::get_logger("param_setter_node"), "Successfully set parameter!");
         } catch (const std::exception &e) {
-            RCLCPP_ERROR(rclcpp::get_logger("param_setter"), "Exception in set_parameters(): %s", e.what());
+            RCLCPP_ERROR(rclcpp::get_logger("param_setter_node"), "Exception in set_parameters(): %s", e.what());
         }
     }).detach();
 }
