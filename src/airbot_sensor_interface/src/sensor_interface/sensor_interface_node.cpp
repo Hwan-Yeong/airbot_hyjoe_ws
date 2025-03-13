@@ -243,7 +243,7 @@ void SensorInterfaceNode::setParams()
 
 void SensorInterfaceNode::printParams()
 {
-    RCLCPP_INFO(this->get_logger(), "================== SENSOR MANAGER PARAMETERS ==================");
+    RCLCPP_INFO(this->get_logger(), "================== SENSOR INTERFACE PARAMETERS ==================");
 
     // General Settings
     RCLCPP_INFO(this->get_logger(), "[General]");
@@ -292,7 +292,7 @@ void SensorInterfaceNode::printParams()
 
 void SensorInterfaceNode::initVariables()
 {
-    isActiveSensorToPointcloud = false;
+    isActiveSensorToPointcloud = true; // 김환주책임님 토픽 발행 확인되면 false로 변경
     isTofUpdating = false;
     isCameraUpdating = false;
     isCliffUpdating = false;
@@ -426,7 +426,7 @@ void SensorInterfaceNode::pc_msgReset()
         }
         if (use_tof_left_ || use_tof_right_) {
             pc_tof_multi_msg = sensor_msgs::msg::PointCloud2(); //clear
-            // tof_row_34_msg = std_msgs::msg::Float64MultiArray(); //clear
+            tof_row_34_msg = std_msgs::msg::Float64MultiArray(); //clear
         }
         if (use_tof_row_) {
             if (use_tof_left_) {
