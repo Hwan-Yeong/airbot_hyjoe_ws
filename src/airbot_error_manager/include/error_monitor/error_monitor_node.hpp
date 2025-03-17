@@ -43,7 +43,10 @@ private:
     void batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg);
 
     bool isBottomStatusUpdate, isImuUpdate, isBatteryUpdate;
-    int  publish_cnt_low_battery_error_, publish_cnt_fall_down_error_, publish_cnt_board_overheat_error_;
+    int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_, publish_cnt_board_overheat_error_;
+    int publish_cnt_low_battery_error_th_ = 30000; //30초
+    int publish_cnt_fall_down_error_th_ = 1000; //1초
+    int publish_cnt_board_overheat_error_th_ = 1000; //1초
 
     robot_custom_msgs::msg::BatteryStatus battery_data;
     robot_custom_msgs::msg::BottomIrData bottom_status_data;
