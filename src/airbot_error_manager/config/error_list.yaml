@@ -1,198 +1,113 @@
 airbot_error_manager:
   error_list:
     e_error:
-      e_04:
+      e_04: # Left Motor 구속 및 제어 불가 시 에러
         sub_topic: "error/left_motor_stuck"
         error_code: "E04"
         rank: 0
-      e_04_1:
+      e_04_1: # Right Motor 구속 및 제어 불가 시 에러
         sub_topic: "error/right_motor_stuck"
         error_code: "E04-1"
         rank: 0
-      e_04_2:
+      e_04_2: # Left Motor 과열 시 에러
         sub_topic: "error/left_motor_overheat"
         error_code: "E04-2"
         rank: 0
-      e_04_3:
+      e_04_3: # Right Motor 과열 시 에러
         sub_topic: "error/right_motor_overheat"
         error_code: "E04-3"
         rank: 0
-      e_05:
+      e_05: # Front Lidar 이물질로 인해 기능을 상실한 경우 에러
         sub_topic: "error/scan_dirty_front"
         error_code: "E05"
         rank: 14
-      e_06:
+      e_06: # Back Lidar 이물질로 인해 기능을 상실한 경우 에러
         sub_topic: "error/scan_dirty_left"
         error_code: "E06"
         rank: 15
-      e_07:
+      e_07: # Docking Station을 확인하지 못하는 경우 에러
         sub_topic: "error/docking_station"
         error_code: "E07"
         rank: 0
-      e_08:
+      e_08: # Docking Station에서 충전이 불가능한 경우 에러
         sub_topic: "error/charging"
         error_code: "E08"
         rank: 0
     f_error:
-      f_01:
+      f_01: # (충전시) 배터리 과전류에 의한 화재 및 파손 방지 에러
         sub_topic: "error/battery_charging_overcurrent"
         error_code: "F01"
         rank: 0
-      f_01-1:
+      f_01-1: # (방전시) 배터리 과전류에 의한 화재 및 파손 방지 에러
         sub_topic: "error/battery_discharging_overcurrent"
         error_code: "F01-1"
         rank: 0
-      f_07:
+      f_07: # 1D ToF 센서와 통신이 안될 경우 에러
         sub_topic: "error/top_tof"
         error_code: "F07"
         rank: 0
-      f_09_2:
+      f_09_2: # Camera 센서와 통신이 안될 경우 에러
         sub_topic: "error/camera"
         error_code: "F09_2"
         rank: 0
-      f_11:
+      f_11: # Right 구동모터 통신 불가 에러
         sub_topic: "error/right_motor"
         error_code: "F11"
         rank: 0
-      f_12:
+      f_12: # Left 구동모터 통신 불가 에러
         sub_topic: "error/left_motor"
         error_code: "F12"
         rank: 0
-      f_13:
+      f_13: # Front Lidar 센서와 통신이 안될 경우 에러
         sub_topic: "error/scan_front"
         error_code: "F13"
         rank: 12
-      f_14:
+      f_14: # Back Lidar 센서와 통신이 안될 경우 에러
         sub_topic: "error/scan_back"
         error_code: "F14"
         rank: 13
-      f_15:
+      f_15: # 충전시 배터리 과열 에러
         sub_topic: "error/battery_charging_overheat"
         error_code: "F15"
         rank: 0
-      f_16:
+      f_16: # 방전시 배터리 과열 에러
         sub_topic: "error/battery_discharging_overheat"
         error_code: "F16"
         rank: 0
-      f_17:
+      f_17: # Multi TOF 센서와 통신이 안될 경우 에러
         sub_topic: "error/bot_tof"
         error_code: "F17"
         rank: 0
     s_error:
-      s_02:
+      s_02: # 배터리 저전력 에러
         sub_topic: "error/low_battery"
         error_code: "S02"
         rank: 0
-      s_03:
+      s_03: # 배터리 방전 경고 에러
         sub_topic: "error/discharging_battery"
         error_code: "S03"
         rank: 0
-      s_05:
+      s_05: # 현재 구역에서 다른 구역으로 이동이 불가한 경우 목적지 도달 불가 에러
         sub_topic: "error/unreachable_goal"
         error_code: "S05"
         rank: 0
-      s_05_2:
+      s_05_2: # 사용자가 설정한 목적지가 아닌 대체 목적지에 도달하였을 경우 목적지 임시 변경 에러
         sub_topic: "error/change_temp_goal"
         error_code: "S05-2"
         rank: 0
-      s_07:
+      s_07: # 제품의 전도 발생 시 기기 넘어짐 에러
         sub_topic: "error/fall_down"
         error_code: "S07"
         rank: 0
-      s_08:
+      s_08: # 도킹을 못하는 경우 에러
         sub_topic: "error/unable_to_docking"
         error_code: "S08"
         rank: 0
-      s_10_2:
+      s_10_2: # SoC 보드의 과열에 의한 화재 및 파손 방지 시스템 보드 과열 에러
         sub_topic: "error/board_overheat"
         error_code: "S10-2"
         rank: 0
-      s_11:
+      s_11: # 충전부 과열에 의한 화재 및 파손 방지 에러
         sub_topic: "error/station_overheat"
         error_code: "S11"
         rank: 0
-
-  # ==========================================
-  # Error Descriptions
-  # ==========================================
-
-  # E04
-  # Left Motor 구속 및 제어 불가 시 에러
-
-  # E04-1
-  # Right Motor 구속 및 제어 불가 시 에러
-
-  # E04-2
-  # Left Motor 과열 시 에러
-
-  # E04-3
-  # Right Motor 과열 시 에러
-
-  # E05
-  # Front Lidar 이물질로 인해 기능을 상실한 경우 에러
-
-  # E06
-  # Back Lidar 이물질로 인해 기능을 상실한 경우 에러
-
-  # E07
-  # Docking Station을 확인하지 못하는 경우 에러
-
-  # E08
-  # Docking Station에서 충전이 불가능한 경우 에러
-
-  # F01
-  # (충전시) 배터리 과전류에 의한 화재 및 파손 방지 에러
-
-  # F01-1
-  # (방전시) 배터리 과전류에 의한 화재 및 파손 방지 에러
-
-  # F07
-  # 1D ToF 센서와 통신이 안될 경우 에러
-
-  # F09-2
-  # Camera 센서와 통신이 안될 경우 에러
-
-  # F11
-  # Right 구동모터 통신 불가 에러
-
-  # F12
-  # Left 구동모터 통신 불가 에러
-
-  # F13
-  # Front Lidar 센서와 통신이 안될 경우 에러
-
-  # F14
-  # Back Lidar 센서와 통신이 안될 경우 에러
-
-  # F15
-  # 충전시 배터리 과열 에러
-
-  # F16
-  # 방전시 배터리 과열 에러
-
-  # F17
-  # Multi TOF 센서와 통신이 안될 경우 에러
-
-  # S02
-  # 배터리 저전력 에러
-
-  # S03
-  # 배터리 방전 경고 에러
-
-  # S05
-  # 현재 구역에서 다른 구역으로 이동이 불가한 경우 목적지 도달 불가 에러
-
-  # S05-2
-  # 사용자가 설정한 목적지가 아닌 대체 목적지에 도달하였을 경우 목적지 임시 변경 에러
-
-  # S07
-  # 제품의 전도 발생 시 기기 넘어짐 에러
-
-  # S08
-  # 도킹을 못하는 경우 에러
-
-  # S10-2
-  # SoC 보드의 과열에 의한 화재 및 파손 방지 시스템 보드 과열 에러
-
-  # S11
-  # 충전부 과열에 의한 화재 및 파손 방지 에러
