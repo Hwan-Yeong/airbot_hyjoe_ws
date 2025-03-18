@@ -1,7 +1,7 @@
 airbot_sensor_interface_node:
   ros__parameters:
 
-    target_frame: "map" # "map" or "base_link"
+    target_frame: "base_link" # "map" or "base_link"
 
     tof:
       all:

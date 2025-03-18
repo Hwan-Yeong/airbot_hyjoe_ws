@@ -155,7 +155,7 @@ void SensorInterfaceNode::publisherMonitor()
     if (!isActiveSensorToPointcloud) {
         inactive_cnt++;
         if (inactive_cnt >= 1000) { // 10초에 한번 출력
-            RCLCPP_INFO(this->get_logger(), "Sensor to Pointcloud is not active yet.");
+            RCLCPP_INFO(this->get_logger(), "Sensor Interface Publishing is not active yet.");
             inactive_cnt = 0;
         }
         initVariables();
