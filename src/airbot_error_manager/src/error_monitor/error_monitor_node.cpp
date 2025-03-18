@@ -81,9 +81,9 @@ void ErrorMonitorNode::errorMonitor()
     if (isBatteryUpdate && (publish_cnt_low_battery_error_ >= publish_cnt_low_battery_error_rate_)) { // 30초
         bool low_battery_error = this->runMonitor<LowBatteryErrorMonitor>(battery_data);
         if (low_battery_error) {
-            RCLCPP_INFO(this->get_logger(), "low_battery_error : %s", low_battery_error ? "true" : "false");
-            error_msg.data = true;
-            low_battery_error_pub_->publish(error_msg);
+            // RCLCPP_INFO(this->get_logger(), "low_battery_error : %s", low_battery_error ? "true" : "false");
+            // error_msg.data = true;
+            // low_battery_error_pub_->publish(error_msg);
         } else {
             error_msg.data = false;
             low_battery_error_pub_->publish(error_msg);
@@ -110,9 +110,9 @@ void ErrorMonitorNode::errorMonitor()
     if (isBatteryUpdate && (publish_cnt_battery_discharge_error_ >= publish_cnt_battery_discharge_error_rate_)) { // 1초
         bool battery_discharge_error = this->runMonitor<BatteryDischargingErrorMonitor>(battery_data);
         if (battery_discharge_error) {
-            RCLCPP_INFO(this->get_logger(), "battery_discharge_error : %s", battery_discharge_error ? "true" : "false");
-            error_msg.data = true;
-            battery_discharge_error_pub_->publish(error_msg);
+            // RCLCPP_INFO(this->get_logger(), "battery_discharge_error : %s", battery_discharge_error ? "true" : "false");
+            // error_msg.data = true;
+            // battery_discharge_error_pub_->publish(error_msg);
         } else {
             error_msg.data = false;
             battery_discharge_error_pub_->publish(error_msg);

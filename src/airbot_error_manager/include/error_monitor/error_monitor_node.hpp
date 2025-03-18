@@ -45,7 +45,7 @@ private:
 
     bool isBottomStatusUpdate, isImuUpdate, isBatteryUpdate;
     int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_, publish_cnt_board_overheat_error_, publish_cnt_battery_discharge_error_;
-    int publish_cnt_low_battery_error_rate_ = 30000; //30초
+    int publish_cnt_low_battery_error_rate_ = 1000; //1초
     int publish_cnt_fall_down_error_rate_ = 1000; //1초
     int publish_cnt_board_overheat_error_rate_ = 1000; //1초
     int publish_cnt_battery_discharge_error_rate_ = 1000; //1초

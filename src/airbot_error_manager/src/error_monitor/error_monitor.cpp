@@ -4,18 +4,41 @@
 bool LowBatteryErrorMonitor::checkError(const InputType& input)
 {
     // 배터리 잔량 표시  // 15% 이하일 경우
-    double battery_remaining_amount;
-    // int count=0;  // 30초 유지관련 카운트 값
-    // int maintenance = 30000;  // 단위 mms
-    // 베터리 잔량 관련되서 15%이하이면  복귀 불가능
-    battery_remaining_amount = input.battery_percent;
+    static rclcpp::Clock clock(RCL_ROS_TIME);
+    static rclcpp::Time prev_time = clock.now();
+    rclcpp::Time current_time = clock.now();
+    double time_diff = (current_time - prev_time).seconds();
+    static bool prev_status=false;
+    static bool prev_no_low_battery=false;
+    double battery_remaining_amount = input.battery_percent;
 
-    if(battery_remaining_amount <= 15 && battery_remaining_amount >= 10) { // 베터리가 10프로 이상 15프로 이하일 경우
-        return true;
-    } else {// 베터리가 10프로 이상 15프로 이상일 경우
+    if (battery_remaining_amount <= 15 && battery_remaining_amount >= 10) { // 베터리가 10프로 이상 15프로 이하일 경우
+        prev_no_low_battery = true;
+        if (time_diff >= 30) {
+            if (!prev_status) {
+                RCLCPP_WARN(rclcpp::get_logger("LowBatteryErrorMonitor"), "Time diff: %.3f sec, Battery amount : %.3f",
+                            time_diff, battery_remaining_amount);
+                prev_status = true;
+            }
+            return true;
+        } else {
+            if (prev_status) {
+                RCLCPP_WARN(rclcpp::get_logger("LowBatteryErrorMonitor"), "Time diff: %.3f sec, Battery amount : %.3f",
+                            time_diff, battery_remaining_amount);
+                prev_status = false;
+            }
+            return false;
+        }
+    } else { // 베터리가 10프로 미만 15프로 초과일 경우
+        prev_time = clock.now();
+        prev_status=true;
+        if (prev_no_low_battery) {
+            RCLCPP_WARN(rclcpp::get_logger("no low battery"), "Time diff: %.3f sec, Battery amount : %.3f",
+                        time_diff, battery_remaining_amount);
+            prev_no_low_battery = false;
+        }
         return false;
     }
-    // 배터리 잔량 표시  // 10% 이하일 경우
 }
 
 bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
@@ -25,20 +48,36 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
     static rclcpp::Time prev_time = clock.now();
     rclcpp::Time current_time = clock.now();
     double time_diff = (current_time - prev_time).seconds();
-    RCLCPP_INFO(rclcpp::get_logger("BatteryDischargingErrorMonitor"), "[ time diff: %.3f ]", time_diff);
-
+    // RCLCPP_INFO(rclcpp::get_logger("BatteryDischargingErrorMonitor"), "[ time diff: %.3f ]", time_diff);
+    static bool prev_status=false;
+    static bool prev_no_low_battery=false;
     double battery_remaining_amount = input.battery_percent;
-    if (battery_remaining_amount <= 10) {
+
+    if (battery_remaining_amount <= 15 && battery_remaining_amount >= 10) { // 베터리가 10프로 이상 15프로 이하일 경우
+        prev_no_low_battery = true;
         if (time_diff >= 30) {
-            RCLCPP_ERROR(rclcpp::get_logger("BatteryDischargingErrorMonitor"), "Time diff: %.3f sec, Battery amount : %.3f", time_diff, battery_remaining_amount);
-            prev_time = clock.now();
+            if (!prev_status) {
+                RCLCPP_WARN(rclcpp::get_logger("BatteryDischargingErrorMonitor"), "Time diff: %.3f sec, Battery amount : %.3f",
+                            time_diff, battery_remaining_amount);
+                prev_status = true;
+            }
             return true;
         } else {
-            RCLCPP_WARN(rclcpp::get_logger("BatteryDischargingErrorMonitor"), "Time diff: %.3f sec, Battery amount : %.3f", time_diff, battery_remaining_amount);
+            if (prev_status) {
+                RCLCPP_WARN(rclcpp::get_logger("BatteryDischargingErrorMonitor"), "Time diff: %.3f sec, Battery amount : %.3f",
+                            time_diff, battery_remaining_amount);
+                prev_status = false;
+            }
             return false;
         }
-    } else { // 베터리가 10프로 이상
+    } else { // 베터리가 10프로 미만 15프로 초과일 경우
         prev_time = clock.now();
+        prev_status=true;
+        if (prev_no_low_battery) {
+            RCLCPP_WARN(rclcpp::get_logger("no low battery"), "Time diff: %.3f sec, Battery amount :%.3f",
+                        time_diff, battery_remaining_amount);
+            prev_no_low_battery = false;
+        }
         return false;
     }
     return false;
