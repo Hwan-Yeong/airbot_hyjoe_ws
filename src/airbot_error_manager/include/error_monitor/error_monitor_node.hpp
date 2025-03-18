@@ -61,6 +61,7 @@ private:
     rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr bottom_status_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::BatteryStatus>::SharedPtr battery_status_sub_;
+    rclcpp::Subscription<robot_custom_msgs::msg::StationData>::SharedPtr station_data_sub_;
 
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
         low_battery_error_pub_, fall_down_error_pub_,
