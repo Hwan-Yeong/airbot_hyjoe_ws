@@ -447,7 +447,6 @@ void SensorInterfaceNode::pc_msgReset()
         if (use_camera_) {
             pc_camera_msg = sensor_msgs::msg::PointCloud2(); //clear
             bbox_msg = vision_msgs::msg::BoundingBox2DArray(); //clear
-            marker_msg = visualization_msgs::msg::MarkerArray(); //clear
         }
     }
     if (!isCliffUpdating) {

@@ -29,7 +29,7 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 get_package_share_directory('airbot_sensor_interface'),
-                '/launch/sensor_interface_node.launch.py'
+                '/launch/sensor_interface_core.launch.py'
             ]),
             launch_arguments={'params_file': params_file}.items()
         ),

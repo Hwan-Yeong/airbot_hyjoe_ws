@@ -13,17 +13,11 @@ BoundingBoxGenerator::~BoundingBoxGenerator()
 {
 }
 
-/**
- * @brief ### 노드 초기화 시점에, 파라미터로 받은 frame_id로 업데이트
- */
 void BoundingBoxGenerator::updateTargetFrame(std::string &updated_frame)
 {
     target_frame_ = updated_frame;
 }
 
-/**
- * @brief ### Callback 받은 시점에, topic에 찍힌 robot_pose로 업데이트
- */
 void BoundingBoxGenerator::updateRobotPose(tPose &pose)
 {
     robot_pose_ = pose;

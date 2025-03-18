@@ -17,8 +17,6 @@
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "robot_custom_msgs/msg/bottom_ir_data.hpp"
 #include "robot_custom_msgs/msg/abnormal_event_data.hpp"
-#include "visualization_msgs/msg/marker.hpp"
-#include "visualization_msgs/msg/marker_array.hpp"
 #include <builtin_interfaces/msg/time.hpp>
 #include "sensor_interface/modules/tof/pointcloud_tof.hpp"
 #include "sensor_interface/modules/tof/tof_row_34_processor.hpp"
@@ -39,6 +37,78 @@ public:
     ~SensorInterfaceNode();
 
 private:
+    /**
+     * @brief SensorInterfaceNode가 발행하는 데이터의 주기를 관리하는 timer_입니다.
+     */
+    void publisherMonitor();
+    /**
+     * @brief SensorInterfaceNode에서 사용하는 파라미터를 파라미터 서버에 등록하는 함수입니다.
+     */
+    void declareParams();
+
+    /**
+     * @brief 파라미터 서버에 등록된 파라미터를 함수의 멤버변수에 저장하는 함수입니다.
+     */
+    void setParams();
+
+    /**
+     * @brief 파라미터 값이 적용된 멤버변수를 출력하는 함수입니다.
+     */
+    void printParams();
+
+    /**
+     * @brief 메시지 업데이트 플래그, 데이터 발행주기 관리 변수 등을 초기화하는 함수입니다.
+     */
+    void initVariables();
+
+    /**
+     * @brief SensorInterfaceNode 토픽 발행 on/off 명령 콜백함수입니다.
+     */
+    void activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg);
+
+    /**
+     * @name 센서 데이터 업데이트 함수
+     * @brief 센서 데이터를 업데이트하는 함수들입니다.
+     * @{
+     */
+    void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
+    void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
+    void cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
+    void collisionMsgUpdate(const robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg);
+    /** @} */
+
+    /**
+     * @brief 센서 데이터 업데이트에 필요한 기준 좌표계를 업데이트하는 함수입니다.
+     */
+    void updateTargetFrames(std::string target_frame);
+
+    /**
+     * @brief 센서 데이터 업데이트가 정상적으로 이루어지지 않았을 때, 메시지를 초기화 하는 함수입니다.
+     */
+    void pc_msgReset();
+
+    /**
+     * @name 센서 데이터 발행 함수
+     * @brief 업데이트 된 각 센서 데이터를 발행하는 함수들입니다.
+     * @{
+     */
+    void pubTofPointcloudMsg();
+    void pubCameraPointcloudMsg();
+    void pubCliffPointcloudMsg();
+    void pubCollisionPointcloudMsg();
+    /** @} */
+
+    /**
+     * @brief 각 센서 데이터의 발행 주기 카운터를 증가시키는 함수입니다.
+     */
+    void countPublishHz();
+
+    /**
+     * @brief 비정상 동작 및 비활성 센서가 있는 경우, int 변수 오버플로우(약 21억(2^31 - 1, INT_MAX) 초과) 방지 함수입니다.
+     */
+    void checkPublishCnt();
+
+
     PointCloudTof point_cloud_tof_;
     PointCloudCamera point_cloud_camera_;
     PointCloudCliff point_cloud_cliff_;
@@ -56,69 +126,48 @@ private:
     rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr cliff_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::AbnormalEventData>::SharedPtr collision_sub_;
 
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_1d_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_multi_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_left_row1_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_left_row2_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_left_row3_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_left_row4_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_right_row1_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_right_row2_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_right_row3_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_right_row4_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_camera_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_cliff_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_collision_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr
+        pc_tof_1d_pub_, pc_tof_multi_pub_,
+        pc_tof_left_row1_pub_, pc_tof_left_row2_pub_,
+        pc_tof_left_row3_pub_, pc_tof_left_row4_pub_,
+        pc_tof_right_row1_pub_, pc_tof_right_row2_pub_,
+        pc_tof_right_row3_pub_, pc_tof_right_row4_pub_,
+        pc_camera_pub_, pc_cliff_pub_, pc_collision_pub_;
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr bbox_array_camera_pub_;
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr tof_row_34_pub_;
 
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
     bool isActiveSensorToPointcloud;
-    std::string target_frame_;
-    bool use_tof_, use_tof_1D_, use_tof_left_, use_tof_right_, use_tof_row_,
-        use_camera_, use_cliff_, use_collision_, use_camera_object_logger_;
+    bool isTofUpdating, isCameraUpdating, isCliffUpdating, isCollisionUpdating;
+    bool use_tof_, use_tof_1D_,
+         use_tof_left_, use_tof_right_, use_tof_row_,
+         use_camera_, use_cliff_, use_collision_, use_camera_object_logger_;
+
+    bool camera_object_direction_;
     float camera_pointcloud_resolution_;
     double camera_logger_distance_margin_, camera_logger_width_margin_, camera_logger_height_margin_;
     std::vector<std::string> camera_param_raw_vector_;
     std::map<int, int> camera_class_id_confidence_th_;
-    bool camera_object_direction_;
-    int publish_rate_1d_tof_, publish_rate_multi_tof_, publish_rate_row_tof_,
-        publish_rate_camera_, publish_rate_cliff_, publish_rate_collision_;
-    int publish_cnt_1d_tof_, publish_cnt_multi_tof_, publish_cnt_row_tof_,
-        publish_cnt_camera_, publish_cnt_cliff_, publish_cnt_collision_;
+
     double tilting_ang_1d_tof_;
 
-    sensor_msgs::msg::PointCloud2 pc_tof_1d_msg, pc_tof_multi_msg,
-        pc_tof_left_row1_msg, pc_tof_left_row2_msg, pc_tof_left_row3_msg, pc_tof_left_row4_msg,
-        pc_tof_right_row1_msg, pc_tof_right_row2_msg, pc_tof_right_row3_msg, pc_tof_right_row4_msg,
+    int publish_rate_1d_tof_, publish_rate_multi_tof_, publish_rate_row_tof_,
+        publish_rate_camera_, publish_rate_cliff_, publish_rate_collision_,
+        publish_cnt_1d_tof_, publish_cnt_multi_tof_, publish_cnt_row_tof_,
+        publish_cnt_camera_, publish_cnt_cliff_, publish_cnt_collision_;
+
+    std::string target_frame_;
+
+    sensor_msgs::msg::PointCloud2
+        pc_tof_1d_msg, pc_tof_multi_msg,
+        pc_tof_left_row1_msg, pc_tof_left_row2_msg,
+        pc_tof_left_row3_msg, pc_tof_left_row4_msg,
+        pc_tof_right_row1_msg, pc_tof_right_row2_msg,
+        pc_tof_right_row3_msg, pc_tof_right_row4_msg,
         pc_camera_msg, pc_cliff_msg, pc_collision_msg;
-
     std_msgs::msg::Float64MultiArray tof_row_34_msg;
-
     vision_msgs::msg::BoundingBox2DArray bbox_msg;
-    visualization_msgs::msg::MarkerArray marker_msg;
-
-    bool isTofUpdating, isCameraUpdating, isCliffUpdating, isCollisionUpdating;
-
-    void publisherMonitor();
-    void declareParams();
-    void setParams();
-    void printParams();
-    void initVariables();
-    void activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg);
-    void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
-    void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
-    void cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
-    void collisionMsgUpdate(const robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg);
-    void updateTargetFrames(std::string target_frame);
-    void pc_msgReset();
-    void pubTofPointcloudMsg();
-    void pubCameraPointcloudMsg();
-    void pubCliffPointcloudMsg();
-    void pubCollisionPointcloudMsg();
-    void countPublishHz();
-    void checkPublishCnt();
 };
 
 #endif // __SENSOR_INTERFACE_NODE_HPP__
