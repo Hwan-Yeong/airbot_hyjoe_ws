@@ -64,7 +64,7 @@ private:
     /**
      * @brief SensorInterfaceNode 토픽 발행 on/off 명령 콜백함수입니다.
      */
-    void activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg);
+    void cmdSensorInterfaceCallback(const std_msgs::msg::Bool::SharedPtr msg);
 
     /**
      * @name 센서 데이터 업데이트 함수
@@ -85,23 +85,23 @@ private:
     /**
      * @brief 센서 데이터 업데이트가 정상적으로 이루어지지 않았을 때, 메시지를 초기화 하는 함수입니다.
      */
-    void pc_msgReset();
+    void msgReset();
 
     /**
      * @name 센서 데이터 발행 함수
      * @brief 업데이트 된 각 센서 데이터를 발행하는 함수들입니다.
      * @{
      */
-    void pubTofPointcloudMsg();
-    void pubCameraPointcloudMsg();
-    void pubCliffPointcloudMsg();
-    void pubCollisionPointcloudMsg();
+    void pubTofMsg();
+    void pubCameraMsg();
+    void pubCliffMsg();
+    void pubCollisionMsg();
     /** @} */
 
     /**
      * @brief 각 센서 데이터의 발행 주기 카운터를 증가시키는 함수입니다.
      */
-    void countPublishHz();
+    void countPublishCnt();
 
     /**
      * @brief 비정상 동작 및 비활성 센서가 있는 경우, int 변수 오버플로우(약 21억(2^31 - 1, INT_MAX) 초과) 방지 함수입니다.
@@ -134,11 +134,11 @@ private:
         pc_tof_right_row3_pub_, pc_tof_right_row4_pub_,
         pc_camera_pub_, pc_cliff_pub_, pc_collision_pub_;
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr bbox_array_camera_pub_;
-    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr tof_row_34_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr float_array_tof_row_34_pub_;
 
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
-    bool isActiveSensorToPointcloud;
+    bool isActiveSensorInterface;
     bool isTofUpdating, isCameraUpdating, isCliffUpdating, isCollisionUpdating;
     bool use_tof_, use_tof_1D_,
          use_tof_left_, use_tof_right_, use_tof_row_,
@@ -166,8 +166,8 @@ private:
         pc_tof_right_row1_msg, pc_tof_right_row2_msg,
         pc_tof_right_row3_msg, pc_tof_right_row4_msg,
         pc_camera_msg, pc_cliff_msg, pc_collision_msg;
-    std_msgs::msg::Float64MultiArray tof_row_34_msg;
-    vision_msgs::msg::BoundingBox2DArray bbox_msg;
+    std_msgs::msg::Float64MultiArray float_array_tof_row_34_msg;
+    vision_msgs::msg::BoundingBox2DArray bbox_camera_msg;
 };
 
 #endif // __SENSOR_INTERFACE_NODE_HPP__

@@ -80,7 +80,7 @@ SensorInterfaceNode::SensorInterfaceNode()
 
     // Cmd Subscribers
     sensor_interface_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "cmd_sensor_interface", 10, std::bind(&SensorInterfaceNode::activeCmdCallback, this, std::placeholders::_1));
+        "cmd_sensor_interface", 10, std::bind(&SensorInterfaceNode::cmdSensorInterfaceCallback, this, std::placeholders::_1));
 
     // Msg Subscribers
     tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
@@ -98,7 +98,7 @@ SensorInterfaceNode::SensorInterfaceNode()
             "sensor_interface/tof/mono", 10);
         pc_tof_multi_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
             "sensor_interface/tof/multi", 10);
-        tof_row_34_pub_ = this->create_publisher<std_msgs::msg::Float64MultiArray>(
+        float_array_tof_row_34_pub_ = this->create_publisher<std_msgs::msg::Float64MultiArray>(
             "sensor_interface/tof/row_34_diff", 10);
         RCLCPP_INFO(this->get_logger(), "1D/Multi TOF init finished!");
         if (use_tof_row_) {
@@ -152,7 +152,7 @@ SensorInterfaceNode::~SensorInterfaceNode()
 void SensorInterfaceNode::publisherMonitor()
 {
     static int inactive_cnt = 0;
-    if (!isActiveSensorToPointcloud) {
+    if (!isActiveSensorInterface) {
         inactive_cnt++;
         if (inactive_cnt >= 1000) { // 10초에 한번 출력
             RCLCPP_INFO(this->get_logger(), "Sensor Interface Publishing is not active yet.");
@@ -164,16 +164,16 @@ void SensorInterfaceNode::publisherMonitor()
     inactive_cnt = 0;
 
     // publish_cnt
-    countPublishHz();
+    countPublishCnt();
 
     // msg Reset
-    pc_msgReset();
+    msgReset();
 
-    // publish pointCloud Data
-    pubTofPointcloudMsg();
-    pubCameraPointcloudMsg();
-    pubCliffPointcloudMsg();
-    pubCollisionPointcloudMsg();
+    // publish transformed Sensor Data
+    pubTofMsg();
+    pubCameraMsg();
+    pubCliffMsg();
+    pubCollisionMsg();
 
     // Adjust the publishing rate for each sensor independently
     checkPublishCnt();
@@ -292,7 +292,7 @@ void SensorInterfaceNode::printParams()
 
 void SensorInterfaceNode::initVariables()
 {
-    isActiveSensorToPointcloud = true; // 김환주책임님 토픽 발행 확인되면 false로 변경
+    isActiveSensorInterface = true; // 김환주책임님 토픽 발행 확인되면 false로 변경
     isTofUpdating = false;
     isCameraUpdating = false;
     isCliffUpdating = false;
@@ -306,10 +306,10 @@ void SensorInterfaceNode::initVariables()
     publish_cnt_collision_ = 0;
 }
 
-void SensorInterfaceNode::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg)
+void SensorInterfaceNode::cmdSensorInterfaceCallback(const std_msgs::msg::Bool::SharedPtr msg)
 {
     if (msg) {
-        isActiveSensorToPointcloud = msg->data;
+        isActiveSensorInterface = msg->data;
     } else {
         RCLCPP_ERROR(this->get_logger(), "cmd_sensor_interface topic is a nullptr message.");
     }
@@ -348,7 +348,7 @@ void SensorInterfaceNode::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sh
                 pc_tof_right_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FOURTH);
             }
         }
-        tof_row_34_msg = tof_row_34_processor_.getTofRow34DiffData(msg);
+        float_array_tof_row_34_msg = tof_row_34_processor_.getTofRow34DiffData(msg);
     }
 
     isTofUpdating = true;
@@ -368,8 +368,8 @@ void SensorInterfaceNode::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDa
         camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th_, camera_object_direction_));
     }
     if (use_camera_) {
-        bbox_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th_, camera_object_direction_);
-        pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_msg, camera_pointcloud_resolution_);
+        bbox_camera_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th_, camera_object_direction_);
+        pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_camera_msg, camera_pointcloud_resolution_);
     }
 
     isCameraUpdating = true;
@@ -418,7 +418,7 @@ void SensorInterfaceNode::updateTargetFrames(std::string target_frame)
 }
 
 // Reset point cloud when the message is not updated
-void SensorInterfaceNode::pc_msgReset()
+void SensorInterfaceNode::msgReset()
 {
     if (!isTofUpdating) {
         if (use_tof_1D_) {
@@ -426,7 +426,7 @@ void SensorInterfaceNode::pc_msgReset()
         }
         if (use_tof_left_ || use_tof_right_) {
             pc_tof_multi_msg = sensor_msgs::msg::PointCloud2(); //clear
-            tof_row_34_msg = std_msgs::msg::Float64MultiArray(); //clear
+            float_array_tof_row_34_msg = std_msgs::msg::Float64MultiArray(); //clear
         }
         if (use_tof_row_) {
             if (use_tof_left_) {
@@ -446,7 +446,7 @@ void SensorInterfaceNode::pc_msgReset()
     if (!isCameraUpdating) {
         if (use_camera_) {
             pc_camera_msg = sensor_msgs::msg::PointCloud2(); //clear
-            bbox_msg = vision_msgs::msg::BoundingBox2DArray(); //clear
+            bbox_camera_msg = vision_msgs::msg::BoundingBox2DArray(); //clear
         }
     }
     if (!isCliffUpdating) {
@@ -461,7 +461,7 @@ void SensorInterfaceNode::pc_msgReset()
     }
 }
 
-void SensorInterfaceNode::pubTofPointcloudMsg()
+void SensorInterfaceNode::pubTofMsg()
 {
     if (use_tof_ && isTofUpdating) {
         if (use_tof_1D_) {
@@ -493,24 +493,24 @@ void SensorInterfaceNode::pubTofPointcloudMsg()
                 publish_cnt_row_tof_ = 0;
             }
         }
-        tof_row_34_pub_->publish(tof_row_34_msg);
+        float_array_tof_row_34_pub_->publish(float_array_tof_row_34_msg);
         isTofUpdating = false;
     }
 }
 
-void SensorInterfaceNode::pubCameraPointcloudMsg()
+void SensorInterfaceNode::pubCameraMsg()
 {
     if (use_camera_ && isCameraUpdating) {
         if (publish_cnt_camera_ >= publish_rate_camera_) {
             pc_camera_pub_->publish(pc_camera_msg);
-            bbox_array_camera_pub_->publish(bbox_msg);
+            bbox_array_camera_pub_->publish(bbox_camera_msg);
             isCameraUpdating = false;
             publish_cnt_camera_ = 0;
         }
     }
 }
 
-void SensorInterfaceNode::pubCliffPointcloudMsg()
+void SensorInterfaceNode::pubCliffMsg()
 {
     if (use_cliff_ && isCliffUpdating) {
         if (publish_cnt_cliff_ >= publish_rate_cliff_) {
@@ -521,7 +521,7 @@ void SensorInterfaceNode::pubCliffPointcloudMsg()
     }
 }
 
-void SensorInterfaceNode::pubCollisionPointcloudMsg()
+void SensorInterfaceNode::pubCollisionMsg()
 {
     if (use_collision_ && isCollisionUpdating) {
         if (publish_cnt_collision_ >= publish_rate_collision_) {
@@ -532,7 +532,7 @@ void SensorInterfaceNode::pubCollisionPointcloudMsg()
     }
 }
 
-void SensorInterfaceNode::countPublishHz()
+void SensorInterfaceNode::countPublishCnt()
 {
     publish_cnt_1d_tof_ += 10;
     publish_cnt_multi_tof_ += 10;
