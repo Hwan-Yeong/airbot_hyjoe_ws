@@ -38,6 +38,7 @@ public:
 
 private:
     void initVariables();
+    void setParams();
     void errorMonitor();
     void bottomStatusCallback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
     void imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
@@ -45,10 +46,10 @@ private:
 
     bool isBottomStatusUpdate, isImuUpdate, isBatteryUpdate;
     int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_, publish_cnt_board_overheat_error_, publish_cnt_battery_discharge_error_;
-    int publish_cnt_low_battery_error_rate_ = 1000; //1초
-    int publish_cnt_fall_down_error_rate_ = 1000; //1초
-    int publish_cnt_board_overheat_error_rate_ = 1000; //1초
-    int publish_cnt_battery_discharge_error_rate_ = 1000; //1초
+    int publish_cnt_low_battery_error_rate_;
+    int publish_cnt_fall_down_error_rate_;
+    int publish_cnt_board_overheat_error_rate_;
+    int publish_cnt_battery_discharge_error_rate_;
 
     robot_custom_msgs::msg::BatteryStatus battery_data;
     robot_custom_msgs::msg::BottomIrData bottom_status_data;

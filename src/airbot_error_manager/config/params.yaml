@@ -5,3 +5,11 @@ airbot_error_manager:
     log_level: 20
     publish_rate_ms: 1000
     error_list: error_list.yaml
+
+airbot_error_monitor:
+  ros__parameters:
+    publish_rate:
+      low_battery_rate_ms: 1000
+      fall_down_rate_ms: 1000
+      board_overheat_rate_ms: 1000
+      battery_discharge_rate_ms: 1000

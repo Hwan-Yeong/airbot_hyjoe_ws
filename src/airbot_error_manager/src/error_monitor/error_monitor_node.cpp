@@ -4,6 +4,7 @@ ErrorMonitorNode::ErrorMonitorNode()
     : Node("airbot_error_monitor")
 {
     initVariables();
+    setParams();
 
     addMonitor<LowBatteryErrorMonitor>(std::make_shared<LowBatteryErrorMonitor>());
     addMonitor<FallDownErrorMonitor>(std::make_shared<FallDownErrorMonitor>());
@@ -36,6 +37,7 @@ ErrorMonitorNode::ErrorMonitorNode()
 ErrorMonitorNode::~ErrorMonitorNode()
 {
 }
+
 void ErrorMonitorNode::initVariables()
 {
     isBottomStatusUpdate = false;
@@ -50,6 +52,26 @@ void ErrorMonitorNode::initVariables()
     bottom_status_data = robot_custom_msgs::msg::BottomIrData();
     imu_data = sensor_msgs::msg::Imu();
     battery_data = robot_custom_msgs::msg::BatteryStatus();
+}
+
+void ErrorMonitorNode::setParams()
+{
+    this->declare_parameter<int>("publish_rate.low_battery_rate_ms", 1000);
+    this->declare_parameter<int>("publish_rate.fall_down_rate_ms", 1000);
+    this->declare_parameter<int>("publish_rate.board_overheat_rate_ms", 1000);
+    this->declare_parameter<int>("publish_rate.battery_discharge_rate_ms", 1000);
+
+    this->get_parameter("publish_rate.low_battery_rate_ms", publish_cnt_low_battery_error_rate_);
+    this->get_parameter("publish_rate.fall_down_rate_ms", publish_cnt_fall_down_error_rate_);
+    this->get_parameter("publish_rate.board_overheat_rate_ms", publish_cnt_board_overheat_error_rate_);
+    this->get_parameter("publish_rate.battery_discharge_rate_ms", publish_cnt_battery_discharge_error_rate_);
+
+    RCLCPP_INFO(this->get_logger(), "=================== ERROR MONITOR PARAMETER ===================");
+    RCLCPP_INFO(this->get_logger(), "Low Battery Rate: %d ms", publish_cnt_low_battery_error_rate_);
+    RCLCPP_INFO(this->get_logger(), "Fall Down Rate: %d ms", publish_cnt_fall_down_error_rate_);
+    RCLCPP_INFO(this->get_logger(), "Board Overheat Rate: %d ms", publish_cnt_board_overheat_error_rate_);
+    RCLCPP_INFO(this->get_logger(), "Battery Discharge Rate: %d ms", publish_cnt_battery_discharge_error_rate_);
+    RCLCPP_INFO(this->get_logger(), "===============================================================");
 }
 
 void ErrorMonitorNode::errorMonitor()
