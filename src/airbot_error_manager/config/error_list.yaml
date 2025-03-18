@@ -100,7 +100,7 @@ airbot_error_manager:
         error_code: "S07"
         rank: 0
       s_08: # 도킹을 못하는 경우 에러
-        sub_topic: "error/s_code/unable_to_docking"
+        sub_topic: "error/s_code/unable_to_dock"
         error_code: "S08"
         rank: 0
       s_10_2: # SoC 보드의 과열에 의한 화재 및 파손 방지 시스템 보드 과열 에러
