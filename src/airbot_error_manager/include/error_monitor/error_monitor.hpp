@@ -20,10 +20,21 @@ class BaseErrorMonitor
 public:
     virtual ~BaseErrorMonitor() = default;
 
+    /**
+     * @brief checkError 메소드
+     * 에러를 확인하고 에러 발생 시 true를 반환합니다.
+     */
     virtual bool checkError(const T& input) = 0;
 };
 
 class LowBatteryErrorMonitor : public BaseErrorMonitor<robot_custom_msgs::msg::BatteryStatus>
+{
+public:
+    using InputType = robot_custom_msgs::msg::BatteryStatus;
+    bool checkError(const InputType& input) override;
+};
+
+class BatteryDischargingErrorMonitor : public BaseErrorMonitor<robot_custom_msgs::msg::BatteryStatus>
 {
 public:
     using InputType = robot_custom_msgs::msg::BatteryStatus;

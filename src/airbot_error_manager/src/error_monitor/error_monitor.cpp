@@ -18,6 +18,32 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
     // 배터리 잔량 표시  // 10% 이하일 경우
 }
 
+bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
+{
+    // 배터리 잔량 표시 // 10% 이하일 경우
+    static rclcpp::Clock clock(RCL_ROS_TIME);
+    static rclcpp::Time prev_time = clock.now();
+    rclcpp::Time current_time = clock.now();
+    double time_diff = (current_time - prev_time).seconds();
+    RCLCPP_INFO(rclcpp::get_logger("BatteryDischargingErrorMonitor"), "[ time diff: %.3f ]", time_diff);
+
+    double battery_remaining_amount = input.battery_percent;
+    if (battery_remaining_amount <= 10) {
+        if (time_diff >= 30) {
+            RCLCPP_ERROR(rclcpp::get_logger("BatteryDischargingErrorMonitor"), "Time diff: %.3f sec, Battery amount : %.3f", time_diff, battery_remaining_amount);
+            prev_time = clock.now();
+            return true;
+        } else {
+            RCLCPP_WARN(rclcpp::get_logger("BatteryDischargingErrorMonitor"), "Time diff: %.3f sec, Battery amount : %.3f", time_diff, battery_remaining_amount);
+            return false;
+        }
+    } else { // 베터리가 10프로 이상
+        prev_time = clock.now();
+        return false;
+    }
+    return false;
+}
+
 bool FallDownErrorMonitor::checkError(const InputType& input)
 {
     bool bottomdata_range = false;
@@ -66,12 +92,14 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
         imu_range = true;
     }
 
-    if (imu_range && bottomdata_range) { // 데이터 값에 따른 결정
-        return true;        // 전도가 일어남
-        RCLCPP_WARN(rclcpp::get_logger("fall_down_monitor"), "Detected (ff : %d)  (fl : %d) (fr :%d) (bb : %d) (bl : %d) (br : %d)  (pich : %.3f) (roll : %.3f)", input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll);
-    } else {
-        return false;       // 전도가 일어나지 않음
-        RCLCPP_WARN(rclcpp::get_logger("fall_down_monitor"), "Not Detected (ff : %d)  (fl : %d) (fr :%d) (bf : %d) (bl : %d) (br : %d)  (pich : %.3f) (roll : %.3f)", input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll);
+    if (imu_range && bottomdata_range) { // 전도가 일어남, 데이터 값에 따른 결정
+        return true;
+        RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"), "Detected (ff : %d)  (fl : %d) (fr :%d) (bb : %d) (bl : %d) (br : %d)  (pich : %.3f) (roll : %.3f)",
+                    input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll);
+    } else { // 전도가 일어나지 않음
+        return false;
+        RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"), "Not Detected (ff : %d)  (fl : %d) (fr :%d) (bf : %d) (bl : %d) (br : %d)  (pich : %.3f) (roll : %.3f)",
+                    input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll);
     }
 }
 
@@ -105,14 +133,14 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 
             // Check for high temperature warning
             if (temp_value > 70.0) {
-                RCLCPP_WARN(rclcpp::get_logger("temp_monitor"),
+                RCLCPP_WARN(rclcpp::get_logger("BoardOverheatErrorMonitor"),
                             "Warning: High temperature detected!,File: %s, Temperature: %.2f°C",
                             file_path.c_str(), temp_value);
                 return true; // Return immediately if any temperature exceeds 70°C
             }
         }
         catch (const std::invalid_argument& e) {
-            RCLCPP_ERROR(rclcpp::get_logger("temp_monitor"),
+            RCLCPP_ERROR(rclcpp::get_logger("BoardOverheatErrorMonitor"),
                         "Invalid temperature data in file %s: %s",
                         file_path.c_str(), e.what());
         }

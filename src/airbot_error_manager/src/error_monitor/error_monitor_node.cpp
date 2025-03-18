@@ -5,9 +5,10 @@ ErrorMonitorNode::ErrorMonitorNode()
 {
     initVariables();
 
-    addMonitor<LowBatteryErrorMonitor::InputType, LowBatteryErrorMonitor>(std::make_shared<LowBatteryErrorMonitor>());
-    addMonitor<FallDownErrorMonitor::InputType, FallDownErrorMonitor>(std::make_shared<FallDownErrorMonitor>());
-    addMonitor<BoardOverheatErrorMonitor::InputType, BoardOverheatErrorMonitor>(std::make_shared<BoardOverheatErrorMonitor>());
+    addMonitor<LowBatteryErrorMonitor>(std::make_shared<LowBatteryErrorMonitor>());
+    addMonitor<FallDownErrorMonitor>(std::make_shared<FallDownErrorMonitor>());
+    addMonitor<BoardOverheatErrorMonitor>(std::make_shared<BoardOverheatErrorMonitor>());
+    addMonitor<BatteryDischargingErrorMonitor>(std::make_shared<BatteryDischargingErrorMonitor>());
 
     // Subscriber
     bottom_status_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
@@ -21,9 +22,10 @@ ErrorMonitorNode::ErrorMonitorNode()
     );
 
     // Publisher
-    board_overheat_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/board_overheat", 10);
-    fall_down_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/fall_down", 20);
-    low_battery_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/low_battery", 10);
+    fall_down_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/fall_down", 20);
+    low_battery_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/low_battery", 10);
+    board_overheat_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/board_overheat", 10);
+    battery_discharge_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/discharging_battery", 10);
 
     // Timer
     timer_ = this->create_wall_timer(
@@ -43,6 +45,7 @@ void ErrorMonitorNode::initVariables()
     publish_cnt_low_battery_error_ = 0;
     publish_cnt_fall_down_error_ = 0;
     publish_cnt_board_overheat_error_ = 0;
+    publish_cnt_battery_discharge_error_ = 0;
 
     bottom_status_data = robot_custom_msgs::msg::BottomIrData();
     imu_data = sensor_msgs::msg::Imu();
@@ -56,25 +59,11 @@ void ErrorMonitorNode::errorMonitor()
     publish_cnt_low_battery_error_ +=10;
     publish_cnt_fall_down_error_ +=10;
     publish_cnt_board_overheat_error_ +=10;
-
-    // low battery monitor
-    if (isBatteryUpdate && (publish_cnt_low_battery_error_ >= publish_cnt_low_battery_error_th_)) { // 30초
-        bool low_battery_error = this->checkAllErrors(battery_data);
-        if (low_battery_error) {
-            RCLCPP_INFO(this->get_logger(), "low_battery_error : %s", low_battery_error ? "true" : "false");
-            error_msg.data = true;
-            low_battery_error_pub_->publish(error_msg);
-        } else {
-            error_msg.data = false;
-            low_battery_error_pub_->publish(error_msg);
-        }
-
-        isBatteryUpdate = false; // 상태 초기화
-    }
+    publish_cnt_battery_discharge_error_ += 10;
 
     // fall down monitor
-    if (isBottomStatusUpdate && isImuUpdate && (publish_cnt_fall_down_error_ >= publish_cnt_fall_down_error_th_)) { // 1초
-        bool fall_down_error = this->checkAllErrors(std::make_pair(bottom_status_data, imu_data));
+    if (isBottomStatusUpdate && isImuUpdate && (publish_cnt_fall_down_error_ >= publish_cnt_fall_down_error_rate_)) { // 1초
+        bool fall_down_error = this->runMonitor<FallDownErrorMonitor>(std::make_pair(bottom_status_data, imu_data));
         if (fall_down_error) {
             RCLCPP_INFO(this->get_logger(), "fall_down_error : %s", fall_down_error ? "true" : "false");
             error_msg.data = true;
@@ -83,14 +72,29 @@ void ErrorMonitorNode::errorMonitor()
             error_msg.data = false;
             fall_down_error_pub_->publish(error_msg);
         }
-
+        publish_cnt_fall_down_error_ = 0;
         isBottomStatusUpdate = false;
         isImuUpdate = false;
     }
 
+    // low battery monitor
+    if (isBatteryUpdate && (publish_cnt_low_battery_error_ >= publish_cnt_low_battery_error_rate_)) { // 30초
+        bool low_battery_error = this->runMonitor<LowBatteryErrorMonitor>(battery_data);
+        if (low_battery_error) {
+            RCLCPP_INFO(this->get_logger(), "low_battery_error : %s", low_battery_error ? "true" : "false");
+            error_msg.data = true;
+            low_battery_error_pub_->publish(error_msg);
+        } else {
+            error_msg.data = false;
+            low_battery_error_pub_->publish(error_msg);
+        }
+        publish_cnt_low_battery_error_ = 0;
+        isBatteryUpdate = false;
+    }
+
     // board overheat monitor
-    if (publish_cnt_board_overheat_error_ >= publish_cnt_board_overheat_error_th_) { // 1초
-        bool board_overheat_error = this->checkAllErrors(std::nullptr_t());
+    if (publish_cnt_board_overheat_error_ >= publish_cnt_board_overheat_error_rate_) { // 1초
+        bool board_overheat_error = this->runMonitor<BoardOverheatErrorMonitor>(std::nullptr_t());
         if (board_overheat_error) {
             // RCLCPP_INFO(this->get_logger(), "board_overheat_error : %s", board_overheat_error ? "true" : "false");
             // error_msg.data = true;
@@ -99,11 +103,29 @@ void ErrorMonitorNode::errorMonitor()
             error_msg.data = false;
             board_overheat_error_pub_->publish(error_msg);
         }
+        publish_cnt_board_overheat_error_ = 0;
     }
 
-    if (publish_cnt_low_battery_error_ >= publish_cnt_low_battery_error_th_) publish_cnt_low_battery_error_ = 0;
-    if (publish_cnt_fall_down_error_ >= publish_cnt_fall_down_error_th_) publish_cnt_fall_down_error_ = 0;
-    if (publish_cnt_board_overheat_error_ >= publish_cnt_board_overheat_error_th_) publish_cnt_board_overheat_error_ = 0;
+    // battery discharging monitor
+    if (isBatteryUpdate && (publish_cnt_battery_discharge_error_ >= publish_cnt_battery_discharge_error_rate_)) { // 1초
+        bool battery_discharge_error = this->runMonitor<BatteryDischargingErrorMonitor>(battery_data);
+        if (battery_discharge_error) {
+            RCLCPP_INFO(this->get_logger(), "battery_discharge_error : %s", battery_discharge_error ? "true" : "false");
+            error_msg.data = true;
+            battery_discharge_error_pub_->publish(error_msg);
+        } else {
+            error_msg.data = false;
+            battery_discharge_error_pub_->publish(error_msg);
+        }
+        publish_cnt_battery_discharge_error_ = 0;
+        isBatteryUpdate = false; // low battery monitor와 플래그가 겹치지만, monitor 자체가 10ms라 무시할 만한 수준이라고 생각함.
+    }
+
+    // publish_cnt_* 변수 오버플로우 방지
+    if (publish_cnt_low_battery_error_ >= 100000) publish_cnt_low_battery_error_ = 0;
+    if (publish_cnt_fall_down_error_ >= 100000) publish_cnt_fall_down_error_ = 0;
+    if (publish_cnt_board_overheat_error_ >= 100000) publish_cnt_board_overheat_error_ = 0;
+    if (publish_cnt_battery_discharge_error_ >= 10000) publish_cnt_battery_discharge_error_ = 0;
 }
 
 void ErrorMonitorNode::batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg)

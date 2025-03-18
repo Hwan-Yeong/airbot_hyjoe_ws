@@ -19,15 +19,16 @@ public:
     ErrorMonitorNode();
     ~ErrorMonitorNode();
 
-    template<typename T, typename MonitorType>
+    template<typename MonitorType>
     void addMonitor(std::shared_ptr<MonitorType> monitor) {
         monitors_[typeid(MonitorType)] = monitor;
     }
 
-    template <typename T>
-    bool checkAllErrors(const T& input) {
-        for (auto& [key, monitor] : monitors_) {
-            auto typedMonitor = std::static_pointer_cast<BaseErrorMonitor<T>>(monitor);
+    template <typename MonitorType, typename T>
+    bool runMonitor(const T& input) {
+        auto it = monitors_.find(typeid(MonitorType));
+        if (it != monitors_.end()) {
+            auto typedMonitor = std::static_pointer_cast<MonitorType>(it->second);
             if (typedMonitor && typedMonitor->checkError(input)) {
                 return true;
             }
@@ -43,10 +44,11 @@ private:
     void batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg);
 
     bool isBottomStatusUpdate, isImuUpdate, isBatteryUpdate;
-    int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_, publish_cnt_board_overheat_error_;
-    int publish_cnt_low_battery_error_th_ = 30000; //30초
-    int publish_cnt_fall_down_error_th_ = 1000; //1초
-    int publish_cnt_board_overheat_error_th_ = 1000; //1초
+    int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_, publish_cnt_board_overheat_error_, publish_cnt_battery_discharge_error_;
+    int publish_cnt_low_battery_error_rate_ = 30000; //30초
+    int publish_cnt_fall_down_error_rate_ = 1000; //1초
+    int publish_cnt_board_overheat_error_rate_ = 1000; //1초
+    int publish_cnt_battery_discharge_error_rate_ = 1000; //1초
 
     robot_custom_msgs::msg::BatteryStatus battery_data;
     robot_custom_msgs::msg::BottomIrData bottom_status_data;
@@ -56,9 +58,9 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::BatteryStatus>::SharedPtr battery_status_sub_;
 
-    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr low_battery_error_pub_;
-    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr fall_down_error_pub_;
-    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr board_overheat_error_pub_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
+        low_battery_error_pub_, fall_down_error_pub_,
+        board_overheat_error_pub_, battery_discharge_error_pub_;
 
     std::unordered_map<std::type_index, std::shared_ptr<void>> monitors_;
 
