@@ -9,6 +9,7 @@
 #include "sensor_msgs/msg/imu.hpp"
 #include "robot_custom_msgs/msg/bottom_ir_data.hpp"
 #include "robot_custom_msgs/msg/battery_status.hpp"
+#include "robot_custom_msgs/msg/station_data.hpp"
 #include "error_monitor/error_monitor_node.hpp"
 
 /**
@@ -71,5 +72,12 @@ private:
         "/sys/class/thermal/thermal_zone6/temp"
     };
 };
+
+class ChargingErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>>
+{
+public:
+    using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>;
+    bool checkError(const InputType& input) override;
+}
 
 #endif // __ERROR_MONITOR_HPP__

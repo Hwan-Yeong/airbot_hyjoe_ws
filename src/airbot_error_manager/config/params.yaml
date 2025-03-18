@@ -13,3 +13,4 @@ airbot_error_monitor:
       fall_down_rate_ms: 1000
       board_overheat_rate_ms: 1000
       battery_discharge_rate_ms: 1000
+      charging_rate_ms: 1000

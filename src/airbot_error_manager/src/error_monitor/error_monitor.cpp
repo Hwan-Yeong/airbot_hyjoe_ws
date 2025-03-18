@@ -187,3 +187,9 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 
     return false; // No high temperature detected
 }
+
+bool ChargingErrorMonitor::checkError(const InputType &input)
+{
+    // charging error 알고리즘 구현
+    return false;
+}

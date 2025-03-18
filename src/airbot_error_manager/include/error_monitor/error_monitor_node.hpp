@@ -43,17 +43,20 @@ private:
     void bottomStatusCallback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
     void imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
     void batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg);
+    void stationDataCallback(const robot_custom_msgs::msg::StationData::SharedPtr msg);
 
-    bool isBottomStatusUpdate, isImuUpdate, isBatteryUpdate;
-    int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_, publish_cnt_board_overheat_error_, publish_cnt_battery_discharge_error_;
-    int publish_cnt_low_battery_error_rate_;
-    int publish_cnt_fall_down_error_rate_;
-    int publish_cnt_board_overheat_error_rate_;
-    int publish_cnt_battery_discharge_error_rate_;
+    bool isBottomStatusUpdate, isImuUpdate, isBatteryUpdate, isStationDataUpdate;
+    int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_,
+        publish_cnt_board_overheat_error_, publish_cnt_battery_discharge_error_,
+        publish_cnt_charging_error_;
+    int publish_cnt_low_battery_error_rate_, publish_cnt_fall_down_error_rate_,
+        publish_cnt_board_overheat_error_rate_, publish_cnt_battery_discharge_error_rate_,
+        publish_cnt_charging_error_rate_;
 
     robot_custom_msgs::msg::BatteryStatus battery_data;
     robot_custom_msgs::msg::BottomIrData bottom_status_data;
     sensor_msgs::msg::Imu imu_data;
+    robot_custom_msgs::msg::StationData station_data;
 
     rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr bottom_status_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
@@ -61,7 +64,8 @@ private:
 
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
         low_battery_error_pub_, fall_down_error_pub_,
-        board_overheat_error_pub_, battery_discharge_error_pub_;
+        board_overheat_error_pub_, battery_discharge_error_pub_,
+        charging_error_pub_;
 
     std::unordered_map<std::type_index, std::shared_ptr<void>> monitors_;
 
