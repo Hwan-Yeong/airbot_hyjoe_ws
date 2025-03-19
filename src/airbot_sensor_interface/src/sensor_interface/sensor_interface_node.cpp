@@ -45,6 +45,7 @@ SensorInterfaceNode::SensorInterfaceNode()
     declareParams();
     setParams();
     initVariables();
+    isActiveSensorInterface = false;
 
     // Dynamic Parameter Handler
     param_handler_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
@@ -292,7 +293,6 @@ void SensorInterfaceNode::printParams()
 
 void SensorInterfaceNode::initVariables()
 {
-    isActiveSensorInterface = true; // 김환주책임님 토픽 발행 확인되면 false로 변경
     isTofUpdating = false;
     isCameraUpdating = false;
     isCliffUpdating = false;
