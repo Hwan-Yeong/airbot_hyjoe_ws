@@ -32,6 +32,7 @@ airbot_sensor_interface_node:
         - "6: 30" #poop
         # - "8: 80" #threshold 미사용
       object_direction: false  # 정방향(CCW+):True, 역방향(CW+):False
+      object_max_distance_m: 3.0 # 최대 장애물 거리 (해당 거리 이내의 장애물 정보만 처리)
       logger:
         use: true
         margin:

@@ -147,6 +147,7 @@ private:
     bool camera_object_direction_;
     float camera_pointcloud_resolution_;
     double camera_logger_distance_margin_, camera_logger_width_margin_, camera_logger_height_margin_;
+    double object_max_distance_;
     std::vector<std::string> camera_param_raw_vector_;
     std::map<int, int> camera_class_id_confidence_th_;
 

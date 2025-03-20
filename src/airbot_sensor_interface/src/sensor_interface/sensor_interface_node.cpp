@@ -199,6 +199,7 @@ void SensorInterfaceNode::declareParams()
     this->declare_parameter("camera.pointcloud_resolution",0.05);
     this->declare_parameter("camera.class_id_confidence_th",std::vector<std::string>());
     this->declare_parameter("camera.object_direction",false);
+    this->declare_parameter("camera.object_max_distance_m",1.0);
     this->declare_parameter("camera.logger.use",false);
     this->declare_parameter("camera.logger.margin.distance_diff",1.0);
     this->declare_parameter("camera.logger.margin.width_diff",1.0);
@@ -230,6 +231,7 @@ void SensorInterfaceNode::setParams()
     this->get_parameter("camera.pointcloud_resolution", camera_pointcloud_resolution_);
     this->get_parameter("camera.class_id_confidence_th", camera_param_raw_vector_);
     this->get_parameter("camera.object_direction", camera_object_direction_);
+    this->get_parameter("camera.object_max_distance_m", object_max_distance_);
     this->get_parameter("camera.logger.use", use_camera_object_logger_);
     this->get_parameter("camera.logger.margin.distance_diff", camera_logger_distance_margin_);
     this->get_parameter("camera.logger.margin.width_diff", camera_logger_width_margin_);
@@ -268,6 +270,7 @@ void SensorInterfaceNode::printParams()
     RCLCPP_INFO(this->get_logger(), "  Camera Publish Rate: %d ms", publish_rate_camera_);
     RCLCPP_INFO(this->get_logger(), "  Camera Pointcloud Resolution: %.2f", camera_pointcloud_resolution_);
     RCLCPP_INFO(this->get_logger(), "  Camera Object Direction: %s", camera_object_direction_ ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  Camera Object Max Distance: %.2f", object_max_distance_);
     RCLCPP_INFO(this->get_logger(), "  Camera Class ID Confidence Threshold:");
     for (const auto& conf : camera_class_id_confidence_th_) {
         RCLCPP_INFO(this->get_logger(), "    Class ID: %d, Confidence: %d", conf.first, conf.second);
@@ -365,10 +368,10 @@ void SensorInterfaceNode::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDa
     }
 
     if (use_camera_object_logger_) {
-        camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th_, camera_object_direction_));
+        camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th_, camera_object_direction_, object_max_distance_));
     }
     if (use_camera_) {
-        bbox_camera_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th_, camera_object_direction_);
+        bbox_camera_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th_, camera_object_direction_, object_max_distance_);
         pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_camera_msg, camera_pointcloud_resolution_);
     }
 
