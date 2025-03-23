@@ -18,7 +18,7 @@
 #include "robot_custom_msgs/msg/error_list_array.hpp"
 
 
-#define CLEAR_CNT 5
+#define CLEAR_CNT 1
 #define ERROR_LIST_SIZE 10
 
 /**

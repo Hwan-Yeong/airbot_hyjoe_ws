@@ -3,9 +3,9 @@
 
 bool LowBatteryErrorMonitor::checkError(const InputType& input)
 {
-    // 배터리 잔량 표시  // 15% 이하일 경우
-    static rclcpp::Clock clock(RCL_ROS_TIME);
-    double battery_remaining_amount;
+    // 베터리가 10프로 이상 15프로 이하 동시에 30초 이상일 경우
+    static rclcpp::Clock clock(RCL_STEADY_TIME);
+    int battery_remaining_amount;
     double current_time, time;
     static double prev_time=0;
     static bool prev_status=false;
@@ -13,27 +13,25 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
     static bool pre_setting=false;
 
     current_time = clock.now().seconds();
-
     if (!pre_setting) { // 이전 시간에 대해서 초기시간 설정
         prev_time = current_time;
         pre_setting = true;
     }
     time = current_time - prev_time;
 
-    RCLCPP_WARN(rclcpp::get_logger("LowBatteryErrorMonitor"), "lowerbatter ===> current_time %.3f, prev_time %.3f === %.3f ==",
-                current_time, prev_time, time);
     battery_remaining_amount = input.battery_percent;
-    if (battery_remaining_amount <= 96 && battery_remaining_amount >= 94) {
+    if (battery_remaining_amount <= 15 && battery_remaining_amount > 10) {
+
         prev_no_low_battery = true;
         if (time >= 30) {
             if (!prev_status) {
-                RCLCPP_WARN(rclcpp::get_logger("low battery"), "(time : %.3f), (battery amount : %.3f)", time, battery_remaining_amount);
+                RCLCPP_WARN(rclcpp::get_logger("low battery"), "(time : %.3f), (battery amount : %d)", time, battery_remaining_amount);
                 prev_status = true;
             }
-            return true;    // 베터리가 10프로 이상 15프로 이하 동시에 30초 이상일 경우
+            return true;    
         } else {
             if (prev_status) {
-                RCLCPP_WARN(rclcpp::get_logger("no low battery"), "(time : %.3f), (battery amount : %.3f)", time, battery_remaining_amount);
+                RCLCPP_WARN(rclcpp::get_logger("battery checking start"), "(time : %.3f), (battery amount : %d)", time, battery_remaining_amount);
                 prev_status=false;
             }
             return false;
@@ -42,7 +40,7 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
         prev_time = clock.now().seconds();
         prev_status=true;
         if (prev_no_low_battery) {
-            RCLCPP_WARN(rclcpp::get_logger("no low battery"), "(time : %.3f), (battery amount : %.3f)", time, battery_remaining_amount);
+            RCLCPP_WARN(rclcpp::get_logger("no low battery"), "(time : %.3f), (battery amount : %d)", time, battery_remaining_amount);
             prev_no_low_battery = false;
         }
         return false;      // 베터리가 10프로 이하 15프로 이상일 경우
@@ -51,9 +49,9 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
 
 bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
 {
-    // 배터리 잔량 표시 // 10% 이하일 경우
-    static rclcpp::Clock clock(RCL_ROS_TIME);
-    double battery_remaining_amount;
+    // 베터리가 10프로 이하일 경우, 동시에 30초 이상일 경우
+    static rclcpp::Clock clock(RCL_STEADY_TIME);
+    int battery_remaining_amount;
     double current_time, time;
     static double prev_time=0;
     static bool prev_status=false;
@@ -61,7 +59,6 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
     static bool pre_Setting=false;
 
     current_time = clock.now().seconds();
-
     if (!pre_Setting) { // 이전 시간에 대해서 초기시간 설정
         prev_time = current_time;
         pre_Setting = true;
@@ -71,16 +68,15 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
     battery_remaining_amount = input.battery_percent;
     if (battery_remaining_amount <= 10) {
         prev_no_low_battery = true;
-        current_time = clock.now().seconds();
         if (time >= 30) {
             if (!prev_status) {
-                RCLCPP_WARN(rclcpp::get_logger("discharge battery"), "(time : %.f), (battery amount : %.3f)", time, battery_remaining_amount);
+                RCLCPP_WARN(rclcpp::get_logger("discharge battery"), "(time : %.f), (battery amount : %d)", time, battery_remaining_amount);
                 prev_status = true;
             }
-            return true;    // 베터리가 10프로 이하일 경우, 동시에 30초 이상일 경우
+            return true;    
         } else {
             if (prev_status) {
-                RCLCPP_WARN(rclcpp::get_logger("no discharge battery"), "(time : %.f), (battery amount : %.3f)", time, battery_remaining_amount);
+                RCLCPP_WARN(rclcpp::get_logger("discharge battery check start"), "(time : %.f), (battery amount : %d)", time, battery_remaining_amount);
                 prev_status=false;
             }
             return false;
@@ -90,7 +86,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
         prev_status=true;
 
         if (prev_no_low_battery) {
-            RCLCPP_WARN(rclcpp::get_logger("no discharge battery"), "(battery amount : %.3f)", battery_remaining_amount);
+            RCLCPP_WARN(rclcpp::get_logger("no discharge battery"), "(battery amount : %d)", battery_remaining_amount);
             prev_no_low_battery = false;
         }
         return false;      // 베터리가 10프로 이상
@@ -102,7 +98,8 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
     bool bottomdata_range = false;
     bool imu_range = false;
     int count = 0;
-
+    static bool prev_status=false;
+    
     // 밑 센서값 조정
     // 값이 방향에 따라서 일정하게 변하지 않기 때문에
     // 방향을 나누어서 값 변화에 대해서 전도 현상값의 범위를 조정해야 함
@@ -145,14 +142,20 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
         imu_range = true;
     }
 
-    if (imu_range && bottomdata_range) { // 전도가 일어남, 데이터 값에 따른 결정
+    if (imu_range && bottomdata_range) { // 전도가 일어남, 데이터 값에 따른 결정       
+        if(!prev_status){
+            RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"), "Detected (ff : %d)  (fl : %d) (fr :%d) (bb : %d) (bl : %d) (br : %d)  (pich : %.3f) (roll : %.3f)",
+                    input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll);
+            prev_status=true;       
+        }
         return true;
-        RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"), "Detected (ff : %d)  (fl : %d) (fr :%d) (bb : %d) (bl : %d) (br : %d)  (pich : %.3f) (roll : %.3f)",
-                    input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll);
     } else { // 전도가 일어나지 않음
-        return false;
-        RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"), "Not Detected (ff : %d)  (fl : %d) (fr :%d) (bf : %d) (bl : %d) (br : %d)  (pich : %.3f) (roll : %.3f)",
+        if(prev_status){
+            RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"), "Not Detected (ff : %d)  (fl : %d) (fr :%d) (bf : %d) (bl : %d) (br : %d)  (pich : %.3f) (roll : %.3f)",
                     input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll);
+            prev_status=false;
+        }
+        return false;
     }
 }
 
@@ -204,18 +207,14 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 
 bool ChargingErrorMonitor::checkError(const InputType &input)
 {
-    /*
-        Docking Station에서 충전이 불가능한 경우
-        도킹 상태 --> 1 일때 도킹이 됨,  0 일때 도킹이 안된다고 생각함
-        도킹이 안되었을때는 충전이 불가능하기 때문에 false를 반환한다.
-        도킹을 했을 경우에 밧데리가 어느정도 이상일때는 도킹이 안된것으로 간주하고 false를 반환한다.
-        도킹을 했을 경우에 충전기간이 10분간 충전량이 2%이하일 경우에 충전이 안된 것으로 간주하고 false를 반환한다.
-    */
+    return false;
 
-    static int8_t battery_current_remaining_amount;
-    static int8_t battery_remaining_amount;
-    double time;
-    int8_t charging_amount;
+
+    static rclcpp::Clock clock(RCL_STEADY_TIME);
+    static int battery_current_remaining_amount;
+    static int battery_remaining_amount;
+    double time, current_time;
+    int charging_amount;
     int docking_mode;
     static double prev_time;
     static bool isstatus=false;
@@ -225,19 +224,16 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
     static bool pre_setting=false;
     static bool pre_docking=false;
 
-    static rclcpp::Clock clock(RCL_ROS_TIME);
-    rclcpp::Time current_time = clock.now();
 
+    current_time = clock.now().seconds();
     if (!pre_setting) { // 이전 시간에 대해서 초기시간 설정
-        prev_time = current_time.seconds();
+        prev_time = current_time;
         pre_setting = true;
     }
-    time = current_time.seconds() - prev_time;
+    time = current_time - prev_time;
 
     docking_mode = input.second.docking_status;
-
-    RCLCPP_WARN(rclcpp::get_logger("ChargingErrorMonitor"), " docking_mode ===> %d ==", docking_mode);
-
+//    RCLCPP_WARN(rclcpp::get_logger("ChargingErrorMonitor"), " docking_mode ===> %d ==", docking_mode);
     if (docking_mode != 48) { // 무슨 기준인지?
         if (!pre_nodocking) {
             RCLCPP_WARN(rclcpp::get_logger("ChargingErrorMonitor"), "docking false" );
@@ -261,14 +257,9 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
             }
             return false;
         } else {
-            // RCLCPP_WARN(rclcpp::get_logger("2"), " === %f ==   %f  ===  %f  =====", current_time,  prev_time, current_time - prev_time);
-            // RCLCPP_WARN(rclcpp::get_logger(""), " === 1 ==");
-
             pre_nodocking=false;
             pre_docking=false;
             charging_amount = battery_current_remaining_amount - battery_remaining_amount;
-            // RCLCPP_WARN(rclcpp::get_logger("2-2"), " === %f  ======  %f ==   %f", time, prev_time, current_time);
-            // RCLCPP_WARN(rclcpp::get_logger("2-3"), " === %d  ======  %d ==   %d", battery_current_remaining_amount, battery_remaining_amount, charging_amount);
             if (time >= 100) {
                 RCLCPP_WARN(rclcpp::get_logger("ChargingErrorMonitor"), "=== 1 ==");
                 prev_time = clock.now().seconds();
@@ -292,7 +283,6 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
                     return true;
                 }
             }
-            RCLCPP_WARN(rclcpp::get_logger("ChargingErrorMonitor"), " === %.3f ==  === %d ==   === %d ==  === %d ==", time, battery_current_remaining_amount, battery_remaining_amount, charging_amount);
             return true;
         }
     }
