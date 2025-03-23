@@ -107,8 +107,6 @@ void ErrorMonitorNode::errorMonitor()
             fall_down_error_pub_->publish(error_msg);
         }
         publish_cnt_fall_down_error_ = 0;
-        isBottomStatusUpdate = false;
-        isImuUpdate = false;
     }
 
     // low battery monitor
@@ -123,7 +121,6 @@ void ErrorMonitorNode::errorMonitor()
             low_battery_error_pub_->publish(error_msg);
         }
         publish_cnt_low_battery_error_ = 0;
-        isBatteryUpdate = false;
     }
 
     // board overheat monitor
@@ -151,8 +148,7 @@ void ErrorMonitorNode::errorMonitor()
             error_msg.data = false;
             battery_discharge_error_pub_->publish(error_msg);
         }
-        publish_cnt_battery_discharge_error_ = 0;
-        isBatteryUpdate = false; // low battery monitor와 플래그가 겹치지만, monitor 자체가 10ms라 무시할 만한 수준이라고 생각함.
+        publish_cnt_battery_discharge_error_ = 0; // low battery monitor와 플래그가 겹치지만, monitor 자체가 10ms라 무시할 만한 수준이라고 생각함.
     }
 
     // charging monitor
@@ -167,9 +163,12 @@ void ErrorMonitorNode::errorMonitor()
             charging_error_pub_->publish(error_msg);
         }
         publish_cnt_charging_error_ = 0;
-        isStationDataUpdate = false;
-        isBatteryUpdate = false;
     }
+
+    isImuUpdate = false;
+    isBatteryUpdate = false;
+    isStationDataUpdate = false;
+    isBottomStatusUpdate = false;
 
     // publish_cnt_* 변수 오버플로우 방지
     if (publish_cnt_low_battery_error_ >= 100000) publish_cnt_low_battery_error_ = 0;

@@ -35,16 +35,27 @@ public:
     void init();
 
 private:
+    struct tErrorList {
+        robot_custom_msgs::msg::ErrorList error;
+        bool should_publish = false;        // 현재 퍼블리싱이 필요한지 여부
+        bool has_occurred_before = false;   // 에러가 한 번이라도 발생했었는지 여부
+    };
+
+    enum class ErrorType {
+        OCCURRED,  // 에러 발생
+        CLEARED    // 에러 해제
+    };
+
     void initSubscribers(const YAML::Node& config);
     void errorCallback(const std::string& error_code, int rank, std_msgs::msg::Bool::SharedPtr msg);
     void publishErrorList();
     void updateErrorLists(int rank, std::string code);
-    void addError(int rank, const std::string &error_code);
-    void removeFromErrorLists(std::string code);
+    void addError(int rank, const std::string &error_code, ErrorType type);
+    void releaseErrorLists(int rank, std::string code);
     void printErrorList();
 
     YAML::Node config{};
-    std::vector<std::shared_ptr<robot_custom_msgs::msg::ErrorList>> error_list_;
+    std::vector<tErrorList> error_list_;
     std::vector<rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr> subscribers_;
     rclcpp::Publisher<robot_custom_msgs::msg::ErrorListArray>::SharedPtr error_list_pub_;
     rclcpp::TimerBase::SharedPtr pub_timer_;
