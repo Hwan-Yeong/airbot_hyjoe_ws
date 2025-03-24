@@ -21,6 +21,12 @@ ErrorManagerNode::ErrorManagerNode()
     this->get_parameter("publish_rate_ms", publish_rate);
     auto publish_rate_ms = std::chrono::milliseconds(publish_rate);
 
+    this->declare_parameter("error_publish_cnt", 3);
+    this->get_parameter("error_publish_cnt", pub_cnt);
+
+    this->declare_parameter("error_list_size", 1000);
+    this->get_parameter("error_list_size", error_list_size);
+
     try {
         std::string package_share_directory = ament_index_cpp::get_package_share_directory("airbot_error_manager");
         // RCLCPP_INFO(this->get_logger(), "package_share_directory: %s, file: %s", package_share_directory.c_str(), error_list.c_str());
@@ -70,13 +76,12 @@ void ErrorManagerNode::initSubscribers(const YAML::Node& config)
         for (const auto& error : category_value) {
             std::string sub_topic = error.second["sub_topic"].as<std::string>();
             std::string error_code = error.second["error_code"].as<std::string>();
-            int rank = error.second["rank"].as<int>();
 
-            RCLCPP_INFO(this->get_logger(), "Sub topic: %s (error_code: %s, rank: %d)",
-                        sub_topic.c_str(), error_code.c_str(), rank);
+            RCLCPP_INFO(this->get_logger(), "Sub topic: %s (error_code: %s)",
+                        sub_topic.c_str(), error_code.c_str());
 
-            auto callback = [this, pnode, error_code, rank](std_msgs::msg::Bool::SharedPtr msg)
-            { errorCallback(error_code, rank, msg); };
+            auto callback = [this, pnode, error_code](std_msgs::msg::Bool::SharedPtr msg)
+            { errorCallback(error_code, msg); };
             auto subs = this->create_subscription<std_msgs::msg::Bool>(sub_topic, 10, callback);
             this->subscribers_.push_back(subs);
         }
@@ -84,17 +89,20 @@ void ErrorManagerNode::initSubscribers(const YAML::Node& config)
     RCLCPP_INFO(this->get_logger(), "===============================================================");
 }
 
-void ErrorManagerNode::errorCallback(const std::string& error_code, int rank, std_msgs::msg::Bool::SharedPtr msg)
+void ErrorManagerNode::errorCallback(const std::string& error_code, std_msgs::msg::Bool::SharedPtr msg)
 {
     if (msg->data) {
-        updateErrorLists(rank, error_code);
+        updateErrorLists(error_code);
     } else {
-        releaseErrorLists(rank, error_code);
+        releaseErrorLists(error_code);
     }
 }
 
 void ErrorManagerNode::publishErrorList()
 {
+    static int print_cnt = 0;
+    bool print_now = false;
+
     robot_custom_msgs::msg::ErrorListArray error_msg_array;
     rclcpp::Time now_time = rclcpp::Clock(RCL_STEADY_TIME).now();
     builtin_interfaces::msg::Time msg_time;
@@ -105,60 +113,43 @@ void ErrorManagerNode::publishErrorList()
     for (auto it = error_list_.begin(); it != error_list_.end();) {
         auto& error = *it;
 
-        if (!error.should_publish) {
-            ++it;
+        if (!error.should_publish) { // 퍼블리시 필요 없고, 해제 상태인데 카운트도 넘었으면 삭제
+            if (!error.error.error_occurred && error.error.count > pub_cnt) {
+                it = error_list_.erase(it);
+            } else {
+                ++it;
+            }
             continue;
         }
 
-        robot_custom_msgs::msg::ErrorList error_msg = error.error;
-        error_msg_array.data_array.push_back(error_msg);
+        // 상태 변화 체크: 발생 → 해제로 바뀐 경우, 새로운 에러가 추가된 경우
+        if ((!error.error.error_occurred && error.error.count == 1)
+            || (error.error.count == 1 && error.error.error_occurred)) {
+            print_now = true;
+        }
 
+        robot_custom_msgs::msg::ErrorList error_msg = error.error;
         error.error.count++;
         error.has_occurred_before = true;
+        error_msg_array.data_array.push_back(error_msg);
 
-        if (error.error.count > PUB_CNT) {
+        if (error.error.count > pub_cnt) { // pub_cnt 만큼 퍼블리싱 했으면 발행 정지.
             error.should_publish = false;
-            if (!error.error.error_occurred) { //PUB_CNT번 다 보냈는데, 에러해제 상태면 삭제하세요.
-                it = error_list_.erase(it);
-                continue;
-            }
-            // else { //PUB_CNT번 다 보냈는데, 여전히 에러발생 상태면 카운트 초기화합니다.
-            //     error.error.count = 0;
-            //     error.should_publish = true;
-            // }
         }
         ++it;
     }
 
     if (!error_msg_array.data_array.empty()) {
         error_list_pub_->publish(error_msg_array);
-        // printErrorList();
     }
 
-    // 퍼블리시가 끝난 해제된 에러 삭제 (should_publish == false 상태에서도 삭제 가능하게)
-    for (auto it = error_list_.begin(); it != error_list_.end();) {
-        if (!it->should_publish && !it->error.error_occurred && it->error.count > PUB_CNT) {
-            it = error_list_.erase(it);
-        } else {
-            ++it;
-        }
-    }
-
-    if (!error_list_.empty()) {
-        std::stringstream ss;
-        ss << "Current Errors: ";
-        for (size_t i = 0; i < error_list_.size(); ++i) {
-            const auto& err = error_list_[i];
-            ss << err.error.error_code << ": " << (err.error.error_occurred ? "true" : "false");
-            if (i != error_list_.size() - 1) {
-                ss << ", ";
-            }
-        }
-        RCLCPP_INFO(this->get_logger(), "%s", ss.str().c_str());
+    // error_list 출력
+    if (print_now || ++print_cnt % 10 == 0) {
+        printErrorList();
     }
 }
 
-void ErrorManagerNode::updateErrorLists(int rank, std::string code)
+void ErrorManagerNode::updateErrorLists(std::string code)
 {
     auto it = std::find_if(error_list_.begin(), error_list_.end(),
         [&code](const tErrorList& error) {
@@ -166,7 +157,7 @@ void ErrorManagerNode::updateErrorLists(int rank, std::string code)
     });
 
     if (it == error_list_.end()) {
-        addError(rank, code, ErrorType::OCCURRED);
+        addError(code);
     } else {
         if (!it->error.error_occurred) { // 이전에 해제된 에러가 다시 발생
             it->error.error_occurred = true;
@@ -176,7 +167,7 @@ void ErrorManagerNode::updateErrorLists(int rank, std::string code)
     }
 }
 
-void ErrorManagerNode::addError(int rank, const std::string &error_code, ErrorType type)
+void ErrorManagerNode::addError(const std::string &error_code)
 {
     auto it = std::find_if(error_list_.begin(), error_list_.end(),
         [&error_code](const tErrorList& error) {
@@ -187,33 +178,22 @@ void ErrorManagerNode::addError(int rank, const std::string &error_code, ErrorTy
         return;
     }
 
-    if (error_list_.size() > ERROR_LIST_SIZE) { // error_list_에 에러가 너무 많으면(10개까지만 관리) 가장 오래된 에러는 삭제. (필요한가..?)
+    if (error_list_.size() > static_cast<size_t>(error_list_size)) { // error_list_ 최대 크기 제한
         error_list_.erase(error_list_.begin());
     }
 
     tErrorList new_error;
     new_error.error.count = 1;
-    new_error.error.rank = rank;
     new_error.error.error_code = error_code;
-    // if (!error_list_.empty() && it->has_occurred_before) { // 이전에 에러 발생한 적 있었을 때만 처리 (최초 실행 시 에러 해제 올라가는 것 방지)
-    //     new_error.should_publish = true;
-    // }
 
-    if (type == ErrorType::OCCURRED) {
-        new_error.error.error_occurred = true;
-        new_error.has_occurred_before = false; // 최초 발생
-        new_error.should_publish = true;
-    } else {
-        new_error.error.error_occurred = false;
-        new_error.has_occurred_before = true; // 지금은 error_lists_에 없지만 발생한 적은 있음.
-        if (!error_list_.empty() && it->has_occurred_before) { // 이전에 에러 발생한 적 있었을 때만 처리 (최초 실행 시 에러 해제 올라가는 것 방지)
-            new_error.should_publish = true;
-        }
-    }
+    new_error.error.error_occurred = true;
+    new_error.has_occurred_before = false; // 최초 발생
+    new_error.should_publish = true;
+
     error_list_.push_back(new_error);
 }
 
-void ErrorManagerNode::releaseErrorLists(int rank, std::string code)
+void ErrorManagerNode::releaseErrorLists(std::string code)
 {
     if (error_list_.empty()) { // error_list_ 비어있으면 실행 x
         return;
@@ -228,7 +208,7 @@ void ErrorManagerNode::releaseErrorLists(int rank, std::string code)
         if (it->has_occurred_before && it->error.error_occurred) { // 과거에 발생한 적이 있을 때만 해제 메시지 퍼블리싱 활성화
             it->error.error_occurred = false;
             it->should_publish = true;
-            it->error.count = 1; // 카운트 초기화 (다시 PUB_CNT 만큼 보내기 위해)
+            it->error.count = 1; // 카운트 초기화 (다시 pub_cnt 만큼 보내기 위해)
         }
     }
 }
@@ -238,16 +218,15 @@ void ErrorManagerNode::printErrorList(){
         return;
     }
 
-    RCLCPP_INFO(this->get_logger(), "================= Publishing error =================");
-    for (const auto& error : error_list_) {
-        if (error.should_publish) {
-            RCLCPP_INFO(this->get_logger(),
-                "Error - Occured: %s, Rank: %d, Code: %s, Should Publish: %s, Occured Before: %s",
-                error.error.error_occurred ? "true" : "false",
-                error.error.rank,
-                error.error.error_code.c_str(),
-                error.should_publish ? "true" : "false",
-                error.has_occurred_before ? "true" : "false");
-        } else continue;
+    std::stringstream ss;
+    ss << "[ Error List: ";
+    for (size_t i = 0; i < error_list_.size(); ++i) {
+        const auto& err = error_list_[i];
+        ss << err.error.error_code << ": " << (err.error.error_occurred ? "true" : "false");
+        if (i != error_list_.size() - 1) {
+            ss << " & ";
+        }
     }
+    ss << " ]";
+    RCLCPP_INFO(this->get_logger(), "%s", ss.str().c_str());
 }

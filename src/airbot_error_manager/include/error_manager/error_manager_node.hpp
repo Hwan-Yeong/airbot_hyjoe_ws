@@ -21,9 +21,6 @@
 #include "robot_custom_msgs/msg/error_list_array.hpp"
 
 
-#define PUB_CNT 3
-#define ERROR_LIST_SIZE 27
-
 /**
  * @brief 모든 노드에서 발행한 에러(bool)메시지를 구독하고, 업데이트하여
  * udp_interface 노드에게 /error_lists 토픽을 발행하는 노드입니다.
@@ -44,17 +41,12 @@ private:
         bool has_occurred_before = false;   // 에러가 한 번이라도 발생했었는지 여부
     };
 
-    enum class ErrorType {
-        OCCURRED,  // 에러 발생
-        RELEASED,  // 에러 해제
-    };
-
     void initSubscribers(const YAML::Node& config);
-    void errorCallback(const std::string& error_code, int rank, std_msgs::msg::Bool::SharedPtr msg);
+    void errorCallback(const std::string& error_code, std_msgs::msg::Bool::SharedPtr msg);
     void publishErrorList();
-    void updateErrorLists(int rank, std::string code);
-    void addError(int rank, const std::string &error_code, ErrorType type);
-    void releaseErrorLists(int rank, std::string code);
+    void updateErrorLists(std::string code);
+    void addError(const std::string &error_code);
+    void releaseErrorLists(std::string code);
     void printErrorList();
 
     YAML::Node config{};
@@ -62,6 +54,7 @@ private:
     std::vector<rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr> subscribers_;
     rclcpp::Publisher<robot_custom_msgs::msg::ErrorListArray>::SharedPtr error_list_pub_;
     rclcpp::TimerBase::SharedPtr pub_timer_;
+    int pub_cnt, error_list_size;
 };
 
 #endif // ERROR_MANAGER_HPP
