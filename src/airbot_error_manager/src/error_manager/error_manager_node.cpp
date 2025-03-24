@@ -96,6 +96,11 @@ void ErrorManagerNode::errorCallback(const std::string& error_code, int rank, st
 void ErrorManagerNode::publishErrorList()
 {
     robot_custom_msgs::msg::ErrorListArray error_msg_array;
+    rclcpp::Time now_time = rclcpp::Clock(RCL_STEADY_TIME).now();
+    builtin_interfaces::msg::Time msg_time;
+    msg_time.sec = static_cast<int32_t>(now_time.seconds());
+    msg_time.nanosec = now_time.nanoseconds() % 1000000000;
+    error_msg_array.timestamp = msg_time;
 
     for (auto it = error_list_.begin(); it != error_list_.end();) {
         auto& error = *it;
@@ -105,27 +110,51 @@ void ErrorManagerNode::publishErrorList()
             continue;
         }
 
-        error.error.count++;
-
-        robot_custom_msgs::msg::ErrorList error_msg;
-        error_msg = error.error;
+        robot_custom_msgs::msg::ErrorList error_msg = error.error;
         error_msg_array.data_array.push_back(error_msg);
 
-        if (error.error.count >= CLEAR_CNT) {
+        error.error.count++;
+        error.has_occurred_before = true;
+
+        if (error.error.count > PUB_CNT) {
             error.should_publish = false;
-            if (!error.error.error_occurred) { //5번 다 보냈는데, 에러해제 상태면 삭제하세요.
+            if (!error.error.error_occurred) { //PUB_CNT번 다 보냈는데, 에러해제 상태면 삭제하세요.
                 it = error_list_.erase(it);
                 continue;
-            } else { //5번 다 보냈는데, 여전히 에러발생 상태면 카운트 초기화합니다.
-                error.error.count = 0;
             }
+            // else { //PUB_CNT번 다 보냈는데, 여전히 에러발생 상태면 카운트 초기화합니다.
+            //     error.error.count = 0;
+            //     error.should_publish = true;
+            // }
         }
         ++it;
     }
 
     if (!error_msg_array.data_array.empty()) {
         error_list_pub_->publish(error_msg_array);
-        printErrorList();
+        // printErrorList();
+    }
+
+    // 퍼블리시가 끝난 해제된 에러 삭제 (should_publish == false 상태에서도 삭제 가능하게)
+    for (auto it = error_list_.begin(); it != error_list_.end();) {
+        if (!it->should_publish && !it->error.error_occurred && it->error.count > PUB_CNT) {
+            it = error_list_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    if (!error_list_.empty()) {
+        std::stringstream ss;
+        ss << "Current Errors: ";
+        for (size_t i = 0; i < error_list_.size(); ++i) {
+            const auto& err = error_list_[i];
+            ss << err.error.error_code << ": " << (err.error.error_occurred ? "true" : "false");
+            if (i != error_list_.size() - 1) {
+                ss << ", ";
+            }
+        }
+        RCLCPP_INFO(this->get_logger(), "%s", ss.str().c_str());
     }
 }
 
@@ -138,6 +167,12 @@ void ErrorManagerNode::updateErrorLists(int rank, std::string code)
 
     if (it == error_list_.end()) {
         addError(rank, code, ErrorType::OCCURRED);
+    } else {
+        if (!it->error.error_occurred) { // 이전에 해제된 에러가 다시 발생
+            it->error.error_occurred = true;
+            it->error.count = 1;
+            it->should_publish = true;
+        }
     }
 }
 
@@ -157,7 +192,7 @@ void ErrorManagerNode::addError(int rank, const std::string &error_code, ErrorTy
     }
 
     tErrorList new_error;
-    new_error.error.count = 0;
+    new_error.error.count = 1;
     new_error.error.rank = rank;
     new_error.error.error_code = error_code;
     // if (!error_list_.empty() && it->has_occurred_before) { // 이전에 에러 발생한 적 있었을 때만 처리 (최초 실행 시 에러 해제 올라가는 것 방지)
@@ -166,37 +201,16 @@ void ErrorManagerNode::addError(int rank, const std::string &error_code, ErrorTy
 
     if (type == ErrorType::OCCURRED) {
         new_error.error.error_occurred = true;
-        new_error.has_occurred_before = true; // 최초 발생 처리
+        new_error.has_occurred_before = false; // 최초 발생
         new_error.should_publish = true;
     } else {
         new_error.error.error_occurred = false;
-        // new_error.has_occurred_before = false; // 해제 상태로 초기화
+        new_error.has_occurred_before = true; // 지금은 error_lists_에 없지만 발생한 적은 있음.
         if (!error_list_.empty() && it->has_occurred_before) { // 이전에 에러 발생한 적 있었을 때만 처리 (최초 실행 시 에러 해제 올라가는 것 방지)
             new_error.should_publish = true;
         }
     }
     error_list_.push_back(new_error);
-
-    ///////////////////////////////
-
-    RCLCPP_INFO(this->get_logger(),
-        "New error added: Code: %s, Rank: %d, Occurred: %s, Should Publish: %s",
-        new_error.error.error_code.c_str(), new_error.error.rank,
-        new_error.error.error_occurred ? "true" : "false",
-        new_error.should_publish ? "true" : "false");
-
-    RCLCPP_INFO(this->get_logger(),
-        "============= Current Error List (%ld) =============", error_list_.size());
-
-    for (const auto& error : error_list_) {
-        RCLCPP_INFO(this->get_logger(),
-            "Error - Code: %s, Rank: %d, Occurred: %s, Count: %d, Should Publish: %s",
-            error.error.error_code.c_str(), error.error.rank,
-            error.error.error_occurred ? "true" : "false",
-            error.error.count,
-            error.should_publish ? "true" : "false");
-    }
-    RCLCPP_INFO(this->get_logger(), "=====================================================");
 }
 
 void ErrorManagerNode::releaseErrorLists(int rank, std::string code)
@@ -210,14 +224,12 @@ void ErrorManagerNode::releaseErrorLists(int rank, std::string code)
         return error.error.error_code == code;
     });
 
-    if (it != error_list_.end()) { // 기존 에러가 존재하면 상태 업데이트
-        if (it->has_occurred_before) { // 과거에 발생한 적이 있을 때만 해제 메시지 퍼블리싱 활성화
+    if (it != error_list_.end()) { // 해제는 발생했던 에러에만 적용
+        if (it->has_occurred_before && it->error.error_occurred) { // 과거에 발생한 적이 있을 때만 해제 메시지 퍼블리싱 활성화
             it->error.error_occurred = false;
             it->should_publish = true;
-            it->error.count = 0; // 카운트 초기화 (다시 CLEAR_CNT 만큼 보내기 위해)
+            it->error.count = 1; // 카운트 초기화 (다시 PUB_CNT 만큼 보내기 위해)
         }
-    } else { // 기존 에러가 없다면 새로운 항목 추가 (에러 해제 상태로)
-        addError(rank, code, ErrorType::CLEARED);
     }
 }
 
@@ -230,12 +242,12 @@ void ErrorManagerNode::printErrorList(){
     for (const auto& error : error_list_) {
         if (error.should_publish) {
             RCLCPP_INFO(this->get_logger(),
-                "Error - Occured: %s, Rank: %d, Code: %s, Count: %d, Should Publish: %s",
+                "Error - Occured: %s, Rank: %d, Code: %s, Should Publish: %s, Occured Before: %s",
                 error.error.error_occurred ? "true" : "false",
                 error.error.rank,
                 error.error.error_code.c_str(),
-                error.error.count/*,
-                error.should_publish ? "true" : "false"*/);
+                error.should_publish ? "true" : "false",
+                error.has_occurred_before ? "true" : "false");
         } else continue;
     }
 }

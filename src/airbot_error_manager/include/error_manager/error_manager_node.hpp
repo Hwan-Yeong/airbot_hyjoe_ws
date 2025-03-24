@@ -11,6 +11,9 @@
 #include <chrono>
 
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp/time.hpp"
+#include "rclcpp/clock.hpp"
+#include "builtin_interfaces/msg/time.hpp"
 #include "rclcpp/qos.hpp"
 #include "yaml-cpp/yaml.h"
 #include "std_msgs/msg/bool.hpp"
@@ -18,8 +21,8 @@
 #include "robot_custom_msgs/msg/error_list_array.hpp"
 
 
-#define CLEAR_CNT 5
-#define ERROR_LIST_SIZE 10
+#define PUB_CNT 3
+#define ERROR_LIST_SIZE 27
 
 /**
  * @brief 모든 노드에서 발행한 에러(bool)메시지를 구독하고, 업데이트하여
@@ -43,7 +46,7 @@ private:
 
     enum class ErrorType {
         OCCURRED,  // 에러 발생
-        CLEARED    // 에러 해제
+        RELEASED,  // 에러 해제
     };
 
     void initSubscribers(const YAML::Node& config);
