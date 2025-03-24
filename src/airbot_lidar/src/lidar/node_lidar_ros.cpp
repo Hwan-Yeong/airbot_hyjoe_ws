@@ -139,8 +139,8 @@ int main(int argc, char **argv)
 			{
 				auto scan_msg = std::make_shared<sensor_msgs::msg::LaserScan>();
 
-				float min_angle = 60 * M_PI/180;
-				float max_angle = 300 * M_PI/180;
+				float min_angle = 70 * M_PI/180;
+				float max_angle = 290 * M_PI/180;
 
 				// scan_msg->ranges.resize(scan.points.size());
 				// scan_msg->intensities.resize(scan.points.size());

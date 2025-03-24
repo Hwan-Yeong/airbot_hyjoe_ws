@@ -25,25 +25,20 @@ public:
 
   void exitMappingNode();
   void map_saver();
-  void exitNavigationNode();
-
-
-  bool naviNodeLauncher();
-  int naviNodeChecker();
 
   void processMoveTarget();
   ROBOT_STATUS processNavigationReady();
   int8_t localizationChecker();
 
-  bool startNavigation();
   void pauseReturnCharger();
-  void waitNodeLaunching();
 
   void setReadyNavigation(READY_NAVIGATION set);
   void setReadyMoving(READY_MOVING set);
 
   rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr client_;
   rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr future_goal_handle_;
+  std::shared_ptr<nav2_msgs::action::NavigateToPose::Goal> goal_msg;
+  rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SendGoalOptions send_goal_options;
   rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr target_pose_pub_;
   rclcpp::TimerBase::SharedPtr nav_status_timer_;
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr dock_pub;
@@ -53,6 +48,10 @@ public:
   double node_start_time;
   bool dock_pose_estimate = false;
   std_msgs::msg::UInt8 dock_cmd_;
+  uint8_t retry_move_target;
+  bool new_targetcall_flag = false;
+  bool bSendGoal;
+  double send_goal_start_time;
 
   pose return_pose;  
 

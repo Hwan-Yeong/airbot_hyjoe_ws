@@ -32,7 +32,7 @@ void BoundingBoxGenerator::updateRobotPose(tPose &pose)
 vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMessage(
     const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg,
     std::map<int, int> class_id_confidence_th,
-    bool direction)
+    bool direction, double object_max_distance)
 {
     auto bbox_array = vision_msgs::msg::BoundingBox2DArray();
 
@@ -49,6 +49,7 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
     const double robot_sin = std::sin(robot_pose_.orientation.yaw);
     for (const auto &obj : objects)
     {
+        if (obj.distance > object_max_distance) continue; // 객체인식 장애물 최대 거리 제한
         auto it = class_id_confidence_th.find(obj.id);
         if (it != class_id_confidence_th.end() && static_cast<int>(obj.score) >= it->second) { // data filtering with "class id", "confidencd score"
             if (obj.height >= 0.0 && obj.width >= 0.0) {
@@ -91,10 +92,11 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
 
     return bbox_array;
 }
+
 std::pair<robot_custom_msgs::msg::CameraDataArray, vision_msgs::msg::BoundingBox2DArray> BoundingBoxGenerator::getObjectBoundingBoxInfo(
     const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg,
     std::map<int, int> class_id_confidence_th,
-    bool direction)
+    bool direction, double object_max_distance)
 {
     auto filtered_objects = robot_custom_msgs::msg::CameraDataArray();
     auto bbox_array = vision_msgs::msg::BoundingBox2DArray();
@@ -118,6 +120,7 @@ std::pair<robot_custom_msgs::msg::CameraDataArray, vision_msgs::msg::BoundingBox
     const double robot_sin = std::sin(robot_pose_.orientation.yaw);
     for (const auto &obj : objects)
     {
+        if (obj.distance > object_max_distance) continue; // 객체인식 장애물 최대 거리 제한
         auto it = class_id_confidence_th.find(obj.id);
         if (it != class_id_confidence_th.end() && static_cast<int>(obj.score) >= it->second) { // data filtering with "class id", "confidencd score"
             if (obj.height >= 0.0 && obj.width >= 0.0) {

@@ -6,6 +6,7 @@
 #include <cmath>
 #include <functional>
 
+#include "application/search/safe_goal.hpp"
 #include "domain/ros_define.hpp"
 #include "rcutils/logging_macros.h"
 
@@ -13,6 +14,8 @@
 #define SCAN_MIN_DIST 0.001
 
 search::SafeArea::SafeArea() {}
+
+
 bool search::SafeArea::area_check(
     double point_x,
     double point_y,
@@ -48,7 +51,7 @@ std::vector<entity::Vertex> search::SafeArea::setting_area(int area_num) {
       // 영역 가로
       float half_area_width=0.25;
       // 영역 세로
-      float a1_area_height=1.0;
+      float a1_area_height=0.7;
       // 영역 오프셋
       float front_offset=0.3;
 
@@ -78,8 +81,8 @@ std::vector<entity::Vertex> search::SafeArea::setting_area(int area_num) {
 entity::Vertex search::SafeArea::search_goal(
     const std::shared_ptr<sensor_msgs::msg::LaserScan> scan) {
 
-  std::vector<entity::Vertex> obs_area_vector;
-  
+    std::vector<entity::Vertex>().swap(obs_area_vector_);
+
   // 영역 각도
   double global_angle=-90*M_PI/180;
 
@@ -90,17 +93,18 @@ entity::Vertex search::SafeArea::search_goal(
     setting_area_vector=setting_area(area_lp);
 
     std::function<entity::Vertex(float,float)> createVertex =[](float x ,float y)->entity::Vertex{ return entity::Vertex(x,y); };
-    obs_area_vector.push_back(createVertex(setting_area_vector[0].GetX(),setting_area_vector[0].GetY()));
-    obs_area_vector.push_back(createVertex(setting_area_vector[1].GetX(),setting_area_vector[1].GetY()));
-    obs_area_vector.push_back(createVertex(setting_area_vector[3].GetX(),setting_area_vector[3].GetY()));
-    obs_area_vector.push_back(createVertex(setting_area_vector[2].GetX(),setting_area_vector[2].GetY()));
+    obs_area_vector_.push_back(createVertex(setting_area_vector[0].GetX(),setting_area_vector[0].GetY()));
+    obs_area_vector_.push_back(createVertex(setting_area_vector[1].GetX(),setting_area_vector[1].GetY()));
+    obs_area_vector_.push_back(createVertex(setting_area_vector[3].GetX(),setting_area_vector[3].GetY()));
+    obs_area_vector_.push_back(createVertex(setting_area_vector[2].GetX(),setting_area_vector[2].GetY()));
     RCUTILS_LOG_INFO_NAMED(NODE_NAME,"%s:%d: AREA%d= \n(%f,%f) \n(%f,%f) \n(%f,%f) \n(%f,%f)\n",__func__, __LINE__,area_lp,setting_area_vector[0].GetX(),setting_area_vector[0].GetY() ,setting_area_vector[1].GetX() ,setting_area_vector[1].GetY() ,setting_area_vector[2].GetX() ,setting_area_vector[2].GetY() ,setting_area_vector[3].GetX() ,setting_area_vector[3].GetY() );
   }
 
   int num_ranges = scan->ranges.size();
   double occ_x,occ_y = 0;
 
-  std::map<int,bool> area_check_map;
+  std::map<int,bool>().swap(area_check_map_);
+
   for(int lp=1;lp<num_ranges;lp++)
   {
     if((!std::isnan(scan->ranges[lp])) && (scan->ranges[lp] > SCAN_MIN_DIST && ((scan->ranges[lp]-scan->ranges[lp-1]) < SCAN_FILTER_DIST )))
@@ -108,32 +112,34 @@ entity::Vertex search::SafeArea::search_goal(
       occ_x=-scan->ranges[lp]*sin( double(scan->angle_min+scan->angle_increment*lp+global_angle) );
       occ_y=scan->ranges[lp]*cos( double(scan->angle_min+scan->angle_increment*lp+global_angle) );
       int area_check_flag=0;
-      bool result_flag = area_check(occ_x,occ_y,&area_check_flag,obs_area_vector);
+      bool result_flag = area_check(occ_x,occ_y,&area_check_flag,obs_area_vector_);
       if(result_flag) {
         RCUTILS_LOG_INFO_NAMED(
             NODE_NAME, "%s:%d: obstacle dot : %d]\n(%lf, %lf)", __func__,
             __LINE__, area_check_flag, occ_x, occ_y);
-        area_check_map.insert(std::pair<int,bool>(area_check_flag,true));
+        area_check_map_.insert(std::pair<int,bool>(area_check_flag,true));
       }
     }
   }
 
   for (int i = 0; i <= 5; i++) {
-    if (area_check_map.find(i) == area_check_map.end()) {
-      area_check_map.insert(std::make_pair(i, false));
+    if (area_check_map_.find(i) == area_check_map_.end()) {
+      area_check_map_.insert(std::make_pair(i, false));
     }
   }
-
-
-  search::Priority priority = get_highest_priority(area_check_map);
-  entity::Vertex center = get_area_center(
-      obs_area_vector[static_cast<int>(priority)*4],
-      obs_area_vector[(static_cast<int>(priority)*4)+1],
-      obs_area_vector[(static_cast<int>(priority)*4)+2],
-      obs_area_vector[(static_cast<int>(priority)*4)+3]);
-  RCUTILS_LOG_INFO_NAMED(NODE_NAME,"%s:%d: center x :%lf, center y :%lf priority %d",__func__,__LINE__,center.GetX(),center.GetY(),static_cast<int>(priority));
-  return center;
+  return select_pose();
 }
+
+std::vector<entity::Vertex> search::SafeArea::get_obs_area_vector() {
+  return obs_area_vector_;
+}
+
+void search::SafeArea::area_check_map_false_update() {
+      RCUTILS_LOG_INFO_NAMED(NODE_NAME,"%s:%d: origin_pose : %lf, %lf, %d ",__func__,__LINE__,static_cast<int>(priority_));
+
+    area_check_map_[static_cast<int>(priority_)]=true;
+}
+
 search::Priority search::SafeArea::get_highest_priority(
     const std::map<int, bool>& area_check_map) {
     static const int priority_order[] = {
@@ -161,10 +167,23 @@ entity::Vertex search::SafeArea::get_area_center(entity::Vertex dot_one,
                                                  entity::Vertex dot_three,
                                                  entity::Vertex dot_four) {
 
-
-  auto x = (dot_two.GetX() + dot_four.GetX())/2;
+  search::SafeGoal safe_goal;
   RCUTILS_LOG_INFO_NAMED(NODE_NAME,"%s:%d: one x :%lf, two x :%lf three x : %lf four : %lf",__func__,__LINE__,dot_one.GetX(),dot_two.GetX(),dot_three.GetX(),dot_four.GetX());
- return  entity::Vertex(   x
-                              ,(dot_one.GetY() + dot_two.GetY() + dot_three.GetY() + dot_four.GetY())/4);
+
+  return safe_goal.adjust_center_to_origin(dot_two,dot_three,0.2);
+}
+
+entity::Vertex search::SafeArea::select_pose() {
+  priority_ = get_highest_priority(area_check_map_);
+  if (priority_ == search::Priority::kNone) {
+    return entity::Vertex(0, 0);
+  }
+  entity::Vertex center = get_area_center(
+      obs_area_vector_[static_cast<int>(priority_)*4],
+      obs_area_vector_[(static_cast<int>(priority_)*4)+1],
+      obs_area_vector_[(static_cast<int>(priority_)*4)+2],
+      obs_area_vector_[(static_cast<int>(priority_)*4)+3]);
+  RCUTILS_LOG_INFO_NAMED(NODE_NAME,"%s:%d: center x :%lf, center y :%lf priority %d",__func__,__LINE__,center.GetX(),center.GetY(),static_cast<int>(priority_));
+  return center;
 }
 

@@ -50,6 +50,10 @@ set(source_list
         include/domain/entity/pose.hpp
         src/application/trans/TfTrans.cpp
         include/application/trans/TfTrans.hpp
+        src/application/search/safe_goal.cpp
+        include/application/search/safe_goal.hpp
+        src/presentation/visualization_warmup.cpp
+        include/presentation/visualization_warmup.hpp
 )
 
 set(node_name

@@ -21,14 +21,18 @@ def generate_launch_description():
              name='A1_maneuver',
              parameters=[
                 {"time_ms.timer": 100},                 # 타이머를 구동할 시간
-                {"time_ms.wait.normal": 1000},          # drop off 검출시 wait 시간
+                {"time_ms.wait.normal": 1000},          # 일반적인 후진
                 {"time_ms.wait.drop_off": 1000},        # drop off 검출시 wait 시간
-                {"time_ms.back.1d": 2500},              # 1D ToF 검출시 뒤로 이동할 시간(ms), 속도는 -0.1
+                {"time_ms.back.1d": 2000},              # 1D ToF 검출시 뒤로 이동할 시간(ms), 속도는 -0.1
                 {"time_ms.back.abort": 1500},           # Abort시 뒤로 이동할 시간(ms), 속도는 -0.1
-                {"lidar.distance.escape.front": 0.2},   # lidar 전방 탈출 검사 검출 거리
-                {"lidar.distance.abort.back": 0.3},     # lidar 후방 이동 abort 검출 거리
-                {"velocity_scaling_factor": 0.075},      # 가속에 관한 스케일링 팩터
+                {"time_ms.back.collision": 2000},       # 충돌 시 후진 시간
+
+                {"lidar.escape.front.distance": 0.25},  # lidar 전방 탈출 검사 distance 검출
+                {"lidar.escape.front.angle": 60.0},     # lidar 전방 탈출 검사 angle 검출
+                {"lidar.escape.back.distance": 0.25},   # lidar 후방 이동 distanc 검출
+                {"lidar.escape.back.angle": 45.0},      # lidar 후방 이동 angle 검출
                 
+                {"velocity_scaling_factor": 0.075},     # 가속에 관한 스케일링 팩터
              ]
         ),
     ])

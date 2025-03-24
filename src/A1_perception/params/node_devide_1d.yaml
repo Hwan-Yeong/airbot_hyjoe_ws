@@ -1,10 +1,18 @@
 A1_perception:
   node:
     period_ms: 10
+    climb_condition:
+      pitch_alpha: 0.001
+      enable_climbing_threshold: -1.15
+      disable_climbing_threshold: -1.15
+      timeout_ms: 1800
     inputs:
       robot_position:
         topic: "/amcl_pose"
         type: "PoseWithCovarianceStamped"
+      lidar_pc_baselink:
+        topic: "/scan_merged_pointcloud"
+        type: "PointCloud2"
       one_d_tof:
         topic: "/sensor_to_pointcloud/tof/mono"
         type: "PointCloud2"
@@ -26,5 +34,6 @@ A1_perception:
                 polygon: [ [0.18, -0.18], [0.18, 0.18], [0,0.18], [0,-0.18]]
               one_d_tof:
                 use_stop: true
+                lidar_wall_check_threshold: 0.10
                 line_length: 0.10
                 resolution: 0.05

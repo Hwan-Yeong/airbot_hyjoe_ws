@@ -13,10 +13,9 @@ void Error::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
   req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
   cmd_vel_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
   
-  
+  state_utils->send_node_goal(NODE_STATUS::IDLE);
   state_utils->setMovingStateID(NAVI_STATE::IDLE);
-  state_utils->stopSensorMonitor();
-  state_utils->publishAllSensorOff();
+  state_utils->enableArrivedGoalSensorsOffTimer();
   if(state_utils->getOnstationStatus()){
     error_onstation = true;
   }
@@ -24,9 +23,13 @@ void Error::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
 
 void Error::run(const std::shared_ptr<StateUtils> &state_utils) {
   if(state_utils->getStatusID() == ROBOT_STATUS::READY){
-    if( exitAllNode() ){
+    int node_result = state_utils->getNodeClientStatus();
+    if(node_result > 0){
       RCLCPP_INFO(node_->get_logger(), "[Error] run() -> Running error state");
       state_utils->setStatusID(ROBOT_STATUS::START);
+    }else if(node_result < 0){
+      RCLCPP_INFO(node_->get_logger(), "[Error] Node Kill Fail");
+      state_utils->setStatusID(ROBOT_STATUS::FAIL);
     }
     sendStopCMD();
   }
@@ -48,17 +51,6 @@ void Error::post_run(const std::shared_ptr<StateUtils> &) {
   RCLCPP_INFO(node_->get_logger(), "[Error] post_run() -> Exiting error state");
   req_robot_cmd_pub_.reset();
   cmd_vel_pub_.reset();
-}
-
-bool Error::exitAllNode() {
-  if (state_utils->stopProcess("/home/airbot/mapping_pid.txt") && state_utils->stopProcess("/home/airbot/navigation_pid.txt")) {
-    RCLCPP_INFO(node_->get_logger(), "[Error] exit Mapping Node");
-    return true;
-  } else {
-    RCLCPP_INFO(node_->get_logger(), "[Error] Fail - kill Mapping Node");
-  }  
-  state_utils->setNodeStatusID(NODE_STATUS::IDLE);
-  return false;
 }
 
 void Error::sendStopCMD() {

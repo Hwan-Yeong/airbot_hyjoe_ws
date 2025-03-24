@@ -25,7 +25,7 @@ namespace explore {
     Explore::Explore()
         : rclcpp::Node("explore_node"),
           tf_buffer_(this->get_clock()), tf_listener_(tf_buffer_),
-           last_markers_count_(0), state_(ExplorationState::IDLE) {
+          last_markers_count_(0), state_(ExplorationState::IDLE) {
         RCL_LOG_INFO(get_logger(), "explore node launched!");
 
         this->declare_parameter<float>("planner_frequency", 2.0);
@@ -34,6 +34,10 @@ namespace explore {
         this->declare_parameter<float>("potential_scale", 1.0);
         this->declare_parameter<float>("gain_scale", 0.0);
         this->declare_parameter<float>("min_frontier_size", 0.1);
+        this->declare_parameter<int>("max_planning_size", 5);
+        this->declare_parameter<int>("how_many_corners", 8);
+        this->declare_parameter<double>("w_euc_cost", 1.0);
+        this->declare_parameter<double>("w_traversal_cost", 2.0);
 
         this->get_parameter("planner_frequency", planner_frequency_);
         this->get_parameter("progress_timeout", progress_timeout_);
@@ -41,6 +45,10 @@ namespace explore {
         this->get_parameter("potential_scale", potential_scale_);
         this->get_parameter("gain_scale", gain_scale_);
         this->get_parameter("min_frontier_size", min_frontier_size_);
+        this->get_parameter("max_planning_size", max_planning_size_);
+        this->get_parameter("how_many_corners", how_many_corners_);
+        this->get_parameter("w_euc_cost", w_euc_cost_);
+        this->get_parameter("w_traversal_cost", w_traversal_cost_);
 
         RCL_LOG_INFO(get_logger(), "planner_frequency: %f", planner_frequency_);
         RCL_LOG_INFO(get_logger(), "progress_timeout: %f", progress_timeout_);
@@ -48,6 +56,10 @@ namespace explore {
         RCL_LOG_INFO(get_logger(), "potential_scale: %f", potential_scale_);
         RCL_LOG_INFO(get_logger(), "gain_scale: %f", gain_scale_);
         RCL_LOG_INFO(get_logger(), "min_frontier_size: %f", min_frontier_size_);
+        RCL_LOG_INFO(get_logger(), "max_planning_size: %d", max_planning_size_);
+        RCL_LOG_INFO(get_logger(), "how_many_corners: %d", how_many_corners_);
+        RCL_LOG_INFO(get_logger(), "w_euc_cost: %f", w_euc_cost_);
+        RCL_LOG_INFO(get_logger(), "w_traversal_cost: %f", w_traversal_cost_);
 
         // initialize action clients
         RCL_LOG_INFO(get_logger(), "Waiting for navigation server ready...");
@@ -58,6 +70,7 @@ namespace explore {
         explore_complete_publisher_ = this->create_publisher<std_msgs::msg::Empty>("explore_finish", 1);
         if (visualize_) {
             frontier_marker_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("frontiers", 1);
+            explore_plan_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("explore_plan", 1);
         }
     }
 
@@ -71,16 +84,22 @@ namespace explore {
         );
 
         costmap_client_ = std::make_shared<Costmap2DClient>(this->shared_from_this(), &tf_buffer_);
-
-        //
         warm_up_client_ = std::make_shared<WarmUpClient>(this->shared_from_this());
 
         // initialize frontier search
         frontier_search_ = std::make_shared<FrontierSearch>(
-            costmap_client_->GetCostmap(),
+            costmap_client_->GetMap(),
             potential_scale_,
             gain_scale_,
             min_frontier_size_
+        );
+
+        // initialize planner
+        planner_ = std::make_shared<ThetaStarPlanner>(
+            costmap_client_->GetCostmap(),
+            how_many_corners_,
+            w_euc_cost_,
+            w_traversal_cost_
         );
 
         // initialize timer
@@ -125,7 +144,6 @@ namespace explore {
         return result;
     }
 
-
     void Explore::VisualizeFrontiers(const std::vector<Frontier> &frontiers) {
         std_msgs::msg::ColorRGBA blue;
         blue.r = 0;
@@ -165,7 +183,7 @@ namespace explore {
         marker.frame_locked = true;
 
         // frontier cells
-        for (const auto &frontier : frontiers) {
+        for (const auto &frontier: frontiers) {
             marker.id = id;
             marker.type = visualization_msgs::msg::Marker::POINTS;
 
@@ -184,7 +202,7 @@ namespace explore {
             }
 
             // add frontier cell points
-            for (const auto &point : frontier.points) {
+            for (const auto &point: frontier.points) {
                 marker.points.push_back(point);
             }
 
@@ -193,7 +211,7 @@ namespace explore {
         }
 
         // frontier centroids
-        for (const auto &frontier : frontiers) {
+        for (const auto &frontier: frontiers) {
             if (GoalOnBlacklist(frontier.centroid) || GoalOnAbortedList(frontier.centroid)) {
                 continue;
             }
@@ -214,7 +232,7 @@ namespace explore {
         }
 
         // aborted list and black list
-        for (const auto &point : frontier_blacklist_) {
+        for (const auto &point: frontier_blacklist_) {
             marker.id = id;
             marker.type = visualization_msgs::msg::Marker::SPHERE;
 
@@ -229,7 +247,7 @@ namespace explore {
             id++;
         }
 
-        for (const auto &point : frontier_aborted_list_) {
+        for (const auto &point: frontier_aborted_list_) {
             marker.id = id;
             marker.type = visualization_msgs::msg::Marker::SPHERE;
 
@@ -270,6 +288,51 @@ namespace explore {
         frontier_marker_publisher_->publish(markers_msg);
     }
 
+    void Explore::VisualizePlans(const std::vector<GoalInfo> &plans) {
+        visualization_msgs::msg::MarkerArray markers_msg;
+        int id = 0;
+
+        visualization_msgs::msg::Marker marker;
+        marker.header.frame_id = "map";
+        marker.header.stamp = this->now();
+        marker.ns = "explore_plan";
+        marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+        marker.action = visualization_msgs::msg::Marker::ADD;
+        marker.lifetime = rclcpp::Duration::from_seconds(0);
+        marker.frame_locked = true;
+
+        marker.scale.x = 0.05;
+        marker.color.r = 1.0;
+        marker.color.g = 1.0;
+        marker.color.b = 0.0;
+        marker.color.a = 1.0;
+
+        for (const auto &goal_info: plans) {
+            marker.id = id;
+
+            for (const auto &pose: goal_info.path.poses) {
+                marker.points.push_back(pose.pose.position);
+            }
+
+            markers_msg.markers.push_back(marker);
+            id++;
+        }
+
+        size_t current_markers_count = markers_msg.markers.size();
+
+        // delete previous markers, which are now unused
+        for (; id < last_plans_count_; id++) {
+            marker.action = visualization_msgs::msg::Marker::DELETE;
+            marker.id = int(id);
+            markers_msg.markers.push_back(marker);
+        }
+
+        last_plans_count_ = current_markers_count;
+
+        explore_plan_publisher_->publish(markers_msg);
+    }
+
+
     void Explore::MakePlan() {
         if (state_ == ExplorationState::COMPLETE) {
             RCL_LOG_INFO(get_logger(), "Exploring completed!");
@@ -292,11 +355,6 @@ namespace explore {
         auto current_robot_pose = costmap_client_->GetTFRobotPose();
         std::vector<Frontier> frontiers = frontier_search_->SearchFrom(current_robot_pose.position);
 
-        // publish frontiers for rviz
-        if (visualize_) {
-            VisualizeFrontiers(frontiers);
-        }
-
         // update warm up client's frontier data
         warm_up_client_->UpdateFrontiers(frontiers);
 
@@ -313,6 +371,7 @@ namespace explore {
         }
 
         // remove frontier if in aborted list or black list
+        AdjustAbortedList(frontiers);
         frontiers.erase(
             std::remove_if(frontiers.begin(), frontiers.end(), [&](const Frontier &f) {
                 return GoalOnBlacklist(f.centroid) || GoalOnAbortedList(f.centroid);
@@ -320,12 +379,38 @@ namespace explore {
             frontiers.end()
         );
 
-        // check frontier list is empty
-        geometry_msgs::msg::Point target_position;
+        // publish frontiers for rviz
+        if (visualize_) {
+            VisualizeFrontiers(frontiers);
+        }
+
+        // check frontiers empty and set goal candidates
+        std::vector<geometry_msgs::msg::PoseStamped> goal_candidates;
         if (frontiers.empty()) {
-            // if frontier is not found and aborted list exist, set target position
+            // if frontier is empty and aborted list exist, set goal candidates from aborted list
             if (!frontier_aborted_list_.empty()) {
-                target_position = GetNearestPoint(frontier_aborted_list_, current_robot_pose);
+                // sort aborted list to nearest current robot pose
+                std::sort(
+                    frontier_aborted_list_.begin(), frontier_aborted_list_.end(),
+                    [this, current_robot_pose](const geometry_msgs::msg::Point &p1, const geometry_msgs::msg::Point &p2) {
+                        double distance1 = GetDistance(p1.x, p1.y, current_robot_pose.position.x, current_robot_pose.position.y);
+                        double distance2 = GetDistance(p2.x, p2.y, current_robot_pose.position.x, current_robot_pose.position.y);
+
+                        return distance1 < distance2;
+                    }
+                );
+
+                // setup goal candidates
+                size_t candidates_size = std::min(max_planning_size_, static_cast<int>(frontier_aborted_list_.size()));
+                for (int i = 0; i < candidates_size; i++) {
+                    geometry_msgs::msg::PoseStamped pose_stamped;
+                    pose_stamped.header.frame_id = costmap_client_->GetGlobalFrameID();
+                    pose_stamped.header.stamp = this->now();
+                    pose_stamped.pose.position = frontier_aborted_list_[i];
+                    pose_stamped.pose.orientation.w = 1.0;
+
+                    goal_candidates.push_back(pose_stamped);
+                }
             } else {
                 empty_frontier_count_++;
                 RCL_LOG_INFO(this->get_logger(), "No frontier found: %d", empty_frontier_count_);
@@ -344,35 +429,67 @@ namespace explore {
                 return;
             }
         } else {
-            target_position = frontiers[0].centroid;
-            empty_frontier_count_ = 0;
+            // setup goal candidates
+            size_t candidates_size = std::min(max_planning_size_, static_cast<int>(frontiers.size()));
+            for (int i = 0; i < candidates_size; i++) {
+                geometry_msgs::msg::PoseStamped pose_stamped;
+                pose_stamped.header.frame_id = costmap_client_->GetGlobalFrameID();
+                pose_stamped.header.stamp = this->now();
+                pose_stamped.pose.position = frontiers[i].centroid;
+                pose_stamped.pose.orientation.w = 1.0;
+
+                goal_candidates.push_back(pose_stamped);
+            }
         }
 
-        // if robot is not driving, send new goal
+        // create path and sort
+        std::vector<GoalInfo> goal_infos;
+        for (const geometry_msgs::msg::PoseStamped &goal: goal_candidates) {
+            geometry_msgs::msg::PoseStamped robot_pose;
+            robot_pose.header.frame_id = costmap_client_->GetGlobalFrameID();
+            robot_pose.header.stamp = this->now();
+            robot_pose.pose = current_robot_pose;
+
+            nav_msgs::msg::Path path = planner_->create_plan(robot_pose, goal);
+            goal_infos.push_back(GoalInfo{goal, path});
+        }
+        std::sort(goal_infos.begin(), goal_infos.end(), [](const GoalInfo &a, const GoalInfo &b) {
+            if (a.path.poses.empty() && !b.path.poses.empty()) return false;
+            if (!a.path.poses.empty() && b.path.poses.empty()) return true;
+            return a.path.poses.size() < b.path.poses.size();
+        });
+
+        if (visualize_) {
+            VisualizePlans(goal_infos);
+        }
+
+        // send goal
+        auto target_goal = goal_infos[0].pose_stamped;
         if (state_ != ExplorationState::SEND_GOAL && state_ != ExplorationState::MOVING_TO_GOAL) {
-            // update exploration state
-            current_goal_ = target_position;
+            // update current goal and state
+            current_goal_ = target_goal.pose.position;
             UpdateExplorationState(ExplorationState::SEND_GOAL);
 
             // sending goal
-            nav_to_pose_client_->async_cancel_all_goals(
-                [this, target_position](const NavCancelResponse::SharedPtr &response) {
+            nav_to_pose_client_->async_cancel_all_goals([this, target_goal](const NavCancelResponse::SharedPtr &response) {
                     auto goal = nav2_msgs::action::NavigateToPose::Goal();
-                    goal.pose.pose.position = target_position;
-                    goal.pose.pose.orientation.w = 1.;
-                    goal.pose.header.frame_id = costmap_client_->GetGlobalFrameID();
-                    goal.pose.header.stamp = this->now();
+                    goal.pose = target_goal;
 
-                    RCL_LOG_INFO(get_logger(), "Send Goal x: %f, y: %f", goal.pose.pose.position.x,goal.pose.pose.position.y);
+                    RCL_LOG_INFO(get_logger(), "Send Goal x: %f, y: %f",
+                                 goal.pose.pose.position.x, goal.pose.pose.position.y);
                     auto send_goal_options = rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SendGoalOptions();
-                    send_goal_options.feedback_callback = std::bind(&Explore::NavFeedbackCallback, this,std::placeholders::_1, std::placeholders::_2);
-                    send_goal_options.result_callback = [this,target_position](const NavGoalHandle::WrappedResult &result) {
-                        ReachedGoal(result, target_position);
+                    send_goal_options.feedback_callback = std::bind(
+                        &Explore::NavFeedbackCallback, this,
+                        std::placeholders::_1, std::placeholders::_2
+                    );
+                    send_goal_options.result_callback = [this,target_goal](const NavGoalHandle::WrappedResult &result) {
+                        ReachedGoal(result, target_goal.pose.position);
                     };
                     nav_to_pose_client_->async_send_goal(goal, send_goal_options);
 
                     last_progress_ = this->now();
-                });
+                }
+            );
         }
     }
 
@@ -392,7 +509,7 @@ namespace explore {
 
     bool Explore::GoalOnAbortedList(const geometry_msgs::msg::Point &goal) {
         constexpr static size_t tolerace = 5;
-        nav2_costmap_2d::Costmap2D *costmap2d = costmap_client_->GetCostmap();
+        nav2_costmap_2d::Costmap2D *costmap2d = costmap_client_->GetMap();
         double ref_value = tolerace * costmap2d->getResolution();
 
         // check if a goal is on the blacklist for goals that we're pursuing
@@ -409,7 +526,7 @@ namespace explore {
 
     bool Explore::GoalOnBlacklist(const geometry_msgs::msg::Point &goal) {
         constexpr static size_t tolerace = 5;
-        nav2_costmap_2d::Costmap2D *costmap2d = costmap_client_->GetCostmap();
+        nav2_costmap_2d::Costmap2D *costmap2d = costmap_client_->GetMap();
         double ref_value = tolerace * costmap2d->getResolution();
 
         // check if a goal is on the blacklist for goals that we're pursuing
@@ -424,10 +541,24 @@ namespace explore {
         return false;
     }
 
-    void Explore::NavFeedbackCallback(
-        NavGoalHandle::SharedPtr,
-        const std::shared_ptr<const NavAction::Feedback> feedback
-    ) {
+    void Explore::AdjustAbortedList(const std::vector<Frontier> &frontiers) {
+        std::vector<geometry_msgs::msg::Point> new_aborted_list;
+
+        for (const auto &frontier: frontiers) {
+            if (GoalOnAbortedList(frontier.centroid) && !GoalOnBlacklist(frontier.centroid)) {
+                new_aborted_list.push_back(frontier.centroid);
+            }
+        }
+
+        frontier_aborted_list_ = new_aborted_list;
+    }
+
+    double Explore::GetDistance(double x1, double y1, double x2, double y2) {
+        return std::sqrt(std::pow(x2 - x1, 2) + std::pow(y2 - y1, 2));
+    }
+
+
+    void Explore::NavFeedbackCallback(NavGoalHandle::SharedPtr, const std::shared_ptr<const NavAction::Feedback> feedback) {
         UpdateExplorationState(ExplorationState::MOVING_TO_GOAL);
         double current_distance = feedback->distance_remaining;
 
@@ -452,7 +583,6 @@ namespace explore {
                 frontier_aborted_list_.push_back(current_goal_);
             }
         }
-
     }
 
 

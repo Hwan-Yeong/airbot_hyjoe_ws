@@ -54,6 +54,7 @@ add_definitions(${PCL_DEFINITIONS})
 # Source files
 set(src_files 
 	src/perception_node.cpp
+	src/climb_checker.cpp
 	src/filter/filter.cpp
 	src/filter/filter_factory.cpp
 )

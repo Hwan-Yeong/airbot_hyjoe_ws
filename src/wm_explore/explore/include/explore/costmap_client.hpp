@@ -47,6 +47,26 @@ namespace explore {
          *
          * This pointer will stay the same for the lifetime of Costmap2DClient object.
          */
+        nav2_costmap_2d::Costmap2D *GetMap() {
+            return &map_;
+        }
+
+        /**
+         * @brief Return a pointer to the "master" costmap which receives updates from
+         * all the layers.
+         *
+         * This pointer will stay the same for the lifetime of Costmap2DClient object.
+         */
+        const nav2_costmap_2d::Costmap2D *GetMap() const {
+            return &map_;
+        }
+
+        /**
+         * @brief Return a pointer to the "master" costmap which receives updates from
+         * all the layers.
+         *
+         * This pointer will stay the same for the lifetime of Costmap2DClient object.
+         */
         nav2_costmap_2d::Costmap2D *GetCostmap() {
             return &costmap_;
         }
@@ -82,8 +102,9 @@ namespace explore {
     protected:
         void UpdateFullMap(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
 
-        void UpdatePartialMap(const map_msgs::msg::OccupancyGridUpdate::SharedPtr msg);
+        void UpdateFullCostMap(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
 
+        nav2_costmap_2d::Costmap2D map_;
         nav2_costmap_2d::Costmap2D costmap_;
         bool costmap_received_ = false;
 
@@ -95,8 +116,10 @@ namespace explore {
 
     private:
         // will be unsubscribed at destruction
+        rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
         rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr costmap_sub_;
-        rclcpp::Subscription<map_msgs::msg::OccupancyGridUpdate>::SharedPtr costmap_updates_sub_;
+        // rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr costmap_sub_;
+        // rclcpp::Subscription<map_msgs::msg::OccupancyGridUpdate>::SharedPtr costmap_updates_sub_;
         rclcpp::CallbackGroup::SharedPtr cbg_costmap_;
     };
 } // namespace explore

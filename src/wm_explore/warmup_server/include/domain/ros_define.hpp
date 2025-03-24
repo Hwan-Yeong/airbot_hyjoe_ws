@@ -27,7 +27,9 @@ namespace explore {
     enum class CodeWarmupStatus : int {
         kCancel = 0,
         kSuccess = 1,
-        kSensorFail = 2
+        kSensorFail = 2,
+        kMoveFail =3,
+        kResutlUnkwnon = 4
     };
     enum class CodeWarmupResult : bool {
         kSuccess = true,

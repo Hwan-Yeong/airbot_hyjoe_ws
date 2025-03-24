@@ -79,6 +79,10 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
+install(DIRECTORY config
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 # Install targets (adjust DESTINATION paths if necessary)
 install(TARGETS
 state_manager

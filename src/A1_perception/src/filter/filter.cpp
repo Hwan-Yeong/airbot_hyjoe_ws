@@ -7,11 +7,11 @@
 #include <pcl/point_types.h>
 #include <pcl/search/kdtree.h>
 #include <pcl/segmentation/extract_polygonal_prism_data.h>
-#include <tf2_eigen/tf2_eigen.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <yaml-cpp/yaml.h>
 #include <Eigen/Dense>
 #include <pcl/segmentation/impl/extract_polygonal_prism_data.hpp>
+#include <tf2_eigen/tf2_eigen.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include "motor_status.hpp"
 
 #include "filter/filter_factory.hpp"
@@ -122,8 +122,7 @@ LayerVector DensityFilter::updateImpl(LayerVector layer_vector)
     }
     if (unified_cloud.empty())
     {
-        RCLCPP_DEBUG(
-            this->node_ptr->get_logger(), "%s():%d:  DensityFilter: unified_cloud is empty.", __FUNCTION__, __LINE__);
+        RCLCPP_DEBUG(this->node_ptr->get_logger(), "DensityFilter: unified_cloud is empty.");
         return layer_vector;
     }
 
@@ -191,9 +190,7 @@ LayerVector DensityFilter::updateImpl(LayerVector layer_vector)
 
     RCLCPP_DEBUG(
         this->node_ptr->get_logger(),
-        "%s():%d: DensityFilter: %ld points are removed.",
-        __FUNCTION__,
-        __LINE__,
+        "DensityFilter: %ld points are removed.",
         std::count(removed.begin(), removed.end(), true));
 
     // 각 레이어별 새로운 클라우드를 생성합니다.
@@ -282,7 +279,7 @@ SectorRoIFilter::SectorRoIFilter(std::shared_ptr<PerceptionNode> node_ptr_, cons
 {
     this->min_range = getYamlValue<float>(__FUNCTION__, config, "min_range", 0.3);
     this->max_range = getYamlValue<float>(__FUNCTION__, config, "max_range", 1.0);
-    this->min_angle = getYamlValue<float>(__FUNCTION__, config, "max_angle", -50.3) * M_PI / 180.0;
+    this->min_angle = getYamlValue<float>(__FUNCTION__, config, "min_angle", -50.3) * M_PI / 180.0;
     this->max_angle = getYamlValue<float>(__FUNCTION__, config, "max_angle", 50.3) * M_PI / 180.0;
 }
 
@@ -363,9 +360,7 @@ LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
                         node->sendActionStop(1);
                         RCLCPP_INFO(
                             node->get_logger(),
-                            "%s:%d: Detect drop off area. (x: %f, y: %f, dist: %f)",
-                            __FUNCTION__,
-                            __LINE__,
+                            "Detect drop off area. (x: %f, y: %f, dist: %f)",
                             point_global.x,
                             point_global.y,
                             distance);
@@ -386,6 +381,9 @@ OneDTofFilter::OneDTofFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YA
     this->layer_vector_size = 0;
     this->line_length = getYamlValue<float>(__FUNCTION__, config, "line_length", 0.05);
     this->resolution = getYamlValue<float>(__FUNCTION__, config, "resolution", 0.05);
+
+    auto lidar_wall_check_threshold = getYamlValue<float>(__FUNCTION__, config, "lidar_wall_check_threshold", 0.05);
+    this->lidar_wall_check_threshold_sqr = lidar_wall_check_threshold * lidar_wall_check_threshold;
 }
 
 LayerVector OneDTofFilter::updateImpl(LayerVector layer_vector)
@@ -403,6 +401,34 @@ LayerVector OneDTofFilter::updateImpl(LayerVector layer_vector)
     double resolution = this->resolution;
     MotorStatus motor_status = node->getMotorStatus();
 
+    geometry_msgs::msg::Transform transform_msg;
+    tf2::toMsg(position.getTransform().inverse(), transform_msg);
+    Eigen::Affine3f inverse_transform = tf2::transformToEigen(transform_msg).cast<float>();
+
+    // lidar check
+    Layer lidar_pc = node->getSensorLayer("lidar_pc_baselink");
+    for (auto& layer : layer_vector)
+    {
+        if (layer.cloud.size() != 1)
+        {
+            continue;
+        }
+        Layer layer_base_link;
+        pcl::transformPointCloud(layer.cloud, layer_base_link.cloud, inverse_transform);
+        auto one_d_point = layer_base_link.cloud[0];
+        for (const auto& lidar_point : lidar_pc.cloud)
+        {
+            auto dist_sqr = (lidar_point.x - one_d_point.x) * (lidar_point.x - one_d_point.x) +
+                            (lidar_point.y - one_d_point.y) * (lidar_point.y - one_d_point.y);
+
+            if (dist_sqr < this->lidar_wall_check_threshold_sqr)
+            {
+                layer.cloud.clear();
+                break;
+            }
+        }
+    }
+
     for (auto it = layer_vector.begin(); it != layer_vector.end();)
     {
         if (it->cloud.size() == 0)
@@ -414,22 +440,33 @@ LayerVector OneDTofFilter::updateImpl(LayerVector layer_vector)
             ++it;
         }
     }
+
+    bool robot_back_flag = false;
     const int layer_size = layer_vector.size();
     if (layer_size > 0)
     {
         auto now = this->getNodePtr()->now();
         auto& last_layer = *layer_vector.rbegin();
+
         rclcpp::Duration diff = now - last_layer.timestamp;
         if (last_layer.cloud.size() == 1 && diff.seconds() < 0.01)
         {
+            Layer layer_base_link;
+            pcl::transformPointCloud(last_layer.cloud, layer_base_link.cloud, inverse_transform);
+            auto one_d_point = layer_base_link.cloud[0];
+            auto dist = std::sqrt(one_d_point.x * one_d_point.x + one_d_point.y * one_d_point.y);
+
             auto it = last_layer.cloud.begin();
             pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-
             pcl::PointXY point_global{it->x, it->y};
             auto line_layer = Layer();
             double start_x = point_global.x - orthogonal_x * length;
             double start_y = point_global.y - orthogonal_y * length;
-
+            RCLCPP_INFO(node->get_logger(), "1D ToF detected. Dist : %f", dist);
+            if (dist <= 0.33)
+            {
+                robot_back_flag = true;
+            }
             for (double t = 0; t <= length * 2; t += resolution)
             {
                 pcl::PointXYZ new_point;
@@ -444,11 +481,11 @@ LayerVector OneDTofFilter::updateImpl(LayerVector layer_vector)
 
     if (this->layer_vector_size < layer_size)
     {
-        if (motor_status.isMoveToFoward() || motor_status.isRotate())
+        if (robot_back_flag && (motor_status.isMoveToFoward() || motor_status.isRotate()))
         {
             // 2 -> One_D_TOF STOP
             node->sendActionStop(2);
-            RCLCPP_INFO(node->get_logger(), "%s:%d: 1D ToF detected. Request move to back.", __FUNCTION__, __LINE__);
+            RCLCPP_INFO(node->get_logger(), "1D ToF detected. Request move to back.");
         }
     }
     this->layer_vector_size = layer_size;
@@ -509,6 +546,57 @@ LayerVector DistCheckFilter::updateImpl(LayerVector layer_vector)
         }
     }
 
+    return layer_vector;
+}
+
+CollisionFilter::CollisionFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config)
+    : BaseFilter(node_ptr_)
+{
+    this->line_length = getYamlValue<float>(__FUNCTION__, config, "line_length", 0.05);
+    this->resolution = getYamlValue<float>(__FUNCTION__, config, "resolution", 0.05);
+}
+
+LayerVector CollisionFilter::updateImpl(LayerVector layer_vector)
+{
+    // coordinate transform
+    auto node = this->getNodePtr();
+    node->setSensorLayerMap("collision", Layer());
+    // int cloud_size_sum = 0;
+    auto position = node->getPosition();
+    double heading_x = cos(position.yaw);
+    double heading_y = sin(position.yaw);
+
+    double orthogonal_x = -heading_y;
+    double orthogonal_y = heading_x;
+    double length = this->line_length;
+    double resolution = this->resolution;
+    MotorStatus motor_status = node->getMotorStatus();
+
+    const int layer_size = layer_vector.size();
+    if (layer_size > 0)
+    {
+        auto& last_layer = *layer_vector.rbegin();
+        if (last_layer.cloud.size() == 1)
+        {
+            auto it = last_layer.cloud.begin();
+            pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+            pcl::PointXY point_global{it->x, it->y};
+            auto line_layer = Layer();
+            double start_x = point_global.x - orthogonal_x * length;
+            double start_y = point_global.y - orthogonal_y * length;
+
+            for (double t = 0; t <= length * 2; t += resolution)
+            {
+                pcl::PointXYZ new_point;
+                new_point.x = start_x + orthogonal_x * t;
+                new_point.y = start_y + orthogonal_y * t;
+                new_point.z = 0.0;
+                cloud->points.push_back(new_point);
+            }
+            last_layer.cloud.insert(last_layer.cloud.end(), cloud->begin(), cloud->end());
+        }
+    }
     return layer_vector;
 }
 }  // namespace A1::perception

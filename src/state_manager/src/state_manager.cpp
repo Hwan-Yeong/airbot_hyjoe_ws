@@ -33,10 +33,6 @@ StateManager::StateManager() : Node("state_manager") {
   soc_cmd_sub_ = this->create_subscription<std_msgs::msg::UInt8>("/soc_cmd", 10, std::bind(&StateManager::handleSoCCMD, this, std::placeholders::_1));
   error_list_sub_ = this->create_subscription<robot_custom_msgs::msg::ErrorListArray>("/error_list", 10, std::bind(&StateManager::handleError, this, std::placeholders::_1));
 
-  robot_state_pub_ = this->create_publisher<robot_custom_msgs::msg::RobotState>("/state_datas", 10);
-  node_status_pub_ = this->create_publisher<std_msgs::msg::UInt8>("/node_status", 10);
-  navi_state_pub_ = this->create_publisher<robot_custom_msgs::msg::NaviState>("/navi_datas", 10);
-
   timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&StateManager::runCurrentState, this));
   RCLCPP_INFO(this->get_logger(), "[StateManager] Node initialized.");
 }
@@ -74,192 +70,231 @@ void StateManager::setState(ROBOT_STATE state_id, ROBOT_STATUS status_id, const 
 void StateManager::checkTransition( const state_cmd &cmd_ids )
 {
   // TRANSITION BY SOC COMMAND
-  if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::START_AUTO_MAPPING) {
-    if (getCurrentStateID() == ROBOT_STATE::IDLE) {
-      setState(ROBOT_STATE::AUTO_MAPPING, ROBOT_STATUS::START, cmd_ids);
-    } else if (getCurrentStateID() == ROBOT_STATE::ONSTATION) {
+  switch (cmd_ids.soc_cmd) {
+  case REQUEST_SOC_CMD::VOID:
+    RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
+    break;
+  case REQUEST_SOC_CMD::START_AUTO_MAPPING:
+    switch( getCurrentStateID() ){
+    case ROBOT_STATE::IDLE:
+      setState(ROBOT_STATE::AUTO_MAPPING, ROBOT_STATUS::READY, cmd_ids);
+      break;
+    case ROBOT_STATE::ONSTATION:
       setState(ROBOT_STATE::UNDOCKING, ROBOT_STATUS::READY, cmd_ids);
-    } else {
-      // fail - abort command
+      break;
+    default:
+      RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
+      break;    
     }
-  } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::START_MANUAL_MAPPING) {
-    if (getCurrentStateID() == ROBOT_STATE::IDLE) {
-      setState(ROBOT_STATE::MANUAL_MAPPING, ROBOT_STATUS::START, cmd_ids);
-    } else if (getCurrentStateID() == ROBOT_STATE::ONSTATION) {
+    break;
+  case REQUEST_SOC_CMD::START_MANUAL_MAPPING:
+    switch( getCurrentStateID() ){
+    case ROBOT_STATE::IDLE:
+      setState(ROBOT_STATE::MANUAL_MAPPING, ROBOT_STATUS::READY, cmd_ids);
+      break;
+    case ROBOT_STATE::ONSTATION:
       setState(ROBOT_STATE::UNDOCKING, ROBOT_STATUS::READY, cmd_ids);
-    } else {
-      // fail - abort command
+      break;
+    default:
+      RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
+      break;
     }
-  } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::START_NAVIGATION) {
-    if (getCurrentStateID() == ROBOT_STATE::IDLE) {
+    break;
+  case REQUEST_SOC_CMD::START_NAVIGATION:
+    switch( getCurrentStateID() ){
+    case ROBOT_STATE::IDLE:
+    case ROBOT_STATE::NAVIGATION:
+    case ROBOT_STATE::RETURN_CHARGER:
+    case ROBOT_STATE::DOCKING:
       setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
-    } else if (getCurrentStateID() == ROBOT_STATE::ONSTATION) {
+      break;
+    case ROBOT_STATE::ONSTATION:
       setState(ROBOT_STATE::UNDOCKING, ROBOT_STATUS::READY, cmd_ids);
-    } else if (getCurrentStateID() == ROBOT_STATE::NAVIGATION) {
-      setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
-    } else if (getCurrentStateID() == ROBOT_STATE::RETURN_CHARGER) {
-      setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
-    } else if (getCurrentStateID() == ROBOT_STATE::DOCKING) {
-      setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
-    } else {
-      // fail - abort command
+      break;
+    default:
+      RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
+      break;
     }
-  } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::START_RETURN_CHARGER) {
-    if (getCurrentStateID() == ROBOT_STATE::IDLE) {
+    break;
+  case REQUEST_SOC_CMD::START_RETURN_CHARGER:
+    switch( getCurrentStateID() ){
+    case ROBOT_STATE::IDLE:
+    case ROBOT_STATE::UNDOCKING:
+    case ROBOT_STATE::AUTO_MAPPING:
+    case ROBOT_STATE::MANUAL_MAPPING:
+    case ROBOT_STATE::NAVIGATION:
+    case ROBOT_STATE::FACTORY_NAVIGATION:
+    case ROBOT_STATE::DOCKING:
       setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::READY, cmd_ids);
-    } else if (getCurrentStateID() == ROBOT_STATE::AUTO_MAPPING) {
-      setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::READY, cmd_ids);
-    } else if (getCurrentStateID() == ROBOT_STATE::MANUAL_MAPPING) {
-      setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::READY, cmd_ids);
-    } else if (getCurrentStateID() == ROBOT_STATE::NAVIGATION) {
-      setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::READY, cmd_ids);
-    } else {
-      // fail - abort command
+      break;
+    default:
+      RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible -> Robot already return_charger or onstation");
+      break;
     }
-  } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::START_DOCKING) {
-    if (getCurrentStateID() == ROBOT_STATE::IDLE) {
+    break;
+  case REQUEST_SOC_CMD::START_DOCKING:
+    switch( getCurrentStateID() ){
+    case ROBOT_STATE::IDLE:
+    case ROBOT_STATE::UNDOCKING:
+    case ROBOT_STATE::AUTO_MAPPING:
+    case ROBOT_STATE::MANUAL_MAPPING:
+    case ROBOT_STATE::NAVIGATION:
+    case ROBOT_STATE::FACTORY_NAVIGATION:
+    case ROBOT_STATE::DOCKING:
+    case ROBOT_STATE::RETURN_CHARGER:
       setState(ROBOT_STATE::DOCKING, ROBOT_STATUS::START, cmd_ids);
-    } else if (getCurrentStateID() == ROBOT_STATE::AUTO_MAPPING) {
-      setState(ROBOT_STATE::DOCKING, ROBOT_STATUS::START, cmd_ids);
-    } else if (getCurrentStateID() == ROBOT_STATE::MANUAL_MAPPING) {
-      setState(ROBOT_STATE::DOCKING, ROBOT_STATUS::START, cmd_ids);
-    } else if (getCurrentStateID() == ROBOT_STATE::NAVIGATION) {
-      setState(ROBOT_STATE::DOCKING, ROBOT_STATUS::START, cmd_ids);
-    } else if (getCurrentStateID() == ROBOT_STATE::RETURN_CHARGER) {
-      setState(ROBOT_STATE::DOCKING, ROBOT_STATUS::START, cmd_ids);
-    } else {
-      // fail - abort command
+      break;
+    default:
+      RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible -> Robot already return_charger or onstation");
+      break;
     }
-  } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::START_CHARGING) {
-    if (getCurrentStateID() == ROBOT_STATE::ONSTATION) {
-      setState(ROBOT_STATE::DOCKING, ROBOT_STATUS::START, cmd_ids);
-    } else {
-      // fail - abort command
-    }
-  } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::STOP_CHARGING) {
-    if (getCurrentStateID() == ROBOT_STATE::ONSTATION) {
-      setState(ROBOT_STATE::DOCKING, ROBOT_STATUS::START, cmd_ids);
-    } else {
-      // fail - abort command
-    }
-  } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::STOP_AUTO_MAPPING) {
-    if (getCurrentStateID() == ROBOT_STATE::AUTO_MAPPING) {
-      setState(ROBOT_STATE::IDLE, ROBOT_STATUS::START, cmd_ids);
-    } else {
-      // fail - abort command
-    }
-  } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::STOP_MANUAL_MAPPING || cmd_ids.soc_cmd == REQUEST_SOC_CMD::STOP_AUTO_MAPPING) {
-    if (getCurrentStateID() == ROBOT_STATE::MANUAL_MAPPING) {
-      setState(ROBOT_STATE::IDLE, ROBOT_STATUS::START, cmd_ids);
-    } else {
-      // fail - abort command
-    }
-  } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::PAUSE_NAVIGATION) {
-    if (getCurrentStateID() == ROBOT_STATE::NAVIGATION) {
+    break;
+  case REQUEST_SOC_CMD::START_CHARGING:
+    RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
+    break;
+  case REQUEST_SOC_CMD::PAUSE_NAVIGATION:
+    switch( getCurrentStateID() ){
+    case ROBOT_STATE::NAVIGATION:
       setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::PAUSE, cmd_ids);
-    } else {
-      // fail - abort command
+      break;
+    case ROBOT_STATE::RETURN_CHARGER:
+      setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::PAUSE, cmd_ids);
+      break;
+    case ROBOT_STATE::FACTORY_NAVIGATION:
+      setState(ROBOT_STATE::FACTORY_NAVIGATION, ROBOT_STATUS::PAUSE, cmd_ids);
+      break;
+    default:
+      RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible -> cannot pause");
+      break;
     }
-  } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::RESUME_NAVIGATION) {
-    if (getCurrentStateID() == ROBOT_STATE::NAVIGATION) {
+    break;
+  case REQUEST_SOC_CMD::RESUME_NAVIGATION:
+    switch( getCurrentStateID() ){
+    case ROBOT_STATE::NAVIGATION:
       setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::START, cmd_ids);
-    } else {
-      // fail - abort command
+      break;
+    case ROBOT_STATE::RETURN_CHARGER:
+      setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::START, cmd_ids);
+      break;
+    case ROBOT_STATE::FACTORY_NAVIGATION:
+      setState(ROBOT_STATE::FACTORY_NAVIGATION, ROBOT_STATUS::START, cmd_ids);
+      break;
+    default:
+      RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible -> Robot not paused");
+      break;
     }
-  } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::STOP_NAVIGATION) {
-    if (getCurrentStateID() == ROBOT_STATE::NAVIGATION) {
-      setState(ROBOT_STATE::IDLE, ROBOT_STATUS::START, cmd_ids);
-    } else {
-      // fail - abort command
-    }
-  } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::STOP_RETURN_CHARGER) {
-    if (getCurrentStateID() == ROBOT_STATE::RETURN_CHARGER) {
-      setState(ROBOT_STATE::IDLE, ROBOT_STATUS::START, cmd_ids);
-    } else {
-      // fail - abort command
-    }
-  } else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::STOP_DOCKING) {
-    if (getCurrentStateID() == ROBOT_STATE::DOCKING) {
-      setState(ROBOT_STATE::IDLE, ROBOT_STATUS::START, cmd_ids);
-    } else {
-      // fail - abort command
-    }
-  }
-  else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::START_FACTORY_NAVIGATION) { //reserve code
-    if (getCurrentStateID() == ROBOT_STATE::IDLE) {
+    break;
+  case REQUEST_SOC_CMD::START_FACTORY_NAVIGATION:
+    switch( getCurrentStateID() ){
+    case ROBOT_STATE::IDLE:
       setState(ROBOT_STATE::FACTORY_NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
-    } else {
-      // fail - abort command
+      break;
+    case ROBOT_STATE::ONSTATION:
+      setState(ROBOT_STATE::UNDOCKING, ROBOT_STATUS::READY, cmd_ids);
+      break;
+    default:
+      RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
+      break;    
     }
-  }
-  else if (cmd_ids.soc_cmd == REQUEST_SOC_CMD::STOP_FACTORY_NAVIGATION) { //reserve code
-    if (getCurrentStateID() == ROBOT_STATE::FACTORY_NAVIGATION) {
+    break;
+  case REQUEST_SOC_CMD::STOP_WORKING:
+    switch( getCurrentStateID() ){
+    case ROBOT_STATE::MANUAL_MAPPING:
+    case ROBOT_STATE::AUTO_MAPPING:
+    case ROBOT_STATE::NAVIGATION:
+    case ROBOT_STATE::RETURN_CHARGER:
+    case ROBOT_STATE::DOCKING:
+    case ROBOT_STATE::UNDOCKING:
+    case ROBOT_STATE::ONSTATION:
+    case ROBOT_STATE::FACTORY_NAVIGATION:
       setState(ROBOT_STATE::IDLE, ROBOT_STATUS::START, cmd_ids);
-    } else {
-      // fail - abort command
+      break;
+    default:
+      RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
+      break;    
     }
+    break;
   }
   
   if( pre_cmds.robot_cmd != cmd_ids.robot_cmd) // TRANSITION BY ROBOT COMMAND
   {
-    //cmds.soc_cmd = REQUEST_SOC_CMD::VOID;
-    if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::START_ONSTATION) {
+    switch (cmd_ids.robot_cmd) {
+    case REQUEST_ROBOT_CMD::START_ONSTATION:
       setState(ROBOT_STATE::ONSTATION, ROBOT_STATUS::START, cmd_ids);
-    }  
-    else if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::STOP_ONSTATION) {
+      break;
+    case REQUEST_ROBOT_CMD::STOP_ONSTATION:
       if (getCurrentStateID() == ROBOT_STATE::ONSTATION) {
         setState(ROBOT_STATE::IDLE, ROBOT_STATUS::START, cmd_ids);
       } else {
-        // fail - abort command
+        RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
       }
-    } else if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_AUTO_MAPPING) {
+      break;
+    case REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_AUTO_MAPPING:
       if (getCurrentStateID() == ROBOT_STATE::UNDOCKING) {
-        setState(ROBOT_STATE::AUTO_MAPPING, ROBOT_STATUS::START, cmd_ids);
+        setState(ROBOT_STATE::AUTO_MAPPING, ROBOT_STATUS::READY, cmd_ids);
       } else {
-        // fail - abort command
+        RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
       }
-    } else if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_MANUAL_MAPPING) {
+      break;
+    case REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_MANUAL_MAPPING:
       if (getCurrentStateID() == ROBOT_STATE::UNDOCKING) {
-        setState(ROBOT_STATE::MANUAL_MAPPING, ROBOT_STATUS::START, cmd_ids);
+        setState(ROBOT_STATE::MANUAL_MAPPING, ROBOT_STATUS::READY, cmd_ids);
       } else {
-        // fail - abort command
+        RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
       }
-    } else if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_NAVIGATION) {
+      break;
+    case REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_NAVIGATION:
       if (getCurrentStateID() == ROBOT_STATE::UNDOCKING) {
         setState(ROBOT_STATE::NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
       } else {
-        // fail - abort command
+        RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
       }
-    } else if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::DONE_AUTO_MAPPING) {
+      break;
+    case REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_FACTORY_NAVIGATION:
+      if (getCurrentStateID() == ROBOT_STATE::UNDOCKING) {
+        setState(ROBOT_STATE::FACTORY_NAVIGATION, ROBOT_STATUS::READY, cmd_ids);
+      } else {
+        RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
+      }
+      break;
+    case REQUEST_ROBOT_CMD::DONE_AUTO_MAPPING:
       if (getCurrentStateID() == ROBOT_STATE::AUTO_MAPPING) {
         setState(ROBOT_STATE::RETURN_CHARGER, ROBOT_STATUS::READY, cmd_ids);
       } else {
-        // fail - abort command
+        RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
       }
-    } else if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::DONE_DOCKING) {
-      if (getCurrentStateID() == ROBOT_STATE::DOCKING) {
-        setState(ROBOT_STATE::ONSTATION, ROBOT_STATUS::START, cmd_ids);
-      } else {
-        // fail - abort command
-      }
-    } else if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::DONE_RETURN_CHARGER) {
-      if (getCurrentStateID() == ROBOT_STATE::RETURN_CHARGER) {
-        setState(ROBOT_STATE::DOCKING, ROBOT_STATUS::START, cmd_ids);
-      } else {
-        // fail - abort command
-      }
-    } else if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::FAIL_RETURN_CHARGER_TRY_DOCKING) {
-      if (getCurrentStateID() == ROBOT_STATE::RETURN_CHARGER) {
-        setState(ROBOT_STATE::DOCKING, ROBOT_STATUS::START, cmd_ids);
-      } else {
-        // fail - abort command
-      }
-    } else if (cmd_ids.robot_cmd == REQUEST_ROBOT_CMD::DONE_MANUAL_MAPPING) {
+      break;
+    case REQUEST_ROBOT_CMD::DONE_MANUAL_MAPPING:
       if (getCurrentStateID() == ROBOT_STATE::MANUAL_MAPPING) {
         setState(ROBOT_STATE::IDLE, ROBOT_STATUS::START, cmd_ids);
       } else {
-        // fail - abort command
+        RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
       }
+      break;
+    case REQUEST_ROBOT_CMD::DONE_DOCKING:
+      if (getCurrentStateID() == ROBOT_STATE::DOCKING) {
+        setState(ROBOT_STATE::ONSTATION, ROBOT_STATUS::START, cmd_ids);
+      } else {
+        RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
+      }
+      break;
+    case REQUEST_ROBOT_CMD::DONE_RETURN_CHARGER:
+      if (getCurrentStateID() == ROBOT_STATE::RETURN_CHARGER) {
+        setState(ROBOT_STATE::DOCKING, ROBOT_STATUS::START, cmd_ids);
+      } else {
+        RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
+      }
+      break;
+    case REQUEST_ROBOT_CMD::FAIL_RETURN_CHARGER_TRY_DOCKING:
+      if (getCurrentStateID() == ROBOT_STATE::RETURN_CHARGER) {
+        setState(ROBOT_STATE::DOCKING, ROBOT_STATUS::START, cmd_ids);
+      } else {
+        RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
+      }
+      break;  
+    default:
+      RCLCPP_ERROR(this->get_logger(), "[StateManager] Scenario is not possible");
+      break;
     }
   }
   pre_cmds = cmd_ids;
@@ -332,21 +367,6 @@ void StateManager::runCurrentState() {
   try {
     if (current_state_) {
       current_state_->run(state_utils);
-      // send node_status
-      auto req_state_msg = robot_custom_msgs::msg::RobotState();
-      req_state_msg.state = int(state_utils->getStateID());
-      req_state_msg.status = int(state_utils->getStatusID());
-      robot_state_pub_->publish(req_state_msg);
-
-      auto node_status_msg = std_msgs::msg::UInt8();
-      node_status_msg.data = u_int8_t(state_utils->getNodeStatusID());
-      node_status_pub_->publish(node_status_msg);
-
-      // send navi_state
-      auto req_navi_msg = robot_custom_msgs::msg::NaviState();
-      req_navi_msg.state = int(state_utils->getMovingStateID());
-      req_navi_msg.fail_reason = int(state_utils->getMovingFailID());
-      navi_state_pub_->publish(req_navi_msg);
     }
   } catch (const std::exception &e) {
     RCLCPP_ERROR(this->get_logger(), "Exception: %s", e.what());

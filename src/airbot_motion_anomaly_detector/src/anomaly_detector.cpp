@@ -62,7 +62,7 @@ void AnomalyDetector::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg) {
 
 void AnomalyDetector::motorStatusCallback(const robot_custom_msgs::msg::MotorStatus::SharedPtr msg) {
     double motor_current_left = abs(msg->left_motor_current);
-    double motor_current_right = abs(msg->right_motor_current);
+    // double motor_current_right = abs(msg->right_motor_current);
 
     if (cmd_vel_x_ > 0) {
         if (motor_current_left > motor_current_threshold_front_) {
@@ -162,7 +162,7 @@ void AnomalyDetector::publishCollision(bool detected) {
 
     robot_custom_msgs::msg::AbnormalEventData collision_msg;
     collision_msg.timestamp = this->get_clock()->now();
-    collision_msg.event_trigger = true;
+    collision_msg.event_trigger = detected;
     collision_msg.robot_x = robot_pose_x;
     collision_msg.robot_y = robot_pose_y;
     collision_msg.robot_angle = robot_pose_angle;
@@ -172,7 +172,7 @@ void AnomalyDetector::publishCollision(bool detected) {
 void AnomalyDetector::publishSlope(bool detected) {
     robot_custom_msgs::msg::AbnormalEventData slope_msg;
     slope_msg.timestamp = this->get_clock()->now();
-    slope_msg.event_trigger = true;
+    slope_msg.event_trigger = detected;
     slope_msg.robot_x = robot_pose_x;
     slope_msg.robot_y = robot_pose_y;
     slope_msg.robot_angle = robot_pose_angle;

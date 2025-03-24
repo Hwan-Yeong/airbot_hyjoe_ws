@@ -7,15 +7,19 @@
 #include <unordered_map>
 
 #include "rclcpp/rclcpp.hpp"
+#include "robot_custom_msgs/msg/motor_status.hpp"
 #include "sensor_msgs/msg/imu.hpp"
+#include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "std_msgs/msg/empty.hpp"
-#include "yaml-cpp/yaml.h"
+#include "std_msgs/msg/int8.hpp"
 
+#include "climb_checker.hpp"
 #include "filter/filter.hpp"
 #include "layer.hpp"
 #include "motor_status.hpp"
 #include "position.hpp"
+#include "yaml-cpp/yaml.h"
 
 namespace A1::perception
 {
@@ -68,8 +72,6 @@ class PerceptionNode : public rclcpp::Node
     void initPublishers(const YAML::Node& config);
     void initFilters(const YAML::Node& config);
     void initController();
-    void climbCheck();
-    double compute_exponential_weight_moving_average(double prev, double curr);
     void timerCallback();
 
     sensor_msgs::msg::PointCloud2 convertToPointCloud2(const pcl::PointCloud<pcl::PointXYZ>& cloud);
@@ -91,13 +93,7 @@ class PerceptionNode : public rclcpp::Node
     std::unordered_map<std::string, Layer> sensor_layer_map{};
     std::unordered_map<std::string, LayerVector> layers{};
 
-    float climbing_pitch_alpha{};
-    float enable_climbing_threshold{};
-    float disable_climbing_threshold{};
-    float estimated_bias{};
-    int climbing_timeout;
-    rclcpp::Time climbing_time{};
-    bool climb_flag{false};
+    ClimbChecker climb_checker{};
 };
 }  // namespace A1::perception
 

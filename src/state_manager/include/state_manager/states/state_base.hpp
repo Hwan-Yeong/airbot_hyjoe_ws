@@ -12,10 +12,9 @@
 #include <sstream>
 #include <vector>
 
-#include "robot_custom_msgs/msg/navi_state.hpp"
 #include "robot_custom_msgs/msg/position.hpp"
 #include "robot_custom_msgs/msg/station_data.hpp"
-#include "robot_custom_msgs/msg/robot_state.hpp"
+
 
 #include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/twist.hpp"
@@ -56,6 +55,7 @@ struct pose {
 
 struct rotationData
 {
+    bool immediately;
     bool progress;
     uint8_t type;
     double target;

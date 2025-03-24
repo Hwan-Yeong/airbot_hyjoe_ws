@@ -13,6 +13,9 @@ A1_perception:
       one_d_tof:
         topic: "/sensor_to_pointcloud/tof/mono"
         type: "PointCloud2"
+      lidar_pc_baselink:
+        topic: "/scan_merged_pointcloud"
+        type: "PointCloud2"
       multi_tof_left_row1:
         topic: "/sensor_to_pointcloud/tof/multi/left/row_1"
         type: "PointCloud2"
@@ -59,6 +62,7 @@ A1_perception:
                 polygon: [ [0.18, -0.18], [0.18, 0.18], [0,0.18], [0,-0.18]]
               one_d_tof:
                 use_stop: true
+                lidar_wall_check_threshold: 0.10
                 line_length: 0.10
                 resolution: 0.05
       camera_points:

@@ -8,6 +8,7 @@ enum class ACTION_STATE
     BACK,
     FRONT,
     WAIT,
+    DROP_IR,
 };
 
 enum class STOP_STATE
@@ -36,6 +37,9 @@ inline std::string enumToString(ACTION_STATE in)
             break;
         case ACTION_STATE::WAIT:
             out = std::string("WAIT");
+            break;
+        case ACTION_STATE::DROP_IR:
+            out = std::string("DROP_IR");
             break;
     }
     return out;

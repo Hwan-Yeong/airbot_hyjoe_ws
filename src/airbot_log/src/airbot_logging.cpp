@@ -42,7 +42,8 @@ public:
             "/home/airbot/app_rw/log/airbot_log.txt", log_file_size, log_backup_count); 
         logger_ = std::make_shared<spdlog::logger>("ros2_logger", rotating_sink);
         spdlog::set_default_logger(logger_);
-        spdlog::set_level(spdlog::level::debug);        
+        spdlog::set_level(spdlog::level::debug);
+        logger_->flush_on(spdlog::level::info);  // INFO 레벨에서 즉시 파일에 기록
         logger_->set_pattern("%v");  // 메시지만 출력
 
         // /rosout 토픽 구독

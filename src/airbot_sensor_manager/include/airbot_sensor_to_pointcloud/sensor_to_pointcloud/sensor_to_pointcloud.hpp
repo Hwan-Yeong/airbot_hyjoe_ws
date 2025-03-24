@@ -80,6 +80,7 @@ private:
     int publish_cnt_1d_tof_, publish_cnt_multi_tof_, publish_cnt_row_tof_,
         publish_cnt_camera_, publish_cnt_cliff_, publish_cnt_collision_;
     double tilting_ang_1d_tof_;
+    double object_max_distance_;
 
     sensor_msgs::msg::PointCloud2 pc_tof_1d_msg, pc_tof_multi_msg,
         pc_tof_left_row1_msg, pc_tof_left_row2_msg, pc_tof_left_row3_msg, pc_tof_left_row4_msg,

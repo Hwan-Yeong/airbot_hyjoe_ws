@@ -10,11 +10,11 @@
 #define FRONT_REAR_MIN_ANGLE (178.0f * M_PI / 180.0f)
 #define FRONT_REAR_MAX_ANGLE (182.0f * M_PI / 180.0f)
 
-#define LEFT_MIN_ANGLE  (222.0f * M_PI / 180.0f)
-#define LEFT_MAX_ANGLE  (226.0f * M_PI / 180.0f)
+#define LEFT_MIN_ANGLE  (222.0f * M_PI / 180.0f) // CCW 44-2 deg
+#define LEFT_MAX_ANGLE  (226.0f * M_PI / 180.0f) // CCW 44+2 deg
 
-#define RIGHT_MIN_ANGLE (134.0f * M_PI / 180.0f)
-#define RIGHT_MAX_ANGLE (138.0f * M_PI / 180.0f)
+#define RIGHT_MIN_ANGLE (134.0f * M_PI / 180.0f) // CW 44-2 deg
+#define RIGHT_MAX_ANGLE (138.0f * M_PI / 180.0f) // CW 44+2 deg
 
 #define AP_JIG_CHECK_ON_AMR 1 // AMR에서 단품지그 테스트할 때 : 1
 
@@ -31,6 +31,9 @@
 
 #define AI_VERSION_SKIP 0
 #define BOOT_TIME_OUT 30
+
+#define DOCK_START 0x01
+#define DOCK_STOP 0x00
 
 const std::string MapEditFile = "/home/airbot/MapEdit.bin";
 
@@ -64,10 +67,12 @@ UdpCommunication::UdpCommunication() : rclcpp::Node("udp_communication")
     req_soc_cmd_pub_ = this->create_publisher<std_msgs::msg::UInt8>("/soc_cmd", 10);
     e_stop_pub = this->create_publisher<std_msgs::msg::Bool>("/e_stop", 10);
     move_target_pub_ = this->create_publisher<robot_custom_msgs::msg::Position>("/move_target", 10);
+    move_charger_pub_ = this->create_publisher<std_msgs::msg::Empty>("/move_charger", 10);
     move_rotation_pub_ = this->create_publisher<robot_custom_msgs::msg::MoveNRotation>("/move_n_rotation", 10);
     rotation_pub_ = this->create_publisher<robot_custom_msgs::msg::MoveNRotation>("/rotation", 10);
     manual_move_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
     charge_pub = this->create_publisher<std_msgs::msg::UInt8>("/charging_cmd", 10);
+    dock_pub = this->create_publisher<std_msgs::msg::UInt8>("/docking_cmd", 10);
     block_area_pub_ = this->create_publisher<robot_custom_msgs::msg::BlockAreaList>("/block_areas", 10);
     block_wall_pub_ = this->create_publisher<robot_custom_msgs::msg::BlockAreaList>("/block_walls", 10);
     req_version_pub_ = this->create_publisher<std_msgs::msg::UInt8>("/req_version", 1);
@@ -79,7 +84,7 @@ UdpCommunication::UdpCommunication() : rclcpp::Node("udp_communication")
     lidar_cmd_pub_ = this->create_publisher<std_msgs::msg::Bool>("/cmd_lidar", 10);
     tof_cmd_pub_ = this->create_publisher<std_msgs::msg::Bool>("/cmd_tof", 10);
     linelaser_cmd_pub_ = this->create_publisher<std_msgs::msg::Bool>("/cmd_linelaser", 10);
-    batterySleep_cmd_pub_ = this->create_publisher<std_msgs::msg::Bool>("/cmd_battery_sleep", 10);
+    batterySleep_cmd_pub_ = this->create_publisher<std_msgs::msg::Empty>("/cmd_battery_sleep", 10);
     station_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("/station_pose", 1);
     // req_state_pub_ = this->create_publisher<robot_custom_msgs::msg::RobotState>("/request_state", 10);
     //cmd_rpm_pub_ = this->create_publisher<robot_custom_msgs::msg::MotorRpm>("/cmd_rpm", 10);
@@ -87,6 +92,7 @@ UdpCommunication::UdpCommunication() : rclcpp::Node("udp_communication")
     versionTimer_ = this->create_wall_timer( 1000ms, std::bind(&UdpCommunication::publishVersionRequest, this));
     udpTimer_ = this->create_wall_timer(500ms, std::bind(&UdpCommunication::udp_callback, this));
     socAutoSendTimer_ = this->create_wall_timer(1000ms, std::bind(&UdpCommunication::autoSocDataSender, this));
+    sw_version_pub_ = this->create_publisher<std_msgs::msg::String>("/sw_version", 1);
 }
 
 UdpCommunication::~UdpCommunication()
@@ -98,11 +104,9 @@ void UdpCommunication::initializeData()
 {
     initNodeTime = this->now().seconds();
     //init State
-    robotState = ROBOT_STATE::IDLE;
-    robotStatus = ROBOT_STATUS::VOID;
-    movingState = NAVI_STATE::IDLE;
     movefail_reason = NAVI_FAIL_REASON::VOID;
     nodeState = NODE_STATUS::IDLE;
+    bInspectionMode = false;
     //init Version
     std::string iniFile = "/home/airbot/airbot_ws/install/udp_interface/share/udp_interface/launch/config.ini";
     std::string version = readVersionFromIni(iniFile, "info", "version");
@@ -129,11 +133,6 @@ void UdpCommunication::initializeData()
 void UdpCommunication::setCommnicationMode(UDP_COMMUNICATION set)
 {
     if(communicationMode != set){
-        if(set == UDP_COMMUNICATION::INSPECTION){
-            publishSensorOnOff(true);
-        }else{
-            publishSensorOnOff(false);
-        }
         debugLogCommnicationMode(set);
     }
     communicationMode = set;
@@ -150,9 +149,6 @@ void UdpCommunication::debugLogCommnicationMode(UDP_COMMUNICATION set)
     {
     case UDP_COMMUNICATION::NORMAL :
         RCLCPP_INFO(this->get_logger(), "UDP_COMMUNICATION::NORMAL");
-        break;
-    case UDP_COMMUNICATION::INSPECTION :
-        RCLCPP_INFO(this->get_logger(), "UDP_COMMUNICATION::INSPECTION");
         break;
     case UDP_COMMUNICATION::AP_JIG_MODE :
         RCLCPP_INFO(this->get_logger(), "UDP_COMMUNICATION::AP_JIG_MODE");
@@ -175,7 +171,8 @@ void UdpCommunication::setSocRobotPoseData(bool valid, double x, double y, doubl
 
 void UdpCommunication::setSocFrontLidarData(const sensor_msgs::msg::LaserScan::SharedPtr msg)
 {
-    if(robotState != ROBOT_STATE::ONSTATION && msg->ranges.size() <= 0){
+    ROBOT_STATE convert_state = static_cast<ROBOT_STATE>(socData.robotStatus);
+    if(convert_state != ROBOT_STATE::ONSTATION && msg->ranges.size() <= 0){
         RCLCPP_INFO(this->get_logger(), "Front ScanData is Empty!");
     }else{
         std::vector<int> dist_vec;
@@ -186,7 +183,8 @@ void UdpCommunication::setSocFrontLidarData(const sensor_msgs::msg::LaserScan::S
 
 void UdpCommunication::setSocRearLidarData(const sensor_msgs::msg::LaserScan::SharedPtr msg)
 {
-    if(robotState != ROBOT_STATE::ONSTATION && msg->ranges.size() <= 0){
+    ROBOT_STATE convert_state = static_cast<ROBOT_STATE>(socData.robotStatus);
+    if(convert_state != ROBOT_STATE::ONSTATION && msg->ranges.size() <= 0){
         RCLCPP_INFO(this->get_logger(), "Rear ScanData is Empty!");
     }else{
         std::vector<int> dist_vec;
@@ -214,30 +212,22 @@ void UdpCommunication::setSocWheelMotorData(const robot_custom_msgs::msg::MotorS
 
 void UdpCommunication::setSocCameraData(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg)
 {
+    //to-do : data sturture fix : pose
     uint8_t num = msg->num;
     if(num > 0){
 
         ObjectDataV2 temp;
-        #if 0
-        cameraData temp;
-        #endif
         socData.cameraInfo.num = num;
         socData.cameraInfo.data.clear();
         for(int i = 0; i < socData.cameraInfo.num; i++){
             temp.class_id = msg->data_array[i].id;
             temp.confidence = msg->data_array[i].score;
-            temp.height = msg->data_array[i].height;
-            temp.width = msg->data_array[i].width;
-
+            temp.height = msg->data_array[i].height*1000;
+            temp.width = msg->data_array[i].width*1000;
             temp.x = msg->data_array[i].x;
             temp.y = msg->data_array[i].y;
             temp.theta = msg->data_array[i].theta;
-            #if 0
-            temp.position.x = msg->data_array[i].x;
-            temp.position.y = msg->data_array[i].y;
-            temp.position.y = msg->data_array[i].theta;
-            #endif
-            temp.distance = msg->data_array[i].distance;
+            temp.distance = msg->data_array[i].distance*1000;
             socData.cameraInfo.data.push_back(temp);
         }
     }
@@ -250,24 +240,16 @@ void UdpCommunication::setSocLineLaserData(const robot_custom_msgs::msg::LineLas
     if(num  > 0){
 
         LLDataV2 temp;
-        #if 0
-        lineLaserData temp;
-        #endif
         socData.lineLaserInfo.num = num;
         socData.lineLaserInfo.data.clear();
         
         for(int i = 0; i < socData.lineLaserInfo.num; i++){
             temp.direction = msg->data_array[i].direction;
-            temp.distance = msg->data_array[i].distance;
-            temp.height = msg->data_array[i].height;
+            temp.distance = msg->data_array[i].distance*1000;
+            temp.height = msg->data_array[i].height*1000;
             temp.x = msg->data_array[i].x;
             temp.y = msg->data_array[i].y;
             temp.theta = msg->data_array[i].theta;
-            #if 0
-            temp.position.x = msg->data_array[i].x;
-            temp.position.y = msg->data_array[i].y;
-            temp.position.y = msg->data_array[i].theta;
-            #endif
             socData.lineLaserInfo.data.push_back(temp);
         }
     }
@@ -309,13 +291,13 @@ void UdpCommunication::setSocTofData(const robot_custom_msgs::msg::TofData::Shar
     uint8_t bottom_left = getLowerBits(msg->bot_status);
     uint8_t bottom_right = getUpperBits(msg->bot_status);
     setTofStatus(msg->top_status,bottom_left,bottom_right);
-    socData.tofInfo.top.distance = msg->top;
+    socData.tofInfo.top.distance = msg->top*1000;
     socData.tofInfo.left_bottom.status = bottom_left;
     socData.tofInfo.right_bottom.status = bottom_right;
 
     for(int i = 0; i < 16; i++){
-        socData.tofInfo.left_bottom.data[i] = msg->bot_left[i];
-        socData.tofInfo.right_bottom.data[i] = msg->bot_right[i];
+        socData.tofInfo.left_bottom.data[i] = msg->bot_left[i]*1000;
+        socData.tofInfo.right_bottom.data[i] = msg->bot_right[i]*1000;
     }
 }
 
@@ -358,6 +340,8 @@ void UdpCommunication::generateVersion()
     socData.version.timestamp = this->now().seconds();
     socData.version.total_ver = (socData.version.sw_ver + ":" + socData.version.mcu_ver + " : " + socData.version.ai_ver);
     RCLCPP_INFO(this->get_logger(), "generateVersion SW VER : %s", socData.version.total_ver.c_str());
+    //Set Total Version for the purpose of OTA
+    APISetTotalVersion(socData.version.total_ver.c_str());
 }
 
 void UdpCommunication::setSocTargetPosition(double x, double y, double theta)
@@ -385,39 +369,43 @@ void UdpCommunication::setSocRobotVelocity(double v, double w)
     socData.velocity.v = v;
     socData.velocity.w = w;
 }
-#if 0
-void UdpCommunication::setSocRobotState()
+
+
+void UdpCommunication::setSocRobotState(uint8_t state, uint8_t status)
 {
-
-}
-
-void UdpCommunication::setSocMovingState()
-{
-    
-}
-
-void UdpCommunication::setSocError(const robot_custom_msgs::msg::ErrorListArray::SharedPtr msg)
-{
-
-}
-#endif
-
-void UdpCommunication::setRobotState(ROBOT_STATE state, ROBOT_STATUS status)
-{
-    if(robotState != state){
-        if(state == ROBOT_STATE::IDLE || state == ROBOT_STATE::ERROR){
+    ROBOT_STATE convert_state = static_cast<ROBOT_STATE>(state);
+    ROBOT_STATUS convert_status = static_cast<ROBOT_STATUS>(status);
+    if(socData.robotStatus != state){
+        if(convert_state == ROBOT_STATE::IDLE || convert_state == ROBOT_STATE::ERROR){
             publishVelocityCommand(0.0,0.0);
-        }else if(state == ROBOT_STATE::AUTO_MAPPING || state == ROBOT_STATE::MANUAL_MAPPING){
+        }else if(convert_state == ROBOT_STATE::AUTO_MAPPING || convert_state == ROBOT_STATE::MANUAL_MAPPING){
             publishClearVirtualWall();
         }
-        debugLogRobotState(state);
+        debugLogRobotState(convert_state);
     }
-    robotState = state;
+    if(socData.actionStatus != status){
+        debugLogRobotStatus(convert_status);
+    }
+    socData.robotStatus = state;
+    socData.actionStatus = status;
+}
 
-    if(robotStatus != status){
-        debugLogRobotStatus(status);
+void UdpCommunication::setSocMovingState(uint8_t status,uint8_t fail_reason)
+{
+    NAVI_STATE convert_status = static_cast<NAVI_STATE>(status);
+    NAVI_FAIL_REASON convert_reason = static_cast<NAVI_FAIL_REASON>(fail_reason);
+    if(socData.movingStatus != status){
+        debugLogNaviState(convert_status);
     }
-    robotStatus = status;
+    socData.movingStatus = status;
+    setNaviFailReason(convert_reason);
+
+}
+
+void UdpCommunication::setSocError(ErrorList_t error)
+{
+    RCLCPP_INFO(this->get_logger(), "Received error: rank = %d, error_code = %s",error.rank, error.errorCode.c_str());
+    socData.errorList.push_back(error);
 }
 
 void UdpCommunication::setNodeState(NODE_STATUS set)
@@ -426,14 +414,6 @@ void UdpCommunication::setNodeState(NODE_STATUS set)
         debugLogNodeState(set);
     }
     nodeState = set;
-}
-
-void UdpCommunication::setNaviState(NAVI_STATE set)
-{
-    if(movingState != set){
-        debugLogNaviState(set);
-    }
-    movingState = set;
 }
 
 void UdpCommunication::setNaviFailReason(NAVI_FAIL_REASON set)
@@ -544,17 +524,20 @@ void UdpCommunication::debugLogNaviState(NAVI_STATE set)
     case NAVI_STATE::ARRIVED_GOAL :
         RCLCPP_INFO(this->get_logger(), "NAVI_STATE::ARRIVED_GOAL");
         break;
+    case NAVI_STATE::ALTERNATE_GOAL :
+        RCLCPP_INFO(this->get_logger(), "NAVI_STATE::ALTERNATE_GOAL");
+        break;    
     case NAVI_STATE::PAUSE :
         RCLCPP_INFO(this->get_logger(), "NAVI_STATE::PAUSE");
         break;
     case NAVI_STATE::FAIL :
         RCLCPP_INFO(this->get_logger(), "NAVI_STATE::FAIL");
         break;
-    case NAVI_STATE::ROTAION :
-        RCLCPP_INFO(this->get_logger(), "NAVI_STATE::ROTAION");
+    case NAVI_STATE::START_ROTAION :
+        RCLCPP_INFO(this->get_logger(), "NAVI_STATE::START_ROTAION");
         break;
-    case NAVI_STATE::COMPLETE_ROTATION :
-        RCLCPP_INFO(this->get_logger(), "NAVI_STATE::COMPLETE_ROTATION");
+    case NAVI_STATE::ROTATION_COMPLETE :
+        RCLCPP_INFO(this->get_logger(), "NAVI_STATE::ROTATION_COMPLETE");
         break;                       
     default:
         break;
@@ -604,13 +587,15 @@ void UdpCommunication::nodeStateCallback(const std_msgs::msg::UInt8::SharedPtr m
 
 void UdpCommunication::robotStateCallback(const robot_custom_msgs::msg::RobotState::SharedPtr msg)
 {
-    setRobotState(static_cast<ROBOT_STATE>(msg->state),static_cast<ROBOT_STATUS>(msg->status));
+    setSocRobotState(msg->state,msg->status);
+    resSocRobotState();
+    resSocRobotStatus();
 }
 
 void UdpCommunication::movingStateCallback(const robot_custom_msgs::msg::NaviState::SharedPtr msg)
 {
-    setNaviState(static_cast<NAVI_STATE>(msg->state));
-    setNaviFailReason(static_cast<NAVI_FAIL_REASON>(msg->fail_reason));
+    setSocMovingState(msg->state,msg->fail_reason);
+    resSocMovingInfo();
 }
 
 void UdpCommunication::batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg)
@@ -693,6 +678,7 @@ void UdpCommunication::publishVersionRequest()
     if(runTime >= BOOT_TIME_OUT){
         socData.version.bSet = true;
         generateVersion();
+        resSocSoftWareVision();
         resetVersionTimer();
         return;
     }else{
@@ -708,6 +694,7 @@ void UdpCommunication::publishVersionRequest()
         if(mcu_version != "0.0" && ai_version != "0.0"){
             socData.version.bSet = true;
             generateVersion();
+            resSocSoftWareVision();
             resetVersionTimer();
             return;
         }
@@ -807,25 +794,22 @@ void UdpCommunication::errorListCallback(const robot_custom_msgs::msg::ErrorList
     size_t array_size = msg->data_array.size();
     for (size_t i = 0; i < array_size; ++i) {  // `i`를 size_t로 변경 (경고 해결)
         const auto& error = msg->data_array[i];
-
         bool isSameCode = false;
-        for (const auto& existing_error : error_list) {
+        for (const auto& existing_error : socData.errorList) {
             if (existing_error.errorCode == error.error_code) {  
                 isSameCode = true;
                 break;
             }
         }
         if (!isSameCode) {
-            RCLCPP_INFO(this->get_logger(), "Received error: rank = %d, error_code = %s",
-                        error.rank, error.error_code.c_str());
-
             ErrorList_t error_entry;
+            error_entry.resolved = error.resolved;
             error_entry.rank = error.rank;
             error_entry.errorCode = error.error_code;  // 기존 코드 유지
-            error_list.push_back(error_entry);
+            setSocError(error_entry);
         }
     }
-    resGetErrorList(error_list);
+    resSocErrorList();
 }
 
 void UdpCommunication::mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
@@ -940,10 +924,10 @@ void UdpCommunication::resSocData(REQUEST_DATA_WHAT what)
         resSocRobotVelocity();
         break; 
     case REQUEST_DATA_WHAT::ROBOT_STATE :
-        resGetRobotStatus(static_cast<int>(robotState));
+        resSocRobotState();
         break; 
     case REQUEST_DATA_WHAT::ACTION_STATE :
-        resGetActionStatus(static_cast<int>(robotStatus));
+        resSocRobotStatus();
         break; 
     case REQUEST_DATA_WHAT::NOTIFICATION :
     resGetNotification(0,"0");
@@ -963,8 +947,8 @@ void UdpCommunication::resSocRobotPose()
 void UdpCommunication::resSocMap()
 {
     MapInfo mapInfo = getMapInfo();
-
-    if(robotState == ROBOT_STATE::AUTO_MAPPING || robotState == ROBOT_STATE::MANUAL_MAPPING || nodeState == NODE_STATUS::AUTO_MAPPING || nodeState == NODE_STATUS::MANUAL_MAPPING){
+    ROBOT_STATE convert_state = static_cast<ROBOT_STATE>(socData.robotStatus);
+    if(convert_state == ROBOT_STATE::AUTO_MAPPING || convert_state == ROBOT_STATE::MANUAL_MAPPING || nodeState == NODE_STATUS::AUTO_MAPPING || nodeState == NODE_STATUS::MANUAL_MAPPING){
         resGetMapDataB(mapInfo.width,mapInfo.height,mapInfo.resolution,mapInfo.origin_x,mapInfo.origin_y, mapInfo.map_data.data() ,mapInfo.map_data.size());
         RCLCPP_INFO(this->get_logger(), "realtime map send with : %d, height : %d, resolution : %f, size : %zu",mapInfo.width,mapInfo.height,mapInfo.resolution,mapInfo.map_data.size());
     }else{
@@ -972,15 +956,18 @@ void UdpCommunication::resSocMap()
         int height,width,size;
         double origin_x,origin_y;
         std::vector<uint8_t> saved_map;
-        if(robotState == ROBOT_STATE::FACTORY_NAVIGATION){
-            bReadMap = readPGM("/home/airbot/airbot_ws/install/airbot_navigation/share/airbot_navigation/maps/factory_map.pgm", width, height, saved_map, origin_x, origin_y);
+        if(convert_state == ROBOT_STATE::FACTORY_NAVIGATION){
+            bReadMap = readPGM("/home/airbot/app_rw/factorymap/airbot_factorymap_00.pgm", width, height, saved_map, origin_x, origin_y);
             size = width * height;
             if(bReadMap){
                 if(saved_map.empty() || size == 0){
                     RCLCPP_INFO(this->get_logger(), "factory map is empty");    
                 }else{
+                    if(temp_mapsize != saved_map.size()){
+                        RCLCPP_INFO(this->get_logger(), "factory map send with : %d, height : %d, resolution : %f, size : %zu",width,height,mapInfo.resolution,saved_map.size());
+                    }
                     resGetMapDataB(width,height,mapInfo.resolution,origin_x,origin_y, saved_map.data(),saved_map.size());
-                    RCLCPP_INFO(this->get_logger(), "factory map send with : %d, height : %d, resolution : %f, size : %zu",width,height,mapInfo.resolution,saved_map.size());      
+                    temp_mapsize = saved_map.size();
                 }
             }else{
                 RCLCPP_INFO(this->get_logger(), "factory map read fail error");
@@ -993,8 +980,12 @@ void UdpCommunication::resSocMap()
                 if(saved_map.empty() || size == 0){
                     RCLCPP_INFO(this->get_logger(), "map is empty");    
                 }else{
+                    if(temp_mapsize != saved_map.size()){
+                        RCLCPP_INFO(this->get_logger(), "saved map send with : %d, height : %d, resolution : %f, size : %zu",width,height,mapInfo.resolution,saved_map.size());
+                        temp_mapsize = saved_map.size();      
+                    }
                     resGetMapDataB(width,height,mapInfo.resolution,origin_x,origin_y, saved_map.data(),saved_map.size());
-                    RCLCPP_INFO(this->get_logger(), "saved map send with : %d, height : %d, resolution : %f, size : %zu",width,height,mapInfo.resolution,saved_map.size());      
+                    temp_mapsize = saved_map.size();
                 }
             }else{
                 RCLCPP_INFO(this->get_logger(), "map read fail error");
@@ -1028,12 +1019,12 @@ void UdpCommunication::resSocNodeStatus()
 
 void UdpCommunication::resSocRobotState()
 {
-    resGetRobotStatus(static_cast<int>(robotState));
+    resGetRobotStatus(socData.robotStatus);
 }
 
 void UdpCommunication::resSocRobotStatus()
 {
-    resGetActionStatus(static_cast<int>(robotStatus));
+    resGetActionStatus(socData.actionStatus);
 }
 
 void UdpCommunication::resSocTargetPosition()
@@ -1044,16 +1035,10 @@ void UdpCommunication::resSocTargetPosition()
 
 void UdpCommunication::resSocBattData()
 {
-
     resGetBatteryStatusV2(socData.battInfo.cell_voltage1,socData.battInfo.cell_voltage2,socData.battInfo.cell_voltage3,socData.battInfo.cell_voltage4,socData.battInfo.cell_voltage5,
     socData.battInfo.total_capacity,socData.battInfo.remaining_capacity,socData.battInfo.manufacturer,
     socData.battInfo.percent,socData.battInfo.voltage,socData.battInfo.current,socData.battInfo.temperature1,socData.battInfo.temperature2,
-    socData.battInfo.design_capacity,socData.battInfo.number_of_cycles);
-    #if 0
-    double state = static_cast<double>(socData.battInfo.charge_status);
-    resGetBatteryStatus(socData.battInfo.voltage,socData.battInfo.current,socData.battInfo.temperature1,state,socData.battInfo.remaining_capacity,socData.battInfo.design_capacity,socData.battInfo.percent,
-    0.0,0.0,0,0,0.0,0.0,0.0,"0.0");
-    #endif
+    socData.battInfo.design_capacity,socData.battInfo.number_of_cycles,socData.battInfo.charge_status);
 }
 
 void UdpCommunication::resSocDockingStatus()
@@ -1083,13 +1068,10 @@ void UdpCommunication::resSocModifiedMap()
 
 void UdpCommunication::resSocMovingInfo()
 {
-    int status = static_cast<int>(movingState);
+    int status = static_cast<int>(socData.movingStatus);
     resGetAllMovingInfoV2(status,
     socData.robotPosition.valid,socData.robotPosition.x,socData.robotPosition.y,socData.robotPosition.theta,
     socData.targetPosition.valid,socData.targetPosition.x,socData.targetPosition.y,socData.targetPosition.theta);
-    #if 0
-    resGetAllMovingInfo(status,socData.robotPosition.x,socData.robotPosition.y,socData.robotPosition.theta,socData.targetPosition.x,socData.targetPosition.y,socData.targetPosition.theta);
-    #endif
 }
 
 void UdpCommunication::resSocCalculateTarget()
@@ -1113,25 +1095,16 @@ void UdpCommunication::resSocLidarData()
 void UdpCommunication::resSocWheelMotorData()
 {
     resGetMotorStatusV2(socData.motorInfo.left.rpm,socData.motorInfo.right.rpm,socData.motorInfo.left.current,socData.motorInfo.right.current,socData.motorInfo.left.status,socData.motorInfo.right.status);
-    #if 0
-    resGetMotorStatus(socData.motorInfo.left.rpm,socData.motorInfo.right.rpm,socData.motorInfo.left.current,socData.motorInfo.right.current,socData.motorInfo.left.status,socData.motorInfo.right.status);
-    #endif
 }
 
 void UdpCommunication::resSocCameraData()
 {
     resGetCameraStatusV2(0,socData.cameraInfo.data);
-    #if 0
-    resGetCameraStatus(0);
-    #endif
 }
 
 void UdpCommunication::resSocLineLaserData()
 {
     resGetLineLaserStatusV2(0,socData.lineLaserInfo.data);
-    #if 0
-    resGetLineLaserStatus(0, 0);
-    #endif
 }
  
 void UdpCommunication::resSocCliffLiftData()
@@ -1149,23 +1122,22 @@ void UdpCommunication::resSocDockReceiverData()
 void UdpCommunication::resSocTofData()
 {
     resGetTofStatusV2(socData.tofInfo.left_bottom.status,socData.tofInfo.left_bottom.data,socData.tofInfo.right_bottom.status,socData.tofInfo.right_bottom.data,socData.tofInfo.top.status,socData.tofInfo.top.distance);
-    #if 0
-    resGetTofStatus(0, 0.0,0,0.0,0,0.0);
-    #endif
-    
 }
 
 void UdpCommunication::resSocErrorList()
 {
-    if (!error_list.empty())
+    
+    if (!socData.errorList.empty())
     {
-        for(const auto& error : error_list)
+        for(const auto& error : socData.errorList)
         {
             RCLCPP_INFO(this->get_logger(), "Received error: rank = %d, error_code = %s", error.rank, error.errorCode.c_str());
         }
                     
-        resGetErrorList(error_list);
+        resGetErrorList(socData.errorList);
         clearErrorList();
+    }else{
+        RCLCPP_INFO(this->get_logger(), "error_list is empty");
     } 
 }
 
@@ -1181,39 +1153,32 @@ void UdpCommunication::resSocAllSensor()
     socData.battInfo.cell_voltage1,socData.battInfo.cell_voltage2,socData.battInfo.cell_voltage3,socData.battInfo.cell_voltage4,socData.battInfo.cell_voltage5,
     socData.battInfo.total_capacity,socData.battInfo.remaining_capacity,socData.battInfo.manufacturer,
     socData.battInfo.percent,socData.battInfo.voltage,socData.battInfo.current,socData.battInfo.temperature1,socData.battInfo.temperature2,
-    socData.battInfo.design_capacity,socData.battInfo.number_of_cycles);
-
-    //RCLCPP_INFO(this->get_logger(), "resSocAllSensor");
-    #if 0
-    resGetAllStatus(socData.lidarInfo.front_distance,socData.lidarInfo.rear_distance,
-    0.0,0.0,0.0,0.0,0,0,0,0,0,0,0.0,0,0.0,0,0.0,
-    (bool)socData.cliffLiftInfo.b.cliff_front_center,(bool)socData.cliffLiftInfo.b.cliff_front_left,(bool)socData.cliffLiftInfo.b.cliff_back_left,(bool)socData.cliffLiftInfo.b.cliff_back_center,(bool)socData.cliffLiftInfo.b.cliff_back_right,
-    (bool)socData.cliffLiftInfo.b.cliff_front_right,(bool)socData.dockingInfo.receiver.b.front_left,(bool)socData.dockingInfo.receiver.b.front_right,(bool)socData.dockingInfo.receiver.b.side_left,(bool)socData.dockingInfo.receiver.b.side_right,
-    0,0,0,0,
-    socData.battInfo.voltage,socData.battInfo.current,0.0,0.0,socData.battInfo.remaining_capacity,socData.battInfo.design_capacity,socData.battInfo.percent,0.0,0.0,0.0,0.0,0.0,0.0,0.0,"0.0");
-    #endif
+    socData.battInfo.design_capacity,socData.battInfo.number_of_cycles,socData.battInfo.charge_status);
 }
 
 void UdpCommunication::autoSocDataSender()
 {
-    if(getCommunicationMode() == UDP_COMMUNICATION::INSPECTION){
+    if(bInspectionMode){
         resSocAllSensor();
     }else{
         resSocBattData();
     }
     resSocMovingInfo();
-
     resSocRobotState();
     resSocRobotStatus();
-    //resSocRobotVelocity();
+
     if(!socData.version.bSet){
-        generateVersion();
+        resSocSoftWareVision();
     }
+    
+     //publishing all verison continously for checking heartbeat(OTA)
+    std_msgs::msg::String sw_version_data;
+    sw_version_data.data = socData.version.sw_ver.c_str();
+    sw_version_pub_->publish(sw_version_data);
 }
 
 void UdpCommunication::reqSocDataChecker()
 {
-
     if (reqGetPosition()){
         resSocData(REQUEST_DATA_WHAT::ROBOT_POSITION);
     }if (reqGetMapData()){   
@@ -1265,7 +1230,6 @@ void UdpCommunication::reqSocDataChecker()
     }if(reqGetCliffIRStatus()){
         resSocData(REQUEST_DATA_WHAT::CLIFF_LIFT_DATA);
     }if(reqGetAllStatusV2()){
-        //RCLCPP_INFO(this->get_logger(), "reqGetAllStatusV2");
         resSocData(REQUEST_DATA_WHAT::ALL_STATUS);
     }if(reqGetRobotSpeed()){
         resSocData(REQUEST_DATA_WHAT::ROBOT_SPEED);
@@ -1276,45 +1240,6 @@ void UdpCommunication::reqSocDataChecker()
     }if(reqGetNotification()){
         resSocData(REQUEST_DATA_WHAT::NOTIFICATION);
     }
-    #if 0
-    if (reqGetPosition()){
-        resSocData(REQUEST_DATA_WHAT::ROBOT_POSITION);
-    }if (reqGetMapData()){   
-        resSocData(REQUEST_DATA_WHAT::MAP);
-    }if (reqGetSoftwareVersion()){
-        resSocData(REQUEST_DATA_WHAT::SW_VERSION);
-    }if (reqGetMapStatus()){
-        resSocData(REQUEST_DATA_WHAT::MAP_STATUS);
-    }if (reqGetTargetPosition()){
-        resSocData(REQUEST_DATA_WHAT::TARGET_POSITION);
-    }if (reqGetBatteryStatus()){
-        resSocData(REQUEST_DATA_WHAT::BATTERY_STATUS);
-    }if (reqGetDockingStatus()){
-        resSocData(REQUEST_DATA_WHAT::DOCKING_STATUS);
-    }if (reqGetRobotInfo()){
-        resSocData(REQUEST_DATA_WHAT::ROBOT_INFO);
-    }if (reqGetModifiedMapData()){
-        resSocData(REQUEST_DATA_WHAT::MODIFIED_MAP);   
-    }if (reqGetAllMovingInfo()){
-        resSocData(REQUEST_DATA_WHAT::MOVING_INFO);
-    }if(reqGetRobotSpeed()){
-        resSocData(REQUEST_DATA_WHAT::ROBOT_VELOCITY);
-    }if (reqGetMotorStatus()){
-        resSocData(REQUEST_DATA_WHAT::MOTOR_STATUS);
-    }if (reqGetCameraStatus()){
-        resSocData(REQUEST_DATA_WHAT::CAMERA_STATUS);
-    }if (reqGetLineLaserStatus()){
-        resSocData(REQUEST_DATA_WHAT::LINE_LASER_STATUS);
-    }if (reqGetTofStatus()){
-        resSocData(REQUEST_DATA_WHAT::TOF_STATUS);
-    }if (reqGetErrorList()){
-        resSocData(REQUEST_DATA_WHAT::ERROR_LIST);
-    }if (reqGetLidarData()){
-        resSocData(REQUEST_DATA_WHAT::LIDAR_DATA);
-    }if (reqGetAllStatus()){
-        resSocData(REQUEST_DATA_WHAT::ALL_STATUS);
-    }
-    #endif
 }
 
 void UdpCommunication::reqSocOptionChecker()
@@ -1349,6 +1274,7 @@ void UdpCommunication::reqSocOptionChecker()
 
 void UdpCommunication::generateSocCommand()
 {  
+    ROBOT_STATE convert_state = static_cast<ROBOT_STATE>(socData.robotStatus);
     auto command_msg = std_msgs::msg::UInt8();
     if (reqSetMapping(reqMapping)){
         resSetMapping(true);
@@ -1361,10 +1287,10 @@ void UdpCommunication::generateSocCommand()
             req_soc_cmd_pub_->publish(command_msg);
             RCLCPP_INFO(this->get_logger(), "Request Start-Auto-Mapping");   
         }else if(reqMapping.set == 4){
-            if( robotState == ROBOT_STATE::MANUAL_MAPPING ){
-                command_msg.data = int(REQUEST_SOC_CMD::STOP_MANUAL_MAPPING);
-            } else if( robotState == ROBOT_STATE::AUTO_MAPPING){
-                command_msg.data = int(REQUEST_SOC_CMD::STOP_AUTO_MAPPING);
+            if( convert_state == ROBOT_STATE::MANUAL_MAPPING ){
+                command_msg.data = int(REQUEST_SOC_CMD::STOP_WORKING);
+            } else if( convert_state == ROBOT_STATE::AUTO_MAPPING){
+            	command_msg.data = int(REQUEST_SOC_CMD::STOP_WORKING);
             }
             req_soc_cmd_pub_->publish(command_msg);
             RCLCPP_INFO(this->get_logger(), "Request Mapping-Stop");
@@ -1377,17 +1303,17 @@ void UdpCommunication::generateSocCommand()
             req_soc_cmd_pub_->publish(command_msg);
         }else if (reqNavigation.set == 4){
             RCLCPP_INFO(this->get_logger(), "Request Stop-Navigation");
-            command_msg.data = int(REQUEST_SOC_CMD::STOP_NAVIGATION);
+            command_msg.data = int(REQUEST_SOC_CMD::STOP_WORKING);
             req_soc_cmd_pub_->publish(command_msg);
         }else if (reqNavigation.set == 2){
-            if(robotState == ROBOT_STATE::NAVIGATION){
+            if(convert_state == ROBOT_STATE::NAVIGATION){
                 command_msg.data = int(REQUEST_SOC_CMD::PAUSE_NAVIGATION);
                 req_soc_cmd_pub_->publish(command_msg);
             }else{
                 RCLCPP_INFO(this->get_logger(), "Robot is not Running Navigation, can`t Pause Navigation");
             }
         }else if (reqNavigation.set == 3){
-            if(robotState == ROBOT_STATE::NAVIGATION){
+            if(convert_state == ROBOT_STATE::NAVIGATION){
                 command_msg.data = int(REQUEST_SOC_CMD::RESUME_NAVIGATION);
                 req_soc_cmd_pub_->publish(command_msg);
             }else{
@@ -1395,8 +1321,8 @@ void UdpCommunication::generateSocCommand()
             }
         }
     }else if (reqSetTargetPosition(reqTargetPosition)){
-            RCLCPP_INFO(this->get_logger(), "Request Move to Target");
-            if(robotState != ROBOT_STATE::NAVIGATION){
+            RCLCPP_INFO(this->get_logger(), "Request Move to Target"); 
+            if(convert_state != ROBOT_STATE::NAVIGATION && convert_state != ROBOT_STATE::FACTORY_NAVIGATION){
                 command_msg.data = int(REQUEST_SOC_CMD::START_NAVIGATION);
                 req_soc_cmd_pub_->publish(command_msg);
             }
@@ -1406,9 +1332,13 @@ void UdpCommunication::generateSocCommand()
     }
     else if(reqSetReturnToChargingStation()){
         resSetReturnToChargingStation(true);
-        command_msg.data = int(REQUEST_SOC_CMD::START_RETURN_CHARGER);
-        req_soc_cmd_pub_->publish(command_msg); 
-        RCLCPP_INFO(this->get_logger(), "Request ReturnToCharger");
+        if(convert_state == ROBOT_STATE::RETURN_CHARGER){
+            publishMoveCharger();
+        }else{
+            command_msg.data = int(REQUEST_SOC_CMD::START_RETURN_CHARGER);
+            req_soc_cmd_pub_->publish(command_msg); 
+            RCLCPP_INFO(this->get_logger(), "Request ReturnToCharger");
+        }
     }else if (reqSetDockingState(reqDocking)){
         resSetDockingState(true);
         if(reqDocking.dock==true){
@@ -1416,21 +1346,10 @@ void UdpCommunication::generateSocCommand()
             req_soc_cmd_pub_->publish(command_msg);
             RCLCPP_INFO(this->get_logger(), "Request start-docking");
         }else{
-            command_msg.data = int(REQUEST_SOC_CMD::STOP_DOCKING);
+            command_msg.data = int(REQUEST_SOC_CMD::STOP_WORKING);
             req_soc_cmd_pub_->publish(command_msg);
             RCLCPP_INFO(this->get_logger(), "Request stop-docking");
         }
-    }
-    #if PROTOCOL_V17 > 0
-    else if(reqSetTargetPositionType(reqMovenRotation)){
-        resSetTargetPositionType(true);
-        RCLCPP_INFO(this->get_logger(), "Request Move & Rotation ");
-        if(robotState != ROBOT_STATE::NAVIGATION){
-            command_msg.data = int(REQUEST_SOC_CMD::START_NAVIGATION);
-            req_soc_cmd_pub_->publish(command_msg);
-        }
-        setSocTargetPosition(reqMovenRotation.x,reqMovenRotation.y,reqMovenRotation.theta);
-        publishMoveNRotation(reqMovenRotation.x,reqMovenRotation.y,reqMovenRotation.theta,reqMovenRotation.type);
     }
     else if(reqSetFactoryMode(reqFactoryMode)){
         resSetFactoryMode(true);
@@ -1439,11 +1358,10 @@ void UdpCommunication::generateSocCommand()
             command_msg.data = int(REQUEST_SOC_CMD::START_FACTORY_NAVIGATION);
         }else{
             RCLCPP_INFO(this->get_logger(), "Request Stop-FactoryNavigation");
-            command_msg.data = int(REQUEST_SOC_CMD::STOP_FACTORY_NAVIGATION);
+            command_msg.data = int(REQUEST_SOC_CMD::STOP_WORKING);
         }
         req_soc_cmd_pub_->publish(command_msg);
     }
-    #endif
 }
 
 void UdpCommunication::directRequestCommand()
@@ -1462,20 +1380,9 @@ void UdpCommunication::directRequestCommand()
 
     if (reqSetStartCharging()){
         RCLCPP_INFO(this->get_logger(), "Request StartCharging");
-        if(getCommunicationMode() == UDP_COMMUNICATION::INSPECTION){
-            enableLinearTargetMoving();
-        }else{
-            publishChargingCommand(true);
-        }
         resSetStartCharging(true);
     }else if (reqSetStopCharging()){
         RCLCPP_INFO(this->get_logger(), "Request StopCharging");
-        if(getCommunicationMode() == UDP_COMMUNICATION::INSPECTION){
-            disableLinearTargetMovoing();
-        }else{
-            publishChargingCommand(false);
-        }
-        
         resSetStopCharging(true);
     }
 
@@ -1495,13 +1402,17 @@ void UdpCommunication::directRequestCommand()
         RCLCPP_INFO(this->get_logger(), "Request stop-Lidar");
         publishLidarOnOff(false);
     }
-    #if PROTOCOL_V17 > 0
+
     if(reqSetSensorInspectionMode(reqInspectionMode)){
         resSetSensorInspectionMode(true);
         if(reqInspectionMode.start){
-            setCommnicationMode(UDP_COMMUNICATION::INSPECTION);
+            RCLCPP_INFO(this->get_logger(), "Request FROM SOC InspectionMode START");
+            bInspectionMode = true;
+            publishSensorOnOff(true);
         }else{
-            setCommnicationMode(UDP_COMMUNICATION::NORMAL);
+            RCLCPP_INFO(this->get_logger(), "Request FROM SOC InspectionMode STOP");
+            bInspectionMode = false;
+            publishSensorOnOff(false);
         }
     }
 
@@ -1517,10 +1428,27 @@ void UdpCommunication::directRequestCommand()
     }
 
     if(reqSetStationRepositioning(reqStationPose)){
-        resSetStationRepositioningIdx(true);
+        resSetStationRepositioning(true);
         publishStationPose(reqStationPose.x,reqStationPose.y,reqStationPose.theta);
     }
-    #endif
+
+    if(reqSetSelfDiagnosisMotor(reqSelfDiagnosisMotor)){
+        RCLCPP_INFO(this->get_logger(), "Request reqSetSelfDiagnosisMotor");
+        resSetSelfDiagnosisMotor(true);
+        #if 0
+        if(bInspectionMode){
+            if(reqSelfDiagnosisMotor.start){
+                enableLinearTargetMoving(reqSelfDiagnosisMotor.mS,reqSelfDiagnosisMotor.Distance);
+
+            }else{
+                disableLinearTargetMovoing();
+                publishDockingCommand(true);
+            }
+        }else{
+            RCLCPP_INFO(this->get_logger(), "Not InspectionMode Can`t be SelfDiagnosisMotor");
+        }
+        #endif
+    }
 }
 
 
@@ -1538,6 +1466,13 @@ void UdpCommunication::publishMoveGoal(double x,double y,double theta)
     msg.theta = theta;
     move_target_pub_->publish(msg);
     RCLCPP_INFO(this->get_logger(), "publishMoveGoal X : %f, Y : %f",x,y);
+}
+
+void UdpCommunication::publishMoveCharger()
+{
+    std_msgs::msg::Empty msg;
+    move_charger_pub_->publish(msg);
+    RCLCPP_INFO(this->get_logger(), "publishMoveCharger");
 }
 
 void UdpCommunication::publishMoveNRotation(double x,double y,double theta, int type)
@@ -1597,8 +1532,7 @@ void UdpCommunication::publishSensorOnOff(bool set)
 
 void UdpCommunication::publishBatterySleep()
 {
-    std_msgs::msg::Bool battery_sleep_cmd;
-    battery_sleep_cmd.data = true;
+    std_msgs::msg::Empty battery_sleep_cmd;
     batterySleep_cmd_pub_->publish(battery_sleep_cmd);
     RCLCPP_INFO(this->get_logger(), "publishBatterySleep");
 }
@@ -1619,6 +1553,19 @@ void UdpCommunication::publishStationPose(double x, double y, double theta)
 
     station_pose_pub_->publish(msg);
     RCLCPP_INFO(this->get_logger(), "publishStationPose X : %f, Y: %f, Z : %f ",x,y,theta);
+}
+
+void UdpCommunication::publishDockingCommand(bool start)
+{
+    std_msgs::msg::UInt8 dock_cmd_;
+    if(start){
+        dock_cmd_.data = DOCK_START;
+        RCLCPP_INFO(this->get_logger(),"[UDP-INTERFACE] publish Start-Docking");
+    }else{
+        dock_cmd_.data = DOCK_STOP;
+    RCLCPP_INFO(this->get_logger(), "[UDP-INTERFACE] publish Stop-Docking");
+    }
+    dock_pub->publish(dock_cmd_);
 }
 
 void UdpCommunication::logCommandAndData(int command, const std::vector<uint8_t>& data, int option) 
@@ -1775,7 +1722,6 @@ void UdpCommunication::udp_callback()
     case UDP_COMMUNICATION::AP_JIG_MODE:
         procApJigCommunication();
         break;
-    case UDP_COMMUNICATION::INSPECTION :
     case UDP_COMMUNICATION::NORMAL:
         procSocCommunication();
         break;
@@ -1809,7 +1755,8 @@ MapInfo UdpCommunication::getMapInfo(){
 }
 
 void UdpCommunication::clearErrorList(){
-    error_list.clear();
+    socData.errorList.clear();
+    RCLCPP_INFO(this->get_logger(), "clearErrorList");
 }
 
 void UdpCommunication::systemRebootCommand()
@@ -2365,6 +2312,10 @@ std::vector<uint8_t> UdpCommunication::jigDataConvertImuCalibration(const robot_
 {
     std::vector<uint8_t> ret;
     ret.push_back(msg->calibration_status);
+    ret.push_back(static_cast<uint8_t>((msg->roll >> 8) & 0xFF)); // high byte
+    ret.push_back(static_cast<uint8_t>(msg->roll & 0xFF)); // low byte
+    ret.push_back(static_cast<uint8_t>((msg->pitch >> 8) & 0xFF)); // high byte
+    ret.push_back(static_cast<uint8_t>(msg->pitch & 0xFF)); // low byte
     ret.push_back(static_cast<uint8_t>((msg->yaw >> 8) & 0xFF)); // high byte
     ret.push_back(static_cast<uint8_t>(msg->yaw & 0xFF)); // low byte
 
@@ -2612,54 +2563,58 @@ void UdpCommunication::apJigCheckFrontLiDAR()
 {
     RCLCPP_INFO(this->get_logger(), "Starting back check...");
 
+    std::vector<uint8_t> lidar_info(2);
+    unsigned int valid_scan_cnt = 0;
     if (apJigFrontLaserData && !apJigFrontLaserData->ranges.empty()) {
 #if AP_JIG_CHECK_ON_AMR
-        float first_range = apJigFrontLaserData->ranges[100];
+        for (auto range : apJigFrontLaserData->ranges) {
+            if (range > 0.0 && range < std::numeric_limits<float>::infinity()) {
+                valid_scan_cnt += 1;
+            }
+        }
 #else
         float first_range = apJigFrontLaserData->ranges[0];
-#endif        
-        uint16_t distance_cm = static_cast<uint16_t>(std::round(first_range * 100.0f));
-        
-        std::vector<uint8_t> lidar_info(2);
-        lidar_info[0] = static_cast<uint8_t>((distance_cm >> 8) & 0xFF); // 상위 바이트
-        lidar_info[1] = static_cast<uint8_t>(distance_cm & 0xFF); // 하위 바이트
-        
-        RCLCPP_INFO(this->get_logger(), "Front LiDAR: %.2f meters", first_range);
-        sendLidarData(JIG_AP_HEADER::AP_JIG_FRONT_LIDAR, lidar_info);
+#endif
+    RCLCPP_INFO(this->get_logger(), "Total Num of Front LiDAR ranges: %ld", apJigFrontLaserData->ranges.size());
+    RCLCPP_INFO(this->get_logger(), "Num of Front LiDAR ranges: %ld", valid_scan_cnt);
     } else {
         RCLCPP_WARN(this->get_logger(), "No front LiDAR data available.");
     }
+    lidar_info[0] = static_cast<uint8_t>((valid_scan_cnt >> 8) & 0xFF); // 상위 바이트
+    lidar_info[1] = static_cast<uint8_t>(valid_scan_cnt & 0xFF); // 하위 바이트
+    sendLidarData(JIG_AP_HEADER::AP_JIG_FRONT_LIDAR, lidar_info);
 }
 
 void UdpCommunication::apJigCheckBackLiDAR()
 {
     RCLCPP_INFO(this->get_logger(), "Starting back check...");
 
+    std::vector<uint8_t> lidar_info(2);
+    unsigned int valid_scan_cnt = 0;
     if (apJigBackLaserData && !apJigBackLaserData->ranges.empty()) {
 #if AP_JIG_CHECK_ON_AMR
-        float first_range = apJigBackLaserData->ranges[100];
+        for (auto range : apJigFrontLaserData->ranges) {
+            if (range > 0.0 && range < std::numeric_limits<float>::infinity()) {
+                valid_scan_cnt += 1;
+            }
+        }
 #else
         float first_range = apJigBackLaserData->ranges[0];
-#endif        
-        uint16_t distance_cm = static_cast<uint16_t>(std::round(first_range * 100.0f));
-
-        // LiDARInfo 구조체의 인스턴스를 생성합니다.
-        std::vector<uint8_t> lidar_info(2);
-        // 거리 값을 2바이트로 분할하여 저장합니다.
-        lidar_info[0] = static_cast<uint8_t>((distance_cm >> 8) & 0xFF); // 상위 바이트
-        lidar_info[1] = static_cast<uint8_t>(distance_cm & 0xFF);       // 하위 바이트
-
-        // 거리 정보를 로그로 출력합니다.
-        RCLCPP_INFO(this->get_logger(), "Back LiDAR: %.2f meters", first_range);
-        // LiDAR 데이터 전송
-        sendLidarData(JIG_AP_HEADER::AP_JIG_BACK_LIDAR, lidar_info);
+#endif
+        RCLCPP_INFO(this->get_logger(), "Total Num of Front LiDAR ranges: %ld", apJigFrontLaserData->ranges.size());
+        RCLCPP_INFO(this->get_logger(), "Num of Back LiDAR ranges: %ld", valid_scan_cnt);
     } else {
         RCLCPP_WARN(this->get_logger(), "No back LiDAR data available.");
     }
+    lidar_info[0] = static_cast<uint8_t>((valid_scan_cnt >> 8) & 0xFF); // 상위 바이트
+    lidar_info[1] = static_cast<uint8_t>(valid_scan_cnt & 0xFF); // 하위 바이트
+    sendLidarData(JIG_AP_HEADER::AP_JIG_BACK_LIDAR, lidar_info);
 }
 
-void UdpCommunication::enableLinearTargetMoving()
+void UdpCommunication::enableLinearTargetMoving(double v, double distance)
 {
+    inspection_motor_Velocity = v;
+    inspection_motor_Distance = distance;
     end_linear_target = false;
     base_odom = odom;
     if(!linear_target_timer_){
@@ -2689,7 +2644,7 @@ double UdpCommunication::getDistance(pose base, pose current) {
 void UdpCommunication::processLinearMoving()
 {
     double distance = getDistance(base_odom,odom);
-    if(distance >= 1){
+    if(distance >= 0.5){
         //disableLinearTargetMovoing();
         if(!end_linear_target){
             end_linear_target = true;
@@ -2698,7 +2653,7 @@ void UdpCommunication::processLinearMoving()
         }
     }else{
         RCLCPP_WARN(this->get_logger(), "processLinearMoving...distance : %f",distance);
-        publishVelocityCommand(0.3,0.0);
+        publishVelocityCommand(0.1,0.0);
     }
 }
 
@@ -2706,7 +2661,6 @@ bool UdpCommunication::startRotation(int type, double targetAngle)
 {
     bool ret = false;
     pose robotPose = getRobotPose();
-    //movingState = NAVI_STATE::IDLE;
     rotation.type = type;
     if(type == 0){
         rotation.target = robotPose.theta+targetAngle;
@@ -2781,7 +2735,6 @@ void UdpCommunication::progressRotationTarget(double target, double current)
 
     if(checkRotationTarget(angle_diff)){
         publishVelocityCommand(v,w);
-        //movingState = NAVI_STATE::COMPLETE_ROTATION;//this->robot_status = 6;
         stopMonitorRotate();
         return;
     }
@@ -2803,7 +2756,6 @@ void UdpCommunication::progressRotation360(int direction, double current)
     if (rotation.accAngle >= 2*M_PI){
         RCLCPP_INFO(this->get_logger(), "Completed 360-degree rotation");
         publishVelocityCommand(v,w);
-        // movingState = NAVI_STATE::COMPLETE_ROTATION;//this->robot_status = 6;
         stopMonitorRotate();
         return;
     }

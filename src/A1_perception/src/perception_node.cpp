@@ -10,10 +10,6 @@
 #include "pcl_conversions/pcl_conversions.h"
 #include "rclcpp/rclcpp.hpp"
 #include "rcutils/logging.h"
-#include "robot_custom_msgs/msg/motor_status.hpp"
-#include "sensor_msgs/msg/laser_scan.hpp"
-#include "sensor_msgs/msg/point_cloud2.hpp"
-#include "std_msgs/msg/int32.hpp"
 #include "tf2/LinearMath/Quaternion.h"
 #include "vision_msgs/msg/bounding_box2_d_array.hpp"
 #include "yaml-cpp/yaml.h"
@@ -30,6 +26,12 @@ void pointCloud2Callback(
     std::shared_ptr<PerceptionNode> node,
     const sensor_msgs::msg::PointCloud2::SharedPtr& msg)
 {
+    // AMCL Pose값 확인 후 필터링 진행
+    Position position = node->getPosition();
+    if (position.x == 0 && position.y == 0)
+    {
+        return;
+    }
     auto layer = Layer();
     layer.sensor_timestamp = msg->header.stamp;
     layer.timestamp = node->now();
@@ -39,7 +41,6 @@ void pointCloud2Callback(
     size_t point_step = msg->point_step;
     const uint8_t* data_ptr = msg->data.data();
 
-    // RCLCPP_INFO(node->get_logger(), "%s:%d: %s -> size : %d.", __FUNCTION__, __LINE__, name.c_str(), num_points);
     for (size_t i = 0; i < num_points; i++)
     {
         float x, y, z;
@@ -114,7 +115,7 @@ PerceptionNode::PerceptionNode() : Node("A1_perception")
     // 로그 레벨 설정
     rcutils_logging_set_logger_level(this->get_logger().get_name(), static_cast<RCUTILS_LOG_SEVERITY>(log_level));
 
-    RCLCPP_INFO(this->get_logger(), "%s():%d: A1_perception has been started.", __FUNCTION__, __LINE__);
+    RCLCPP_INFO(this->get_logger(), "A1_perception has been started.");
     try
     {
         std::string package_share_directory = ament_index_cpp::get_package_share_directory("A1_perception");
@@ -124,7 +125,7 @@ PerceptionNode::PerceptionNode() : Node("A1_perception")
     catch (const std::exception& e)
     {
         // fallback (ament_index_cpp::get_package_share_directory()가 제대로 작동하지 않을 경우)
-        RCLCPP_ERROR(this->get_logger(), "%s():%d: Failed to load config file: %s", __FUNCTION__, __LINE__, e.what());
+        RCLCPP_ERROR(this->get_logger(), "Failed to load config file: %s", e.what());
         std::string fallback_path = "install/A1_perception/share/A1_perception/params/" + node_params;
         this->config = YAML::LoadFile(fallback_path)["A1_perception"]["node"];
     }
@@ -144,7 +145,6 @@ void PerceptionNode::initFilters(const YAML::Node& config)
         auto s = YAML::Dump(layer_config);
         this->filters[name] = FilterFactory::create(pnode, layer_config["filter"]);
     }
-    // RCLCPP_INFO(this->get_logger(), "%s():%d: Filter init finished.", __FUNCTION__, __LINE__);
 }
 
 void PerceptionNode::initController()
@@ -156,8 +156,7 @@ void PerceptionNode::initController()
         {
             (void)msg;
             this->resetLayers();
-            RCLCPP_INFO(
-                this->get_logger(), "%s:%d: Perception's all layers cleared by UDP commnad.", __FUNCTION__, __LINE__);
+            RCLCPP_INFO(this->get_logger(), "Perception's all layers cleared by UDP commnad.");
         });
 
     this->controller_subscribers["clear_request_from_rviz_init_pose"] =
@@ -168,11 +167,7 @@ void PerceptionNode::initController()
             {
                 (void)msg;
                 this->resetLayers();
-                RCLCPP_INFO(
-                    this->get_logger(),
-                    "%s:%d: Perception's all layers cleared by initial pose estimate.",
-                    __FUNCTION__,
-                    __LINE__);
+                RCLCPP_INFO(this->get_logger(), "Perception's all layers cleared by initial pose estimate.");
             });
     this->controller_subscribers["clear_request_from_rviz_goal_pose"] =
         this->create_subscription<geometry_msgs::msg::PoseStamped>(
@@ -182,8 +177,7 @@ void PerceptionNode::initController()
             {
                 (void)msg;
                 this->resetLayers();
-                RCLCPP_INFO(
-                    this->get_logger(), "%s:%d: Perception's all layers cleared by goal pose.", __FUNCTION__, __LINE__);
+                RCLCPP_INFO(this->get_logger(), "Perception's all layers cleared by goal pose.");
             });
     this->controller_subscribers["motor_status"] = this->create_subscription<robot_custom_msgs::msg::MotorStatus>(
         "/motor_status",
@@ -201,9 +195,11 @@ void PerceptionNode::initSubscribers(const YAML::Node& config)
     auto pnode = std::static_pointer_cast<PerceptionNode>(this->shared_from_this());
     if (!pnode)
     {
-        RCLCPP_ERROR(this->get_logger(), "%s():%d: Failed to get shared pointer from this", __FUNCTION__, __LINE__);
+        RCLCPP_ERROR(this->get_logger(), "Failed to get shared pointer from this");
         return;
     }
+    rclcpp::QoS qos_profile(rclcpp::KeepLast(1));
+    qos_profile.best_effort();
 
     // config: 시퀀스([ {robot_position: {...}}, {multi_tof: {...}} ]) 형식
     for (const auto& input_item : config)
@@ -217,15 +213,11 @@ void PerceptionNode::initSubscribers(const YAML::Node& config)
         {
             auto callback = [this, pnode, input_name](sensor_msgs::msg::PointCloud2::SharedPtr msg)
             { pointCloud2Callback(input_name, pnode, msg); };
-            auto subs = this->create_subscription<sensor_msgs::msg::PointCloud2>(input_topic, 10, callback);
+            auto subs = this->create_subscription<sensor_msgs::msg::PointCloud2>(input_topic, qos_profile, callback);
             this->subscribers[input_name] = subs;
         }
         else if (input_type == "LaserScan")
         {
-            // Ros2 에서 QoS 설정을 하지 않으면 데이터가 안넘어오는 경우가 생김
-            rclcpp::QoS qos_profile(rclcpp::KeepLast(1));
-            qos_profile.best_effort();
-
             auto callback = [this, pnode, input_name](sensor_msgs::msg::LaserScan::SharedPtr msg)
             { laserScanCallback(input_name, pnode, msg); };
             auto subs = this->create_subscription<sensor_msgs::msg::LaserScan>(input_topic, qos_profile, callback);
@@ -253,8 +245,8 @@ void PerceptionNode::initSubscribers(const YAML::Node& config)
 
                 this->robot_position.setFromQuaternion(q);
             };
-            auto subs =
-                this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(input_topic, 10, callback);
+            auto subs = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+                input_topic, qos_profile, callback);
             this->subscribers[input_name] = subs;
         }
         else if (input_type == "sensor_msgs/msg/Imu")
@@ -268,13 +260,12 @@ void PerceptionNode::initSubscribers(const YAML::Node& config)
                 q.setW(msg->orientation.w);
                 this->imu_data.setFromQuaternion(q);
             };
-            auto subs = this->create_subscription<sensor_msgs::msg::Imu>(input_topic, 10, callback);
+            auto subs = this->create_subscription<sensor_msgs::msg::Imu>(input_topic, qos_profile, callback);
             this->subscribers[input_name] = subs;
         }
         else
         {
-            RCLCPP_WARN(
-                this->get_logger(), "%s():%d: Unsupported input type: %s", __FUNCTION__, __LINE__, input_type.c_str());
+            RCLCPP_WARN(this->get_logger(), "Unsupported input type: %s", input_type.c_str());
         }
     }
 }
@@ -286,7 +277,7 @@ void PerceptionNode::initPublishers(const YAML::Node& config)
     auto pub = this->create_publisher<sensor_msgs::msg::PointCloud2>("perception/output", 10);
     this->publishers["output"] = pub;
 
-    this->publishers["stop"] = this->create_publisher<std_msgs::msg::Int32>("perception/action/stop", 10);
+    this->publishers["stop"] = this->create_publisher<std_msgs::msg::Int8>("perception/action/stop", 10);
 
     for (const auto& layer : config)
     {
@@ -304,15 +295,12 @@ void PerceptionNode::init()
 
     this->initController();
 
+    auto climb_condition = this->config["climb_condition"];
+    auto pnode = std::static_pointer_cast<PerceptionNode>(this->shared_from_this());
+    this->climb_checker.setParams(pnode, climb_condition);
+
     auto timer_callback = std::bind(&PerceptionNode::timerCallback, this);
     auto period = std::chrono::milliseconds(this->config["period_ms"].as<int>());
-
-    auto climb_condition = this->config["climb_condition"];
-    this->climbing_timeout = climb_condition["timeout_ms"].as<int>();
-    this->climbing_pitch_alpha = climb_condition["pitch_alpha"].as<float>();
-    this->enable_climbing_threshold = climb_condition["enable_climbing_threshold"].as<float>() * M_PI / 180;
-    this->disable_climbing_threshold = climb_condition["disable_climbing_threshold"].as<float>() * M_PI / 180;
-
     this->timer = this->create_wall_timer(period, timer_callback);
 }
 
@@ -357,8 +345,8 @@ void PerceptionNode::clearDropOffLayerMap()
 void PerceptionNode::sendActionStop(int data)
 {
     auto action_stop_pub =
-        std::any_cast<std::shared_ptr<rclcpp::Publisher<std_msgs::msg::Int32>>>(this->publishers["stop"]);
-    std_msgs::msg::Int32 msg;
+        std::any_cast<std::shared_ptr<rclcpp::Publisher<std_msgs::msg::Int8>>>(this->publishers["stop"]);
+    std_msgs::msg::Int8 msg;
     // 0 : NO_STOP
     // 1 : DROP_OFF STOP
     // 2 : 1D TOF STOP
@@ -370,8 +358,7 @@ void PerceptionNode::resetLayers()
 {
     this->layers.clear();
     this->drop_off_layer_map.clear();
-    this->climb_flag = false;
-    this->estimated_bias = 0;
+    this->climb_checker.reset();
 }
 
 sensor_msgs::msg::PointCloud2 PerceptionNode::convertToPointCloud2(const pcl::PointCloud<pcl::PointXYZ>& cloud)
@@ -418,7 +405,7 @@ sensor_msgs::msg::PointCloud2 PerceptionNode::convertToPointCloud2(const pcl::Po
 
 void PerceptionNode::timerCallback()
 {
-    climbCheck();
+    this->climb_checker.climbCheck();
     // Accumulate data from sensors
     auto layers_node = this->config["layers"];
     for (auto it = layers_node.begin(); it != layers_node.end(); ++it)
@@ -483,7 +470,7 @@ void PerceptionNode::timerCallback()
     }
     else
     {
-        RCLCPP_ERROR(this->get_logger(), "%s():%d: output publisher not found", __FUNCTION__, __LINE__);
+        RCLCPP_ERROR(this->get_logger(), "output publisher not found");
     }
 
     for (const auto& [name, output_layer_cloud] : output_cloud_map)
@@ -497,52 +484,14 @@ void PerceptionNode::timerCallback()
         }
         else
         {
-            RCLCPP_ERROR(
-                this->get_logger(), "%s():%d: publisher not found for key: %s", __FUNCTION__, __LINE__, name.c_str());
+            RCLCPP_ERROR(this->get_logger(), "publisher not found for key: %s", name.c_str());
         }
     }
-}
-
-void PerceptionNode::setClimb(bool is_climb)
-{
-    this->climb_flag = is_climb;
 }
 
 bool PerceptionNode::isClimb()
 {
-    return this->climb_flag;
+    return this->climb_checker.isClimb();
 }
 
-void PerceptionNode::climbCheck()
-{
-    float pitch = this->getIMUdata().pitch;
-    if ((!this->isClimb()) && ((pitch - this->estimated_bias) < this->enable_climbing_threshold))
-    {
-        RCLCPP_INFO(this->get_logger(), "%s():%d: Remove All Drop off data by climb", __FUNCTION__, __LINE__);
-        this->setClimb(true);
-        this->climbing_time = this->now();
-    }
-    else if (this->isClimb() && (pitch - this->estimated_bias) >= this->disable_climbing_threshold)
-    {
-        if ((this->now() - this->climbing_time) > rclcpp::Duration::from_seconds(this->climbing_timeout / 1000.0))
-        {
-            this->setClimb(false);
-            this->estimated_bias = 0;
-        }
-    }
-
-    if (this->isClimb())
-    {
-        this->clearDropOffLayerMap();
-    }
-    else
-    {
-        this->estimated_bias = this->compute_exponential_weight_moving_average(this->estimated_bias, pitch);
-    }
-}
-
-double PerceptionNode::compute_exponential_weight_moving_average(double prev, double curr)
-{
-    return (1.0 - this->climbing_pitch_alpha) * prev + this->climbing_pitch_alpha * curr;
-}
 }  // namespace A1::perception

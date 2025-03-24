@@ -8,7 +8,6 @@ stateBase::stateBase(const int actionID, std::shared_ptr<rclcpp::Node> node, con
 
 void stateBase::pre_run(const std::shared_ptr<StateUtils> &) {
   first_running = true; 
-  // cmd_vel_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
 }
 
 void stateBase::run(const std::shared_ptr<StateUtils> &) {

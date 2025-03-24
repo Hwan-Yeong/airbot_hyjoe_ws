@@ -30,6 +30,8 @@
 #include <memory>
 #include <mutex>
 
+#include "planner/theta_star_planner.hpp"
+
 #define ACTION_NAME "navigate_to_pose"
 
 namespace explore {
@@ -40,6 +42,11 @@ namespace explore {
         GOAL_REACHED, // 목표 도달 성공
         FAILED_TO_REACH, // 목표 도달 실패
         COMPLETE // 탐색 완료
+    };
+
+    struct GoalInfo {
+        geometry_msgs::msg::PoseStamped pose_stamped;
+        nav_msgs::msg::Path path;
     };
 
     static const std::map<ExplorationState, std::string> ExplorationStateStr = {
@@ -67,11 +74,12 @@ namespace explore {
         void MakePlan();
 
         void VisualizeFrontiers(const std::vector<Frontier> &frontiers);
+        void VisualizePlans(const std::vector<GoalInfo> &plans);
 
         void RemoveGoalFromAbortedList(const geometry_msgs::msg::Point &goal);
-
         bool GoalOnAbortedList(const geometry_msgs::msg::Point &goal);
         bool GoalOnBlacklist(const geometry_msgs::msg::Point &goal);
+        void AdjustAbortedList(const std::vector<Frontier> &frontiers);
 
         void NavFeedbackCallback(NavGoalHandle::SharedPtr, const std::shared_ptr<const NavAction::Feedback> feedback);
         void ReachedGoal(const NavGoalHandle::WrappedResult &result,
@@ -84,8 +92,11 @@ namespace explore {
             const geometry_msgs::msg::Pose &current_pose
         ) const;
 
+        double GetDistance(double x1, double y1, double x2, double y2);
+
         // publishers & subscribers
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr frontier_marker_publisher_;
+        rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr explore_plan_publisher_;
         rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr explore_complete_publisher_;
 
         // action client
@@ -97,6 +108,7 @@ namespace explore {
 
         // explore objects
         std::shared_ptr<FrontierSearch> frontier_search_;
+        std::shared_ptr<ThetaStarPlanner> planner_;
         std::shared_ptr<Costmap2DClient> costmap_client_;
         rclcpp::TimerBase::SharedPtr exploring_timer_;
         rclcpp::CallbackGroup::SharedPtr cbg_exploring_timer_;
@@ -113,13 +125,18 @@ namespace explore {
         rclcpp::Time last_progress_;
         double prev_distance_remaining_ = std::numeric_limits<double>::max();
         size_t last_markers_count_;
+        size_t last_plans_count_;
         int empty_frontier_count_;
 
         // parameters
         double planner_frequency_;
         double min_frontier_size_;
+        int max_planning_size_;
         double potential_scale_, gain_scale_;
         double progress_timeout_;
         bool visualize_;
+        int how_many_corners_;
+        double w_euc_cost_;
+        double w_traversal_cost_;
     };
 } // explore

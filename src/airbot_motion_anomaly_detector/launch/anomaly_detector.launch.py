@@ -15,4 +15,11 @@ def generate_launch_description():
             parameters=[config_path],  # Use absolute path
             output="screen",
         ),
+
+        Node(
+        package=package_name,
+        executable="odom_monitor",
+        name="odom_monitor",
+        output="screen",
+        ),
     ])

@@ -21,6 +21,7 @@
 #include <iostream>
 #include <memory>
 #include <queue>
+#include <std_msgs/msg/float64_multi_array.hpp>
 #include <std_msgs/msg/int8.hpp>
 #include <string>
 #include <vector>
@@ -116,6 +117,7 @@ class PathPlanner : public nav2_core::GlobalPlanner
 
     std::pair<double, double> offsetDistance(double x, double y, int offset_num);
     rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr dest_publisher_;
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr dest_coord_publisher_;
 };
 }  // namespace A1_path_planner
 

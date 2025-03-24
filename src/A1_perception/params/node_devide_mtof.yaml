@@ -1,6 +1,11 @@
 A1_perception:
   node:
     period_ms: 10
+    climb_condition:
+      pitch_alpha: 0.001
+      enable_climbing_threshold: -1.15
+      disable_climbing_threshold: -1.15
+      timeout_ms: 1800
     inputs:
       robot_position:
         topic: "/amcl_pose"

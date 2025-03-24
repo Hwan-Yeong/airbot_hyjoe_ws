@@ -11,17 +11,13 @@ public:
   virtual void pre_run(const std::shared_ptr<StateUtils> &state_utils) override;
   virtual void run(const std::shared_ptr<StateUtils> &state_utils) override;
   virtual void post_run(const std::shared_ptr<StateUtils> &state_utils) override;
-  void publishVelocityCommand(double v, double w);
   void processLinearMoving();
   void enableLinearTargetMoving();
   // undocking function
   void unDockingMove(const float dist);
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_robot_cmd_pub_;
   rclcpp::TimerBase::SharedPtr linear_target_timer_;
 
-
-  bool bUndockStart = false;
   bool dock_pose_estimate = false;
 
   pose base_odom;

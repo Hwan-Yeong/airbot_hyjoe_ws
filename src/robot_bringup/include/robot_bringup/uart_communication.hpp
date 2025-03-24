@@ -15,6 +15,7 @@
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/u_int8.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "std_msgs/msg/empty.hpp"
 
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
@@ -116,6 +117,34 @@ enum class ToFnBatt : uint8_t
     OFF = 0x1 // ToF Off
 };
 
+enum ErrorCode1 {
+  ERROR_LEFT_MT_UART = 0x01,
+  ERROR_LEFT_MT_STALL = 0x02,
+  ERROR_LEFT_MT_OVERHEAT = 0x04,
+  ERROR_LEFT_MT_CURRENT = 0x08,
+  ERROR_RIGHT_MT_UART = 0x10,
+  ERROR_RIGHT_MT_STALL = 0x20,
+  ERROR_RIGHT_MT_OVERHEAT = 0x40,
+  ERROR_RIGHT_MT_CURRENT = 0x80
+};
+
+enum ErrorCode2 {
+  ERROR_Left_TOF_I2C = 0x01,
+  ERROR_Right_TOF_I2C = 0x02,
+  ERROR_1D_TOF_UART = 0x04,
+  ERROR_IMU_UART = 0x08,
+  ERROR_AP_RX_UART = 0x10,
+  ERROR_BATTERY_COMMUNICATION = 0x20,
+  ERROR_CHARGE_OVERCURRENT = 0x40,
+  ERROR_DISCHARGE_OVERCURRENT = 0x80
+};
+
+enum ErrorCode3 {
+    ERROR_BATTERY_CHARGE_OVER_HEAT = 0x01,
+    ERROR_BATTERY_DISCHAR_OVER_HEAT = 0x02,
+    ERROR_POGO_PIN_OVER_HEAT = 0x04,
+    ERROR_DOCKING_SIG_NOT_FOUND = 0x08
+};
 class UARTCommunication : public rclcpp::Node
 {
 public:
@@ -151,19 +180,25 @@ private:
     rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr charging_sub_;
     rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr odom_imu_reset_sub;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr tof_status_sub_;
-    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr battery_sleep_sub_;
+    rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr battery_sleep_sub_;
     // jig
     rclcpp::Subscription<robot_custom_msgs::msg::RpmControl>::SharedPtr jig_moter_sub;
     rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr jig_battery_sub;
     rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr jig_imu_sub;
+    
+    UARTHelpers uart_;
+    rclcpp::Duration timeout_;
+    
 
     rclcpp::Time last_cmd_vel_time_;
-    rclcpp::Duration timeout_;
+    rclcpp::Time debug_cmd_time_;
+    rclcpp::Time start_node_time_;
+    rclcpp::Time tof_command_start_time_;
+
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::TimerBase::SharedPtr timer2_;
     rclcpp::TimerBase::SharedPtr timer3_;
 
-    UARTHelpers uart_;
     std::mutex serial_mutex_;
     std::mutex velocity_mutex_;
     std::atomic<bool> serial_thread_running_;
@@ -265,7 +300,7 @@ private:
 
         uint8_t error_code_1; // Error Code 1 (0x00: No Error, 0x01: Error)
         uint8_t error_code_2; // Error Code 2
-        uint8_t reserve;      // Reserved field
+        uint8_t error_code_3;      // Reserved field
 
         uint8_t imu_index; // IMU Index (0-255)
         int16_t imu_yaw;   // IMU Yaw (Angle in degrees, +/- 180˚)
@@ -351,7 +386,7 @@ private:
     void setCurrentVelocity(double v, double w);
     void pubTopic();
 
-    void batterySleepCallback(const std_msgs::msg::Bool::SharedPtr msg);
+    void batterySleepCallback(const std_msgs::msg::Empty::SharedPtr);
     void tofCommandCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void dockingCommandCallback(const std_msgs::msg::UInt8::SharedPtr msg);
     void e_stop_callback(const std_msgs::msg::Bool::SharedPtr msg);
@@ -459,6 +494,7 @@ private:
     void setDockingMsg(const V1DataPacket &packet);
     void setBottomMsg(const V1DataPacket &packet);
     void setFwVersionMsg(const V1DataPacket &packet);
+    void setMcuErrorMsg(const V1DataPacket &packet);
 
     // void setProtocolModeMsg(CommandType protocol);
     void setJigCalibrationMsg(const V1DataPacket &packet);
@@ -470,10 +506,11 @@ private:
 
     std::string formatDataPacket(const std::vector<uint8_t> &data);
     uint8_t calculateChecksum(const std::vector<uint8_t> &data, size_t start, size_t end);
-    std::vector<double> computeAngularVelocity(double roll, double pitch, double yaw, double roll_dot, double pitch_dot, double yaw_dot);
+    std::vector<double> computeAngularVelocity(double roll, double pitch, double roll_dot, double pitch_dot, double yaw_dot);
     geometry_msgs::msg::Quaternion create_quaternion_from_yaw(double yaw);
 
     double quaternion_to_euler(const geometry_msgs::msg::Quaternion &quat);
+    void logError(uint8_t errorCode, uint8_t mask, const char* errorMessage);
 };
 
 #endif // UART_COMMUNICATION_HPP

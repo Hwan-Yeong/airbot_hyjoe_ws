@@ -12,17 +12,18 @@
 #include "domain/ros_define.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include <mutex>
+
+#include "application/search/safe_area.hpp"
 #include "nav2_msgs/action/navigate_to_pose.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "visualization_msgs/msg/marker.hpp"
-
+#include "visualization_msgs/msg/marker_array.hpp"
 namespace explore {
     class WarmupServer : public rclcpp::Node {
         public :
             explicit WarmupServer();
             virtual ~WarmupServer();
-
         private :
             using WarmupAction = explore_msgs::action::Warmup;
             using WarmUpActionServer = rclcpp_action::ServerGoalHandle<WarmupAction>;
@@ -39,6 +40,7 @@ namespace explore {
             rclcpp::CallbackGroup::SharedPtr cbg_topic_sub_robotpose_;
             rclcpp::CallbackGroup::SharedPtr cbg_topic_pub_start_warmup_;
             rclcpp::CallbackGroup::SharedPtr cbg_topic_pub_visuallization_;
+            rclcpp::CallbackGroup::SharedPtr cbg_topic_pub_visuallization_list_;
 
             /**
              * @brief : Callback group for Lidar topic subscription.
@@ -50,6 +52,7 @@ namespace explore {
 
             rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pub_warmup_start_bool_;
             rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr pub_markers_;
+            rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub_markers_list_;
 
             rclcpp_action::Client<NavToPose>::SharedPtr nav_to_pose_action_client_;
             rclcpp::Subscription<RobotPose>::SharedPtr sub_robotpose_;
@@ -67,6 +70,9 @@ namespace explore {
             std::shared_ptr<RobotPose> cur_robotpose_;
 
             navigation::ResultCode cur_result_;
+
+            std::shared_ptr<search::SafeArea> search_area_;
+            int result_try_check_;
 
             void ros_init();
             rclcpp_action::GoalResponse warmup_goal_handle(
@@ -86,8 +92,6 @@ namespace explore {
             void goal_response_callback(const GoalHandleNavToPose::SharedPtr & goal_handle);
             void result_callback(const GoalHandleNavToPose::WrappedResult & result);
             void bt_navigator_action_goal(float map_x, float map_y);
-
-            visualization_msgs::msg::Marker visualize_goal(float x, float y);
 
     };
 }

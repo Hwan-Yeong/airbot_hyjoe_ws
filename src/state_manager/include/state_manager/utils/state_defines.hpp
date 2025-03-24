@@ -34,6 +34,7 @@ enum class NODE_STATUS {
   AUTO_MAPPING,
   MANUAL_MAPPING,
   NAVI,
+  FT_NAVI //node manager에 켜라고 전달하기 위해 추가..
 };
 
 inline std::string enumToString(NODE_STATUS in) {
@@ -51,6 +52,9 @@ inline std::string enumToString(NODE_STATUS in) {
   case NODE_STATUS::NAVI:
     out = std::string("NAVI");
     break;
+  case NODE_STATUS::FT_NAVI:
+    out = std::string("FT_NAVI");
+    break;
   }
   return out;
 };
@@ -61,9 +65,10 @@ enum class NAVI_STATE : int {
   ARRIVED_GOAL,
   PAUSE,
   FAIL,
-  ROTAION,
-  COMPLETE_ROTATION,
+  START_ROTAION,
+  ROTATION_COMPLETE,
   READY,
+  ALTERNATE_GOAL,
 };
 
 inline std::string enumToString(NAVI_STATE in) {
@@ -81,17 +86,20 @@ inline std::string enumToString(NAVI_STATE in) {
   case NAVI_STATE::ARRIVED_GOAL:
     out = std::string("ARRIVED_GOAL");
     break;
+    case NAVI_STATE::ALTERNATE_GOAL:
+    out = std::string("ALTERNATE_GOAL");
+    break;  
   case NAVI_STATE::PAUSE:
     out = std::string("PAUSE");
     break;
   case NAVI_STATE::FAIL:
     out = std::string("FAIL");
     break;
-  case NAVI_STATE::ROTAION:
-    out = std::string("ROTAION");
+  case NAVI_STATE::START_ROTAION:
+    out = std::string("START_ROTAION");
     break;
-  case NAVI_STATE::COMPLETE_ROTATION:
-    out = std::string("COMPLETE_ROTATION");
+  case NAVI_STATE::ROTATION_COMPLETE:
+    out = std::string("ROTATION_COMPLETE");
     break;
   }
   return out;
@@ -140,16 +148,10 @@ enum class REQUEST_SOC_CMD {
   START_RETURN_CHARGER, // SOC 명령
   START_DOCKING,        // SOC 명령
   START_CHARGING,       // SOC 명령
-  STOP_CHARGING,        // SOC 명령
-  STOP_AUTO_MAPPING,    // SOC 명령
-  STOP_MANUAL_MAPPING,  // SOC 명령
   PAUSE_NAVIGATION,     // SOC 명령
   RESUME_NAVIGATION,    // SOC 명령
-  STOP_NAVIGATION,      // SOC 명령
-  STOP_RETURN_CHARGER,  // SOC 명령
-  STOP_DOCKING,         // SOC 명령
   START_FACTORY_NAVIGATION, //reserve SOC명령
-  STOP_FACTORY_NAVIGATION, //reserve SOC명령
+  STOP_WORKING //  SOC명령
 
   // reserve code
   // ROTATION
@@ -183,35 +185,17 @@ inline std::string enumToString(const REQUEST_SOC_CMD in) {
   case REQUEST_SOC_CMD::START_CHARGING:
     out = std::string("START_CHARGING");
     break;
-  case REQUEST_SOC_CMD::STOP_CHARGING:
-    out = std::string("STOP_CHARGING");
-    break;
-  case REQUEST_SOC_CMD::STOP_AUTO_MAPPING:
-    out = std::string("STOP_AUTO_MAPPING");
-    break;
-  case REQUEST_SOC_CMD::STOP_MANUAL_MAPPING:
-    out = std::string("STOP_MANUAL_MAPPING");
-    break;
   case REQUEST_SOC_CMD::PAUSE_NAVIGATION:
     out = std::string("PAUSE_NAVIGATION");
     break;
   case REQUEST_SOC_CMD::RESUME_NAVIGATION:
     out = std::string("RESUME_NAVIGATION");
     break;
-  case REQUEST_SOC_CMD::STOP_NAVIGATION:
-    out = std::string("STOP_NAVIGATION");
-    break;
-  case REQUEST_SOC_CMD::STOP_RETURN_CHARGER:
-    out = std::string("STOP_RETURN_CHARGER");
-    break;
-  case REQUEST_SOC_CMD::STOP_DOCKING:
-    out = std::string("STOP_DOCKING");
-    break;
   case REQUEST_SOC_CMD::START_FACTORY_NAVIGATION:
     out = std::string("START_FACTORY_NAVIGATION");
     break;
-  case REQUEST_SOC_CMD::STOP_FACTORY_NAVIGATION:
-    out = std::string("STOP_FACTORY_NAVIGATION");
+  case REQUEST_SOC_CMD::STOP_WORKING:
+    out = std::string("STOP_WORKING");
     break;
   }
   return out;
@@ -225,6 +209,7 @@ enum class REQUEST_ROBOT_CMD{
   UNDOCKING_DONE_START_AUTO_MAPPING,   // UNDOCKING 완료시
   UNDOCKING_DONE_START_MANUAL_MAPPING, // UNDOCKING 완료시
   UNDOCKING_DONE_START_NAVIGATION,     // UNDOCKING 완료시
+  UNDOCKING_DONE_START_FACTORY_NAVIGATION,
   DONE_AUTO_MAPPING, // AUTO_MAPPING완료시
   DONE_MANUAL_MAPPING,
 
@@ -256,6 +241,9 @@ inline std::string enumToString(const REQUEST_ROBOT_CMD in) {
     break;
   case REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_NAVIGATION:
     out = std::string("UNDOCKING_DONE_START_NAVIGATION");
+    break;
+  case REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_FACTORY_NAVIGATION:
+    out = std::string("UNDOCKING_DONE_START_FACTORY_NAVIGATION");
     break;
   case REQUEST_ROBOT_CMD::DONE_AUTO_MAPPING:
     out = std::string("DONE_AUTO_MAPPING");
@@ -377,6 +365,39 @@ enum ROTATION_COMMAND
     ROTATE_360_CW,
 };
 
+enum class READY_MAPPING : int {
+  CHECK_SENSOR,
+  CHECK_ODOM_RESET,
+  LAUNCH_NODE,
+  CHECK_NODE_LAUNCH,
+  COMPLETE,
+  FAIL,
+};
+
+inline std::string enumToString(READY_MAPPING in) {
+  std::string out;
+  switch (in) {
+  case READY_MAPPING::LAUNCH_NODE:
+    out = std::string("LAUCN_NODE");
+    break;
+  case READY_MAPPING::CHECK_NODE_LAUNCH:
+    out = std::string("CHECK_NODE");
+    break;
+    case READY_MAPPING::CHECK_SENSOR:
+    out = std::string("CHECK_SENSOR");
+    break;    
+  case READY_MAPPING::CHECK_ODOM_RESET:
+    out = std::string("CHECK_ODOM_RESET");
+    break;
+  case READY_MAPPING::COMPLETE:
+    out = std::string("COMPLETE");
+    break;
+  case READY_MAPPING::FAIL:
+    out = std::string("FAIL");
+    break;     
+  }
+  return out;
+};
 
 } // namespace airbot_state
 

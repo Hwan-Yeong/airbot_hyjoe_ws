@@ -11,7 +11,7 @@ double tof_bot_sensor_frame_y_translate = 0.075446;     //[meter]
 double tof_bot_sensor_frame_z_translate = 0.03;         //[meter]
 double tof_bot_left_sensor_frame_pitch_ang = -2.0;      //[deg]
 double tof_bot_right_sensor_frame_pitch_ang = -2.0;     //[deg]
-double tof_bot_left_sensor_frame_yaw_ang = 13.0;        //[deg]
+double tof_bot_left_sensor_frame_yaw_ang = 15.0;        //[deg]
 double tof_bot_rihgt_sensor_frame_yaw_ang = -15.0;      //[deg]
 double tof_bot_fov_ang = 45;                            //[deg]
 double camera_sensor_frame_x_translate = 0.15473;       //[meter]
@@ -44,6 +44,7 @@ SensorToPointcloud::SensorToPointcloud()
     declareParams();
     setParams();
     initVariables();
+    isActiveSensorToPointcloud = false;
 
     // Dynamic Parameter Handler
     param_handler_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
@@ -171,6 +172,7 @@ void SensorToPointcloud::declareParams()
     this->declare_parameter("camera.pointcloud_resolution",0.05);
     this->declare_parameter("camera.class_id_confidence_th",std::vector<std::string>());
     this->declare_parameter("camera.object_direction",false);
+    this->declare_parameter("camera.object_max_distance_m",1.0);
     this->declare_parameter("camera.logger.use",false);
     this->declare_parameter("camera.logger.margin.distance_diff",1.0);
     this->declare_parameter("camera.logger.margin.width_diff",1.0);
@@ -202,6 +204,7 @@ void SensorToPointcloud::setParams()
     this->get_parameter("camera.pointcloud_resolution", camera_pointcloud_resolution_);
     this->get_parameter("camera.class_id_confidence_th", camera_param_raw_vector_);
     this->get_parameter("camera.object_direction", camera_object_direction_);
+    this->get_parameter("camera.object_max_distance_m", object_max_distance_);
     this->get_parameter("camera.logger.use", use_camera_object_logger_);
     this->get_parameter("camera.logger.margin.distance_diff", camera_logger_distance_margin_);
     this->get_parameter("camera.logger.margin.width_diff", camera_logger_width_margin_);
@@ -240,6 +243,7 @@ void SensorToPointcloud::printParams()
     RCLCPP_INFO(this->get_logger(), "  Camera Publish Rate: %d ms", publish_rate_camera_);
     RCLCPP_INFO(this->get_logger(), "  Camera Pointcloud Resolution: %.2f", camera_pointcloud_resolution_);
     RCLCPP_INFO(this->get_logger(), "  Camera Object Direction: %s", camera_object_direction_ ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  Camera Object Max Distance: %.2f", object_max_distance_);
     RCLCPP_INFO(this->get_logger(), "  Camera Class ID Confidence Threshold:");
     for (const auto& conf : camera_class_id_confidence_th_) {
         RCLCPP_INFO(this->get_logger(), "    Class ID: %d, Confidence: %d", conf.first, conf.second);
@@ -265,7 +269,6 @@ void SensorToPointcloud::printParams()
 
 void SensorToPointcloud::initVariables()
 {
-    isActiveSensorToPointcloud = true; // 김환주 책임님 active 토픽 추가되면 false로 바꾸기
     isTofUpdating = false;
     isCameraUpdating = false;
     isCliffUpdating = false;
@@ -409,6 +412,11 @@ void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr 
 {
     if (msg) {
         isActiveSensorToPointcloud = msg->data;
+        if(isActiveSensorToPointcloud){
+            RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] activeCmdCallback : Active");
+        }else{
+            RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] activeCmdCallback : De-Active");
+        }
     } else {
         RCLCPP_ERROR(this->get_logger(), "cmd_sensor_to_pointcloud topic is a nullptr message.");
     }
@@ -463,10 +471,10 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
     }
 
     if (use_camera_object_logger_) {
-        camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th_, camera_object_direction_));
+        camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th_, camera_object_direction_, object_max_distance_));
     }
     if (use_camera_) {
-        bbox_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th_, camera_object_direction_);
+        bbox_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th_, camera_object_direction_, object_max_distance_);
         pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_msg, camera_pointcloud_resolution_);
     }
 

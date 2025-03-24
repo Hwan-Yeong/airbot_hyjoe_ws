@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 
-#define BASE_VERSION "0.36"
+#define BASE_VERSION "0.39"
 
 #ifdef LOG_SETTING
     #ifdef DEBUG_MODE
@@ -102,6 +102,7 @@
 #define setBatterySleepModeIdx 75
 #define setSensorInspectionModeIdx 76
 #define setStationRepositioningIdx 77
+#define setSelfDiagnosisMotorIdx 78
 
 #define setOTAIdx 80
 #define setOTADataIdx 81
@@ -258,6 +259,7 @@ struct BatteryStatusV2_t {
     int battery_temperature2;
     int design_capacity;
     int number_of_cycles;
+    int charge_status;
 };
 
 // #10
@@ -297,6 +299,12 @@ struct StationRepositioning_t
     double x;
     double y;
     double theta;
+};
+
+struct SelfDiagnosisMotor_t
+{
+    double mS;
+    double Distance;
 };
 
 struct AICalibration_t {
@@ -711,7 +719,7 @@ void resGetBatteryStatusV2(int cell_voltage1, int cell_voltage2, int cell_voltag
                          int cell_voltage4, int cell_voltage5, int total_capacity,
                          int remaining_capacity, int battery_manufacturer, int battery_percent,
                          double battery_voltage, double battery_current, int battery_temperature1,
-                         int battery_temperature2, int design_capacity, int number_of_cycles);
+                         int battery_temperature2, int design_capacity, int number_of_cycles, int charge_status);
 void resGetSoftwareVersion(const std::string &version);
 void resGetRobotInfo(const std::string &serialNumber, int status);
 void resGetErrorList(const std::vector<ErrorList_t> &ErrorList);
@@ -760,7 +768,7 @@ void resGetAllStatus(
         double cellVoltage1, double cellVoltage2, double cellVoltage3, double cellVoltage4, double cellVoltage5,
         double totalCapacity, double remainingCapacity, int batteryManufacturer, double batteryPercent,
         double batteryVoltage, double batteryCurrent, double batteryTemperature1, double batteryTemperature2,
-        double designCapacity, int numberOfCycles);
+        double designCapacity, int numberOfCycles, int chargeStatus);
 
 void resGetAllMovingInfo(
     int movingState,
@@ -794,6 +802,7 @@ bool reqSetMotorManual_VW(MotorManual_VW_t& settings);
 bool reqSetTargetPosition(TargetPosition_t& settings);
 bool reqSetTargetPositionType(TargetPositionType_t &settings);
 bool reqSetStationRepositioning(StationRepositioning_t &settings);
+bool reqSetSelfDiagnosisMotor(SelfDiagnosisMotor_t &settings);
 bool reqSetDriving(Driving_t& settings);
 bool reqSetMapping(Mapping_t& settings);
 bool reqSetModifiedMapDataS(std::string&  data);
@@ -833,7 +842,9 @@ void resSetMotorManual_VW(bool Result);
 void resSetTargetPosition(bool Result);
 void resSetTargetPositionType(bool Result);
 
-void resSetStationRepositioningIdx(bool Result);
+void resSetStationRepositioning(bool Result);
+void resSetSelfDiagnosisMotor(bool Result);
+
 void resSetDriving(bool Result);
 void resSetMapping(bool Result);
 void resSetModifiedMapData(bool Result);

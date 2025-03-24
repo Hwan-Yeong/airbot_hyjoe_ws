@@ -11,42 +11,54 @@ void ManualMapping::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
   RCLCPP_INFO(node_->get_logger(), "[ManualMapping] pre_run() -> Preparing ManualMapping state");
   
   mapping_start_time = std::numeric_limits<double>::max();
-
-  req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
-  if(state_utils->getNodeStatusID() == NODE_STATUS::AUTO_MAPPING || state_utils->getNodeStatusID() == NODE_STATUS::MANUAL_MAPPING){
-    exitMappingNode();
-  }else if(state_utils->getNodeStatusID() == NODE_STATUS::NAVI){
-    exitNavigationNode();
-  }
-
+  
   state_utils->startMonitorOdomReset();
+  req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
   state_utils->startSensorMonitor();
+  state_utils->setStatusID(ROBOT_STATUS::READY);
+  setReadyMapping(READY_MAPPING::CHECK_SENSOR);
+}
+
+void ManualMapping::setReadyMapping(READY_MAPPING set)
+{
+  if(ready_mapping != set){
+    RCLCPP_INFO(node_->get_logger(), "[ManualMapping] setReadyMapping %s", enumToString(set).c_str());
+  }
+  ready_mapping = set;
 }
 
 void ManualMapping::run(const std::shared_ptr<StateUtils> &state_utils) {
-
+  ROBOT_STATUS ready_check;
   if( isFirstRunning() ){
     RCLCPP_INFO(node_->get_logger(), "[ManualMapping] run() -> running ManualMapping state");
   }
+  auto req_state_msg = std_msgs::msg::UInt8();
 
-  if(state_utils->isSensorReady())
+  switch (state_utils->getStatusID())
   {
-    if (state_utils->getOdomResetDone()){
-      runManualMapping();
-    }else if(state_utils->isOdomResetError()){
-      RCLCPP_INFO(node_->get_logger(), "[ManualMapping] Preparing OdomResetError");
-    }
-  }else if(state_utils->isLidarError()){
-    RCLCPP_INFO(node_->get_logger(), "[ManualMapping] Preparing LidarError");
-  }else if(state_utils->isToFError()){
-    RCLCPP_INFO(node_->get_logger(), "[ManualMapping] Preparing ToFError");
+  case ROBOT_STATUS::READY :
+    ready_check = processMappingReady();
+    state_utils->setStatusID(ready_check);
+    break;
+  case ROBOT_STATUS::START :
+    break;
+  case ROBOT_STATUS::PAUSE :
+    break;
+  case ROBOT_STATUS::COMPLETE :
+    req_state_msg.data = int(REQUEST_ROBOT_CMD::DONE_MANUAL_MAPPING);
+    req_robot_cmd_pub_->publish(req_state_msg);
+    break;
+  case ROBOT_STATUS::FAIL :
+    RCLCPP_INFO(node_->get_logger(), "[ManualMapping] mapping fail");
+    break;      
+  default:
+    RCLCPP_INFO(node_->get_logger(), "[ManualMapping] Running UnKown Status");
+    break;
   }
 
   if(state_utils->getOnstationStatus()){
     RCLCPP_INFO(node_->get_logger(), "[ManualMapping]Robot on Docking Station!!!");
-    auto req_state_msg = std_msgs::msg::UInt8();
-    req_state_msg.data = int(REQUEST_ROBOT_CMD::DONE_MANUAL_MAPPING);
-    req_robot_cmd_pub_->publish(req_state_msg);
+    state_utils->setStatusID(ROBOT_STATUS::COMPLETE);
   }
 }
 
@@ -56,47 +68,83 @@ void ManualMapping::post_run(const std::shared_ptr<StateUtils> &state_utils) {
   RCLCPP_INFO(node_->get_logger(), "[ManualMapping] post_run() -> Exiting ManualMapping state");
   req_robot_cmd_pub_.reset();
   state_utils->stopMonitorOdom();
+  state_utils->stopSensorMonitor();
   map_saver();
-  exitMappingNode();
+  state_utils->send_node_goal(NODE_STATUS::IDLE);
 }
 
 ///////////////function in ManualMapping
-void ManualMapping::runManualMapping() {
-  RCLCPP_INFO(node_->get_logger(), "Manual Mapping Start");
-  if (state_utils->startProcess("ros2 launch airbot_slam slam.launch.py",
-                   "/home/airbot/mapping_pid.txt")) {
-    mapping_start_time = node_->now().seconds();
-    state_utils->setNodeStatusID( NODE_STATUS::MANUAL_MAPPING );
-    RCLCPP_INFO(node_->get_logger(), "[ManualMapping] ManualMapping Node Launch");
-    // stopMonitorOdom(); // Stop monitoring Odom status
 
-  } else {
-    // reqStatus = REQUEST_STATUS::FAIL;
-    RCLCPP_INFO(node_->get_logger(), "[ManualMapping] ManualMapping Node launch Fail");
-  }
-}
-
-void ManualMapping::exitMappingNode() {
-  if (state_utils->stopProcess("/home/airbot/mapping_pid.txt")) {
-    state_utils->setNodeStatusID( NODE_STATUS::IDLE );
-    RCLCPP_INFO(node_->get_logger(), "[ManualMapping] exit Mapping Node");
-  } else {
-    RCLCPP_INFO(node_->get_logger(), "[ManualMapping] Fail - kill Mapping Node");
-    state_utils->setNodeStatusID( NODE_STATUS::IDLE );
-  }
-  // rclcpp::Rate waitStop(1000);
-  // waitStop.sleep();
-}
-void ManualMapping::exitNavigationNode()
+ROBOT_STATUS ManualMapping::processMappingReady()
 {
-    if(state_utils->stopProcess("/home/airbot/navigation_pid.txt")){
-        RCLCPP_INFO(node_->get_logger(), "[ManualMapping] exit Navigation Node");
-    }else{
-        RCLCPP_INFO(node_->get_logger(), "[ManualMapping] Fail - kill Navigation Node");
+  ROBOT_STATUS ret = ROBOT_STATUS::READY;
+  int node_result = 0;
+  switch (ready_mapping)
+  {
+  case READY_MAPPING::CHECK_SENSOR :
+    if(state_utils->isSensorReady()){
+      setReadyMapping(READY_MAPPING::CHECK_ODOM_RESET);
+    }else if(state_utils->isLidarError()){
+      RCLCPP_INFO(node_->get_logger(), "[ManualMapping] lidar Error");
+      ret = ROBOT_STATUS::FAIL;
+      setReadyMapping(READY_MAPPING::FAIL);
+    }else if(state_utils->isToFError()){
+      RCLCPP_INFO(node_->get_logger(), "[ManualMapping] tof Error");
+      ret = ROBOT_STATUS::FAIL;
+      setReadyMapping(READY_MAPPING::FAIL);
+    }else if(state_utils->isCamreaError()){
+      RCLCPP_INFO(node_->get_logger(), "[ManualMapping] CameraError");
+      ret = ROBOT_STATUS::FAIL;
+      setReadyMapping(READY_MAPPING::FAIL);
     }
-    // rclcpp::Rate waitStop(1000);
-    // waitStop.sleep();
-    
+    break;     
+  case READY_MAPPING::CHECK_ODOM_RESET :
+    if(state_utils->isOdomResetError()){
+      RCLCPP_INFO(node_->get_logger(), "[ManualMapping] odom reset Error");
+      ret = ROBOT_STATUS::FAIL;
+      setReadyMapping(READY_MAPPING::FAIL);
+    }
+    else if(resetOdomChecker()){
+      setReadyMapping(READY_MAPPING::LAUNCH_NODE);
+    }
+    break;
+  case READY_MAPPING::LAUNCH_NODE :
+    RCLCPP_INFO(node_->get_logger(), "[ManualMapping] Mapping Node Start Goal Send");
+    state_utils->send_node_goal(NODE_STATUS::MANUAL_MAPPING);
+    setReadyMapping(READY_MAPPING::CHECK_NODE_LAUNCH);
+    break;
+  case READY_MAPPING::CHECK_NODE_LAUNCH :
+    node_result = state_utils->getNodeClientStatus();
+    if(node_result > 0){
+      RCLCPP_INFO(node_->get_logger(), "[ManualMapping] ManualMapping Node Launched");
+      setReadyMapping(READY_MAPPING::COMPLETE);
+      ret = ROBOT_STATUS::START;
+    }else if(node_result < 0){
+      setReadyMapping(READY_MAPPING::FAIL);
+      ret = ROBOT_STATUS::FAIL;
+    }
+    break;   
+  default:
+  RCLCPP_INFO(node_->get_logger(), "[ManualMapping] processMappingReady readyState Error!! : %d", static_cast<int>(ready_mapping));
+    break;
+  }
+
+  return ret;
+}
+
+bool ManualMapping::resetOdomChecker()
+{
+  bool ret = false;
+  if(!state_utils->isStartOdomReset()){
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] skip odom reset Checker ");
+    ret = true;
+  }
+  else if(state_utils->getOdomResetDone()){
+    RCLCPP_INFO(node_->get_logger(), "[Navigation] odom reset Done ");
+    ret = true;
+  } 
+
+  return ret;
 }
 
 void ManualMapping::map_saver() {

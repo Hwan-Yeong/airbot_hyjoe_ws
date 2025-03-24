@@ -1,4 +1,4 @@
-# clabil_250219_v1.6
+# clabil_250312_v1.7
 
 amcl:
   ros__parameters:
@@ -55,10 +55,6 @@ amcl:
     scan_topic: /scan
     
     set_initial_pose: true
-    initial_pose.x : 0.0
-    initial_pose.y : 0.0
-    initial_pose.z : 0.0
-    initial_pose.yaw : 0.0
 amcl_map_client:
   ros__parameters:
     use_sim_time: False
@@ -169,7 +165,7 @@ controller_server:
     general_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.24      
+      xy_goal_tolerance: 0.15
       yaw_goal_tolerance: 3.14
     # DWB parameters
     FollowPath:
@@ -184,8 +180,8 @@ controller_server:
       max_angular_accel: 5.0
       simulate_ahead_time: 1.0  #1.0
       debug_trajectory_details: True
-      #min_vel_x: 0.05
-      min_vel_x: 0.08
+      #min_vel_x: 0.08
+      min_vel_x: 0.1
       min_vel_y: 0.0
       max_vel_x: 0.4
       max_vel_y: 0.0
@@ -210,8 +206,8 @@ controller_server:
       angular_granularity: 0.025
       transform_tolerance: 0.2
       
-      #xy_goal_tolerance: 0.5
-      xy_goal_tolerance: 0.1
+      #xy_goal_tolerance: 0.1
+      xy_goal_tolerance: 0.05
       
       trans_stopped_velocity: 0.2
       short_circuit_trajectory_evaluation: True
@@ -296,7 +292,7 @@ local_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 10.0
-        inflation_radius: 0.45
+        inflation_radius: 0.40
       always_send_full_costmap: True
 
 global_costmap:
@@ -367,7 +363,7 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 10.0
-        inflation_radius: 0.45
+        inflation_radius: 0.40
       always_send_full_costmap: True
 
 map_server:

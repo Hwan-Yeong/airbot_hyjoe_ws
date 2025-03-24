@@ -1,13 +1,13 @@
 collision_detector:
   ros__parameters:
     # General Parameters
-    pitch_duration_threshold: 0.5  # Time (seconds) pitch must stay negative to detect collision
+    pitch_duration_threshold: 1.3  #[collision_detecion]Time (seconds) pitch must stay negative to detect collision
     pitch_slope_duration_threshold: 2.0  # Time (seconds) pitch must stay low for slope detection
 
     # IMU Thresholds
     acceleration_threshold_low: -0.3  # If velocity is low (cmd_vel_x < 0.2)
     acceleration_threshold_high: -0.6  # If velocity is higher
-    pitch_threshold_collision: -0.03  # Pitch threshold for collision detection
+    pitch_threshold_collision: -0.10 #[collision_detecion]Pitch threshold for collision detection
     pitch_threshold_min: -0.0872  # 5 degree =0.0872 Pitch threshold for slope detection
     pitch_threshold_max: 0.0872
 

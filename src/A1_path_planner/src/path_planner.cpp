@@ -35,7 +35,7 @@ void PathPlanner::configure(
     tf_ = tf;
     planner_->costmap_ = costmap_ros->getCostmap();
     global_frame_ = costmap_ros->getGlobalFrameID();
-    RCLCPP_INFO(node->get_logger(), "%s():%d: A1_path_planner start !", __FUNCTION__, __LINE__);
+    RCLCPP_INFO(node->get_logger(), "A1_path_planner start !");
 
     nav2_util::declare_parameter_if_not_declared(node, name_ + ".how_many_corners", rclcpp::ParameterValue(8));
 
@@ -66,6 +66,7 @@ void PathPlanner::configure(
     node->get_parameter(name + ".use_final_approach_orientation", use_final_approach_orientation_);
 
     dest_publisher_ = node->create_publisher<std_msgs::msg::Int8>("/path_planning/destination", 1);
+    dest_coord_publisher_ = node->create_publisher<std_msgs::msg::Float64MultiArray>("/path_planning/coordiante", 1);
 }
 
 void PathPlanner::cleanup()
@@ -118,10 +119,6 @@ nav_msgs::msg::Path PathPlanner::createPlan(
     // cost value 255->250
     if (goal_cost >= 250)
     {
-        // RCLCPP_WARN(logger_, "Cost at goal (%u, %u):%u", mx_goal, my_goal, goal_cost);
-        // RCLCPP_WARN(logger_, "Goal pose is on an obstacle, adjusting goal position.");
-
-        // -1m 이동한 목표 좌표 계산
         geometry_msgs::msg::PoseStamped adjusted_goal = goal;
         bool isFindPath = false;
         for (long unsigned int i = 0; i < offset_arr.size(); i++)
@@ -130,13 +127,11 @@ nav_msgs::msg::Path PathPlanner::createPlan(
 
             planner_->costmap_->worldToMap(newCoordinate.first, newCoordinate.second, mx_goal, my_goal);
             goal_cost = planner_->costmap_->getCost(mx_goal, my_goal);
-            // RCLCPP_WARN(logger_, "new goal[%ld] (%u, %u):%u", i,  mx_goal, my_goal, goal_cost);
 
             // 재조정된 목표가 맵 범위 내인지 확인
             if (!planner_->costmap_->worldToMap(newCoordinate.first, newCoordinate.second, mx_goal, my_goal) ||
                 planner_->costmap_->getCost(mx_goal, my_goal) == nav2_costmap_2d::LETHAL_OBSTACLE)
             {
-                // RCLCPP_ERROR(logger_, "Adjusted goal position is still invalid or outside map bounds!");
                 continue;
             }
             else
@@ -158,10 +153,15 @@ nav_msgs::msg::Path PathPlanner::createPlan(
         {
             planner_->setStartAndGoal(start, adjusted_goal);
             getPlan(global_path);
-            std_msgs::msg::Int8 msg;
-            msg.data = 1;
-            dest_publisher_->publish(msg);
-            RCLCPP_INFO(logger_, "%s():%d: Create path to alternative destination", __FUNCTION__, __LINE__);
+            std_msgs::msg::Int8 path_type_msg;
+            path_type_msg.data = 1;
+
+            std_msgs::msg::Float64MultiArray goal_msg;
+            goal_msg.data = {adjusted_goal.pose.position.x, adjusted_goal.pose.position.y};
+
+            dest_publisher_->publish(path_type_msg);
+            dest_coord_publisher_->publish(goal_msg);
+            RCLCPP_INFO(logger_, "Create path to alternative destination");
         }
         else
         {
@@ -172,10 +172,16 @@ nav_msgs::msg::Path PathPlanner::createPlan(
     {
         planner_->setStartAndGoal(start, goal);
         getPlan(global_path);
-        std_msgs::msg::Int8 msg;
-        msg.data = 0;
-        dest_publisher_->publish(msg);
-        RCLCPP_INFO(logger_, "%s():%d: Create path to original destination", __FUNCTION__, __LINE__);
+
+        std_msgs::msg::Int8 path_type_msg;
+        path_type_msg.data = 0;
+
+        std_msgs::msg::Float64MultiArray goal_msg;
+        goal_msg.data = {goal.pose.position.x, goal.pose.position.y};
+
+        dest_publisher_->publish(path_type_msg);
+        dest_coord_publisher_->publish(goal_msg);
+        RCLCPP_INFO(logger_, "Create path to original destination");
     }
 
     size_t plan_size = global_path.poses.size();

@@ -1,0 +1,18 @@
+state_manager:
+  ros__parameters:
+    use_camera : false
+    use_multiTof : false
+    direct_velocity_v : 0.4
+    direct_velocity_w : 0.0
+    undocking_distance : 0.3
+    odom_reset_timeout: 5.0
+    lidar_wait_timeout: 5.0
+    tof_wait_timeout: 3.0
+    camera_wait_timeout: 3.0
+    odom_reset_retry_count: 6
+    lidar_retry_count: 6
+    tof_retry_count: 6
+    camera_retry_count: 6
+    localization_retry_count: 6
+    move_goal_retry_count : 2
+    sensor_off_time : 60.0

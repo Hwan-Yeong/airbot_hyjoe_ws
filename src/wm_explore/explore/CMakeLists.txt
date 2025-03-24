@@ -2,10 +2,14 @@ cmake_minimum_required(VERSION 3.8)
 project(explore)
 
 # Add compile options for security and optimization
-add_compile_options(
-        -fstack-protector-strong  # Enable stack protector
-        -flto                     # Enable link-time optimization
-)
+#add_compile_options(
+#        -fstack-protector-strong  # Enable stack protector
+#        -flto                     # Enable link-time optimization
+#)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
 # Add linker flags for memory protections
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro,-z,now")
@@ -76,6 +80,10 @@ add_executable(${EXECUTABLE_NAME} src/main.cpp
         include/explore/lifecycle_node_checker.hpp
         src/explore/warm_up_client.cpp
         include/explore/warm_up_client.hpp
+        src/explore/planner/theta_star.cpp
+        include/explore/planner/theta_star.hpp
+        src/explore/planner/theta_star_planner.cpp
+        include/explore/planner/theta_star_planner.hpp
 )
 
 ament_target_dependencies(${EXECUTABLE_NAME}

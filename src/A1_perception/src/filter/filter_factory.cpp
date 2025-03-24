@@ -41,6 +41,10 @@ FilterFactory::create(std::shared_ptr<PerceptionNode> node_ptr, const std::strin
     {
         return std::make_shared<DistCheckFilter>(node_ptr, config);
     }
+    else if (type == "collision")
+    {
+        return std::make_shared<CollisionFilter>(node_ptr, config);
+    }
     else
     {
         throw std::runtime_error("Unknown filter type: " + type);

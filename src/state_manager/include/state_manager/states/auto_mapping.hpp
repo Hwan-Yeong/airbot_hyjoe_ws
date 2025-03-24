@@ -16,19 +16,20 @@ public:
   virtual void post_run(const std::shared_ptr<StateUtils> &state_utils) override;
 
   // odom and odom reset
-
+  ROBOT_STATUS processMappingReady();
+  void setReadyMapping(READY_MAPPING set);
+  bool resetOdomChecker();
   void runAutoMapping();
   void reset_subExploreFinish();
   void explore_finish_callback(const std_msgs::msg::Empty::SharedPtr msgs);
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr explore_finish_sub;
 
   void map_saver();
-  void exitMappingNode();
-  void exitNavigationNode();
 
   double mapping_start_time;  
   rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_robot_cmd_pub_;
 
+  READY_MAPPING ready_mapping;
 };
 
 } // namespace airbot_state

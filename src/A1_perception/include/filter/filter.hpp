@@ -27,8 +27,7 @@ T getYamlValue(const std::string func, const YAML::Node& config, const std ::str
     }
     else
     {
-        std::cout << __FUNCTION__ << "():" << __LINE__ << ": [" << func << "] - [" << key << "] yaml key is empty"
-                  << std::endl;
+        std::cout << " [" << func << "] - [" << key << "] yaml key is empty" << std::endl;
         return default_value;
     }
 }
@@ -282,6 +281,7 @@ class OneDTofFilter : public BaseFilter
     int layer_vector_size{};
     float line_length{};
     float resolution{};
+    float lidar_wall_check_threshold_sqr{};
     bool use_stop{false};
 };
 
@@ -315,6 +315,20 @@ class DistCheckFilter : public BaseFilter
     float min_range{};
     float max_range{};
     std::vector<std::string> inputs{};
+};
+
+/**
+ * @brief OneDTofFilter 1D ToF 검증을 위해 만든 필터입니다.
+ */
+class CollisionFilter : public BaseFilter
+{
+   public:
+    CollisionFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config);
+
+   private:
+    LayerVector updateImpl(LayerVector layer_vector) override;
+    float line_length{};
+    float resolution{};
 };
 }  // namespace A1::perception
 

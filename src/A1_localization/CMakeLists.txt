@@ -11,11 +11,17 @@ find_package(rclcpp REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav2_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 include_directories(include)
 
 add_executable(A1_localization src/main.cpp src/localization_service.cpp)
-ament_target_dependencies(A1_localization rclcpp std_srvs geometry_msgs nav2_msgs)
+ament_target_dependencies(A1_localization 
+rclcpp 
+std_srvs 
+geometry_msgs 
+nav2_msgs
+sensor_msgs)
 
 install(TARGETS A1_localization DESTINATION lib/${PROJECT_NAME})
 

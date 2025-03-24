@@ -47,7 +47,7 @@ def generate_launch_description():
             param_file_name))
 
     nav2_launch_file_dir = os.path.join(
-        get_package_share_directory('nav2_bringup'), 'launch')
+        get_package_share_directory('airbot_navigation'), 'launch')
 
     DeclareLaunchArgument(
         'slam',
@@ -75,8 +75,6 @@ def generate_launch_description():
             default_value='false',
             description='Use simulation (Gazebo) clock if true'),
 
-        
-
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([nav2_launch_file_dir, '/bringup_launch.py']),
             launch_arguments={
@@ -84,5 +82,22 @@ def generate_launch_description():
                 'use_sim_time': use_sim_time,
                 'params_file': param_dir}.items(),
         ),
-        
+
+        IncludeLaunchDescription(
+           PythonLaunchDescriptionSource([get_package_share_directory(
+              'A1_maneuver'), '/launch/A1_maneuver.launch.py'])
+        ),
+
+        IncludeLaunchDescription(
+           PythonLaunchDescriptionSource([get_package_share_directory(
+              'A1_perception'), '/launch/A1_perception.launch.py'])
+        ),
+
+        # 2025.02.27 clabil
+        # navigation 꺼지면서 연결 끊김 이슈로 이동
+        IncludeLaunchDescription(
+           PythonLaunchDescriptionSource([get_package_share_directory(
+              'A1_localization'), '/launch/localization.launch.py'])
+        ),
+
     ])

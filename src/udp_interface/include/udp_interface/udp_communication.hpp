@@ -19,6 +19,7 @@
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/u_int8.hpp"
 #include <std_msgs/msg/string.hpp>
+#include "std_msgs/msg/empty.hpp"
 
 #include "robot_custom_msgs/msg/block_area.hpp"
 #include "robot_custom_msgs/msg/block_area_list.hpp"
@@ -56,8 +57,6 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_ros/transform_broadcaster.h>
 
-#define PROTOCOL_V17 1
-
 enum class REQUEST_STATUS
 {
     VOID,
@@ -69,7 +68,6 @@ enum class REQUEST_STATUS
 };
 
 enum class REQUEST_SOC_CMD {
-  // SOC TRIGGER CMD
   VOID,
   START_AUTO_MAPPING,   // SOC 명령
   START_MANUAL_MAPPING, // SOC 명령
@@ -77,23 +75,10 @@ enum class REQUEST_SOC_CMD {
   START_RETURN_CHARGER, // SOC 명령
   START_DOCKING,        // SOC 명령
   START_CHARGING,       // SOC 명령
-  STOP_CHARGING,        // SOC 명령
-  STOP_AUTO_MAPPING,    // SOC 명령
-  STOP_MANUAL_MAPPING,  // SOC 명령
   PAUSE_NAVIGATION,     // SOC 명령
   RESUME_NAVIGATION,    // SOC 명령
-  STOP_NAVIGATION,      // SOC 명령
-  STOP_RETURN_CHARGER,  // SOC 명령
-  STOP_DOCKING,         // SOC 명령
-  START_FACTORY_NAVIGATION, //reserve SOC명령
-  STOP_FACTORY_NAVIGATION, //reserve SOC명령
-
-  // reserve code
-  // ROTATION
-  // MANUAL_MOVING,
-  // LIDAR_STOP,
-  // LIDAR_START,
-  // EMERGENCY_STOP,
+  START_FACTORY_NAVIGATION, // SOC명령
+  STOP_WORKING //  SOC명령
 };
 
 enum class REQUEST_DATA_WHAT
@@ -158,14 +143,15 @@ enum class NODE_STATUS
 
 enum class NAVI_STATE
 {
-    IDLE,
+    IDLE = 0,
     MOVE_GOAL,
     ARRIVED_GOAL,
     PAUSE,
     FAIL,
-    ROTAION,
-    COMPLETE_ROTATION,
+    START_ROTAION,
+    ROTATION_COMPLETE,
     READY,
+    ALTERNATE_GOAL,
 };
 
 enum class NAVI_FAIL_REASON
@@ -180,7 +166,6 @@ enum class NAVI_FAIL_REASON
 enum class UDP_COMMUNICATION
 {
     NORMAL,
-    INSPECTION,
     AP_JIG_MODE,
     AMR_JIG_MODE,
 };
@@ -406,12 +391,6 @@ struct RobotSpeed
     double w;
 };
 
-struct ErrorInfo
-{
-    uint8_t rank;
-    std::string code;
-};
-
 struct SocData
 {
     pose robotPosition;
@@ -432,7 +411,7 @@ struct SocData
     std::string notification;
     uint8_t lineLaserCalib;
     uint8_t movingStatus;
-    ErrorInfo errorInfo;
+    std::vector<ErrorList_t> errorList;
 };
 
 struct rotationData
@@ -496,13 +475,15 @@ private :
     //publisher
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr e_stop_pub;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr manual_move_pub_;
+    rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr dock_pub;
     rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr charge_pub;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr lidar_cmd_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr tof_cmd_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr linelaser_cmd_pub_;
-    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr batterySleep_cmd_pub_;
+    rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr batterySleep_cmd_pub_;
 
     rclcpp::Publisher<robot_custom_msgs::msg::Position>::SharedPtr move_target_pub_;
+    rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr move_charger_pub_;
     rclcpp::Publisher<robot_custom_msgs::msg::MoveNRotation>::SharedPtr move_rotation_pub_;
     rclcpp::Publisher<robot_custom_msgs::msg::MoveNRotation>::SharedPtr rotation_pub_;
     rclcpp::Publisher<robot_custom_msgs::msg::BlockAreaList>::SharedPtr block_area_pub_;
@@ -516,6 +497,7 @@ private :
     
     //rclcpp::Publisher<robot_custom_msgs::msg::MotorRpm>::SharedPtr cmd_rpm_pub_;
     rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr req_soc_cmd_pub_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr sw_version_pub_;
 
     //timer
     rclcpp::TimerBase::SharedPtr udpTimer_;
@@ -547,7 +529,6 @@ private :
     Rotation_t ReqRotation;
     Rotation_t& reqRotation = ReqRotation;
 
-    #if PROTOCOL_V17 > 0
     FactoryMode_t ReqFactoryMode;
     FactoryMode_t& reqFactoryMode = ReqFactoryMode;
     BatterySleepMode_t ReqBatterySleep;
@@ -556,13 +537,11 @@ private :
     InspectionMode_t &reqInspectionMode = ReqInspectionMode;
     StationRepositioning_t ReqStationPose;
     StationRepositioning_t& reqStationPose = ReqStationPose;
-    #endif
 
-    std::vector<ErrorList_t> error_list;
+    SelfDiagnosisMotor_t ReqSelfDiagnosisMotor;
+    SelfDiagnosisMotor_t& reqSelfDiagnosisMotor = ReqSelfDiagnosisMotor;
 
-    ROBOT_STATE robotState;
-    ROBOT_STATUS robotStatus;
-    NAVI_STATE movingState;
+    bool bInspectionMode;
     NAVI_FAIL_REASON movefail_reason;
     NODE_STATUS nodeState;
 
@@ -577,6 +556,10 @@ private :
     pose base_odom;
     pose odom;
     bool end_linear_target;
+    std::size_t temp_mapsize;
+
+    double inspection_motor_Velocity;
+    double inspection_motor_Distance;
 
 public:
     UdpCommunication();
@@ -600,10 +583,7 @@ public:
 
     void generateVersion();
 
-    void setRobotState(ROBOT_STATE state, ROBOT_STATUS status);
-
     void setNodeState(NODE_STATUS set);
-    void setNaviState(NAVI_STATE set);
     void setNaviFailReason(NAVI_FAIL_REASON set);
 
     void debugLogRobotState(ROBOT_STATE set);
@@ -627,9 +607,9 @@ public:
     void setSocTargetPosition(double x, double y, double theta);
     void setSocMapData(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
     void setSocRobotVelocity(double v, double w);
-    void setSocRobotState();
-    void setSocMovingState();
-    void setSocError(const robot_custom_msgs::msg::ErrorListArray::SharedPtr msg);
+    void setSocRobotState(uint8_t state, uint8_t status);
+    void setSocMovingState(uint8_t status, uint8_t fail_reason);
+    void setSocError(ErrorList_t error);
 
     void setJigData(JIG_DATA_KEY key, const std::vector<uint8_t>& data);
     std::vector<uint8_t> getJigData(JIG_DATA_KEY key);
@@ -732,12 +712,14 @@ public:
     void publishClearVirtualWall();
     void publishVersionRequest();
     void publishMoveGoal(double x,double y,double theta);
+    void publishMoveCharger();
     void publishMoveNRotation(double x,double y,double theta, int type);
     void publishRotation(int type,double theta);
     void publishLidarOnOff(bool on_off);
     void publishSensorOnOff(bool set);
     void publishBatterySleep();
     void publishStationPose(double x, double y, double theta);
+    void publishDockingCommand(bool start);
 
     void clearErrorList();
 
@@ -774,7 +756,7 @@ public:
     int getMinDistanceFromLidarSensor(const std::vector<int>& vecDistance);
     double normalize_angle(double angle);
 
-    void enableLinearTargetMoving();
+    void enableLinearTargetMoving(double v, double distance);
     void disableLinearTargetMovoing();
     double getDistance(pose base, pose current);
     void processLinearMoving();

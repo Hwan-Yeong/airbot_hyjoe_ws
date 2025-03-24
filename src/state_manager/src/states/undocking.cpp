@@ -9,11 +9,10 @@ UnDocking::UnDocking(const int actionID, std::shared_ptr<rclcpp::Node> node, con
 
 void UnDocking::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
   stateBase::pre_run(state_utils);
-  cmd_vel_pub_ = node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
   req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
-  bUndockStart = false;
   state_utils->setStartOnStation(true);
   RCLCPP_INFO(node_->get_logger(), "[UnDocking] pre_run() -> Preparing UnDocking state");
+  state_utils->startSensorMonitor();
   state_utils->enableOdomcallback();
 }
 
@@ -34,8 +33,7 @@ void UnDocking::run(const std::shared_ptr<StateUtils> &state_utils) {
     }
     break;
   case ROBOT_STATUS::START :
-    if( bUndockStart )
-    {
+    if(end_linear_target){
       ready_check = ROBOT_STATUS::COMPLETE;
       state_utils->setStatusID(ready_check);
     }  
@@ -58,6 +56,8 @@ void UnDocking::run(const std::shared_ptr<StateUtils> &state_utils) {
       undock_state_msg.data = int(REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_MANUAL_MAPPING);
     }else if(state_utils->getRobotCMDID().soc_cmd == REQUEST_SOC_CMD::START_NAVIGATION){
       undock_state_msg.data = int(REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_NAVIGATION);
+    } else if(state_utils->getRobotCMDID().soc_cmd == REQUEST_SOC_CMD::START_FACTORY_NAVIGATION){
+      undock_state_msg.data = int(REQUEST_ROBOT_CMD::UNDOCKING_DONE_START_FACTORY_NAVIGATION);
     }
     req_robot_cmd_pub_->publish(undock_state_msg);
     break;
@@ -76,12 +76,12 @@ void UnDocking::post_run(const std::shared_ptr<StateUtils> &state_utils) {
   RCLCPP_INFO(node_->get_logger(), "[UnDocking] post_run() -> Exiting UnDocking state");
   stateBase::post_run(state_utils);
   req_robot_cmd_pub_.reset();
-  cmd_vel_pub_.reset();
   if(linear_target_timer_)
   {
     linear_target_timer_.reset();
   }
   state_utils->startMonitorOdomReset();
+  state_utils->stopSensorMonitor();
 }
 
 void UnDocking::enableLinearTargetMoving()
@@ -99,27 +99,17 @@ void UnDocking::processLinearMoving()
 {
     pose current = state_utils->getCurrentOdom();
     double distance = state_utils->getDistance(base_odom,current);
-    if(distance >= 0.3)
+    double target_distance = state_utils->getUndockingDistance();
+    if(distance >= target_distance)
     {
         end_linear_target = true;
-        publishVelocityCommand(0.0,0.0);
+        state_utils->publishVelocityCommand(0.0,0.0);
         RCLCPP_INFO(node_->get_logger(), "[UnDocking] moving 0.3m over distance : %f , base X : %f, Y : %f, current X : %f, Y : %f ",
         distance,base_odom.x,base_odom.y,current.x,current.y);
-        bUndockStart = true;
     }else{
         //RCLCPP_WARN(node_->get_logger(), "processLinearMoving...distance : %f",distance);
-        publishVelocityCommand(0.07,0.0);
+        state_utils->publishVelocityCommand(0.07,0.0);
     }
 }
-
-void UnDocking::publishVelocityCommand(double v, double w)
-{
-    auto cmd_msg = geometry_msgs::msg::Twist();
-    cmd_msg.linear.x = v;
-    cmd_msg.angular.z = w;
-    cmd_vel_pub_->publish(cmd_msg);
-    // RCLCPP_INFO(node_->get_logger(), "publishVelocityCommand V : %f, W : %f ", v,w);
-}
-
 
 } // namespace airbot_state

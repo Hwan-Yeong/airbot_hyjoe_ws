@@ -1,0 +1,16 @@
+airbot_error_manager:
+  ros__parameters:
+    log_print: true
+    # 0: unset, 10: debug, 20: info, 30: warn, 40: error
+    log_level: 20
+    publish_rate_ms: 1000
+    error_list: error_list.yaml
+
+airbot_error_monitor:
+  ros__parameters:
+    publish_rate:
+      low_battery_rate_ms: 1000
+      fall_down_rate_ms: 1000
+      board_overheat_rate_ms: 1000
+      battery_discharge_rate_ms: 1000
+      charging_rate_ms: 1000

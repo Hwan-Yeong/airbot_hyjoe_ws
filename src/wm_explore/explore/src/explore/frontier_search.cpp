@@ -66,26 +66,34 @@ namespace explore {
                 if (map_[nbr] <= map_[idx] && !visited_flag[nbr]) {
                     visited_flag[nbr] = true;
                     bfs.push(nbr);
-                    // check if cell is new frontier cell (unvisited, NO_INFORMATION, free
-                    // neighbour)
+                    // check if cell is new frontier cell (unvisited, NO_INFORMATION, free neighbour)
                 } else if (IsNewFrontierCell(nbr, frontier_flag)) {
                     frontier_flag[nbr] = true;
                     Frontier new_frontier = BuildNewFrontier(nbr, pos, frontier_flag);
-                    if (new_frontier.size * costmap_->getResolution() >=
-                        min_frontier_size_) {
+                    if (new_frontier.size * costmap_->getResolution() >= min_frontier_size_) {
                         frontier_list.push_back(new_frontier);
                     }
                 }
             }
         }
 
+        // remove frontiers that are too close to obstacles
+        frontier_list.erase(
+            std::remove_if(frontier_list.begin(), frontier_list.end(), [this](const Frontier &frontier) {
+                unsigned int centroid_mx, centroid_my;
+                costmap_->worldToMap(frontier.centroid.x, frontier.centroid.y, centroid_mx, centroid_my);
+                unsigned int centroid_idx = costmap_->getIndex(centroid_mx, centroid_my);
+                return map_[centroid_idx] == 254 || map_[centroid_idx] == 253;
+            }),
+            frontier_list.end()
+        );
+
         // set costs of frontiers
         for (auto &frontier: frontier_list) {
             frontier.cost = FrontierCost(frontier);
         }
-        std::sort(
-            frontier_list.begin(), frontier_list.end(),
-            [](const Frontier &f1, const Frontier &f2) { return f1.cost < f2.cost; });
+        std::sort(frontier_list.begin(), frontier_list.end(),
+                  [](const Frontier &f1, const Frontier &f2) { return f1.cost < f2.cost; });
 
         return frontier_list;
     }

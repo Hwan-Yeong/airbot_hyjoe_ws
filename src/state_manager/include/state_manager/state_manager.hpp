@@ -9,7 +9,7 @@
 
 #include <std_msgs/msg/string.hpp>
 #include "std_msgs/msg/u_int8.hpp"
-#include "robot_custom_msgs/msg/navi_state.hpp"
+
 #include "robot_custom_msgs/msg/error_list.hpp"
 #include "robot_custom_msgs/msg/error_list_array.hpp"
 
@@ -65,9 +65,6 @@ public:
   rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr soc_cmd_sub_;
   rclcpp::Subscription<robot_custom_msgs::msg::ErrorListArray>::SharedPtr error_list_sub_;
 
-  rclcpp::Publisher<robot_custom_msgs::msg::RobotState>::SharedPtr robot_state_pub_;
-  rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr node_status_pub_;
-  rclcpp::Publisher<robot_custom_msgs::msg::NaviState>::SharedPtr navi_state_pub_;
   rclcpp::TimerBase::SharedPtr timer_;
 
   

@@ -11,7 +11,9 @@ void Idle::pre_run(const std::shared_ptr<StateUtils> &state_utils) {
   RCLCPP_INFO(node_->get_logger(), "[Idle] pre_run() -> Preparing idle state");
 
   req_robot_cmd_pub_ = node_->create_publisher<std_msgs::msg::UInt8>("/robot_state_cmd",10);
-  state_utils->publishAllSensorOff();
+  state_utils->enableArrivedGoalSensorsOffTimer();
+  state_utils->publishSenSorManagerOff();
+  state_utils->publishManeuverOff();
 }
 
 void Idle::run(const std::shared_ptr<StateUtils> &state_utils) {

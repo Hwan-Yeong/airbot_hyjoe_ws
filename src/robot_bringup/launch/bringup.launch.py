@@ -47,6 +47,12 @@ def generate_launch_description():
     get_package_share_directory('state_manager'),
         'launch',
         'state_manager.launch.py'
+    )
+
+    airbot_node_manager_launch_file = os.path.join(
+    get_package_share_directory('airbot_node_manager'),
+        'launch',
+        'node_manager.launch.py'
     )    
     
     sensor_to_pointcloud_launch = os.path.join(
@@ -87,6 +93,10 @@ def generate_launch_description():
 
         IncludeLaunchDescription(
            PythonLaunchDescriptionSource([state_manager_launch_file])
+       ),
+
+       IncludeLaunchDescription(
+           PythonLaunchDescriptionSource([airbot_node_manager_launch_file])
        ),
 
        IncludeLaunchDescription(

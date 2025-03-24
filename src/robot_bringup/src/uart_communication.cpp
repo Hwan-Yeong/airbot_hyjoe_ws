@@ -9,7 +9,8 @@
 // when 2024.12.24 ap image is download,USE_REMOVE_SYSLOG is false
 // 양산에서는 disable 해야함. : icbaek.24.12.28
 #define USE_REMOVE_SYSLOG true
-#define TOF_ALWAYS_ON 1
+
+uint8_t temp_tof_command;
 
 auto previous_time = std::chrono::steady_clock::now();
 
@@ -79,13 +80,13 @@ UARTCommunication::UARTCommunication()
         "/odom_imu_reset_cmd",
         10,
         std::bind(&UARTCommunication::odom_imu_reset_callback, this, std::placeholders::_1));
-    
+
     tof_status_sub_ = this->create_subscription<std_msgs::msg::Bool>(
         "/cmd_tof",
         10,
         std::bind(&UARTCommunication::tofCommandCallback, this, std::placeholders::_1));
-
-    battery_sleep_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+        
+    battery_sleep_sub_ = this->create_subscription<std_msgs::msg::Empty>(
         "/cmd_battery_sleep",
         10,
         std::bind(&UARTCommunication::batterySleepCallback, this, std::placeholders::_1));    
@@ -131,21 +132,23 @@ UARTCommunication::UARTCommunication()
 
     serial_thread_running_ = true;
 
-    last_cmd_vel_time_ = this->get_clock()->now();
-
-#if USE_REMOVE_SYSLOG                                              // when 2024.12.24 ap image download
+    #if USE_REMOVE_SYSLOG                                              // when 2024.12.24 ap image download
     std::string command = "sudo /usr/bin/rm -rf /var/log/syslog*"; // which rm => /usr/bin/rm
     int ret_code = system(command.c_str());
-    if (ret_code == 0)
-    {
-        RCLCPP_INFO(this->get_logger(), "Successfully  %s", command.c_str());
+    if (ret_code == 0){
+        RCLCPP_INFO(this->get_logger(), "Successfully executed: %s", command.c_str());
+    }else{
+        RCLCPP_ERROR(this->get_logger(), "Failed to execute: %s. Return code: %d", command.c_str(), ret_code);
     }
-    else
-    {
-        RCLCPP_ERROR(this->get_logger(), "Failed to %s. Return code: %d", command.c_str(), ret_code);
+
+    sleep(1); // safty delay time
+
+    int sync_ret = system("sync"); // safty sync
+    if (sync_ret == 0){
+        RCLCPP_INFO(this->get_logger(), "Successfully executed: sync");
+    }else{
+        RCLCPP_ERROR(this->get_logger(), "Failed to execute: sync. Return code: %d", sync_ret);
     }
-    sleep(1);       // safty delay time
-    system("sync"); // safty sync
 #endif
 }
 
@@ -160,19 +163,15 @@ UARTCommunication::~UARTCommunication()
 
 void UARTCommunication::initializeData()
 {
-    g_transmission_data.linear_velocity = 0;
-    g_transmission_data.angular_velocity = 0;
+    setCurrentVelocity(0.0, 0.0);
     g_transmission_data.left_mt_rpm = 0;
     g_transmission_data.right_mt_rpm = 0;
     g_transmission_data.reset_flags = 0;
     g_transmission_data.motor_flags = 0;
     g_transmission_data.docking_flags = 0;
     g_transmission_data.imu_flags = 0x0;
-    #if TOF_ALWAYS_ON > 0
-    g_transmission_data.tofnBatt_flags = 0x0;//0x1;
-    #else
-    g_transmission_data.tofnBatt_flags = 0x1;
-    #endif
+    g_transmission_data.tofnBatt_flags = 0x0;
+    temp_tof_command = g_transmission_data.tofnBatt_flags;
     g_transmission_data.index = 0;
 
     previous_roll = 0;
@@ -181,6 +180,10 @@ void UARTCommunication::initializeData()
     amcl_pose_x_ = 0;
     amcl_pose_y_ = 0;
     amcl_pose_angle_ = 0;
+    tof_command_start_time_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
+    debug_cmd_time_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
+    RCLCPP_INFO(this->get_logger(), "[Bringup]initializeData TOF COMMAND HEX : 0x%02X",temp_tof_command);
+    start_node_time_ = this->get_clock()->now();
 }
 
 void UARTCommunication::setCurrentVelocity(double v, double w)
@@ -189,6 +192,7 @@ void UARTCommunication::setCurrentVelocity(double v, double w)
     setMotorMode(MotorMode::VW_MODE);
     setLinearVelocity(v);
     setAngularVelocity(w);
+    last_cmd_vel_time_ = this->get_clock()->now(); // Reset the watchdog timer
 }
 
 void UARTCommunication::pubTopic()
@@ -225,7 +229,6 @@ void UARTCommunication::reqVersionCallback(const std_msgs::msg::UInt8::SharedPtr
 void UARTCommunication::cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
 {
     setCurrentVelocity(msg->linear.x, msg->angular.z);
-    last_cmd_vel_time_ = this->get_clock()->now(); // Reset the watchdog timer
 }
 
 void UARTCommunication::jig_motor_callback(const robot_custom_msgs::msg::RpmControl msg)
@@ -246,7 +249,6 @@ void UARTCommunication::jig_motor_callback(const robot_custom_msgs::msg::RpmCont
 void UARTCommunication::jig_bettery_callback(const std_msgs::msg::UInt8 msg)
 {
     RCLCPP_INFO(this->get_logger(), "jig_bettery_callback ");
-    uint8_t remote_mode;
     uint8_t command = msg.data;
     if (command == 0x01){
         defaultTransmissionData();
@@ -277,6 +279,14 @@ void UARTCommunication::jig_imu_callback(const std_msgs::msg::UInt8 msg)
 void UARTCommunication::timerCallback()
 {
     auto current_time = this->get_clock()->now();
+    // check move on goal arrived in auto mapping
+    if((current_time - last_cmd_vel_time_).seconds() > 1.0){
+        if(g_transmission_data.linear_velocity != 0.0 || g_transmission_data.angular_velocity != 0.0){
+            RCLCPP_INFO(this->get_logger(), "there is no c md_vel for 10sec over please set linear_velocity and angular_velocity to zero when moving is finished");
+            //setLinearVelocity(0.0);
+            //setAngularVelocity(0.0);    
+        }
+    }
     sendProtocolV1Data(g_transmission_data);
 }
 
@@ -399,8 +409,8 @@ void UARTCommunication::setCharge(DockingChargeCommand set)
 // 도킹 관련 설정 함수 (하위 4 비트)
 void UARTCommunication::setDocking(DockingChargeCommand set)
 {
-    uint8_t new_status = static_cast<uint8_t>(set);
     uint8_t status = getLowerBits(g_transmission_data.docking_flags);
+    //uint8_t new_status = static_cast<uint8_t>(set);
     //RCLCPP_INFO(this->get_logger(), "setDocking status: %u --> new status: %u", status,new_status);
     if(set != static_cast<DockingChargeCommand>(status)){
         if (set == DockingChargeCommand::DOCKING_START){
@@ -586,18 +596,28 @@ void UARTCommunication::sendProtocolV1Data(TransmissionData& data)
     message[2] = 28;   // Data_Size (28바이트, 헤더 및 데이터 크기를 포함)
     message[3] = 0x51; // Header (Command Type)
 
-    // Linear Velocity (mm/s로 변환 후 double -> IEEE 754 표현으로 저장)
     double linear_vel_mm = data.linear_velocity * 1000.0; // m/s를 mm/s로 변환
-    uint64_t linear_velocity_bits = *reinterpret_cast<uint64_t*>(&linear_vel_mm); // IEEE 754로 변환
+
+    uint64_t linear_velocity_bits;
+    std::memcpy(&linear_velocity_bits, &linear_vel_mm, sizeof(uint64_t));
+
     for (int i = 0; i < 8; ++i) {
-        message[4 + i] = (linear_velocity_bits >> (56 - 8 * i)) & 0xFF;
+        uint8_t linear_velocity = (linear_velocity_bits >> (56 - 8 * i)) & 0xFF;
+        int idx = 4 + i;
+        message[idx] = linear_velocity;
+        //RCLCPP_INFO(this->get_logger(), "indx: %d, linear_velocity_byte: %d",idx,linear_velocity);
     }
 
-    // Angular Velocity (radian/s, double -> IEEE 754 표현으로 저장)
-    uint64_t angular_velocity_bits = *reinterpret_cast<uint64_t*>(&data.angular_velocity);
+    uint64_t angular_velocity_bits;
+    std::memcpy(&angular_velocity_bits, &data.angular_velocity, sizeof(uint64_t));
+
     for (int i = 0; i < 8; ++i) {
-        message[12 + i] = (angular_velocity_bits >> (56 - 8 * i)) & 0xFF;
+        uint8_t angular_velocity = (angular_velocity_bits >> (56 - 8 * i)) & 0xFF;
+        int idx = 12 + i;
+        message[idx] = angular_velocity;
+        //RCLCPP_INFO(this->get_logger(), "indx: %d, angular_velocity: %d",idx,angular_velocity);
     }
+
 
     // Left Motor RPM (int16_t, Big-Endian 저장)
     message[20] = (data.left_mt_rpm >> 8) & 0xFF; // MSB
@@ -621,7 +641,10 @@ void UARTCommunication::sendProtocolV1Data(TransmissionData& data)
 
     // tof Flags
     message[28] = data.tofnBatt_flags;
-
+    if(temp_tof_command != message[28]){
+        RCLCPP_INFO(this->get_logger(), "[Bringup] TOF-COMMAND SEND TO MCU HEX : 0x%02X",message[28]);
+        temp_tof_command = message[28];
+    }
     // Index
     message[29] = data.index; // Index (0~255)
 
@@ -743,7 +766,7 @@ void UARTCommunication::setImuMsg(const V1DataPacket &packet)
     previous_yaw = yaw;
     previous_time = current_time;
 
-    std::vector<double> angular_velocity = computeAngularVelocity(roll, pitch, yaw, roll_dot, pitch_dot, yaw_dot);
+    std::vector<double> angular_velocity = computeAngularVelocity(roll, pitch, roll_dot, pitch_dot, yaw_dot);
     imu_msg.angular_velocity.x = angular_velocity[0];
     imu_msg.angular_velocity.y = angular_velocity[1];
     imu_msg.angular_velocity.z = angular_velocity[2];
@@ -793,6 +816,14 @@ void UARTCommunication::setBatteryMsg(const V1DataPacket &packet)
 
     battery_msg.charge_status = static_cast<int>(packet.charging_mode);
     battery_msg.charging_mode = packet.charging_mode;
+    
+    uint8_t chargingStatus = getUpperBits(g_transmission_data.docking_flags);
+    DockingChargeCommand cmd_charging = static_cast<DockingChargeCommand>(chargingStatus);
+    if(cmd_charging == DockingChargeCommand::CHARGE_STOP && battery_msg.charging_mode != 0X0F){
+        RCLCPP_INFO(this->get_logger(), "ERROR CHARGE_STOP - CHARGE MODE is %d", battery_msg.charging_mode);
+    }else if(battery_msg.charging_mode == 0X0F){
+        RCLCPP_INFO(this->get_logger(), "ERROR CHARGE - CHARGE MODE is %d", battery_msg.charging_mode);
+    }
 }
 
 float calculateAverage(const uint16_t *array, size_t size)
@@ -866,28 +897,57 @@ void UARTCommunication::setMotorMsg(const V1DataPacket &packet)
  
     motor_msg.motor_mode = packet.motor_mode;
     
-    // motor_msg.motor_type = getLowerBits(packet.motor_mode);
-    // motor_msg.left_status = packet.mo
-    // motor_msg.right_status
+    auto now = this->get_clock()->now();
+
+    if((now-start_node_time_).seconds() >= 10.0){
+        if(motor_msg.left_motor_status == 0x00){
+            RCLCPP_INFO(this->get_logger(), "left motor communication error");
+        }
+        if(motor_msg.right_motor_status == 0x00){
+            RCLCPP_INFO(this->get_logger(), "right motor communication error");
+        }
+    }
 }
 
 void UARTCommunication::setDockingMsg(const V1DataPacket &packet)
 {
+    uint8_t chargingStatus = getUpperBits(g_transmission_data.docking_flags);
+    uint8_t dockingStatus = getLowerBits(g_transmission_data.docking_flags);
+    DockingChargeCommand cmd_charging = static_cast<DockingChargeCommand>(chargingStatus);
+    DockingChargeCommand cmd_docking = static_cast<DockingChargeCommand>(dockingStatus);
+
+    if(cmd_charging == DockingChargeCommand::CHARGE_CONTROL_MCU || cmd_charging == DockingChargeCommand::CHARGE_CONTROL_AP){
+        if(!(station_msg.docking_status & 0X70) && (packet.docking_status & 0X70)){
+        
+            if(packet.docking_status & 0X70){
+                if(cmd_charging == DockingChargeCommand::CHARGE_CONTROL_MCU){
+                    RCLCPP_INFO(this->get_logger(), "MCU AUTO HIGH SPEED CHARGE START");
+                }else{
+                    RCLCPP_INFO(this->get_logger(), "MCU AUTO LOW SPEED CHARGE START");
+                }
+            }
+        }else if((station_msg.docking_status & 0X70) && !(packet.docking_status & 0X70)){
+            RCLCPP_INFO(this->get_logger(), "MCU AUTO CHARGE STOP");
+        }
+    }else if(cmd_charging == DockingChargeCommand::CHARGE_STOP && (packet.docking_status & 0X60)){
+        RCLCPP_INFO(this->get_logger(), "ERROR CHARGE_STOP - DOKCING STATUS is %d", packet.docking_status);
+    }else if((cmd_charging == DockingChargeCommand::HIGH_SPEED_CHARGE_START || cmd_charging == DockingChargeCommand::LOW_SPEED_CHARGE_START) && !(packet.docking_status & 0X60)){
+        RCLCPP_INFO(this->get_logger(), "ERROR CHARGE - DOCKING STATUS is %d", packet.docking_status);
+    }
+    
+    if(!(packet.docking_status & 0XF0)){
+        if(cmd_docking == DockingChargeCommand::DOCKING_START && (packet.docking_status == 0X00)){
+            RCLCPP_INFO(this->get_logger(), "ERROR DOCKING_START - DOKCING STATUS is %d", packet.docking_status);
+        }
+        else if(!(packet.docking_status & 0X0F) && packet.docking_status != 0X00){
+            RCLCPP_INFO(this->get_logger(), "ERROR DOCKING STOP - DOKCING STATUS is %d", packet.docking_status);
+        }
+    }
+
     station_msg.sig_short = packet.dock_short_ir_position;
     station_msg.sig_long = packet.dock_long_ir_position;
     station_msg.receiver_status = getUpperBits(packet.dock_sig_status);
     station_msg.docking_status = packet.docking_status;
-
-    // if (station_msg.docking_status & 0x10)
-    // {
-    //     uint8_t dockingCmd = 0x00;
-    //     setDocking(static_cast<DockingChargeCommand>(dockingCmd));
-    // }
-    // else
-    // {
-    //     uint8_t chargingCmd = 0x00;
-    //     setCharge(static_cast<DockingChargeCommand>(chargingCmd));
-    // }
 }
 
 void UARTCommunication::setBottomMsg(const V1DataPacket &packet)
@@ -911,7 +971,18 @@ void UARTCommunication::setBottomMsg(const V1DataPacket &packet)
 
 void UARTCommunication::setOdomStatusMsg(const V1DataPacket &packet)
 {
+    uint8_t odom_status = getUpperBits(packet.imu_odometry_status);
+    uint8_t imu_status = getLowerBits(packet.imu_odometry_status);
+    if(imu_odom_status_msg.data != packet.imu_odometry_status){
+        if(imu_status != 0x2){
+            RCLCPP_INFO(this->get_logger(), "imu Not ready");
+        }
+        if(odom_status != 0x2){
+            RCLCPP_INFO(this->get_logger(), "odom Not ready");
+        }
+    }
     imu_odom_status_msg.data = packet.imu_odometry_status;
+   
 }
 
 void UARTCommunication::setFwVersionMsg(const V1DataPacket &packet)
@@ -924,6 +995,53 @@ void UARTCommunication::setFwVersionMsg(const V1DataPacket &packet)
         fwVersion_msg.data = std::to_string(packet.firmware_ver_msb) + '.' + std::to_string(packet.firmware_ver_lsb);
         RCLCPP_INFO(this->get_logger(), "fwVersion_msg.data : %s", fwVersion_msg.data.c_str());
         //    fw_version_pub_->publish(fwVersion_msg);
+    }
+}
+
+void UARTCommunication::setMcuErrorMsg(const V1DataPacket &packet)
+{
+
+    //Packet Error code 1
+    logError(packet.error_code_1, ErrorCode1::ERROR_LEFT_MT_UART, " ERROR_LEFT_MT_UART");
+    logError(packet.error_code_1, ErrorCode1::ERROR_LEFT_MT_STALL, " ERROR_LEFT_MT_STALL");
+    logError(packet.error_code_1, ErrorCode1::ERROR_LEFT_MT_OVERHEAT, " ERROR_LEFT_MT_OVERHEAT");
+    logError(packet.error_code_1, ErrorCode1::ERROR_LEFT_MT_CURRENT, " ERROR_LEFT_MT_OVERCURRENT");
+    logError(packet.error_code_1, ErrorCode1::ERROR_RIGHT_MT_UART, " ERROR_RIGHT_MT_UART");
+    logError(packet.error_code_1, ErrorCode1::ERROR_RIGHT_MT_STALL, " ERROR_RIGHT_MT_STALL");
+    logError(packet.error_code_1, ErrorCode1::ERROR_RIGHT_MT_OVERHEAT, " ERROR_RIGHT_MT_OVERHEAT");
+    logError(packet.error_code_1, ErrorCode1::ERROR_RIGHT_MT_CURRENT, " ERROR_RIGHT_MT_OVERCURRENT");
+
+    //Packet Error code 2
+    logError(packet.error_code_2, ErrorCode2::ERROR_Left_TOF_I2C, " ERROR_Left_TOF_I2C");
+    logError(packet.error_code_2, ErrorCode2::ERROR_Right_TOF_I2C, " ERROR_Right_TOF_I2C");
+    logError(packet.error_code_2, ErrorCode2::ERROR_1D_TOF_UART, " ERROR_1D_TOF_UART");
+    logError(packet.error_code_2, ErrorCode2::ERROR_IMU_UART, " ERROR_IMU_UART");
+    // logError(packet.error_code_2, ErrorCode2::ERROR_AP_RX_UART, " ERROR_AP_RX_UART");
+    logError(packet.error_code_2, ErrorCode2::ERROR_BATTERY_COMMUNICATION, " ERROR_BATTERY_COMMUNICATION");
+    logError(packet.error_code_2, ErrorCode2::ERROR_CHARGE_OVERCURRENT, " ERROR_CHARGE_OVERCURRENT");
+    logError(packet.error_code_2, ErrorCode2::ERROR_DISCHARGE_OVERCURRENT, " ERROR_DISCHARGE_OVERCURRENT");
+
+    //Packet Error code 3
+    logError(packet.error_code_3, ErrorCode3::ERROR_BATTERY_CHARGE_OVER_HEAT, " ERROR_BATTERY_CHARGE_OVER_HEAT");
+    logError(packet.error_code_3, ErrorCode3::ERROR_BATTERY_DISCHAR_OVER_HEAT, " ERROR_BATTERY_DISCHARGE_OVER_HEAT");
+    logError(packet.error_code_3, ErrorCode3::ERROR_POGO_PIN_OVER_HEAT, " ERROR_POGO_PIN_OVER_HEAT");
+    logError(packet.error_code_3, ErrorCode3::ERROR_DOCKING_SIG_NOT_FOUND, " ERROR_DOCKING_SIG_NOT_FOUND");
+    
+}
+
+void UARTCommunication::logError(uint8_t errorCode, uint8_t mask, const char *errorMessage) {
+    static std::map<std::pair<uint8_t, uint8_t>, bool> errorStates;
+    std::pair<uint8_t, uint8_t> errorKey = std::make_pair(errorCode, mask);
+
+    bool errorOccurred = (errorCode & mask);
+    bool& previousState = errorStates[errorKey];
+
+    if (errorOccurred && !previousState) {
+        RCLCPP_INFO(this->get_logger(), "%s", errorMessage);
+        previousState = true;
+    } else if (!errorOccurred && previousState) {
+        RCLCPP_INFO(this->get_logger(), "%s cleared", errorMessage);
+        previousState = false;
     }
 }
 
@@ -947,9 +1065,9 @@ void UARTCommunication::ParseV1Data(const std::vector<uint8_t> &data, V1DataPack
     packet.right_motor_type = data[24];    // Right Motor Type (0x01 or 0x02)
 
     // Error codes
-    packet.error_code_1 = data[25];        // Error Code 1 (0x00: No Error, 0x01: Error)
+    packet.error_code_1 = data[27];        // Error Code 3 (0x00: No Error, 0x01: Error)
     packet.error_code_2 = data[26];        // Error Code 2
-    packet.reserve = data[27];             // Reserved field
+    packet.error_code_3 = data[25];             // Erro Code 1
 
     // IMU data (Index, Yaw, Pitch, Roll, Acceleration)
     packet.imu_index = data[28];           // IMU Index (0-255)
@@ -1005,6 +1123,19 @@ void UARTCommunication::ParseV1Data(const std::vector<uint8_t> &data, V1DataPack
     }
 
     packet.lower_tof_status = data[141];    // Left/Right TOF Status
+    uint8_t tof_command = getLowerBits(g_transmission_data.tofnBatt_flags);
+    auto now = this->get_clock()->now();
+    if(tof_command_start_time_ != rclcpp::Time(0, 0, RCL_ROS_TIME) && (now-tof_command_start_time_).seconds() >= 5.0){
+        if(tof_command == 0x00){
+            if(packet.lower_tof_status != 0x00){
+                RCLCPP_INFO(this->get_logger(), "ERORR!! TOF COMMAND ON : CMD[0x%02x] is ON TOF-Status[0x%02x]",g_transmission_data.tofnBatt_flags,packet.lower_tof_status);
+            }
+        }else{
+            if(packet.lower_tof_status != 0x11){
+                RCLCPP_INFO(this->get_logger(), "ERROR!! TOF COMMAND OFF: CMD[0x%02x] is ON TOF-Status[0x%02x]",g_transmission_data.tofnBatt_flags,packet.lower_tof_status);
+            }
+        }
+    }
 
     packet.imu_calibration_status = data[142];  // IMU Calibration Status
 
@@ -1078,7 +1209,7 @@ void UARTCommunication::printV1DataPacket(const V1DataPacket &packet)
     // Print error codes
     RCLCPP_INFO(this->get_logger(), "Error Code 1: 0x%02x", static_cast<int>(packet.error_code_1));
     RCLCPP_INFO(this->get_logger(), "Error Code 2: 0x%02x", static_cast<int>(packet.error_code_2));
-    RCLCPP_INFO(this->get_logger(), "reserve: 0x%02x", static_cast<int>(packet.reserve));
+    RCLCPP_INFO(this->get_logger(), "Error Code 3:: 0x%02x", static_cast<int>(packet.error_code_3));
 
     // Print IMU data
     RCLCPP_INFO(this->get_logger(), "IMU Index: %d", static_cast<int>(packet.imu_index));
@@ -1224,6 +1355,8 @@ void UARTCommunication::printToF16Data(const ToFData16Data &packet)
 void UARTCommunication::setJigCalibrationMsg(const V1DataPacket &packet)
 {
     jig_imu_calibration_msg.calibration_status = packet.imu_calibration_status;
+    jig_imu_calibration_msg.roll = packet.imu_roll;
+    jig_imu_calibration_msg.pitch = packet.imu_pitch;
     jig_imu_calibration_msg.yaw = packet.imu_yaw;
 }
 
@@ -1256,6 +1389,7 @@ void UARTCommunication::parseDataFields(const std::vector<uint8_t> &data)
         setOdomStatusMsg(packet);
         setFwVersionMsg(packet);
         setJigCalibrationMsg(packet);
+        setMcuErrorMsg(packet);
         // TODO Error 
         // 차주 FW 협의 필요
     }
@@ -1299,9 +1433,9 @@ void UARTCommunication::searchAndParseData(std::vector<uint8_t> &buffer)
             return;
         }
 
-        uint8_t data_size = buffer[preamble_index + 2];
+        size_t data_size = static_cast<size_t>(buffer[preamble_index + 2]);  // 🔹 uint8_t → size_t 변환
 
-        if (buffer.size() - preamble_index < data_size + 3)
+        if (buffer.size() - preamble_index < data_size + 3)  // 🔹 size_t로 변환했으므로 안전한 비교
         {
             return;
         }
@@ -1312,31 +1446,17 @@ void UARTCommunication::searchAndParseData(std::vector<uint8_t> &buffer)
             checksum += buffer[i];
         }
 
-        // std::cerr << "checksum : " << (int)checksum << std::endl;
-        // std::cerr << "calculate Checksum : " << (int)buffer[preamble_index + 3 + data_size - 1] << std::endl;
-
         if (checksum == buffer[preamble_index + 3 + data_size - 1])
         {
-            // std::cerr << "Checksum success" << std::endl;
-
-            // 수신한 버퍼 내용을 출력
-            // std::cerr << "Received Buffer (Valid Packet): " << preamble_index + 3 + data_size << " : " ;
-            // for (size_t i = preamble_index; i < preamble_index + 3 + data_size; ++i)
-            // {
-            //     std::cerr << std::dec << std::uppercase << static_cast<int>(buffer[i]) << " ";
-            // }
-            // std::cerr << std::dec << std::endl; // 16진수 출력을 마치고 다시 10진수로 설정
-
             std::vector<uint8_t> packet_data(buffer.begin() + preamble_index, buffer.begin() + preamble_index + 3 + data_size);
             parseDataFields(packet_data);
-
-            buffer.erase(buffer.begin(), buffer.begin() + preamble_index + 3 + data_size);
         }
         else
         {
             RCLCPP_ERROR(this->get_logger(), "Checksum mismatch, discarding packet.");
-            buffer.erase(buffer.begin(), buffer.begin() + preamble_index + 3 + data_size);
         }
+
+        buffer.erase(buffer.begin(), buffer.begin() + preamble_index + 3 + data_size);  // 🔹 중복 코드 제거하여 하나의 `erase`로 통일
     }
 }
 
@@ -1381,7 +1501,7 @@ std::string UARTCommunication::formatDataPacket(const std::vector<uint8_t> &data
     return oss.str();
 }
 
-std::vector<double> UARTCommunication::computeAngularVelocity(double roll, double pitch, double yaw, double roll_dot, double pitch_dot, double yaw_dot)
+std::vector<double> UARTCommunication::computeAngularVelocity(double roll, double pitch, double roll_dot, double pitch_dot, double yaw_dot)
 {
     std::vector<double> angular_velocity(3);
     angular_velocity[0] = roll_dot + yaw_dot * std::sin(pitch);
@@ -1400,19 +1520,14 @@ geometry_msgs::msg::Quaternion UARTCommunication::create_quaternion_from_yaw(dou
     return q;
 }
 
-void UARTCommunication::batterySleepCallback(const std_msgs::msg::Bool::SharedPtr msg)
+void UARTCommunication::batterySleepCallback(const std_msgs::msg::Empty::SharedPtr)
 {
-    bool bBatterySleep = msg->data;
-    // setBatterySleep(bBatterySleep);
-	// TODO
     setBattMode(ToFnBatt::BATT_SLEEP);
-
     RCLCPP_ERROR(this->get_logger(), "BATTERY-SLEEP"); 
 }
 
 void UARTCommunication::tofCommandCallback(const std_msgs::msg::Bool::SharedPtr msg)
 {
-    #if TOF_ALWAYS_ON == 0
     ToFnBatt status;
     if(msg->data){
         status = ToFnBatt::ON;
@@ -1422,7 +1537,7 @@ void UARTCommunication::tofCommandCallback(const std_msgs::msg::Bool::SharedPtr 
         RCLCPP_INFO(this->get_logger(), "COMMAND-CALLBACK TOF-OFF");
     }
     setToF(status);
-    #endif 
+    tof_command_start_time_ = this->get_clock()->now();
 }
 
 void UARTCommunication::dockingCommandCallback(const std_msgs::msg::UInt8::SharedPtr msg)
@@ -1432,7 +1547,11 @@ void UARTCommunication::dockingCommandCallback(const std_msgs::msg::UInt8::Share
 
 void UARTCommunication::e_stop_callback(const std_msgs::msg::Bool::SharedPtr msg)
 {
-    setMotorMode(MotorMode::BRAKE_MODE);
+    if(msg->data){
+        setMotorMode(MotorMode::BRAKE_MODE);
+    }else{
+        setMotorMode(MotorMode::VW_MODE);
+    }
 }
 
 void UARTCommunication::charge_cmd_callback(const std_msgs::msg::UInt8::SharedPtr msg)

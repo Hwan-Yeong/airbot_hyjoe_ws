@@ -6,6 +6,8 @@
 #include <fstream>
 
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
+#include "robot_custom_msgs/action/manage_node.hpp"
 
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/u_int8.hpp"
@@ -25,6 +27,10 @@
 #include "robot_custom_msgs/msg/camera_data.hpp"
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "robot_custom_msgs/msg/move_n_rotation.hpp"
+#include "robot_custom_msgs/msg/robot_state.hpp"
+#include "robot_custom_msgs/msg/navi_state.hpp"
+
+#include <rcl_interfaces/msg/set_parameters_result.hpp>
 
 #include "state_defines.hpp"
 #include "navi_defines.hpp"
@@ -42,6 +48,7 @@ public:
   void initializeData();
   void initInitPose();
   void initStationPose();
+  void initParameters();
   void enableOdomcallback();
   void disableOdomcallback();
 
@@ -53,7 +60,7 @@ public:
 
   void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
   void odom_status_callback(const std_msgs::msg::UInt8::SharedPtr msg);
-  void localizationComplete_callback(const std_msgs::msg::Empty::SharedPtr msg);
+  void localizationComplete_callback(const std_msgs::msg::Bool::SharedPtr msg);
   void initial_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
   void amclCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
   void slamPoseCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
@@ -62,6 +69,7 @@ public:
   void tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg);
   void cameraCallback(const robot_custom_msgs::msg::CameraDataArray::SharedPtr /*msg*/);
   void pathPlanDestinationCallback(const std_msgs::msg::Int8::SharedPtr msg);
+  rcl_interfaces::msg::SetParametersResult paramCallback(const std::vector<rclcpp::Parameter>& params);
   
 
   double quaternion_to_euler(const geometry_msgs::msg::Quaternion &quat);
@@ -104,6 +112,20 @@ public:
   void publishLocalizeUndockPose();
   void publishLocalizePose();
   void publishLocalizeSavedPose();
+  void publishVelocityCommand(double v, double w);
+  void publishRobotState(ROBOT_STATE state);
+  void publishRobotStatus(ROBOT_STATUS status);
+  void publishNodeState(NODE_STATUS state);
+  void publishMovingState(NAVI_STATE state, NAVI_FAIL_REASON reason);
+
+  void publishManeuverOn();
+  void publishManeuverOff();
+
+  void publishMappingOn();
+  void publishMappingOff();
+
+  void publishSenSorManagerOn();
+  void publishSenSorManagerOff();
 
   void setAllRobotStateIDs(ROBOT_STATE data_state, ROBOT_STATUS data_status, state_cmd data_cmd);
 
@@ -116,11 +138,8 @@ public:
   void setRobotCMDID(const state_cmd &datas);
   state_cmd getRobotCMDID();
 
-  void setMovingStateID(const NAVI_STATE &id);
+  void setMovingStateID(const NAVI_STATE &id ,const NAVI_FAIL_REASON &reason = NAVI_FAIL_REASON::VOID);
   NAVI_STATE getMovingStateID();
-
-  void setMovingFailID(const NAVI_FAIL_REASON &id);
-  NAVI_FAIL_REASON getMovingFailID();
 
   void setNodeStatusID(const NODE_STATUS &id);
   NODE_STATUS getNodeStatusID();
@@ -140,6 +159,10 @@ public:
   bool isLidarError();
   void setToFError(bool set);
   bool isToFError();
+
+  void setCameraError(bool set);
+  bool isCamreaError();
+
   void setLocalizationError(bool set);
   bool isLocalizationError();
   void setSensorReady(bool set);
@@ -153,14 +176,10 @@ public:
 
   void saveLastPosition();
 
-  bool isValidateNode(const NODE_STATUS &node, double start_time);
-
-  bool startProcess(const std::string &command, const std::string &pidFilePath);
-  bool stopProcess(const std::string &pidFilePath);
-  
   void processMoveTarget();
 
   void move_target_callback(const robot_custom_msgs::msg::Position::SharedPtr msg);
+  void move_charger_callback(const std_msgs::msg::Empty::SharedPtr msg);
   void move_rotation_callback(const robot_custom_msgs::msg::MoveNRotation::SharedPtr msg);
   MOVING_DATA getTargetPosition();
 
@@ -172,7 +191,7 @@ public:
   void publishMoveFailError();
   void publishAlternativeDestinationError();
 
-  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr localize_complete_sub;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr localize_complete_sub;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr odom_status_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr amcl_pose_sub;
@@ -185,6 +204,7 @@ public:
   rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_data_sub;
   rclcpp::Subscription<robot_custom_msgs::msg::StationData>::SharedPtr station_data_sub;
   rclcpp::Subscription<robot_custom_msgs::msg::Position>::SharedPtr req_target_sub_;
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr move_charger_sub_;
   rclcpp::Subscription<robot_custom_msgs::msg::MoveNRotation>::SharedPtr req_rotation_target_sub_;
   
 
@@ -192,11 +212,19 @@ public:
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr tof_cmd_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr lidar_cmd_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr camera_cmd_pub_;
-  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr req_nomotion_local_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr req_estimatePose_pub_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr req_clear_costmap_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr move_fail_error_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr alternative_dest_error_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr direct_vel_pub_;
+
+  rclcpp::Publisher<robot_custom_msgs::msg::RobotState>::SharedPtr robot_state_pub_;
+  rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr node_status_pub_;
+  rclcpp::Publisher<robot_custom_msgs::msg::NaviState>::SharedPtr navi_state_pub_;
+
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr maneuver_cmd_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr mapping_cmd_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr sensor_manager_cmd_pub_;
   
   rclcpp::TimerBase::SharedPtr odom_reset_timer_;
   rclcpp::TimerBase::SharedPtr sensor_monitor_timer_;
@@ -207,12 +235,37 @@ public:
   geometry_msgs::msg::PoseWithCovarianceStamped init_pose_msg;
   geometry_msgs::msg::PoseWithCovarianceStamped station_position_msg;
   geometry_msgs::msg::PoseWithCovarianceStamped last_position_msg;
+
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
   
   pose robot_pose;
   pose init_pose;
   pose odom_;
   pose last_pose;
   pose station_pose;
+
+  //===== parameters =========
+  bool use_camera_;
+  bool use_multiTof_;
+  double odom_reset_timeout_;
+  double lidar_wait_timeout_;
+  double tof_wait_timeout_;
+  double camera_wait_timeout_;
+
+  uint8_t odom_reset_retry_count_;
+  uint8_t lidar_retry_count_;
+  uint8_t tof_retry_count_;
+  uint8_t camera_retry_count_;
+  uint8_t localization_retry_count_;
+
+  double direct_velocity_v_;
+  double direct_velocity_w_;
+
+  double undocking_distance_;
+  uint8_t move_goal_retry_count_;
+  double sensor_off_time_;
+  //===== parameters ========= 
+
   bool ready_odom = false;
 
   uint8_t odom_status;
@@ -239,9 +292,11 @@ public:
   LOCALIZATION_TYPE Localtype;
   bool bStartLocalizationStart = false;
   bool bLocalizationComplete = false;
+  bool bLocalizationFail = false;
   bool bOdomResetError = false;
   bool bLidarError = false;
   bool bTofError = false;
+  bool bCameraError = false;
   bool bLoclizationError = false;
   bool bStartSensorOn = false;
   bool bLidarSensorOK = false;
@@ -265,6 +320,20 @@ public:
   NAVI_STATE movingstate_id;
   NAVI_FAIL_REASON movingfail_id;
   MOVING_DATA movingData;
+  bool bTryMoveCharger;
+
+  void send_node_goal(const NODE_STATUS &require_node);
+  void setNodeClientStatus(const int &status);
+  int getNodeClientStatus();
+  int node_client_status = 0;
+  rclcpp_action::Client<robot_custom_msgs::action::ManageNode>::SharedPtr node_client_;
+
+  double getDirectVelocityV();
+  double getDirectVelocityW();
+  double getUndockingDistance();
+  uint8_t getMoveGoalRetryCount();
+  double getSensorOffTime();
+  bool getMoveChargerFlag();
 
 };
 

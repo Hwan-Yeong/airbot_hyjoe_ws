@@ -8,10 +8,11 @@
 #include "application/search/nav_goal_trans.hpp"
 #include "application/search/safe_area.hpp"
 #include "domain/df_logger.hpp"
+#include "presentation/visualization_warmup.hpp"
 
 #define LOG_WARMUP_FUNC "warmup_goal_handle()"
 
-explore::WarmupServer::WarmupServer() : Node(NODE_NAME), cur_robotpose_(std::make_shared<RobotPose>()), cur_result_(navigation::ResultCode::kUnknown){
+explore::WarmupServer::WarmupServer() : Node(NODE_NAME), cur_robotpose_(std::make_shared<RobotPose>()), cur_result_(navigation::ResultCode::kUnknown), result_try_check_(0){
     ros_constants_  = std::make_unique<RosConstants>();
     ros_init();
 }
@@ -81,6 +82,11 @@ void explore::WarmupServer::ros_init() {
     options_pub_visualization.callback_group = cbg_topic_pub_visuallization_;
     pub_markers_ = this->create_publisher<visualization_msgs::msg::Marker>("Warmup/marker",rclcpp::QoS(rclcpp::SystemDefaultsQoS()),options_pub_visualization);
 
+    // ==
+    cbg_topic_pub_visuallization_list_ = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    rclcpp::PublisherOptions options_pub_visuallization_list;
+    options_pub_visuallization_list.callback_group = cbg_topic_pub_visuallization_list_;
+    pub_markers_list_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("Warmup/visualization_list",rclcpp::QoS(rclcpp::SystemDefaultsQoS()),options_pub_visuallization_list);
 }
 
 rclcpp_action::GoalResponse explore::WarmupServer::warmup_goal_handle(const rclcpp_action::GoalUUID &uuid,
@@ -104,12 +110,13 @@ void explore::WarmupServer::warmup_server_execute(const std::shared_ptr<WarmUpAc
     const auto goal = goal_handle->get_goal();
     auto feedback = std::make_shared<WarmupAction::Feedback>();
     auto& sequence = feedback->sequence;
-    std::cout <<sequence <<'\n';
+    result_try_check_ = 0;
+
     auto result = std::make_shared<WarmupAction::Result>();
     //sleep(5);
     rclcpp::Time start_clock =  this->now();
 
-    search::SafeArea search_area;
+    search_area_ = std::make_shared<search::SafeArea>();
 
 
   if (goal_handle->is_canceling()) {
@@ -140,12 +147,15 @@ void explore::WarmupServer::warmup_server_execute(const std::shared_ptr<WarmUpAc
    RCLCPP_INFO(this->get_logger(), "Warmup server start!");
 
 
-  //sequence++;
-  //goal_handle->publish_feedback(feedback);
   entity::Vertex map_origin;
   {
     std::lock_guard<std::mutex> lock(mtx_lidar_);
-    map_origin = search_area.search_goal(cur_scan_);
+    map_origin = search_area_->search_goal(cur_scan_);
+        explore::VisualizationWarmup visualization_warmup;
+        explore::Color color = explore::Color::kBlue;
+        visualization_msgs::msg::MarkerArray vma =visualization_warmup.visualize_list(search_area_->get_obs_area_vector(),"visualize_goal_warmup_list",color);
+        pub_markers_list_->publish(vma);
+
   }
     sleep(1);
 
@@ -159,8 +169,10 @@ void explore::WarmupServer::warmup_server_execute(const std::shared_ptr<WarmUpAc
 
 
     auto nav_start_time = std::chrono::steady_clock::now();
-
+    int goal_respons_lp = 0;
     while (rclcpp::ok()) {
+        sequence = goal_respons_lp++;
+        goal_handle->publish_feedback(feedback);
         auto elapsed_time = std::chrono::steady_clock::now() - nav_start_time;
         if (elapsed_time > std::chrono::seconds(30)) {
             RCL_LOG_WARN(get_logger(), "Timeout reached, goal failed");
@@ -172,9 +184,20 @@ void explore::WarmupServer::warmup_server_execute(const std::shared_ptr<WarmUpAc
         }
 
         if (cur_result_ != navigation::ResultCode::kUnknown) {
-            RCL_LOG_INFO(get_logger(), "Success goal");
-            result->status_code = true;
-            result->success = true;
+            if (cur_result_ == navigation::ResultCode::kAborted) {
+                result->status_code = static_cast<int>(CodeWarmupStatus::kMoveFail);
+                result->success = false;
+            }
+            else if (cur_result_ == navigation::ResultCode::kSuccess) {
+                result->status_code = static_cast<int>(CodeWarmupStatus::kSuccess);
+                result->success = true;
+            }
+            else if (cur_result_ == navigation::ResultCode::kFailed) {
+                result->status_code = static_cast<int>(CodeWarmupStatus::kMoveFail);
+                result->success = false;
+            }
+
+            RCL_LOG_INFO(get_logger(), "Recive goal");
             goal_handle->succeed(result);
             cur_result_ = navigation::ResultCode::kUnknown;
             break; // 성공 시 루프 종료
@@ -206,25 +229,38 @@ void explore::WarmupServer::goal_response_callback(const GoalHandleNavToPose::Sh
 void explore::WarmupServer::result_callback(
     const rclcpp_action::ClientGoalHandle<
         explore::WarmupServer::NavToPose>::WrappedResult& result) {
-    switch (result.code) {
+
+    if (result_try_check_>5) {
+        cur_result_ = navigation::ResultCode::kAborted;
+        return;
+    }
+    entity::Vertex goal;
+    switch(result.code) {
         case rclcpp_action::ResultCode::SUCCEEDED:
             RCLCPP_INFO(this->get_logger(), "Goal succeeded!");
             cur_result_ = navigation::ResultCode::kSuccess;
-        return;
-
+            return;
         case rclcpp_action::ResultCode::ABORTED:
             RCLCPP_ERROR(this->get_logger(), "Goal was aborted!");
-            cur_result_ = navigation::ResultCode::kAborted;
-        break;
-
+            // priority false
+            search_area_->area_check_map_false_update();
+            // obstacle 선정
+            goal = search_area_->select_pose();
+            if (goal.GetX() == 0 && goal.GetY() == 0) {
+                cur_result_ = navigation::ResultCode::kAborted;
+                return ;
+            }
+            bt_navigator_action_goal(goal.GetX(),goal.GetY());
+            // goal 송신
+            return;
         case rclcpp_action::ResultCode::CANCELED:
             RCLCPP_WARN(this->get_logger(), "Goal was canceled!");
             cur_result_ = navigation::ResultCode::kCancelled;
-        break;
-
+            return;
         default:
             RCLCPP_ERROR(this->get_logger(), "Unknown result code: %d", static_cast<int>(result.code));
-        break;
+            cur_result_ = navigation::ResultCode::kFailed;
+            break;
     }
 }
 void explore::WarmupServer::bt_navigator_action_goal(float map_x, float map_y) {
@@ -262,37 +298,20 @@ void explore::WarmupServer::bt_navigator_action_goal(float map_x, float map_y) {
   std_msgs::msg::Bool warmup_start;
   warmup_start.data = true;
   pub_warmup_start_bool_->publish(warmup_start);
-    visualization_msgs::msg::Marker warm_visualization = visualize_goal(goal_msg.pose.pose.position.x,goal_msg.pose.pose.position.y);
+    explore::VisualizationWarmup visualization_warmup;
+    visualization_msgs::msg::Marker warm_visualization =
+        visualization_warmup.visualize_goal(
+            goal_msg.pose.pose.position.x,
+            goal_msg.pose.pose.position.y,
+            "warmup_goal/visual",
+            explore::Color::kYellow,
+            0);
 
     pub_markers_->publish(warm_visualization);
 
   nav_to_pose_action_client_->async_send_goal(goal_msg,
                                               bt_navigator_send_goal_options);
-}
 
-visualization_msgs::msg::Marker explore::WarmupServer::visualize_goal(float x, float y) {
-    auto marker = visualization_msgs::msg::Marker();
-    marker.header.frame_id = "map";
-    marker.header.stamp = this->now();
-    marker.ns = "visualize_goal_warmup";
-    marker.id = 0;
-    marker.type = visualization_msgs::msg::Marker::CUBE;
-    marker.lifetime=rclcpp::Duration::from_seconds(10);
-    marker.frame_locked = true;
-
-    marker.pose.position.x = x;
-    marker.pose.position.y = y;
-    marker.pose.position.z = 0;
-
-    marker.color.r = 1.0;
-    marker.color.g = 1.0;
-    marker.color.b = 0.0;
-    marker.color.a = 1.0;
-
-    marker.scale.x = 0.3;
-    marker.scale.y = 0.3;
-    marker.scale.z = 1.0;
-    return marker;
 }
 
 void explore::WarmupServer::robotpose_callback(

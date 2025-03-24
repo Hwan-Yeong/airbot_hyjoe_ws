@@ -254,6 +254,7 @@ public:
         
         //publisher
         camera_data_publisher_ = this->create_publisher<robot_custom_msgs::msg::CameraDataArray>("camera_data", 10);
+        camera_error_publisher_ = this->create_publisher<std_msgs::msg::Bool>("error/camera", 1);
         
         ai_version_publisher_ = this->create_publisher<std_msgs::msg::String>("ai_version", 1);
 
@@ -315,6 +316,7 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr amcl_pose_sub;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr lineLaser_cmd_sub;
     rclcpp::Publisher<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_data_publisher_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr camera_error_publisher_;
     #if USE_LINELASER_SENSOR > 0
     rclcpp::Publisher<robot_custom_msgs::msg::LineLaserDataArray>::SharedPtr line_laser_data_publisher_;
     #endif
@@ -1067,7 +1069,7 @@ private:
                 camera_data.score = obj.confidence;     // confidence score [0,100]
                 camera_data.x = std::round(static_cast<double>(obj.x * 0.001) * 1000) / 1000;
                 camera_data.y = std::round(static_cast<double>(obj.y * 0.001) * 1000) / 1000;
-                camera_data.theta = -static_cast<double>(obj.theta * M_PI/180); //[rad] - cw(+) // 카메라 장애물 좌표계는 로봇과 y축 반전 ( 오른쪽 + , 왼쪽 - )
+                camera_data.theta = static_cast<double>(obj.theta * M_PI/180); //[rad]
                 camera_data.width = std::round(static_cast<double>(obj.width * 0.001) * 1000) / 1000;
                 camera_data.height = std::round(static_cast<double>(obj.height * 0.001) * 1000) / 1000;
                 camera_data.distance = std::round(static_cast<double>(obj.distance * 0.001) * 1000) / 1000;
@@ -1129,7 +1131,10 @@ private:
             ErrorDataPacket packet;
 
             if (parseErrorDataPacket(data, packet)) {
-                logParsedPacket(packet);
+                // logParsedPacket(packet);
+                std_msgs::msg::Bool msg;
+                msg.data = packet.Errors.back().occurred ? true : false;
+                camera_error_publisher_->publish(msg);
             } else {
                 std::cerr << "Failed to parse packet." << std::endl;
             }
