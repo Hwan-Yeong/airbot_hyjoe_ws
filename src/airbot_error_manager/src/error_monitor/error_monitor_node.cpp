@@ -151,7 +151,7 @@ void ErrorMonitorNode::errorMonitor()
             // error_msg.data = false;
             // battery_discharge_error_pub_->publish(error_msg);
         }
-        publish_cnt_battery_discharge_error_ = 0; // low battery monitor와 플래그가 겹치지만, monitor 자체가 10ms라 무시할 만한 수준이라고 생각함.
+        publish_cnt_battery_discharge_error_ = 0;
     }
 
     // charging monitor
