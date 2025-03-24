@@ -4,6 +4,8 @@ airbot_error_manager:
     # 0: unset, 10: debug, 20: info, 30: warn, 40: error
     log_level: 20
     publish_rate_ms: 1000
+    error_publish_cnt: 1 # 에러 발생/해제 메시지 퍼블리싱 횟수 (to UDP_interface)
+    error_list_size: 27 # 관리할 에러 리스크 최대 크기
     error_list: error_list.yaml
 
 airbot_error_monitor:
