@@ -117,8 +117,9 @@ void ErrorMonitorNode::errorMonitor()
             // error_msg.data = true;
             // low_battery_error_pub_->publish(error_msg);
         } else {
-            error_msg.data = false;
-            low_battery_error_pub_->publish(error_msg);
+            // icbaek, 2025.03.19 : false 여도 publish하지 않게 하였음.
+            // error_msg.data = false;
+            // low_battery_error_pub_->publish(error_msg);
         }
         publish_cnt_low_battery_error_ = 0;
     }
@@ -131,8 +132,9 @@ void ErrorMonitorNode::errorMonitor()
             // error_msg.data = true;
             // board_overheat_error_pub_->publish(error_msg);
         } else {
-            error_msg.data = false;
-            board_overheat_error_pub_->publish(error_msg);
+            // icbaek, 2025.03.19 : false 여도 publish하지 않게 하였음.
+            // error_msg.data = false;
+            // board_overheat_error_pub_->publish(error_msg);
         }
         publish_cnt_board_overheat_error_ = 0;
     }
@@ -145,8 +147,9 @@ void ErrorMonitorNode::errorMonitor()
             // error_msg.data = true;
             // battery_discharge_error_pub_->publish(error_msg);
         } else {
-            error_msg.data = false;
-            battery_discharge_error_pub_->publish(error_msg);
+            // icbaek, 2025.03.19 : false 여도 publish하지 않게 하였음.
+            // error_msg.data = false;
+            // battery_discharge_error_pub_->publish(error_msg);
         }
         publish_cnt_battery_discharge_error_ = 0; // low battery monitor와 플래그가 겹치지만, monitor 자체가 10ms라 무시할 만한 수준이라고 생각함.
     }
@@ -159,8 +162,9 @@ void ErrorMonitorNode::errorMonitor()
             // error_msg.data = true;
             // charging_error_pub_->publish(error_msg);
         } else {
-            error_msg.data = false;
-            charging_error_pub_->publish(error_msg);
+            // icbaek, 2025.03.19 : false 여도 publish하지 않게 하였음.
+            // error_msg.data = false;
+            // charging_error_pub_->publish(error_msg);
         }
         publish_cnt_charging_error_ = 0;
     }
