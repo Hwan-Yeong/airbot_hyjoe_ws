@@ -85,6 +85,11 @@ class ChargingErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs
 public:
     using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>;
     bool checkError(const InputType& input) override;
+private:
+    uint8_t initialCharge = 0;
+    bool errorState = false;
+    bool isFirstCheck = true;
+    double lastCheckTime = 0;
 };
 
 #endif // __ERROR_MONITOR_HPP__

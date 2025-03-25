@@ -207,46 +207,63 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 
 bool ChargingErrorMonitor::checkError(const InputType &input)
 {
-    int check_amount;
-    int check_start_remaining_amount;
-    int current_remaining_amount;
-    static bool pre_mode=false;
-    static bool curr_mode;
-    static bool start_checking_charging_error=false;
+    /*
+        < 에러 검사 >
 
-    curr_mode = input.second.docking_status & 48;
-    if((!pre_mode && curr_mode))   // charger 혹은 charging 상태일때(처음 도킹했을때)
-    {
-        check_start_remaining_amount = input.first.battery_percent;
-        start_checking_charging_error=true;
-        pre_mode=curr_mode;
-    }
+        해당 모니터는 10분마다 에러 발생/해제를 체크하지만, 충전중이 아닐때 혹은 충전중 95%가 넘어가는 시점부터는 바로 해제를 반환합니다.
+        체크하는 10분 사이의 간격에는 이전에 판단된 상태를 계속해서 반환합니다.
 
-    if(!curr_mode)  // charger와 charging 상태가 아닐때(도킹하지 않았을때)
-    {
-        start_checking_charging_error=false;
-        pre_mode=curr_mode;
-    }
-    // start_checking_charging_error --> 도킹 상태 체크 --> 도킹 되었으면 true, 도킹 안되었으면 false
-    if(start_checking_charging_error && check_start_remaining_amount < 90)
-    {
+        1. 배터리 95% 이하일때만 에러 체크
+        2. isCharging상태가 유지된 상태에서 10분마다 상태 체크
+        3. chargeDiff = initialCharge - finalCharge 의 크기가 2% 이하이면 에러 발생.
+        4. chargeDiff의 크기가 2% 이하가 아니면 에러 해제. (에러 발생/해제는 10분마다 판단해서 결과를 알려준다)
+    */
 
-        current_remaining_amount = input.first.battery_percent;
-        check_amount = current_remaining_amount - check_start_remaining_amount;  // input.first.battery_percent는 현재 배터리 양을 의미함
-        if(check_amount <= 3)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-    else{
+    static rclcpp::Clock clock(RCL_STEADY_TIME);
+    double currentTime = clock.now().seconds();
+    // RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "cur time: %.3f", currentTime);
+    uint8_t currentCharge = input.first.battery_percent;
+
+    bool isCharging = input.second.docking_status & 0X30; // charger found || start charging
+
+    if (!isCharging) { // charger나 charging 상태가 모두 아니면 무조건 에러 해제.
+        lastCheckTime = currentTime;
+        initialCharge = currentCharge;
+        errorState = false;
         return false;
     }
-}
 
+    if (currentCharge <= 95) {
+        if (isFirstCheck) { // 측정 주기 타이머 시작
+            lastCheckTime = currentTime;
+            initialCharge = currentCharge;
+            isFirstCheck = false;
+            // RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "last time: %.3f", lastCheckTime);
+        }
+        double timediff = currentTime - lastCheckTime;
+        // RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "time diff: %.3f", timediff);
+        if (timediff >= 600) { // 10분 경과 시 평가
+            int chargeDiff = static_cast<int>(currentCharge) - static_cast<int>(initialCharge);
+            if (chargeDiff < 0) { // 현재 충전량이 떨어진 경우면? -> 일단 에러로 보자.. 이 모니터의 역할일진 모르겠지만.
+                errorState = true;
+            } else {
+                if (chargeDiff <= 2) { // 현재 충전량이 2퍼센트 이하인 경우
+                    errorState = true;
+                } else {
+                    errorState = false;
+                }
+            }
+            isFirstCheck = true;
+        } else {
+            // 아무 처리도 하지 않음으로서 이전 errorState를 유지하도록 한다.
+        }
+    } else { // 충전중인데 배터리 95% 이하가 아니면 그냥 에러 해제.
+        errorState = false;
+        isFirstCheck = true;
+    }
+
+    return errorState;
+}
 
 bool LiftErrorMonitor::checkError(const InputType &input)
 {
@@ -254,9 +271,7 @@ bool LiftErrorMonitor::checkError(const InputType &input)
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     bool lift_bottom_range, gravity_range;
     static int count=0, gravity_count=0;
-    double deg_pitch, deg_roll, deg_yaw;   // 각도 값
-    double roll, pitch, yaw;               // 라디안 값
-    double  acc_x, acc_y, acc_z;           // 선형 가속독
+    double acc_z;
     static double gravity_time=0;
     double time, current_time;
     static bool check_gravity=false;
@@ -289,8 +304,6 @@ bool LiftErrorMonitor::checkError(const InputType &input)
         lift_bottom_range = false;
     }
 
-    acc_x = input.second.linear_acceleration.x;    // 선형 가속도
-    acc_y = input.second.linear_acceleration.y;    // 선형 가속도
     acc_z = input.second.linear_acceleration.z;    // 선형 가속도
 
     // acc_z가 10.5이상이고 acc_z가 9.2이하이면 들림 조건임

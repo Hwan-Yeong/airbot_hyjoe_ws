@@ -180,12 +180,12 @@ void ErrorMonitorNode::errorMonitor()
     if (isBottomStatusUpdate && isImuUpdate && (publish_cnt_lift_error_ >= publish_cnt_lift_error_rate_)) {
         bool lift_error = this->runMonitor<LiftErrorMonitor>(std::make_pair(bottom_status_data, imu_data));
         if (lift_error) {
-            RCLCPP_INFO(this->get_logger(), "lift_error : %s", lift_error ? "true" : "false");
-            error_msg.data = true;
-            lift_error_pub_->publish(error_msg);
+            // RCLCPP_INFO(this->get_logger(), "lift_error : %s", lift_error ? "true" : "false");
+            // error_msg.data = true;
+            // lift_error_pub_->publish(error_msg);
         } else {
-            error_msg.data = false;
-            lift_error_pub_->publish(error_msg);
+            // error_msg.data = false;
+            // lift_error_pub_->publish(error_msg);
         }
         publish_cnt_lift_error_ = 0;
     }
