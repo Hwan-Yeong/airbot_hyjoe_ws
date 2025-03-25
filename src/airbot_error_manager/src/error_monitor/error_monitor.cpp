@@ -208,8 +208,7 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 bool ChargingErrorMonitor::checkError(const InputType &input)
 {
     /*
-        < 에러 검사 >
-
+        < 충전 에러 검사 >
         해당 모니터는 10분마다 에러 발생/해제를 체크하지만, 충전중이 아닐때 혹은 충전중 95%가 넘어가는 시점부터는 바로 해제를 반환합니다.
         체크하는 10분 사이의 간격에는 이전에 판단된 상태를 계속해서 반환합니다.
 
@@ -267,92 +266,58 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
 
 bool LiftErrorMonitor::checkError(const InputType &input)
 {
+    /*
+        < 들림 에러 검사 >
+        해당 모니터는 10ms마다 호출한다는 것을 가정합니다.
+        IR, imu 데이터로 각각 들림 의심을 하고 두 플래그가 동시에 10번 발생하면 들림 에러를 띄웁니다. (반응속도로 봤을 때 큰 차이 없어서...)
+        낙하 IR이 모두 false로 바뀔때만 에러를 해제하고, 그 전까지는 에러로 간주합니다.
+
+        1. 낙하 IR 에서 최소 4개 이상이 true인 경우 들림 의심.
+        2. z축 가속도(m/s^2)가 10.5이상 or 9.2 이하인 경우 들림 의심.
+        3. 1,2번 의심이 모두 발생한 상황이 10번 반복되면 에러를 발생시킨다.
+        4. 모든 IR 센서가 false일 경우 에러를 해제시킨다.
+    */
 
     static rclcpp::Clock clock(RCL_STEADY_TIME);
-    bool lift_bottom_range, gravity_range;
-    static int count=0, gravity_count=0;
-    double acc_z;
-    static double gravity_time=0;
-    double time, current_time;
-    static bool check_gravity=false;
-    static bool status=false;
+    static int count = 0;
+    bool irLiftFlag = false;
+    bool imuLiftFlag = false;
 
-    if (input.first.ff == 1) {
-        count++;
-    }
-    if (input.first.fl == 1) {
-        count++;
-    }
-    if (input.first.fr == 1) {
-        count++;
-    }
-    if (input.first.bb == 1) {
-        count++;
-    }
-    if (input.first.bl == 1) {
-        count++;
-    }
-    if (input.first.br == 1) {
-        count++;
-    }
+    count = (input.first.ff == true) + (input.first.fl == true) + (input.first.fr == true) +
+            (input.first.bb == true) + (input.first.bl == true) + (input.first.br == true);
 
-    if (count >= 4) {    // 센서의 변화의 갯수에 따라서 true, false 값 설정 : 여기서는 4개 이상을 설정함
-        RCLCPP_WARN(rclcpp::get_logger("LiftErrorMonitor") , "lift_bottom_range ==> result true ,  count : %d  ", count);
-        lift_bottom_range = true;
+    if (count == 0) { // 모든 IR 센서가 false일 경우 에러 해제.
+        errorCount = 0;
+        errorState = false;
+        return errorState;
+    } else if (count >= 4) { // ir 센서 true개수 4개 이상이면 ir 들림 의심
+        irLiftFlag = true;
     } else {
-        RCLCPP_WARN(rclcpp::get_logger("LiftErrorMonitor") , "lift_bottom_range ==> result false ,  count : %d  ", count);
-        lift_bottom_range = false;
+        irLiftFlag = false;
     }
 
-    acc_z = input.second.linear_acceleration.z;    // 선형 가속도
+    double acc_z = input.second.linear_acceleration.z;
 
-    // acc_z가 10.5이상이고 acc_z가 9.2이하이면 들림 조건임
-
-    if((acc_z <= 9.2 || acc_z >= 10.5) && !check_gravity)
-    {
-        gravity_time = clock.now().seconds();
-        check_gravity=true;
-    }
-    else
-    {
+    // acc_z가 10.5이상이고 acc_z가 9.2이하이면 imu 들림 의심 (기준값 수정 필요할 수도 있음)
+    if (acc_z <= 9.2 || acc_z >= 10.5) {
+        imuLiftFlag = true;
+    } else {
+        imuLiftFlag = false;
     }
 
-    // 들림 조건이면 카운트 시작
-    if((acc_z <= 9.2 || acc_z >= 10.5))
-    {
-        gravity_count++;
+    if (irLiftFlag && imuLiftFlag) {
+        errorCount++;
+    } else if (errorCount > 0) {
+        errorCount--; // Imu나 IR 값이 잠깐 튀어도 카운트로 바로 초기화 해 버리지 않기 위해.
+    }/* else {
+        errorCount = 0;
+    }*/
+
+    if (errorCount >= 10) {
+        errorState = true;
+    } else {
+        errorState = false;
     }
 
-    current_time = clock.now().seconds();
-    time = current_time - gravity_time;
-
-    // 시간이 200ms 안에서 acc_z 조건이 5개 이상이면 들림의 경우이며, 5미만이면 들림의 경우가 아니다
-    if(time >= 0.2)
-    {
-        gravity_time = 0;
-        check_gravity=false;
-
-        if(gravity_count >= 5)
-        {
-            gravity_count=0;
-            gravity_range=true;
-            // return true;
-        }
-        else
-        {
-            gravity_count=0;
-            gravity_range=false;
-            // return false;
-        }
-    }
-
-    if((lift_bottom_range && gravity_range) && !status)
-    {
-        status=true;
-        return true;
-    }
-    else{
-        status=false;
-        return false;
-    }
+    return errorState;
 }

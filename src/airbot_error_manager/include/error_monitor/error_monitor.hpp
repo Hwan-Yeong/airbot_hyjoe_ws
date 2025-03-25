@@ -58,6 +58,9 @@ class LiftErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::ms
 public:
     using InputType = std::pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>;
     bool checkError(const InputType& input) override;
+private:
+    unsigned int errorCount = 0;
+    bool errorState = false;
 };
 
 class BoardOverheatErrorMonitor : public BaseErrorMonitor<std::nullptr_t>

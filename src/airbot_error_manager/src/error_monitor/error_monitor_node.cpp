@@ -15,7 +15,7 @@ ErrorMonitorNode::ErrorMonitorNode()
 
     // Subscriber
     bottom_status_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
-        "bottom_status", 10, std::bind(&ErrorMonitorNode::bottomStatusCallback, this, std::placeholders::_1)
+        "bottom_ir_data", 10, std::bind(&ErrorMonitorNode::bottomStatusCallback, this, std::placeholders::_1)
     );
     imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
         "imu_data", 10, std::bind(&ErrorMonitorNode::imuCallback, this, std::placeholders::_1)
@@ -72,7 +72,7 @@ void ErrorMonitorNode::setParams()
     this->declare_parameter<int>("publish_rate.board_overheat_rate_ms", 1000);
     this->declare_parameter<int>("publish_rate.battery_discharge_rate_ms", 1000);
     this->declare_parameter<int>("publish_rate.charging_rate_ms", 1000);
-    this->declare_parameter<int>("publish_rate.lift_error_rate_ms", 1000);
+    this->declare_parameter<int>("publish_rate.lift_error_rate_ms", 10);
 
     this->get_parameter("publish_rate.low_battery_rate_ms", publish_cnt_low_battery_error_rate_);
     this->get_parameter("publish_rate.fall_down_rate_ms", publish_cnt_fall_down_error_rate_);
