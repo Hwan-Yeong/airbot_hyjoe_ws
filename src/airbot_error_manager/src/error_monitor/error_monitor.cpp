@@ -142,11 +142,11 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
         imu_range = true;
     }
 
-    if (imu_range && bottomdata_range) { // 전도가 일어남, 데이터 값에 따른 결정       
+    if (imu_range && bottomdata_range) { // 전도가 일어남, 데이터 값에 따른 결정
         if(!prev_status){
             RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"), "Detected (ff : %d)  (fl : %d) (fr :%d) (bb : %d) (bl : %d) (br : %d)  (pich : %.3f) (roll : %.3f)",
                     input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll);
-            prev_status=true;       
+            prev_status=true;
         }
         return true;
     } else { // 전도가 일어나지 않음
@@ -207,84 +207,139 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 
 bool ChargingErrorMonitor::checkError(const InputType &input)
 {
-    return false;
+    int check_amount;
+    int check_start_remaining_amount;
+    int current_remaining_amount;
+    static bool pre_mode=false;
+    static bool curr_mode;
+    static bool start_checking_charging_error=false;
 
-
-    static rclcpp::Clock clock(RCL_STEADY_TIME);
-    static int battery_current_remaining_amount;
-    static int battery_remaining_amount;
-    double time, current_time;
-    int charging_amount;
-    int docking_mode;
-    static double prev_time;
-    static bool isstatus=false;
-    static bool pre_nodocking=false;
-    static bool pre_status=false;
-    static bool pre_charging=false;
-    static bool pre_setting=false;
-    static bool pre_docking=false;
-
-
-    current_time = clock.now().seconds();
-    if (!pre_setting) { // 이전 시간에 대해서 초기시간 설정
-        prev_time = current_time;
-        pre_setting = true;
+    curr_mode = input.second.docking_status & 48;
+    if((!pre_mode && curr_mode))   // charger 혹은 charging 상태일때(처음 도킹했을때)
+    {
+        check_start_remaining_amount = input.first.battery_percent;
+        start_checking_charging_error=true;
+        pre_mode=curr_mode;
     }
-    time = current_time - prev_time;
 
-    docking_mode = input.second.docking_status;
-//    RCLCPP_WARN(rclcpp::get_logger("ChargingErrorMonitor"), " docking_mode ===> %d ==", docking_mode);
-    if (docking_mode != 48) { // 무슨 기준인지?
-        if (!pre_nodocking) {
-            RCLCPP_WARN(rclcpp::get_logger("ChargingErrorMonitor"), "docking false" );
-            pre_nodocking = true;
-        }
-        return false;
-    } else { // 도킹이 48일때 도킹이 된 상태
-        pre_docking=false; // 도킹 0일때 플래그
-        battery_current_remaining_amount = input.first.battery_percent;
-        if (!pre_charging) { // 초기 배터리 퍼센트값 정의
-            battery_remaining_amount = input.first.battery_percent;
-            RCLCPP_WARN(rclcpp::get_logger("ChargingErrorMonitor"), "battery_remaining_amount === %d ==", battery_remaining_amount);
-            pre_charging = true;
-        }
+    if(!curr_mode)  // charger와 charging 상태가 아닐때(도킹하지 않았을때)
+    {
+        start_checking_charging_error=false;
+        pre_mode=curr_mode;
+    }
+    // start_checking_charging_error --> 도킹 상태 체크 --> 도킹 되었으면 true, 도킹 안되었으면 false
+    if(start_checking_charging_error && check_start_remaining_amount < 90)
+    {
 
-        // RCLCPP_WARN(rclcpp::get_logger(""), " === %d ==", battery_remaining_amount);
-        if (battery_current_remaining_amount <= 60) { // 배터리가 95퍼센트가 남았을경우 충전 에러
-            if (!pre_docking) {
-                RCLCPP_WARN(rclcpp::get_logger("ChargingErrorMonitor"), "battery_current_remaining_amount : %d) ---> charging false", battery_current_remaining_amount);
-                pre_docking=true;
-            }
-            return false;
-        } else {
-            pre_nodocking=false;
-            pre_docking=false;
-            charging_amount = battery_current_remaining_amount - battery_remaining_amount;
-            if (time >= 100) {
-                RCLCPP_WARN(rclcpp::get_logger("ChargingErrorMonitor"), "=== 1 ==");
-                prev_time = clock.now().seconds();
-                if (charging_amount >= 0) { // 배터리 충전이 안되고 있는 경우
-                    if (!pre_status) {
-                        RCLCPP_WARN(rclcpp::get_logger("ChargingErrorMonitor"), "charging false --> (time : %.3f), %d, %d (charging_amount : %d)",
-                                    time, battery_current_remaining_amount, battery_remaining_amount ,charging_amount);
-                        pre_status=true;
-                        isstatus = false;
-                    }
-                    battery_remaining_amount = input.first.battery_percent;  // 초기 배터리 퍼센트값 충전이 않되는 경우 업데이트
-                    return false;
-                } else {
-                    pre_status=false;
-                    if (!isstatus) {
-                        RCLCPP_WARN(rclcpp::get_logger("ChargingErrorMonitor"), "charging true --> (time : %.3f), %d, %d (charging_amount : %d)",
-                                    time, battery_current_remaining_amount, battery_remaining_amount ,charging_amount);
-                        isstatus=true;
-                    }
-                    battery_remaining_amount = input.first.battery_percent;  // 초기 배터리 퍼센트값 충전이 될 경우 업데이트
-                    return true;
-                }
-            }
+        current_remaining_amount = input.first.battery_percent;
+        check_amount = current_remaining_amount - check_start_remaining_amount;  // input.first.battery_percent는 현재 배터리 양을 의미함
+        if(check_amount <= 3)
+        {
             return true;
         }
+        else
+        {
+            return false;
+        }
     }
-    return false;
+    else{
+        return false;
+    }
+}
+
+
+bool LiftErrorMonitor::checkError(const InputType &input)
+{
+
+    static rclcpp::Clock clock(RCL_STEADY_TIME);
+    bool lift_bottom_range, gravity_range;
+    static int count=0, gravity_count=0;
+    double deg_pitch, deg_roll, deg_yaw;   // 각도 값
+    double roll, pitch, yaw;               // 라디안 값
+    double  acc_x, acc_y, acc_z;           // 선형 가속독
+    static double gravity_time=0;
+    double time, current_time;
+    static bool check_gravity=false;
+    static bool status=false;
+
+    if (input.first.ff == 1) {
+        count++;
+    }
+    if (input.first.fl == 1) {
+        count++;
+    }
+    if (input.first.fr == 1) {
+        count++;
+    }
+    if (input.first.bb == 1) {
+        count++;
+    }
+    if (input.first.bl == 1) {
+        count++;
+    }
+    if (input.first.br == 1) {
+        count++;
+    }
+
+    if (count >= 4) {    // 센서의 변화의 갯수에 따라서 true, false 값 설정 : 여기서는 4개 이상을 설정함
+        RCLCPP_WARN(rclcpp::get_logger("LiftErrorMonitor") , "lift_bottom_range ==> result true ,  count : %d  ", count);
+        lift_bottom_range = true;
+    } else {
+        RCLCPP_WARN(rclcpp::get_logger("LiftErrorMonitor") , "lift_bottom_range ==> result false ,  count : %d  ", count);
+        lift_bottom_range = false;
+    }
+
+    acc_x = input.second.linear_acceleration.x;    // 선형 가속도
+    acc_y = input.second.linear_acceleration.y;    // 선형 가속도
+    acc_z = input.second.linear_acceleration.z;    // 선형 가속도
+
+    // acc_z가 10.5이상이고 acc_z가 9.2이하이면 들림 조건임
+
+    if((acc_z <= 9.2 || acc_z >= 10.5) && !check_gravity)
+    {
+        gravity_time = clock.now().seconds();
+        check_gravity=true;
+    }
+    else
+    {
+    }
+
+    // 들림 조건이면 카운트 시작
+    if((acc_z <= 9.2 || acc_z >= 10.5))
+    {
+        gravity_count++;
+    }
+
+    current_time = clock.now().seconds();
+    time = current_time - gravity_time;
+
+    // 시간이 200ms 안에서 acc_z 조건이 5개 이상이면 들림의 경우이며, 5미만이면 들림의 경우가 아니다
+    if(time >= 0.2)
+    {
+        gravity_time = 0;
+        check_gravity=false;
+
+        if(gravity_count >= 5)
+        {
+            gravity_count=0;
+            gravity_range=true;
+            // return true;
+        }
+        else
+        {
+            gravity_count=0;
+            gravity_range=false;
+            // return false;
+        }
+    }
+
+    if((lift_bottom_range && gravity_range) && !status)
+    {
+        status=true;
+        return true;
+    }
+    else{
+        status=false;
+        return false;
+    }
 }

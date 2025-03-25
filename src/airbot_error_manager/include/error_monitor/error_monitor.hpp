@@ -53,6 +53,13 @@ private:
     void get_rpy_from_quaternion(const geometry_msgs::msg::Quaternion& quaternion, double& roll, double& pitch, double& yaw);
 };
 
+class LiftErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>>
+{
+public:
+    using InputType = std::pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>;
+    bool checkError(const InputType& input) override;
+};
+
 class BoardOverheatErrorMonitor : public BaseErrorMonitor<std::nullptr_t>
 {
 public:
