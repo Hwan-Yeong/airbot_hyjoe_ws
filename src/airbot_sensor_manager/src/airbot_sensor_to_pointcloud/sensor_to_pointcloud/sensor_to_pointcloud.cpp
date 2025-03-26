@@ -9,8 +9,6 @@ double tof_top_sensor_frame_z_translate = 0.56513;      //[meter]
 double tof_bot_sensor_frame_x_translate = 0.14316;      //[meter]
 double tof_bot_sensor_frame_y_translate = 0.075446;     //[meter]
 double tof_bot_sensor_frame_z_translate = 0.03;         //[meter]
-double tof_bot_left_sensor_frame_pitch_ang = -2.0;      //[deg]
-double tof_bot_right_sensor_frame_pitch_ang = -2.0;     //[deg]
 double tof_bot_left_sensor_frame_yaw_ang = 15.0;        //[deg]
 double tof_bot_rihgt_sensor_frame_yaw_ang = -15.0;      //[deg]
 double tof_bot_fov_ang = 45;                            //[deg]
@@ -29,8 +27,6 @@ SensorToPointcloud::SensorToPointcloud()
                      tof_bot_sensor_frame_x_translate,
                      tof_bot_sensor_frame_y_translate,
                      tof_bot_sensor_frame_z_translate,
-                     tof_bot_left_sensor_frame_pitch_ang,
-                     tof_bot_right_sensor_frame_pitch_ang,
                      tof_bot_left_sensor_frame_yaw_ang,
                      tof_bot_rihgt_sensor_frame_yaw_ang,
                      tof_bot_fov_ang),
@@ -163,7 +159,9 @@ void SensorToPointcloud::declareParams()
     this->declare_parameter("tof.1D.tilting_angle_deg",0.0);
     this->declare_parameter("tof.multi.publish_rate_ms",100);
     this->declare_parameter("tof.multi.left.use",false);
+    this->declare_parameter("tof.multi.left.pitch_angle_deg",0.0);
     this->declare_parameter("tof.multi.right.use",false);
+    this->declare_parameter("tof.multi.right.pitch_angle_deg",0.0);
     this->declare_parameter("tof.multi.row.use",false);
     this->declare_parameter("tof.multi.row.publish_rate_ms",100);
 
@@ -195,7 +193,9 @@ void SensorToPointcloud::setParams()
     this->get_parameter("tof.1D.tilting_angle_deg", tilting_ang_1d_tof_);
     this->get_parameter("tof.multi.publish_rate_ms", publish_rate_multi_tof_);
     this->get_parameter("tof.multi.left.use", use_tof_left_);
+    this->get_parameter("tof.multi.left.pitch_angle_deg", bot_left_pitch_angle_);
     this->get_parameter("tof.multi.right.use", use_tof_right_);
+    this->get_parameter("tof.multi.right.pitch_angle_deg", bot_right_pitch_angle_);
     this->get_parameter("tof.multi.row.use", use_tof_row_);
     this->get_parameter("tof.multi.row.publish_rate_ms", publish_rate_row_tof_);
 
@@ -233,7 +233,9 @@ void SensorToPointcloud::printParams()
     RCLCPP_INFO(this->get_logger(), "  TOF 1D Tilting Angle: %.2f deg", tilting_ang_1d_tof_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Publish Rate: %d ms", publish_rate_multi_tof_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Use: %d", use_tof_left_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Pitch Angle: %.2f", bot_left_pitch_angle_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Use: %d", use_tof_right_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Pitch Angle: %.2f", bot_right_pitch_angle_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Row Use: %d", use_tof_row_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Row Publish Rate: %d ms", publish_rate_row_tof_);
 
@@ -280,6 +282,9 @@ void SensorToPointcloud::initVariables()
     publish_cnt_camera_ = 0;
     publish_cnt_cliff_ = 0;
     publish_cnt_collision_ = 0;
+
+    botTofPitchAngle.bot_left = bot_left_pitch_angle_;
+    botTofPitchAngle.bot_right = bot_right_pitch_angle_;
 }
 
 void SensorToPointcloud::publisherMonitor()
@@ -439,20 +444,20 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
         if (use_tof_left_ || use_tof_right_) {
             TOF_SIDE side = (use_tof_left_ && use_tof_right_) ? TOF_SIDE::BOTH : 
                             (use_tof_left_ ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
-            pc_tof_multi_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, side, false);
+            pc_tof_multi_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, side, botTofPitchAngle, false);
         }
         if (use_tof_row_) {
             if (use_tof_left_) {
-                pc_tof_left_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::FIRST);
-                pc_tof_left_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::SECOND);
-                pc_tof_left_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::THIRD);
-                pc_tof_left_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, true, ROW_NUMBER::FOURTH);
+                pc_tof_left_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::FIRST);
+                pc_tof_left_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::SECOND);
+                pc_tof_left_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::THIRD);
+                pc_tof_left_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::FOURTH);
             }
             if (use_tof_right_) {
-                pc_tof_right_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FIRST);
-                pc_tof_right_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::SECOND);
-                pc_tof_right_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::THIRD);
-                pc_tof_right_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, true, ROW_NUMBER::FOURTH);
+                pc_tof_right_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::FIRST);
+                pc_tof_right_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::SECOND);
+                pc_tof_right_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::THIRD);
+                pc_tof_right_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::FOURTH);
             }
         }
     }

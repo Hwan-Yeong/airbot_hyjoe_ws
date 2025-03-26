@@ -1,7 +1,7 @@
 airbot_sensor_to_pointcloud:
   ros__parameters:
 
-    target_frame: "map" # "map" or "base_link"
+    target_frame: "base_link" # "map" or "base_link"
 
     tof:
       all:
@@ -14,8 +14,10 @@ airbot_sensor_to_pointcloud:
         publish_rate_ms: 50
         left:
           use: true
+          pitch_angle_deg: -0.0 # (-)가 들리는 방향
         right:
           use: true
+          pitch_angle_deg: -0.0 # (-)가 들리는 방향
         row:
           use: true
           publish_rate_ms: 50

@@ -6,8 +6,6 @@ PointCloudTof::PointCloudTof(double tof_top_sensor_frame_x_translate = 0.0942,
                              double tof_bot_sensor_frame_x_translate = 0.145,
                              double tof_bot_sensor_frame_y_translate = 0.076,
                              double tof_bot_sensor_frame_z_translate = 0.03,
-                             double tof_bot_left_sensor_frame_pitch_ang = 0.0,
-                             double tof_bot_right_sensor_frame_pitch_ang = 0.0,
                              double tof_bot_left_sensor_frame_yaw_ang = 15.0,
                              double tof_bot_right_sensor_frame_yaw_ang = -15.0,
                              double tof_bot_fov_ang = 45)
@@ -17,8 +15,6 @@ PointCloudTof::PointCloudTof(double tof_top_sensor_frame_x_translate = 0.0942,
       tof_bot_translation_(tof_bot_sensor_frame_x_translate,
                            tof_bot_sensor_frame_y_translate,
                            tof_bot_sensor_frame_z_translate),
-      tof_bot_left_sensor_frame_pitch_ang_(tof_bot_left_sensor_frame_pitch_ang),
-      tof_bot_right_sensor_frame_pitch_ang_(tof_bot_right_sensor_frame_pitch_ang),
       tof_bot_left_sensor_frame_yaw_ang_(tof_bot_left_sensor_frame_yaw_ang),
       tof_bot_right_sensor_frame_yaw_ang_(tof_bot_right_sensor_frame_yaw_ang),
       tof_bot_fov_ang_(tof_bot_fov_ang)
@@ -76,8 +72,10 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateTopTofPointCloudMsg(const rob
     }
 }
 
-sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, bool isShowRow, ROW_NUMBER row)
+sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, tTofPitchAngle pitchAngle, bool isShowRow, ROW_NUMBER row)
 {
+    tof_bot_left_sensor_frame_pitch_ang_ = pitchAngle.bot_left;
+    tof_bot_right_sensor_frame_pitch_ang_ = pitchAngle.bot_right;
     std::vector<tPoint> multi_tof_points_on_sensor_frame;
     std::vector<tPoint> multi_left_tof_points_on_sensor_frame;
     std::vector<tPoint> multi_right_tof_points_on_sensor_frame;

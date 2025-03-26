@@ -7,6 +7,11 @@
 #include "utils/frame_converter.hpp"
 #include "utils/pointcloud_generator.hpp"
 
+struct tTofPitchAngle {
+    double bot_left;
+    double bot_right;
+};
+
 class PointCloudTof
 {
 public:
@@ -16,8 +21,6 @@ public:
                   double tof_bot_sensor_frame_x_translate,
                   double tof_bot_sensor_frame_y_translate,
                   double tof_bot_sensor_frame_z_translate,
-                  double tof_bot_left_sensor_frame_pitch_ang,
-                  double tof_bot_right_sensor_frame_pitch_ang,
                   double tof_bot_left_sensor_frame_yaw_ang,
                   double tof_bot_rihgt_sensor_frame_yaw_ang,
                   double tof_bot_fov_ang);
@@ -26,7 +29,7 @@ public:
     void updateTargetFrame(std::string &updated_frame);
     void updateRobotPose(tPose &pose);
     sensor_msgs::msg::PointCloud2 updateTopTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, double tilting_angle);
-    sensor_msgs::msg::PointCloud2 updateBotTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, bool isShowRow = false, ROW_NUMBER row = ROW_NUMBER::FIRST);
+    sensor_msgs::msg::PointCloud2 updateBotTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, tTofPitchAngle pitchAngle, bool isShowRow = false, ROW_NUMBER row = ROW_NUMBER::FIRST);
 
 private:
     FrameConverter frame_converter_;
