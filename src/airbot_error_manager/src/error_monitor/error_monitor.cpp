@@ -207,6 +207,7 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 
 bool ChargingErrorMonitor::checkError(const InputType &input)
 {
+    return false;
     /*
         < 충전 에러 검사 >
         해당 모니터는 10분마다 에러 발생/해제를 체크하지만, 충전중이 아닐때 혹은 충전중 95%가 넘어가는 시점부터는 바로 해제를 반환합니다.
@@ -229,10 +230,11 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
         lastCheckTime = currentTime;
         initialCharge = currentCharge;
         errorState = false;
+        isFirstCheck = true;
         return false;
     }
 
-    if (currentCharge <= 95) {
+    if (currentCharge <= 90) {
         if (isFirstCheck) { // 측정 주기 타이머 시작
             lastCheckTime = currentTime;
             initialCharge = currentCharge;
@@ -243,20 +245,16 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
         // RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "time diff: %.3f", timediff);
         if (timediff >= 600) { // 10분 경과 시 평가
             int chargeDiff = static_cast<int>(currentCharge) - static_cast<int>(initialCharge);
-            if (chargeDiff < 0) { // 현재 충전량이 떨어진 경우면? -> 일단 에러로 보자.. 이 모니터의 역할일진 모르겠지만.
+            if (chargeDiff <= 2) { // 현재 충전량이 2퍼센트 이하인 경우
                 errorState = true;
             } else {
-                if (chargeDiff <= 2) { // 현재 충전량이 2퍼센트 이하인 경우
-                    errorState = true;
-                } else {
-                    errorState = false;
-                }
+                errorState = false;
             }
             isFirstCheck = true;
         } else {
             // 아무 처리도 하지 않음으로서 이전 errorState를 유지하도록 한다.
         }
-    } else { // 충전중인데 배터리 95% 이하가 아니면 그냥 에러 해제.
+    } else { // 충전중인데 배터리 90% 이하가 아니면 그냥 에러 해제.
         errorState = false;
         isFirstCheck = true;
     }
@@ -266,6 +264,7 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
 
 bool LiftErrorMonitor::checkError(const InputType &input)
 {
+    return false;
     /*
         < 들림 에러 검사 >
         해당 모니터는 10ms마다 호출한다는 것을 가정합니다.
@@ -315,8 +314,6 @@ bool LiftErrorMonitor::checkError(const InputType &input)
 
     if (errorCount >= 10) {
         errorState = true;
-    } else {
-        errorState = false;
     }
 
     return errorState;
