@@ -40,12 +40,17 @@ private:
     void initVariables();
     void setParams();
     void errorMonitor();
-    void bottomStatusCallback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
+    void bottomIrDataCallback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
     void imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
     void batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg);
     void stationDataCallback(const robot_custom_msgs::msg::StationData::SharedPtr msg);
+    void robotStateCallback(const robot_custom_msgs::msg::RobotState::SharedPtr msg);
 
-    bool isBottomStatusUpdate, isImuUpdate, isBatteryUpdate, isStationDataUpdate;
+    bool update_battery_status_low_battery, update_battery_status_battery_discharging, update_battery_status_charging,
+        update_bottom_ir_data_fall_down, update_bottom_ir_data_lift,
+        update_imu_fall_down, update_imu_lift,
+        update_station_data_charging,
+        update_robot_state_low_battery, update_robot_state_battery_discharging;
     int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_,
         publish_cnt_board_overheat_error_, publish_cnt_battery_discharge_error_,
         publish_cnt_charging_error_, publish_cnt_lift_error_;
@@ -57,11 +62,13 @@ private:
     robot_custom_msgs::msg::BottomIrData bottom_status_data;
     sensor_msgs::msg::Imu imu_data;
     robot_custom_msgs::msg::StationData station_data;
+    robot_custom_msgs::msg::RobotState robot_state;
 
-    rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr bottom_status_sub_;
+    rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr bottom_ir_data_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::BatteryStatus>::SharedPtr battery_status_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::StationData>::SharedPtr station_data_sub_;
+    rclcpp::Subscription<robot_custom_msgs::msg::RobotState>::SharedPtr robot_state_sub_;
 
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
         low_battery_error_pub_, fall_down_error_pub_,

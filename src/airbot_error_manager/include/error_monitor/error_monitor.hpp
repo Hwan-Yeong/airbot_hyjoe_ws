@@ -10,6 +10,7 @@
 #include "robot_custom_msgs/msg/bottom_ir_data.hpp"
 #include "robot_custom_msgs/msg/battery_status.hpp"
 #include "robot_custom_msgs/msg/station_data.hpp"
+#include "robot_custom_msgs/msg/robot_state.hpp"
 #include "error_monitor/error_monitor_node.hpp"
 
 /**
@@ -30,17 +31,17 @@ public:
     virtual bool checkError(const T& input) = 0;
 };
 
-class LowBatteryErrorMonitor : public BaseErrorMonitor<robot_custom_msgs::msg::BatteryStatus>
+class LowBatteryErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::RobotState>>
 {
 public:
-    using InputType = robot_custom_msgs::msg::BatteryStatus;
+    using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::RobotState>;
     bool checkError(const InputType& input) override;
 };
 
-class BatteryDischargingErrorMonitor : public BaseErrorMonitor<robot_custom_msgs::msg::BatteryStatus>
+class BatteryDischargingErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::RobotState>>
 {
 public:
-    using InputType = robot_custom_msgs::msg::BatteryStatus;
+    using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::RobotState>;
     bool checkError(const InputType& input) override;
 };
 

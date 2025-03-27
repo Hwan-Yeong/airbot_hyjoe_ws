@@ -14,8 +14,8 @@ ErrorMonitorNode::ErrorMonitorNode()
     addMonitor<LiftErrorMonitor>(std::make_shared<LiftErrorMonitor>());
 
     // Subscriber
-    bottom_status_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
-        "bottom_ir_data", 10, std::bind(&ErrorMonitorNode::bottomStatusCallback, this, std::placeholders::_1)
+    bottom_ir_data_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
+        "bottom_ir_data", 10, std::bind(&ErrorMonitorNode::bottomIrDataCallback, this, std::placeholders::_1)
     );
     imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
         "imu_data", 10, std::bind(&ErrorMonitorNode::imuCallback, this, std::placeholders::_1)
@@ -25,6 +25,9 @@ ErrorMonitorNode::ErrorMonitorNode()
     );
     station_data_sub_ = this->create_subscription<robot_custom_msgs::msg::StationData>(
         "/station_data", 10, std::bind(&ErrorMonitorNode::stationDataCallback, this, std::placeholders::_1)
+    );
+    robot_state_sub_ = this->create_subscription<robot_custom_msgs::msg::RobotState>(
+        "/state_datas", 10, std::bind(&ErrorMonitorNode::robotStateCallback, this, std::placeholders::_1)
     );
 
     // Publisher
@@ -47,10 +50,16 @@ ErrorMonitorNode::~ErrorMonitorNode()
 
 void ErrorMonitorNode::initVariables()
 {
-    isBottomStatusUpdate = false;
-    isImuUpdate = false;
-    isBatteryUpdate = false;
-    isStationDataUpdate = false;
+    update_battery_status_low_battery = false;
+    update_battery_status_battery_discharging = false;
+    update_battery_status_charging = false;
+    update_bottom_ir_data_fall_down = false;
+    update_bottom_ir_data_lift = false;
+    update_imu_fall_down = false;
+    update_imu_lift = false;
+    update_station_data_charging = false;
+    update_robot_state_low_battery = false;
+    update_robot_state_battery_discharging = false;
 
     publish_cnt_low_battery_error_ = 0;
     publish_cnt_fall_down_error_ = 0;
@@ -103,7 +112,8 @@ void ErrorMonitorNode::errorMonitor()
     publish_cnt_lift_error_ += 10;
 
     // fall down monitor
-    if (isBottomStatusUpdate && isImuUpdate && (publish_cnt_fall_down_error_ >= publish_cnt_fall_down_error_rate_)) {
+    if (update_bottom_ir_data_fall_down && update_imu_fall_down
+        && (publish_cnt_fall_down_error_ >= publish_cnt_fall_down_error_rate_)) {
         bool fall_down_error = this->runMonitor<FallDownErrorMonitor>(std::make_pair(bottom_status_data, imu_data));
         if (fall_down_error) {
             RCLCPP_INFO(this->get_logger(), "fall_down_error : %s", fall_down_error ? "true" : "false");
@@ -114,11 +124,14 @@ void ErrorMonitorNode::errorMonitor()
             fall_down_error_pub_->publish(error_msg);
         }
         publish_cnt_fall_down_error_ = 0;
+        update_bottom_ir_data_fall_down = false;
+        update_imu_fall_down = false;
     }
 
     // low battery monitor
-    if (isBatteryUpdate && (publish_cnt_low_battery_error_ >= publish_cnt_low_battery_error_rate_)) {
-        bool low_battery_error = this->runMonitor<LowBatteryErrorMonitor>(battery_data);
+    if (update_battery_status_low_battery && update_robot_state_low_battery
+        && (publish_cnt_low_battery_error_ >= publish_cnt_low_battery_error_rate_)) {
+        bool low_battery_error = this->runMonitor<LowBatteryErrorMonitor>(std::make_pair(battery_data, robot_state));
         if (low_battery_error) {
             // RCLCPP_INFO(this->get_logger(), "low_battery_error : %s", low_battery_error ? "true" : "false");
             // error_msg.data = true;
@@ -129,6 +142,7 @@ void ErrorMonitorNode::errorMonitor()
             // low_battery_error_pub_->publish(error_msg);
         }
         publish_cnt_low_battery_error_ = 0;
+        update_battery_status_low_battery = false;
     }
 
     // board overheat monitor
@@ -147,8 +161,9 @@ void ErrorMonitorNode::errorMonitor()
     }
 
     // battery discharging monitor
-    if (isBatteryUpdate && (publish_cnt_battery_discharge_error_ >= publish_cnt_battery_discharge_error_rate_)) {
-        bool battery_discharge_error = this->runMonitor<BatteryDischargingErrorMonitor>(battery_data);
+    if (update_battery_status_battery_discharging && update_robot_state_battery_discharging
+        && (publish_cnt_battery_discharge_error_ >= publish_cnt_battery_discharge_error_rate_)) {
+        bool battery_discharge_error = this->runMonitor<BatteryDischargingErrorMonitor>(std::make_pair(battery_data, robot_state));
         if (battery_discharge_error) {
             // RCLCPP_INFO(this->get_logger(), "battery_discharge_error : %s", battery_discharge_error ? "true" : "false");
             // error_msg.data = true;
@@ -159,10 +174,12 @@ void ErrorMonitorNode::errorMonitor()
             // battery_discharge_error_pub_->publish(error_msg);
         }
         publish_cnt_battery_discharge_error_ = 0;
+        update_battery_status_battery_discharging = false;
     }
 
     // charging monitor
-    if (isStationDataUpdate && isBatteryUpdate && (publish_cnt_charging_error_ >= publish_cnt_charging_error_rate_)) {
+    if (update_station_data_charging && update_battery_status_charging
+        && (publish_cnt_charging_error_ >= publish_cnt_charging_error_rate_)) {
         bool charging_error = this->runMonitor<ChargingErrorMonitor>(std::make_pair(battery_data, station_data));
         if (charging_error) {
             // RCLCPP_INFO(this->get_logger(), "charging_error : %s", charging_error ? "true" : "false");
@@ -174,10 +191,13 @@ void ErrorMonitorNode::errorMonitor()
             // charging_error_pub_->publish(error_msg);
         }
         publish_cnt_charging_error_ = 0;
+        update_station_data_charging = false;
+        update_battery_status_charging = false;
     }
 
     // lift monitor
-    if (isBottomStatusUpdate && isImuUpdate && (publish_cnt_lift_error_ >= publish_cnt_lift_error_rate_)) {
+    if (update_bottom_ir_data_lift && update_imu_lift
+        && (publish_cnt_lift_error_ >= publish_cnt_lift_error_rate_)) {
         bool lift_error = this->runMonitor<LiftErrorMonitor>(std::make_pair(bottom_status_data, imu_data));
         if (lift_error) {
             // RCLCPP_INFO(this->get_logger(), "lift_error : %s", lift_error ? "true" : "false");
@@ -188,12 +208,9 @@ void ErrorMonitorNode::errorMonitor()
             // lift_error_pub_->publish(error_msg);
         }
         publish_cnt_lift_error_ = 0;
+        update_bottom_ir_data_lift = false;
+        update_imu_lift = false;
     }
-
-    isImuUpdate = false;
-    isBatteryUpdate = false;
-    isStationDataUpdate = false;
-    isBottomStatusUpdate = false;
 
     // publish_cnt_* 변수 오버플로우 방지
     if (publish_cnt_low_battery_error_ >= 100000) publish_cnt_low_battery_error_ = 0;
@@ -207,23 +224,34 @@ void ErrorMonitorNode::errorMonitor()
 void ErrorMonitorNode::batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg)
 {
     battery_data = *msg;
-    isBatteryUpdate = true;
+    update_battery_status_low_battery = true;
+    update_battery_status_battery_discharging = true;
+    update_battery_status_charging = true;
 }
 
-void ErrorMonitorNode::bottomStatusCallback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg)
+void ErrorMonitorNode::bottomIrDataCallback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg)
 {
     bottom_status_data = *msg;
-    isBottomStatusUpdate = true;
+    update_bottom_ir_data_fall_down = true;
+    update_bottom_ir_data_lift = true;
 }
 
 void ErrorMonitorNode::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
 {
     imu_data = *msg;
-    isImuUpdate = true;
+    update_imu_fall_down = true;
+    update_imu_lift = true;
 }
 
 void ErrorMonitorNode::stationDataCallback(const robot_custom_msgs::msg::StationData::SharedPtr msg)
 {
     station_data = *msg;
-    isStationDataUpdate = true;
+    update_station_data_charging = true;
+}
+
+void ErrorMonitorNode::robotStateCallback(const robot_custom_msgs::msg::RobotState::SharedPtr msg)
+{
+    robot_state = *msg;
+    update_robot_state_low_battery = true;
+    update_robot_state_battery_discharging = true;
 }

@@ -3,6 +3,10 @@
 
 bool LowBatteryErrorMonitor::checkError(const InputType& input)
 {
+    if (input.second.state == 4 || input.second.state == 5) { // 4: RETURN_CHARGER, 5: DOCKING
+        return false;
+    }
+
     // 베터리가 10프로 이상 15프로 이하 동시에 30초 이상일 경우
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     int battery_remaining_amount;
@@ -19,7 +23,7 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
     }
     time = current_time - prev_time;
 
-    battery_remaining_amount = input.battery_percent;
+    battery_remaining_amount = input.first.battery_percent;
     if (battery_remaining_amount <= 15 && battery_remaining_amount > 10) {
 
         prev_no_low_battery = true;
@@ -49,6 +53,10 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
 
 bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
 {
+    if (input.second.state == 4 || input.second.state == 5) { // 4: RETURN_CHARGER, 5: DOCKING
+        return false;
+    }
+
     // 베터리가 10프로 이하일 경우, 동시에 30초 이상일 경우
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     int battery_remaining_amount;
@@ -65,7 +73,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
     }
     time = current_time - prev_time;
 
-    battery_remaining_amount = input.battery_percent;
+    battery_remaining_amount = input.first.battery_percent;
     if (battery_remaining_amount <= 10) {
         prev_no_low_battery = true;
         if (time >= 30) {
