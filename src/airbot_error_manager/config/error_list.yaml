@@ -72,9 +72,6 @@ airbot_error_manager:
       s_05: # 현재 구역에서 다른 구역으로 이동이 불가한 경우 목적지 도달 불가 에러
         sub_topic: "error/s_code/unreachable_goal"
         error_code: "S05"
-      s_05_2: # 사용자가 설정한 목적지가 아닌 대체 목적지에 도달하였을 경우 목적지 임시 변경 에러
-        sub_topic: "error/s_code/change_temp_goal"
-        error_code: "S05-2"
       s_07: # 제품의 전도 발생 시 기기 넘어짐 에러
         sub_topic: "error/s_code/fall_down"
         error_code: "S07"
@@ -84,6 +81,6 @@ airbot_error_manager:
       s_10_2: # SoC 보드의 과열에 의한 화재 및 파손 방지 시스템 보드 과열 에러
         sub_topic: "error/s_code/board_overheat"
         error_code: "S10-2"
-      s_11: # 충전부 과열에 의한 화재 및 파손 방지 에러
+      s_01: # 충전부 과열에 의한 화재 및 파손 방지 에러
         sub_topic: "error/s_code/station_overheat"
-        error_code: "S11"
+        error_code: "S01"

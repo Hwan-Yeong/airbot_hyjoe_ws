@@ -215,7 +215,6 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 
 bool ChargingErrorMonitor::checkError(const InputType &input)
 {
-    return false;
     /*
         < 충전 에러 검사 >
         해당 모니터는 10분마다 에러 발생/해제를 체크하지만, 충전중이 아닐때 혹은 충전중 95%가 넘어가는 시점부터는 바로 해제를 반환합니다.

@@ -182,13 +182,12 @@ void ErrorMonitorNode::errorMonitor()
         && (publish_cnt_charging_error_ >= publish_cnt_charging_error_rate_)) {
         bool charging_error = this->runMonitor<ChargingErrorMonitor>(std::make_pair(battery_data, station_data));
         if (charging_error) {
-            // RCLCPP_INFO(this->get_logger(), "charging_error : %s", charging_error ? "true" : "false");
-            // error_msg.data = true;
-            // charging_error_pub_->publish(error_msg);
+            RCLCPP_INFO(this->get_logger(), "charging_error : %s", charging_error ? "true" : "false");
+            error_msg.data = true;
+            charging_error_pub_->publish(error_msg);
         } else {
-            // icbaek, 2025.03.19 : false 여도 publish하지 않게 하였음.
-            // error_msg.data = false;
-            // charging_error_pub_->publish(error_msg);
+            error_msg.data = false;
+            charging_error_pub_->publish(error_msg);
         }
         publish_cnt_charging_error_ = 0;
         update_station_data_charging = false;
