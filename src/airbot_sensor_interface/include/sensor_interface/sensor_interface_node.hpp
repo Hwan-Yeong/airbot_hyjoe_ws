@@ -151,7 +151,8 @@ private:
     std::vector<std::string> camera_param_raw_vector_;
     std::map<int, int> camera_class_id_confidence_th_;
 
-    double tilting_ang_1d_tof_;
+    double tilting_ang_1d_tof_, bot_left_pitch_angle_, bot_right_pitch_angle_;
+    tTofPitchAngle botTofPitchAngle;
 
     int publish_rate_1d_tof_, publish_rate_multi_tof_, publish_rate_row_tof_,
         publish_rate_camera_, publish_rate_cliff_, publish_rate_collision_,

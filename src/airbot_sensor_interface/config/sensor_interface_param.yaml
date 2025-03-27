@@ -14,8 +14,10 @@ airbot_sensor_interface_node:
         publish_rate_ms: 50
         left:
           use: true
+          pitch_angle_deg: -0.0 # (-)가 들리는 방향
         right:
           use: true
+          pitch_angle_deg: -0.0 # (-)가 들리는 방향
         row:
           use: true
           publish_rate_ms: 50
