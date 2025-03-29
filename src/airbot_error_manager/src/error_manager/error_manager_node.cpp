@@ -39,6 +39,9 @@ ErrorManagerNode::ErrorManagerNode()
         this->config = YAML::LoadFile(fallback_path)["airbot_error_manager"]["error_list"];
     }
 
+    // 에러 발생 후 에러 리스트에서 관리하지 않을 에러 등록
+    erase_after_pub_error_codes_ = {"S05"};
+
     error_list_pub_ = this->create_publisher<robot_custom_msgs::msg::ErrorListArray>("/error_list", 10);
 
     pub_timer_ = this->create_wall_timer(
@@ -134,7 +137,12 @@ void ErrorManagerNode::publishErrorList()
         error_msg_array.data_array.push_back(error_msg);
 
         if (error.error.count > pub_cnt) { // pub_cnt 만큼 퍼블리싱 했으면 발행 정지.
-            error.should_publish = false;
+            if (erase_after_pub_error_codes_.count(error.error.error_code)) { // 에러 발생 후 에러 리스트에서 관리하지 않을 에러 제거
+                it = error_list_.erase(it);
+                continue;
+            } else {
+                error.should_publish = false;
+            }
         }
         ++it;
     }
