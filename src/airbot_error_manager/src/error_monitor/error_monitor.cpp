@@ -241,7 +241,7 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
         // [250401] hyjoe : 에러 체크 시작할 때 배터리량 로그 출력
         RCLCPP_INFO(
             rclcpp::get_logger("ChargingErrorMonitor"),
-            "remaining capacity: %d mAh, battery percent: %d %, battery current: %.3f mA",
+            "remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
             input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
         );
         return false;
@@ -272,7 +272,7 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
                 // [250401] hyjoe : 에러 발생 시 배터리량 로그 출력
                 RCLCPP_INFO(
                     rclcpp::get_logger("ChargingErrorMonitor"),
-                    "remaining capacity: %d mAh, battery percent: %d %, battery current: %.3f mA",
+                    "remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
                     input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
                 );
                 // [250401] hyjoe : 에러 발생 시 에러 체크 시작으로부터 경과시간 로그 출력

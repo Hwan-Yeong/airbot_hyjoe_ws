@@ -103,7 +103,7 @@ void ErrorManagerNode::errorCallback(const std::string& error_code, std_msgs::ms
 
 void ErrorManagerNode::publishErrorList()
 {
-    static int print_cnt = 0;
+    // static int print_cnt = 0;
     bool print_now = false;
 
     robot_custom_msgs::msg::ErrorListArray error_msg_array;
