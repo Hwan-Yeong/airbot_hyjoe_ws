@@ -238,10 +238,17 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
         initialCharge = currentCharge;
         errorState = false;
         isFirstCheck = true;
+        // [250401] hyjoe : 에러 체크 시작할 때 배터리량 로그 출력
+        RCLCPP_INFO(
+            rclcpp::get_logger("ChargingErrorMonitor"),
+            "remaining capacity: %d mAh, battery percent: %d %, battery current: %.3f mA",
+            input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
+        );
         return false;
     }
 
-    if (currentCharge <= 90) {
+    // [250329] KKS : 80프로 이하일 때 시작으로 변경
+    if (currentCharge <= 80) {
         if (isFirstCheck) { // 측정 주기 타이머 시작
             lastCheckTime = currentTime;
             initialCharge = currentCharge;
@@ -250,10 +257,29 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
         }
         double timediff = currentTime - lastCheckTime;
         // RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "time diff: %.3f", timediff);
-        if (timediff >= 600) { // 10분 경과 시 평가
+        if (timediff >= 1200) { // [250329] KKS : 20분 변경 // 10분 경과 시 평가
             int chargeDiff = static_cast<int>(currentCharge) - static_cast<int>(initialCharge);
             if (chargeDiff <= 2) { // 현재 충전량이 2퍼센트 이하인 경우
                 errorState = true;
+                // [250401] hyjoe : 에러가 발생했을 때 충전단자 상태 로그 출력
+                if (input.second.docking_status == 0x10) {
+                    RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "docking status: 0x10 charger found");
+                } else if (input.second.docking_status == 0x20) {
+                    RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "docking status: 0x20 start charging");
+                } else {
+                    RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "docking status: 0x30 charger found & start charging");
+                }
+                // [250401] hyjoe : 에러 발생 시 배터리량 로그 출력
+                RCLCPP_INFO(
+                    rclcpp::get_logger("ChargingErrorMonitor"),
+                    "remaining capacity: %d mAh, battery percent: %d %, battery current: %.3f mA",
+                    input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
+                );
+                // [250401] hyjoe : 에러 발생 시 에러 체크 시작으로부터 경과시간 로그 출력
+                RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"),
+                    "elapsed time since error check started: %.3f sec",
+                    timediff
+                );
             } else {
                 errorState = false;
             }
