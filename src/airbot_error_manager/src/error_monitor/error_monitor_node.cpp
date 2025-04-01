@@ -116,7 +116,7 @@ void ErrorMonitorNode::errorMonitor()
         && (publish_cnt_fall_down_error_ >= publish_cnt_fall_down_error_rate_)) {
         bool fall_down_error = this->runMonitor<FallDownErrorMonitor>(std::make_pair(bottom_status_data, imu_data));
         if (fall_down_error) {
-            RCLCPP_INFO(this->get_logger(), "fall_down_error : %s", fall_down_error ? "true" : "false");
+            //RCLCPP_INFO(this->get_logger(), "fall_down_error : %s", fall_down_error ? "true" : "false");
             error_msg.data = true;
             fall_down_error_pub_->publish(error_msg);
         } else {
@@ -182,7 +182,7 @@ void ErrorMonitorNode::errorMonitor()
         && (publish_cnt_charging_error_ >= publish_cnt_charging_error_rate_)) {
         bool charging_error = this->runMonitor<ChargingErrorMonitor>(std::make_pair(battery_data, station_data));
         if (charging_error) {
-            RCLCPP_INFO(this->get_logger(), "charging_error : %s", charging_error ? "true" : "false");
+            //RCLCPP_INFO(this->get_logger(), "charging_error : %s", charging_error ? "true" : "false");
             error_msg.data = true;
             charging_error_pub_->publish(error_msg);
         } else {

@@ -152,7 +152,7 @@ void ErrorManagerNode::publishErrorList()
     }
 
     // error_list 출력
-    if (print_now || ++print_cnt % 10 == 0) {
+    if (print_now /*|| ++print_cnt % 10 == 0*/) {
         printErrorList();
     }
 }
