@@ -231,7 +231,7 @@ void ErrorManagerNode::printErrorList(){
     for (size_t i = 0; i < error_list_.size(); ++i) {
         const auto& err = error_list_[i];
         std::string code = err.error.error_code;
-        std::string occurred = err.error.error_occurred ? "true" : "false";
+        std::string occurred = err.error.error_occurred ? "OCCURED" : "RELEASED";
         std::string description = "N/A";
 
         for (const auto& error_category : config) {
