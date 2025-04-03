@@ -21,7 +21,7 @@ ErrorManagerNode::ErrorManagerNode()
     this->get_parameter("publish_rate_ms", publish_rate);
     auto publish_rate_ms = std::chrono::milliseconds(publish_rate);
 
-    this->declare_parameter("error_publish_cnt", 3);
+    this->declare_parameter("error_publish_cnt", 1);
     this->get_parameter("error_publish_cnt", pub_cnt);
 
     this->declare_parameter("error_list_size", 1000);
@@ -227,14 +227,28 @@ void ErrorManagerNode::printErrorList(){
     }
 
     std::stringstream ss;
-    ss << "[ Error List: ";
+    ss << "\n[\n Error List:\n";
     for (size_t i = 0; i < error_list_.size(); ++i) {
         const auto& err = error_list_[i];
-        ss << err.error.error_code << ": " << (err.error.error_occurred ? "true" : "false");
+        std::string code = err.error.error_code;
+        std::string occurred = err.error.error_occurred ? "true" : "false";
+        std::string description = "N/A";
+
+        for (const auto& error_category : config) {
+            for (const auto& error : error_category.second) {
+                if (error.second["error_code"].as<std::string>() == code) {
+                    if (error.second["description"]) {
+                        description = error.second["description"].as<std::string>();
+                    }
+                }
+            }
+        }
+
+        ss << "  - " << code << " (" << occurred << "): " << description;
         if (i != error_list_.size() - 1) {
-            ss << " & ";
+            ss << "\n";
         }
     }
-    ss << " ]";
+    ss << "\n]";
     RCLCPP_INFO(this->get_logger(), "%s", ss.str().c_str());
 }

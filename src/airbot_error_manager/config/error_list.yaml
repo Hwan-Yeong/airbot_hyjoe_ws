@@ -4,83 +4,110 @@ airbot_error_manager:
       e_04: # Left Motor 구속 및 제어 불가 시 에러
         sub_topic: "error/e_code/left_motor_stuck"
         error_code: "E04"
+        description: "Left motor stuck or unresponsive"
       e_04_1: # Right Motor 구속 및 제어 불가 시 에러
         sub_topic: "error/e_code/right_motor_stuck"
         error_code: "E04-1"
+        description: "Right motor stuck or unresponsive"
       e_04_2: # Left Motor 과열 시 에러
-        sub_topic: "error/e_code/left_motor_overheat"
+        sub_topic: "error/e_code/left_motor_overheats"
         error_code: "E04-2"
+        description: "Left Motor overheating"
       e_04_3: # Right Motor 과열 시 에러
-        sub_topic: "error/e_code/right_motor_overheat"
+        sub_topic: "error/e_code/right_motor_overheats"
         error_code: "E04-3"
+        description: "Right Motor overheating"
       e_05: # Front Lidar 이물질로 인해 기능을 상실한 경우 에러
         sub_topic: "error/e_code/scan_dirty_front"
         error_code: "E05"
+        description: "Front Lidar dirty"
       e_06: # Back Lidar 이물질로 인해 기능을 상실한 경우 에러
         sub_topic: "error/e_code/scan_dirty_back"
         error_code: "E06"
+        description: "Back Lidar dirty"
       e_07: # Docking Station을 확인하지 못하는 경우 에러
         sub_topic: "error/e_code/docking_station"
         error_code: "E07"
+        description: "Docking station not detected"
       e_08: # Docking Station에서 충전이 불가능한 경우 에러
         sub_topic: "error/e_code/charging"
         error_code: "E08"
+        description: "Charging failed at docking station"
     f_error:
       f_01: # (충전시) 배터리 과전류에 의한 화재 및 파손 방지 에러
         sub_topic: "error/f_code/battery_charging_overcurrent"
         error_code: "F01"
+        description: "Battery overcurrent during charging"
       f_01-1: # (방전시) 배터리 과전류에 의한 화재 및 파손 방지 에러
         sub_topic: "error/f_code/battery_discharging_overcurrent"
         error_code: "F01-1"
+        description: "Battery overcurrent during discharging"
       f_07: # 1D ToF 센서와 통신이 안될 경우 에러
         sub_topic: "error/f_code/top_tof"
         error_code: "F07"
+        description: "1D ToF sensor communication failure"
       f_09_2: # Camera 센서와 통신이 안될 경우 에러
         sub_topic: "error/f_code/camera"
         error_code: "F09_2"
+        description: "Camera communication failure"
       f_11: # Right 구동모터 통신 불가 에러
         sub_topic: "error/f_code/right_motor"
         error_code: "F11"
+        description: "Right motor communication failure"
       f_12: # Left 구동모터 통신 불가 에러
         sub_topic: "error/f_code/left_motor"
         error_code: "F12"
+        description: "Left motor communication failure"
       f_13: # Front Lidar 센서와 통신이 안될 경우 에러
         sub_topic: "error/f_code/scan_front"
         error_code: "F13"
+        description: "Front Lidar communication failure"
       f_14: # Back Lidar 센서와 통신이 안될 경우 에러
         sub_topic: "error/f_code/scan_back"
         error_code: "F14"
+        description: "Back Lidar communication failure"
       f_15: # 충전시 배터리 과열 에러
         sub_topic: "error/f_code/battery_charging_overheat"
         error_code: "F15"
+        description: "Battery overheating during charging"
       f_16: # 방전시 배터리 과열 에러
         sub_topic: "error/f_code/battery_discharging_overheat"
         error_code: "F16"
+        description: "Battery overheating during discharging"
       f_17: # Left Multi TOF 센서와 통신이 안될 경우 에러
         sub_topic: "error/f_code/bot_tof_left"
         error_code: "F17"
+        description: "Left ToF sensor communication failure"
       f_17_1: # Right Multi TOF 센서와 통신이 안될 경우 에러
         sub_topic: "error/f_code/bot_tof_right"
         error_code: "F17-1"
+        description: "Right ToF sensor communication failure"
     s_error:
       s_02: # 배터리 저전력 에러
         sub_topic: "error/s_code/low_battery"
         error_code: "S02"
+        description: "Low battery level"
       s_03: # 배터리 방전 경고 에러
         sub_topic: "error/s_code/discharging_battery"
         error_code: "S03"
+        description: "Battery discharging"
       s_05: # 현재 구역에서 다른 구역으로 이동이 불가한 경우 목적지 도달 불가 에러
         sub_topic: "error/s_code/unreachable_goal"
         error_code: "S05"
+        description: "Unable to reach target area"
       s_07: # 제품의 전도 발생 시 기기 넘어짐 에러
         sub_topic: "error/s_code/fall_down"
         error_code: "S07"
+        description: "Fall Down"
       s_08: # 도킹을 못하는 경우 에러
         sub_topic: "error/s_code/unable_to_dock"
         error_code: "S08"
+        description: "Unable to dock"
       s_10_2: # SoC 보드의 과열에 의한 화재 및 파손 방지 시스템 보드 과열 에러
         sub_topic: "error/s_code/board_overheat"
         error_code: "S10-2"
+        description: "Board overheating."
       s_01: # 충전부 과열에 의한 화재 및 파손 방지 에러
         sub_topic: "error/s_code/station_overheat"
         error_code: "S01"
+        description: "Station overheating"
