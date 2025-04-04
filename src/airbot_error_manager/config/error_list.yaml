@@ -10,11 +10,11 @@ airbot_error_manager:
         error_code: "E04-1"
         description: "Right motor stuck or unresponsive"
       e_04_2: # Left Motor 과열 시 에러
-        sub_topic: "error/e_code/left_motor_overheats"
+        sub_topic: "error/e_code/left_motor_overheat"
         error_code: "E04-2"
         description: "Left Motor overheating"
       e_04_3: # Right Motor 과열 시 에러
-        sub_topic: "error/e_code/right_motor_overheats"
+        sub_topic: "error/e_code/right_motor_overheat"
         error_code: "E04-3"
         description: "Right Motor overheating"
       e_05: # Front Lidar 이물질로 인해 기능을 상실한 경우 에러
