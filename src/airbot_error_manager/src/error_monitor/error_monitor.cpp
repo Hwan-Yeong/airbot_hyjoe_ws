@@ -29,13 +29,19 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
         prev_no_low_battery = true;
         if (time >= 30) {
             if (!prev_status) {
-                RCLCPP_WARN(rclcpp::get_logger("low battery"), "(time : %.3f), (battery amount : %d)", time, battery_remaining_amount);
+                RCLCPP_INFO(rclcpp::get_logger("LowBatteryErrorMonitor"),
+                    "elapsed time since error check started: %.3f, battery amount : %d",
+                    time, battery_remaining_amount
+                );
                 prev_status = true;
             }
-            return true;    
+            return true;
         } else {
             if (prev_status) {
-                RCLCPP_WARN(rclcpp::get_logger("battery checking start"), "(time : %.3f), (battery amount : %d)", time, battery_remaining_amount);
+                RCLCPP_INFO(rclcpp::get_logger("LowBatteryErrorMonitor"),
+                    "start to low battery monitor (battery amount : %d)",
+                    battery_remaining_amount
+                );
                 prev_status=false;
             }
             return false;
@@ -44,7 +50,10 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
         prev_time = clock.now().seconds();
         prev_status=true;
         if (prev_no_low_battery) {
-            RCLCPP_WARN(rclcpp::get_logger("no low battery"), "(time : %.3f), (battery amount : %d)", time, battery_remaining_amount);
+            RCLCPP_INFO(rclcpp::get_logger("LowBatteryErrorMonitor"),
+                "Low Battery error released (battery amount : %d)",
+                battery_remaining_amount
+            );
             prev_no_low_battery = false;
         }
         return false;      // 베터리가 10프로 이하 15프로 이상일 경우
@@ -78,13 +87,19 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
         prev_no_low_battery = true;
         if (time >= 30) {
             if (!prev_status) {
-                RCLCPP_WARN(rclcpp::get_logger("discharge battery"), "(time : %.f), (battery amount : %d)", time, battery_remaining_amount);
+                RCLCPP_INFO(rclcpp::get_logger("BatteryDischargingErrorMonitor"),
+                    "elapsed time since error check started: %.3f, battery amount : %d",
+                    time, battery_remaining_amount
+                );
                 prev_status = true;
             }
-            return true;    
+            return true;
         } else {
             if (prev_status) {
-                RCLCPP_WARN(rclcpp::get_logger("discharge battery check start"), "(time : %.f), (battery amount : %d)", time, battery_remaining_amount);
+                RCLCPP_INFO(rclcpp::get_logger("BatteryDischargingErrorMonitor"),
+                    "start to low battery monitor (battery amount : %d)",
+                    battery_remaining_amount
+                );
                 prev_status=false;
             }
             return false;
@@ -94,7 +109,10 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
         prev_status=true;
 
         if (prev_no_low_battery) {
-            RCLCPP_WARN(rclcpp::get_logger("no discharge battery"), "(battery amount : %d)", battery_remaining_amount);
+            RCLCPP_INFO(rclcpp::get_logger("BatteryDischargingErrorMonitor"),
+                "Battery Discharging error released (battery amount : %d)",
+                battery_remaining_amount
+            );
             prev_no_low_battery = false;
         }
         return false;      // 베터리가 10프로 이상
@@ -107,7 +125,7 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
     bool imu_range = false;
     int count = 0;
     static bool prev_status=false;
-    
+
     // 밑 센서값 조정
     // 값이 방향에 따라서 일정하게 변하지 않기 때문에
     // 방향을 나누어서 값 변화에 대해서 전도 현상값의 범위를 조정해야 함
@@ -152,15 +170,19 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
 
     if (imu_range && bottomdata_range) { // 전도가 일어남, 데이터 값에 따른 결정
         if(!prev_status){
-            RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"), "Detected (ff : %d)  (fl : %d) (fr :%d) (bb : %d) (bl : %d) (br : %d)  (pich : %.3f) (roll : %.3f)",
-                    input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll);
+            RCLCPP_INFO(rclcpp::get_logger("FallDownErrorMonitor"),
+                "Occured (ff : %d)  (fl : %d) (fr :%d) (bb : %d) (bl : %d) (br : %d)  (pich : %.3f deg) (roll : %.3f deg)",
+                input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll
+            );
             prev_status=true;
         }
         return true;
     } else { // 전도가 일어나지 않음
         if(prev_status){
-            RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"), "Not Detected (ff : %d)  (fl : %d) (fr :%d) (bf : %d) (bl : %d) (br : %d)  (pich : %.3f) (roll : %.3f)",
-                    input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll);
+            RCLCPP_INFO(rclcpp::get_logger("FallDownErrorMonitor"),
+                "Released (ff : %d)  (fl : %d) (fr :%d) (bf : %d) (bl : %d) (br : %d)  (pich : %.3f deg) (roll : %.3f deg)",
+                input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll
+            );
             prev_status=false;
         }
         return false;
@@ -183,8 +205,10 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
     for (const auto& file_path : temp_files) {
         std::ifstream file(file_path);
         if (!file) {
-            RCLCPP_ERROR(rclcpp::get_logger("temp_monitor"),
-                        "Failed to read temperature file: %s", file_path.c_str());
+            RCLCPP_ERROR(rclcpp::get_logger("BoardOverheatErrorMonitor"),
+                "Failed to read temperature file: %s",
+                file_path.c_str()
+            );
             continue;
         }
 
@@ -197,16 +221,18 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 
             // Check for high temperature warning
             if (temp_value > 70.0) {
-                RCLCPP_WARN(rclcpp::get_logger("BoardOverheatErrorMonitor"),
-                            "Warning: High temperature detected!,File: %s, Temperature: %.2f°C",
-                            file_path.c_str(), temp_value);
+                RCLCPP_INFO(rclcpp::get_logger("BoardOverheatErrorMonitor"),
+                    "Warning: High temperature detected!,File: %s, Temperature: %.2f°C",
+                    file_path.c_str(), temp_value
+                );
                 return true; // Return immediately if any temperature exceeds 70°C
             }
         }
         catch (const std::invalid_argument& e) {
             RCLCPP_ERROR(rclcpp::get_logger("BoardOverheatErrorMonitor"),
-                        "Invalid temperature data in file %s: %s",
-                        file_path.c_str(), e.what());
+                "Invalid temperature data in file %s: %s",
+                file_path.c_str(), e.what()
+            );
         }
     }
 
@@ -238,12 +264,6 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
         initialCharge = currentCharge;
         errorState = false;
         isFirstCheck = true;
-        // [250401] hyjoe : 에러 체크 시작할 때 배터리량 로그 출력
-        RCLCPP_INFO(
-            rclcpp::get_logger("ChargingErrorMonitor"),
-            "remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
-            input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
-        );
         return false;
     }
 
@@ -253,7 +273,12 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
             lastCheckTime = currentTime;
             initialCharge = currentCharge;
             isFirstCheck = false;
-            // RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "last time: %.3f", lastCheckTime);
+            // [250401] hyjoe : 에러 체크 시작할 때 배터리량 로그 출력
+            RCLCPP_INFO(
+                rclcpp::get_logger("ChargingErrorMonitor"),
+                "remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
+                input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
+            );
         }
         double timediff = currentTime - lastCheckTime;
         // RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "time diff: %.3f", timediff);
@@ -261,24 +286,16 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
             int chargeDiff = static_cast<int>(currentCharge) - static_cast<int>(initialCharge);
             if (chargeDiff <= 2) { // 현재 충전량이 2퍼센트 이하인 경우
                 errorState = true;
-                // [250401] hyjoe : 에러가 발생했을 때 충전단자 상태 로그 출력
-                if (input.second.docking_status == 0x10) {
-                    RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "docking status: 0x10 charger found");
-                } else if (input.second.docking_status == 0x20) {
-                    RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "docking status: 0x20 start charging");
-                } else {
-                    RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "docking status: 0x30 charger found & start charging");
-                }
-                // [250401] hyjoe : 에러 발생 시 배터리량 로그 출력
+                // [250401] hyjoe : 에러 발생 시 충전단자 상태, 배터리량 로그 출력
                 RCLCPP_INFO(
                     rclcpp::get_logger("ChargingErrorMonitor"),
-                    "remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
-                    input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
+                    "docking status: 0x%02X, remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
+                    input.second.docking_status, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
                 );
                 // [250401] hyjoe : 에러 발생 시 에러 체크 시작으로부터 경과시간 로그 출력
                 RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"),
-                    "elapsed time since error check started: %.3f sec",
-                    timediff
+                    "elapsed time since error check started: %.3f sec, chargeDiff: %d %%",
+                    timediff, chargeDiff
                 );
             } else {
                 errorState = false;
@@ -324,6 +341,10 @@ bool LiftErrorMonitor::checkError(const InputType &input)
         return errorState;
     } else if (count >= 4) { // ir 센서 true개수 4개 이상이면 ir 들림 의심
         irLiftFlag = true;
+        RCLCPP_INFO(rclcpp::get_logger("FallDownErrorMonitor"),
+            "Over 4 IR sensors Lift Detected! (ff : %d)  (fl : %d) (fr :%d) (bb : %d) (bl : %d) (br : %d)",
+            input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br
+        );
     } else {
         irLiftFlag = false;
     }
@@ -333,20 +354,28 @@ bool LiftErrorMonitor::checkError(const InputType &input)
     // acc_z가 10.5이상이고 acc_z가 9.2이하이면 imu 들림 의심 (기준값 수정 필요할 수도 있음)
     if (acc_z <= 9.2 || acc_z >= 10.5) {
         imuLiftFlag = true;
+        RCLCPP_INFO(rclcpp::get_logger("FallDownErrorMonitor"),
+            "Imu z axis acceleration Lift Detected! (acc_z: %.3f m/s^2)",
+            acc_z
+        );
     } else {
         imuLiftFlag = false;
     }
 
     if (irLiftFlag && imuLiftFlag) {
         errorCount++;
-    } else if (errorCount > 0) {
-        errorCount--; // Imu나 IR 값이 잠깐 튀어도 카운트로 바로 초기화 해 버리지 않기 위해.
+    } else if (errorCount > 0) { // Imu나 IR 값이 잠깐 튀어도 카운트 바로 초기화 하지 않기 위해.
+        errorCount--;
     }/* else {
         errorCount = 0;
     }*/
 
     if (errorCount >= 10) {
         errorState = true;
+        RCLCPP_INFO(rclcpp::get_logger("FallDownErrorMonitor"),
+            "IR & IMU both Lift Detected! (error count: %d)",
+            static_cast<int>(errorCount)
+        );
     }
 
     return errorState;
