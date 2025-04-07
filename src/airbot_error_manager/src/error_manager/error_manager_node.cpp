@@ -21,7 +21,7 @@ ErrorManagerNode::ErrorManagerNode()
     this->get_parameter("publish_rate_ms", publish_rate);
     auto publish_rate_ms = std::chrono::milliseconds(publish_rate);
 
-    // [250404] hyjoe : 에러 퍼블리싱 횟수 1회
+    // [250407] hyjoe : 에러 퍼블리싱 횟수 1회
     this->declare_parameter("error_publish_cnt", 1);
     this->get_parameter("error_publish_cnt", pub_cnt);
 
@@ -104,7 +104,7 @@ void ErrorManagerNode::errorCallback(const std::string& error_code, std_msgs::ms
 
 void ErrorManagerNode::publishErrorList()
 {
-    // [250404] hyjoe : 컴파일 워닝 (사용하지 않는 변수)
+    // [250407] hyjoe : 컴파일 워닝 (사용하지 않는 변수)
     // static int print_cnt = 0;
     bool print_now = false;
 
@@ -228,7 +228,7 @@ void ErrorManagerNode::printErrorList(){
         return;
     }
 
-    // [250404] hyjoe : error_list 로깅 스타일 수정 - 에러 설명(description) 추가
+    // [250407] hyjoe : error_list 로깅 스타일 수정 - 에러 설명(description) 추가
     std::stringstream ss;
     ss << "\n[\n Error List:\n";
     for (size_t i = 0; i < error_list_.size(); ++i) {
