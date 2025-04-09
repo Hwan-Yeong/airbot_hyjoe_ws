@@ -2,6 +2,7 @@
 #define __ERROR_MONITOR_HPP__
 
 #include <fstream>
+#include <tuple>
 // #include "tf2/LinearMath/Quaternion.hpp"
 // #include "tf2/LinearMath/Matrix3x3.hpp"
 #include <tf2/LinearMath/Quaternion.h>
@@ -95,5 +96,13 @@ private:
     bool isFirstCheck = true;
     double lastCheckTime = 0;
 };
+
+class CliffDetectionErrorMonitor : public BaseErrorMonitor<std::tuple<robot_custom_msgs::msg::BottomIrData, nav_msgs::msg::Odometry, robot_custom_msgs::msg::RobotState>>
+{
+public:
+    using InputType = std::tuple<robot_custom_msgs::msg::BottomIrData, nav_msgs::msg::Odometry, robot_custom_msgs::msg::RobotState>;
+    bool checkError(const InputType& input) override;
+};
+
 
 #endif // __ERROR_MONITOR_HPP__

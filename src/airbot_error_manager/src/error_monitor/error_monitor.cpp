@@ -392,3 +392,11 @@ bool LiftErrorMonitor::checkError(const InputType &input)
 
     return errorState;
 }
+
+bool CliffDetectionErrorMonitor::checkError(const InputType &input)
+{
+    RCLCPP_INFO(rclcpp::get_logger("CliffDetectionErrorMonitor"),
+            "Hello World!"
+        );
+    return false;
+}

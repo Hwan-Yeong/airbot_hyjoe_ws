@@ -17,3 +17,4 @@ airbot_error_monitor:
       battery_discharge_rate_ms: 1000
       charging_rate_ms: 1000
       lift_error_rate_ms: 10
+      cliff_detection_error_rate_ms: 10
