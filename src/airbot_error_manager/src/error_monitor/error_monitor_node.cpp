@@ -230,12 +230,12 @@ void ErrorMonitorNode::errorMonitor()
         && (publish_cnt_cliff_detection_error_ >= publish_cnt_cliff_detection_error_rate_)) {
         bool cliff_detection_error = this->runMonitor<CliffDetectionErrorMonitor>(std::make_tuple(bottom_ir_data, odom_data, robot_state));
         if (cliff_detection_error) {
-            // RCLCPP_INFO(this->get_logger(), "lift_error : %s", lift_error ? "true" : "false");
+            // RCLCPP_INFO(this->get_logger(), "cliff_detection_error : %s", cliff_detection_error ? "true" : "false");
             // error_msg.data = true;
-            // lift_error_pub_->publish(error_msg);
+            // cliff_detection_error_pub_->publish(error_msg);
         } else {
             // error_msg.data = false;
-            // lift_error_pub_->publish(error_msg);
+            // cliff_detection_error_pub_->publish(error_msg);
         }
         publish_cnt_cliff_detection_error_ = 0;
         update_bottom_ir_data_cliff_detection = false;
