@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.8)
 project(robot_custom_msgs)
 
+set(CMAKE_BUILD_TYPE Release) #set(CMAKE_BUILD_TYPE Debug) 
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -32,6 +34,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RobotState.msg"
   "msg/NaviState.msg"
   "msg/MoveNRotation.msg"
+  "action/ManageNode.action"
   DEPENDENCIES std_msgs
 )
 

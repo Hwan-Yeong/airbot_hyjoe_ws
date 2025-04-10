@@ -1,0 +1,9 @@
+# ManageNode.action
+# Request
+int8 require_node # 0: IDLE, 1: AUTO_MAPPING, 2: MANUAL_MAPPING, 3: NAVI
+---
+# Result
+int8 result  # 0: FAIL, 1: SUCCESS
+---
+# Feedback
+int8 progress # 0: checking, 1 : launching, 2 : checking_lauch
