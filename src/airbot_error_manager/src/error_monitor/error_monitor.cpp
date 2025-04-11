@@ -395,8 +395,81 @@ bool LiftErrorMonitor::checkError(const InputType &input)
 
 bool CliffDetectionErrorMonitor::checkError(const InputType &input)
 {
-    RCLCPP_INFO(rclcpp::get_logger("CliffDetectionErrorMonitor"),
-            "Hello World! haha"
-        );
-    return false;
+    /*
+        < 낙하 감지 에러 검사 >
+        해당 모니터는 10ms마다 호출한다는 것을 가정합니다.
+        1. 낙하센서가 지속적으로 감지되는 경우 에러 검출.
+        2. 낙하 센서가 감지되었음에도 불구하고, odometry변화가 있을 때 (즉, 로봇이 이동을 시도할 때) 에러 검출.
+            1) 바퀴가 빠져 헛도는 상황,
+            2) IR센서와 maneuver동작의 오류로 인한 낙하센서 감지 와 로봇 이동이 동시에 발생하는 경우 등
+    */
+    static rclcpp::Clock clock(RCL_STEADY_TIME);
+    static double startErrorCheckTimeArray[6]={}, prePositionXArray[6]={}, prePositionYArray[6]={};
+    static bool cliff[6]={false}, isFirstCheckArray[6]={true};
+    double curDist, curPositionX, curPositionY, timeDiff;
+    static bool preErrorState = false;
+    bool errorState = false;
+
+    auto bottomIrData = std::get<0>(input);
+    auto odom = std::get<1>(input);
+    auto robotState = std::get<2>(input);
+
+    // ROBOT_STATE::IDLE, ROBOT_STATE::ONSTATION, ROBOT_STATE::ERROR (로봇 정지상태에서는 판단 X)
+    if (robotState.state == 0 || robotState.state == 7 || robotState.state == 9) {
+        return false;
+    }
+
+    cliff[0]= bottomIrData.ff;    cliff[1]= bottomIrData.fl;    cliff[2]= bottomIrData.fr;
+    cliff[3]= bottomIrData.bb;    cliff[4]= bottomIrData.bl;    cliff[5]= bottomIrData.br;
+
+    for (int i=0; i<6; i++) {
+        if (cliff[i] == false) {
+            isFirstCheckArray[i] = true;
+        } else {
+            if (isFirstCheckArray[i]) {
+                startErrorCheckTimeArray[i]=clock.now().seconds();
+                prePositionXArray[i] = odom.pose.pose.position.x;
+                prePositionYArray[i] = odom.pose.pose.position.y;
+                isFirstCheckArray[i] = false;
+
+                RCLCPP_INFO(rclcpp::get_logger("CliffDetectionErrorMonitor"),
+                    "Initial check => Cliff IR #[%d] : %s, pre_position (X, Y): (%.3f, %.3f)",
+                    i+1, cliff[i] ? "true" : "false", prePositionXArray[i], prePositionYArray[i]
+                );
+            }
+
+            timeDiff= clock.now().seconds() - startErrorCheckTimeArray[i];
+
+            curPositionX = odom.pose.pose.position.x;
+            curPositionY = odom.pose.pose.position.y;
+
+            double dx = curPositionX - prePositionXArray[i];
+            double dy = curPositionY - prePositionYArray[i];
+
+            curDist = std::sqrt(dx*dx + dy*dy);
+
+            if (timeDiff >= 3.0 || curDist >= 0.3) { // 낙하센서 3초 지속 감지 or 낙하센서 감지된 상태에서 30cm 이동
+                if (preErrorState == false) {
+                    RCLCPP_INFO(rclcpp::get_logger("CliffDetectionErrorMonitor"),
+                        "Cliff IR #[%d] : %s, timediff: %.3f sec, Accumulated Distance: %.3f m",
+                        i+1, cliff[i] ? "true" : "false", timeDiff, curDist
+                    );
+                }
+                errorState = true;
+                preErrorState = errorState;
+            } else {
+                errorState = false;
+                preErrorState = errorState;
+                isFirstCheckArray[i]=false;
+                if (preErrorState == true) {
+                    RCLCPP_INFO(rclcpp::get_logger("CliffDetectionErrorMonitor"),
+                        "Cliff IR #[%d] : %s, IR Detection Error Released",
+                        i+1, cliff[i] ? "true" : "false"
+                    );
+                }
+            }
+        }
+    }
+
+    return errorState;
 }
