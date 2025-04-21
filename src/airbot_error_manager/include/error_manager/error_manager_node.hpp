@@ -52,6 +52,7 @@ private:
     YAML::Node config{};
     std::vector<tErrorList> error_list_;
     std::vector<rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr> subscribers_;
+    std::map<std::string, std::string> error_code_descriptions_;
     std::set<std::string> erase_after_pub_error_codes_;
     rclcpp::Publisher<robot_custom_msgs::msg::ErrorListArray>::SharedPtr error_list_pub_;
     rclcpp::TimerBase::SharedPtr pub_timer_;

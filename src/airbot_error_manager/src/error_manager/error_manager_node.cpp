@@ -81,6 +81,8 @@ void ErrorManagerNode::initSubscribers(const YAML::Node& config)
             std::string sub_topic = error.second["sub_topic"].as<std::string>();
             std::string error_code = error.second["error_code"].as<std::string>();
 
+            error_code_descriptions_[error_code] = error.second["description"].as<std::string>();
+
             RCLCPP_INFO(this->get_logger(), "Sub topic: %s (error_code: %s)",
                         sub_topic.c_str(), error_code.c_str());
 
@@ -228,30 +230,15 @@ void ErrorManagerNode::printErrorList(){
         return;
     }
 
-    // [250407] hyjoe : error_list 로깅 스타일 수정 - 에러 설명(description) 추가
     std::stringstream ss;
-    ss << "\n[\n Error List:\n";
+    ss << "Error: ";
     for (size_t i = 0; i < error_list_.size(); ++i) {
         const auto& err = error_list_[i];
         std::string code = err.error.error_code;
         std::string occurred = err.error.error_occurred ? "OCCURED" : "RELEASED";
-        std::string description = "N/A";
+        std::string description = error_code_descriptions_[code];
 
-        for (const auto& error_category : config) {
-            for (const auto& error : error_category.second) {
-                if (error.second["error_code"].as<std::string>() == code) {
-                    if (error.second["description"]) {
-                        description = error.second["description"].as<std::string>();
-                    }
-                }
-            }
-        }
-
-        ss << "  - " << code << " (" << occurred << "): " << description;
-        if (i != error_list_.size() - 1) {
-            ss << "\n";
-        }
+        ss << "[" << code << " (" << occurred << "): " << description << "] ";
     }
-    ss << "\n]";
     RCLCPP_INFO(this->get_logger(), "%s", ss.str().c_str());
 }
