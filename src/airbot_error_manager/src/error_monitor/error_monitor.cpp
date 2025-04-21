@@ -425,7 +425,7 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
     for (int i=0; i<6; i++) {
         if (cliff[i] == false) {
             isFirstCheckArray[i] = true;
-            if (preErrorState[i] == true) {
+            if (preErrorState[i] == true) { // 낙하 에러 해제시 로깅
                 RCLCPP_INFO(rclcpp::get_logger("CliffDetectionErrorMonitor"),
                     "Cliff IR #[%d] : %s, IR Detection Error Released",
                     i+1, cliff[i] ? "true" : "false"
@@ -440,7 +440,7 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
                 prePositionYArray[i] = odom.pose.pose.position.y;
                 accumDist[i] = 0.0;
                 isFirstCheckArray[i] = false;
-
+                // 낙하 에러 체크 시작 시 최초 한번 로깅
                 RCLCPP_INFO(rclcpp::get_logger("CliffDetectionErrorMonitor"),
                     "Initial check => Cliff IR #[%d] : %s, pre_position (X, Y): (%.3f, %.3f)",
                     i+1, cliff[i] ? "true" : "false", prePositionXArray[i], prePositionYArray[i]
