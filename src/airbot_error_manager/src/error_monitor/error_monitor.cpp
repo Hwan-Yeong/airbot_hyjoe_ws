@@ -406,9 +406,9 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     static double startErrorCheckTimeArray[6]={}, prePositionXArray[6]={}, prePositionYArray[6]={}, accumDist[6]={};
     static bool isFirstCheckArray[6] = {true, true, true, true, true, true};
-    static bool preErrorState[6] = {false, false, false, false, false, false};
+    static bool preErrorState[6] = {}; // false로 초기화
     double curDist, curPositionX, curPositionY, timeDiff;
-    bool cliff[6]={false}, errorState = false;
+    bool cliff[6]={}, errorState = false;
 
     auto bottomIrData = std::get<0>(input);
     auto odom = std::get<1>(input);
