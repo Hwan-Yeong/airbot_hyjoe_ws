@@ -404,16 +404,17 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
             2) IR센서와 maneuver동작의 오류로 인한 낙하센서 감지 와 로봇 이동이 동시에 발생하는 경우 등
     */
     static rclcpp::Clock clock(RCL_STEADY_TIME);
-    static double startErrorCheckTimeArray[6]={}, prePositionXArray[6]={}, prePositionYArray[6]={}, accumDist[6]={0.0};
-    static bool cliff[6]={false}, isFirstCheckArray[6]={true}, preErrorState[6] = {false};
+    static double startErrorCheckTimeArray[6]={}, prePositionXArray[6]={}, prePositionYArray[6]={}, accumDist[6]={};
+    static bool isFirstCheckArray[6] = {true, true, true, true, true, true};
+    static bool preErrorState[6] = {false, false, false, false, false, false};
     double curDist, curPositionX, curPositionY, timeDiff;
-    bool errorState = false;
+    bool cliff[6]={false}, errorState = false;
 
     auto bottomIrData = std::get<0>(input);
     auto odom = std::get<1>(input);
     auto robotState = std::get<2>(input);
 
-    // ROBOT_STATE::IDLE, ROBOT_STATE::ONSTATION, ROBOT_STATE::ERROR (로봇 정지상태에서는 판단 X)
+    // ROBOT_STATE::IDLE, ONSTATION, ERROR (로봇 정지상태에서는 판단 X)
     if (robotState.state == 0 || robotState.state == 7 || robotState.state == 9) {
         isFirstCheckArray[6]={true};
         return false;
@@ -434,7 +435,7 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
             preErrorState[i] = false;
             continue;
         } else {
-            if (isFirstCheckArray[i] || startErrorCheckTimeArray[i] == 0.0) {
+            if (isFirstCheckArray[i]) {
                 startErrorCheckTimeArray[i]=clock.now().seconds();
                 prePositionXArray[i] = odom.pose.pose.position.x;
                 prePositionYArray[i] = odom.pose.pose.position.y;
@@ -447,7 +448,7 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
                 );
             }
 
-            timeDiff= clock.now().seconds() - startErrorCheckTimeArray[i];
+            timeDiff = clock.now().seconds() - startErrorCheckTimeArray[i];
 
             curPositionX = odom.pose.pose.position.x;
             curPositionY = odom.pose.pose.position.y;
