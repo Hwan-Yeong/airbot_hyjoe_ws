@@ -41,7 +41,7 @@ ErrorManagerNode::ErrorManagerNode()
     }
 
     // 에러 발생 후 에러 리스트에서 관리하지 않을 에러 등록
-    erase_after_pub_error_codes_ = {"S05"};
+    erase_after_pub_error_codes_.insert("S05");
 
     error_list_pub_ = this->create_publisher<robot_custom_msgs::msg::ErrorListArray>("/error_list", 10);
 
@@ -106,10 +106,6 @@ void ErrorManagerNode::errorCallback(const std::string& error_code, std_msgs::ms
 
 void ErrorManagerNode::publishErrorList()
 {
-    // [250407] hyjoe : 컴파일 워닝 (사용하지 않는 변수)
-    // static int print_cnt = 0;
-    bool print_now = false;
-
     robot_custom_msgs::msg::ErrorListArray error_msg_array;
     rclcpp::Time now_time = rclcpp::Clock(RCL_STEADY_TIME).now();
     builtin_interfaces::msg::Time msg_time;
@@ -132,7 +128,7 @@ void ErrorManagerNode::publishErrorList()
         // 상태 변화 체크: 발생 → 해제로 바뀐 경우, 새로운 에러가 추가된 경우
         if ((!error.error.error_occurred && error.error.count == 1)
             || (error.error.count == 1 && error.error.error_occurred)) {
-            print_now = true;
+            printErrorList();
         }
 
         robot_custom_msgs::msg::ErrorList error_msg = error.error;
@@ -153,11 +149,6 @@ void ErrorManagerNode::publishErrorList()
 
     if (!error_msg_array.data_array.empty()) {
         error_list_pub_->publish(error_msg_array);
-    }
-
-    // error_list 출력
-    if (print_now /*|| ++print_cnt % 10 == 0*/) {
-        printErrorList();
     }
 }
 
