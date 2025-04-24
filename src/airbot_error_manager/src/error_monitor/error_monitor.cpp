@@ -276,8 +276,9 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
         return false;
     }
 
+    // [250411] KKS : 충전에러 지속 발생으로 60프로 이하일 때 시작으로 변경 //TBD: 충전 테이블 확인 후 재설정 예정
     // [250329] KKS : 80프로 이하일 때 시작으로 변경
-    if (currentCharge <= 80) {
+    if (currentCharge <= 60) {
         if (isFirstCheck) { // 측정 주기 타이머 시작
             lastCheckTime = currentTime;
             initialCharge = currentCharge;
