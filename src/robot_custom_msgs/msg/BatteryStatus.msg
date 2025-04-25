@@ -15,3 +15,4 @@ int16 design_capacity
 int16 number_of_cycles
 uint8  charge_status
 uint8 charging_mode
+uint8 shipping_mode
