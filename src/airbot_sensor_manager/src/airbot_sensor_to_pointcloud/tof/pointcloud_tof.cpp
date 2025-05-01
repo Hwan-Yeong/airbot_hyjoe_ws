@@ -190,9 +190,12 @@ std::vector<tPoint> PointCloudTof::transformTofMsg2PointsOnSensorFrame(std::vect
     constexpr int ROWS = 4;
     constexpr int COLS = 4;
 
-    const double xy_sine[COLS] = {tof_bot_col_4_xy_tan_, tof_bot_col_3_xy_tan_,
-                                  tof_bot_col_2_xy_tan_, tof_bot_col_1_xy_tan_};
-    const double z_sine[ROWS] = {tof_bot_row_1_z_tan_, tof_bot_row_2_z_tan_,
+    // [25.04.28 hyjoe: mtof 인덱스 수정 - column 반대 오류]
+    // const double xy_tan[COLS] = {tof_bot_col_4_xy_tan_, tof_bot_col_3_xy_tan_,
+    //                               tof_bot_col_2_xy_tan_, tof_bot_col_1_xy_tan_};
+    const double xy_tan[COLS] = {tof_bot_col_1_xy_tan_, tof_bot_col_2_xy_tan_,
+                                 tof_bot_col_3_xy_tan_, tof_bot_col_4_xy_tan_};
+    const double z_tan[ROWS] = {tof_bot_row_1_z_tan_, tof_bot_row_2_z_tan_,
                                  tof_bot_row_3_z_tan_, tof_bot_row_4_z_tan_};
     
     for (int row = 0; row < ROWS; ++row) {
@@ -215,8 +218,8 @@ std::vector<tPoint> PointCloudTof::transformTofMsg2PointsOnSensorFrame(std::vect
 
             tPoint p;
             p.x = input_tof_dist[index];
-            p.y = input_tof_dist[index] * xy_sine[col];
-            p.z = input_tof_dist[index] * z_sine[row];
+            p.y = input_tof_dist[index] * xy_tan[col];
+            p.z = input_tof_dist[index] * z_tan[row];
             points.push_back(p);
         }
     }
