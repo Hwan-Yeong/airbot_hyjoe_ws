@@ -62,26 +62,32 @@ void Point_cloud_optimize::PointCloudFilter(LaserScan *Scan)
 			Adeta = fabs(Scan->points[i2].angle - Scan->points[i3].angle) * PI / 180;
 			d23 = sqrt(a * a + b * b - 2 * a * b * cos(Adeta));
 
+			// e.g. 1번 거리값이 1m일 때, 0번과 2번과의 거리가 모두 3.93cm 이상이면 => 1번 데이터 0으로 처리.
 			if (FilterRatioAdj * Scan->points[i1].range < d01 && FilterRatioAdj * Scan->points[i1].range < d12)
 			{
 				Scan->points[i1].range = 0;
 			}
+			// e.g. 2번 거리값이 1m일 때, 1번과 3번과의 거리가 모두 3.93cm 이상이면 => 2번 데이터 0으로 처리.
 			if (FilterRatioAdj * Scan->points[i2].range < d12 && FilterRatioAdj * Scan->points[i2].range < d23)
 			{
 				Scan->points[i2].range = 0;
 			}
+			// 가운데 값들이 0이면 그냥 0으로 처리
 			if (0 == Scan->points[i1].range || 0 == Scan->points[i2].range)
 			{
 				continue;
 			}
-
-			if ((Scan->points[i1].range > r1 && Scan->points[i2].range < r2) || (Scan->points[i1].range < r1 && Scan->points[i2].range > r2))
+			// #############################################################################
+			// #############################################################################
+			// #############################################################################
+			// 1, 2번 데이터의 변화가 크면 (0번과 3번을 잇는 직선 기준으로 포인트가 서로 반대 방향에 있으면)
+			/*if ((Scan->points[i1].range > r1 && Scan->points[i2].range < r2) || (Scan->points[i1].range < r1 && Scan->points[i2].range > r2))
 			{
 				if (
 					(d01 > FilterRatioAdj * Scan->points[i0].range && d12 < FilterRatioAdj * Scan->points[i1].range && d23 < FilterRatioAdj * Scan->points[i2].range) || (d01 < FilterRatioAdj * Scan->points[i0].range && d12 > FilterRatioAdj * Scan->points[i1].range && d23 < FilterRatioAdj * Scan->points[i2].range) || (d01 < FilterRatioAdj * Scan->points[i0].range && d12 < FilterRatioAdj * Scan->points[i1].range && d23 > FilterRatioAdj * Scan->points[i2].range))
 				{
 				}
-				else
+				else // 4개의 포인트가 2개의 군집화로 표현되지 않으면, 기준직선 + 변화량의40% 만 반영한 거리값으로 normalizing
 				{
 					Scan->points[i1].range = r1 + 0.4 * (Scan->points[i1].range - r1);
 					Scan->points[i2].range = r2 + 0.4 * (Scan->points[i2].range - r2);
@@ -89,11 +95,12 @@ void Point_cloud_optimize::PointCloudFilter(LaserScan *Scan)
 			}
 			else
 			{
-			}
+			}*/
 		}
 		else if (DepthState == 0x00 || DepthState == 0x08 || DepthState == 0x01)
 		{ // 0000 1000 0001
 		}
+		// 가장자리 두 포인트가 안나오고, 가운데 두 포인트 중 하나의 포인트만 나오면 그 가운데 유효한 포인트를 0으로 처리한다.
 		else if ((DepthState & 0x0E) == 0x04)
 		{ //010x
 			Scan->points[i2].range = 0;
@@ -102,6 +109,7 @@ void Point_cloud_optimize::PointCloudFilter(LaserScan *Scan)
 		{ //x010
 			Scan->points[i1].range = 0;
 		}
+		// 0,1이 나왔을 때, 그 둘의 거리차가 허용 거리를 넘으면 1번 포인트를 0으로 처리.
 		else if ((DepthState & 0x07) == 0x03)
 		{ //x011
 			a = Scan->points[i0].range;
@@ -111,6 +119,7 @@ void Point_cloud_optimize::PointCloudFilter(LaserScan *Scan)
 				Scan->points[i1].range = 0;
 			}
 		}
+		// 1,2,3 이 나왔을 때, 1,2의 거리차가 허용 거리를 넘으면 1번 포인트를 0으로 처리.
 		else if (DepthState == 0x0E)
 		{ //1110
 			a = Scan->points[i1].range;
@@ -120,6 +129,7 @@ void Point_cloud_optimize::PointCloudFilter(LaserScan *Scan)
 				Scan->points[i1].range = 0;
 			}
 		}
+		// 2,3이 나왔을 때, 그 둘의 거리차가 허용 거리를 넘으면 2번 포인트를 0으로 처리.
 		else if ((DepthState & 0x0E) == 0x0C)
 		{ //110x 0111
 			a = Scan->points[i2].range;
@@ -129,6 +139,7 @@ void Point_cloud_optimize::PointCloudFilter(LaserScan *Scan)
 				Scan->points[i2].range = 0;
 			}
 		}
+		// 0,1,2가 나왔을 때, 1,2의 거리차가 허용 거리를 넘으면 2번 포인트를 0으로 처리.
 		else if (DepthState == 0x07)
 		{ //0111
 			a = Scan->points[i1].range;
@@ -138,6 +149,7 @@ void Point_cloud_optimize::PointCloudFilter(LaserScan *Scan)
 				Scan->points[i2].range = 0;
 			}
 		}
+		// 1,2가 나왔을 때, 그 둘의 거리차가 허용 거리를 넘으면 1,2번 포인트를 0으로 처리.
 		else if (DepthState == 0x06)
 		{ //0110
 			a = Scan->points[i1].range;
@@ -163,6 +175,7 @@ void Point_cloud_optimize::PointCloudFilter(LaserScan *Scan)
 		i3 = i3 < static_cast<int>(Scan->points.size()) ? i3 : i3 - Scan->points.size();
 		i4 = i0 + 4;
 		i4 = i4 < static_cast<int>(Scan->points.size()) ? i4 : i4 - Scan->points.size();
+		// 위에서 전처리 하고 나서 연속된 5개의 모든 데이터가 0이 아닐 경우에만 적용.
 		if (Scan->points[i0].range != 0 && Scan->points[i1].range != 0 && Scan->points[i2].range != 0 && Scan->points[i3].range != 0 && Scan->points[i4].range != 0)
 		{
 			a = Scan->points[i0].range;
@@ -185,7 +198,10 @@ void Point_cloud_optimize::PointCloudFilter(LaserScan *Scan)
 			Adeta = fabs(Scan->points[i3].angle - Scan->points[i4].angle) * PI / 180;
 			d34 = sqrt(a * a + b * b - 2 * a * b * cos(Adeta));
 
-			if (
+			// #############################################################################
+			// #############################################################################
+			// #############################################################################
+			/*if ( // 가운데 3개 포인트간의 거리차가 허용 범위를 넘어가고, 양끝 2개의 포인트 쌍의 변화 경향성이 같으면 -> 5개 포인트 중 가운데 포인트를 인접한 두 포인트의 거리 평균값으로 처리.
 				d01 < FilterRatioAdj * Scan->points[i1].range && d34 < FilterRatioAdj * Scan->points[i3].range && (d12 > FilterRatioAdj * Scan->points[i2].range || d23 > FilterRatioAdj * Scan->points[i2].range))
 			{
 				if (
@@ -193,9 +209,13 @@ void Point_cloud_optimize::PointCloudFilter(LaserScan *Scan)
 				{
 					Scan->points[i2].range = (Scan->points[i1].range + Scan->points[i3].range) / 2;
 				}
-			}
+			}*/
 		}
-		else if (Scan->points[i0].range == 0 && Scan->points[i1].range != 0 && Scan->points[i2].range != 0 && Scan->points[i3].range != 0 && Scan->points[i4].range != 0)
+		// #############################################################################
+		// #############################################################################
+		// #############################################################################
+		// 5개 포인트 중 4개의 여속된 포인트는 유효하고, 양 끝 중 하나의 포인트가 안들어올 경우 -> 그 끝값과 인접한 point의 거리값을 임의로 부드러운 변화를 위해 처리.
+		/*else if (Scan->points[i0].range == 0 && Scan->points[i1].range != 0 && Scan->points[i2].range != 0 && Scan->points[i3].range != 0 && Scan->points[i4].range != 0)
 		{
 			x2 = Scan->points[i2].range * cos(Scan->points[i2].angle * PI / 180);
 			y2 = Scan->points[i2].range * sin(Scan->points[i2].angle * PI / 180);
@@ -214,7 +234,7 @@ void Point_cloud_optimize::PointCloudFilter(LaserScan *Scan)
 			x3 = 2 * x2 - x1;
 			y3 = 2 * y2 - y1;
 			Scan->points[i3].range = Scan->points[i3].range + 0.4 * (sqrt(x3 * x3 + y3 * y3) - Scan->points[i3].range);
-		}
+		}*/
 		else
 		{
 		}

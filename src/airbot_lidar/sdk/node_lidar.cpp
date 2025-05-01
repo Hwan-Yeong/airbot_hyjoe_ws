@@ -355,10 +355,10 @@ void send_lidar_data(LaserScan &outscan)
 			node_lidar.optimize_lidar.lidar_blocked_judge(count);
 
 
-			if (node_lidar.lidar_status.FilterEnable)
-			{
-				node_lidar.optimize_lidar.PointCloudFilter(&outscan);
-			}
+			// if (node_lidar.lidar_status.FilterEnable)
+			// {
+			// 	node_lidar.optimize_lidar.PointCloudFilter(&outscan);
+			// }
 
 
 		}

@@ -28,8 +28,8 @@ def generate_launch_description():
         namespace='/',
         remappings=[
             ('/scan', '/scan_front'),  # '/scan'을 '/scan2'로 remap
-            ('/scan_error', '/scan_error_front'),  # '/scan'을 '/scan2'로 remap
-            ('/scan_dirty', '/scan_dirty_front')
+            ('/scan_error', '/error/f_code/scan_front'),  # '/scan'을 '/scan2'로 remap
+            ('/scan_dirty', '/error/e_code/scan_dirty_front')
         ]
     )
 
@@ -43,8 +43,8 @@ def generate_launch_description():
         namespace='/',
         remappings=[
             ('/scan', '/scan_back'),  # '/scan'을 '/scan2'로 remap
-            ('/scan_error', '/scan_error_back'),  # '/scan'을 '/scan2'로 remap
-            ('/scan_dirty', '/scan_dirty_back')
+            ('/scan_error', '/error/f_code/scan_back'),  # '/scan'을 '/scan2'로 remap
+            ('/scan_dirty', '/error/e_code/scan_dirty_back')
         ]
     )
 

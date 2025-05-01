@@ -93,13 +93,15 @@ int main(int argc, char **argv)
 	///// lidar pollution (dirty) /////
 	auto laser_dirty_pub = node->create_publisher<std_msgs::msg::Bool>("scan_dirty", 10);
 	std_msgs::msg::Bool dirty_msg;
+	dirty_msg.data = false;
 	static const unsigned int total_points_num = 400; 		// number of lidar ranges
 	static const float min_range_th = 0.03;					// 3cm
 	static const unsigned int dirty_percentage_th = 10; 	// 0~100 %
 	static const unsigned int dirty_points_th = static_cast<int>(total_points_num/100 * dirty_percentage_th);
-	static const unsigned int dirty_cnt_th = 100;
+	static const unsigned int dirty_cnt_th = 600;
 	static unsigned int dirty_points = 0;
 	static unsigned int dirty_cnt = 0;
+	static unsigned int dirty_reset_cnt = 0;
 	///////////////////////////////////
 
     // 별도 스레드에서 데이터 처리(publish 부분)
@@ -112,21 +114,21 @@ int main(int argc, char **argv)
 			{
 				if(node_lidar.lidar_status.lidar_abnormal_state & 0x01)
 				{
-					pubdata.data="node_lidar is trapped\n";
-					error_pub->publish(pubdata);
-					RCLCPP_INFO(node->get_logger(), "[error/lidar] lsd_error: trapped");
+					// pubdata.data="node_lidar is trapped\n";
+					// error_pub->publish(pubdata);
+					// RCLCPP_INFO(node->get_logger(), "[error/lidar] lsd_error: trapped");
 				}
 				if(node_lidar.lidar_status.lidar_abnormal_state & 0x02)
 				{
-					pubdata.data="node_lidar frequence abnormal\n";
-					error_pub->publish(pubdata);
-					RCLCPP_INFO(node->get_logger(), "[error/lidar] lsd_error: frequence abnormal");
+					// pubdata.data="node_lidar frequence abnormal\n";
+					// error_pub->publish(pubdata);
+					// RCLCPP_INFO(node->get_logger(), "[error/lidar] lsd_error: frequence abnormal");
 				}
 				if(node_lidar.lidar_status.lidar_abnormal_state & 0x04)
 				{
-					pubdata.data="node_lidar is blocked\n";
-					error_pub->publish(pubdata);
-					RCLCPP_INFO(node->get_logger(), "[error/lidar] lsd_error: blocked");
+					// pubdata.data="node_lidar is blocked\n";
+					// error_pub->publish(pubdata);
+					// RCLCPP_INFO(node->get_logger(), "[error/lidar] lsd_error: blocked");
 				}
 				// node_lidar.serial_port->write_data(end_lidar,4);
 				// node_lidar.lidar_status.lidar_ready = false;
@@ -135,12 +137,12 @@ int main(int argc, char **argv)
 			}
 			LaserScan scan;
 			
-			if(data_handling(scan))
+			if(data_handling(scan)) // 10hz +- 5% (하드웨어 스펙)
 			{
 				auto scan_msg = std::make_shared<sensor_msgs::msg::LaserScan>();
 
-				float min_angle = 60 * M_PI/180;
-				float max_angle = 300 * M_PI/180;
+				float min_angle = 70 * M_PI/180;
+				float max_angle = 290 * M_PI/180;
 
 				// scan_msg->ranges.resize(scan.points.size());
 				// scan_msg->intensities.resize(scan.points.size());
@@ -180,12 +182,24 @@ int main(int argc, char **argv)
 					}
 				} else {
 					dirty_cnt = 0;
+					if (dirty_msg.data) {
+						if (dirty_reset_cnt > 0) {
+							dirty_reset_cnt--;
+							if(dirty_reset_cnt == 0){
+								dirty_msg.data = false;
+								laser_dirty_pub->publish(dirty_msg);
+								RCLCPP_INFO(node->get_logger(), "[error/lidar] scan_dirty: dirty error cleared after 10 time checked");
+							}
+						}
+					}
 				}
 
 				if (dirty_cnt > dirty_cnt_th) {
 					dirty_msg.data = true;
 					laser_dirty_pub->publish(dirty_msg);
 					RCLCPP_INFO(node->get_logger(), "[error/lidar] scan_dirty: lidar pollution error");
+					dirty_cnt = 0;
+					dirty_reset_cnt = 10;
 				}
 				
 				dirty_points = 0;

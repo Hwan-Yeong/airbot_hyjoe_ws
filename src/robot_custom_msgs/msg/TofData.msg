@@ -1,9 +1,9 @@
 ## Mapping of 4x4 ToF_Matrix to sensor indices
 # Row-major order mapping:
-# Row [0]: Matrix [00, 01, 02, 03] => Sensor indices (left: [03, 02, 01, 00], right: [12, 13, 14, 15])
-# Row [1]: Matrix [04, 05, 06, 07] => Sensor indices (left: [07, 06, 05, 04], right: [08, 09, 10, 11])
-# Row [2]: Matrix [08, 09, 10, 11] => Sensor indices (left: [11, 10, 09, 08], right: [04, 05, 06, 07])
-# Row [3]: Matrix [12, 13, 14, 15] => Sensor indices (left: [15, 14, 13, 12], right: [00, 01, 02, 03])
+# Sensor indices (left: [00, 01, 02, 03], right: [15, 14, 13, 12]) => Row [0]: Matrix [00, 01, 02, 03]
+# Sensor indices (left: [04, 05, 06, 07], right: [11, 10, 09, 08]) => Row [1]: Matrix [04, 05, 06, 07]
+# Sensor indices (left: [08, 09, 10, 11], right: [07, 06, 05, 04]) => Row [2]: Matrix [08, 09, 10, 11]
+# Sensor indices (left: [12, 13, 14, 15], right: [03, 02, 01, 00]) => Row [3]: Matrix [12, 13, 14, 15]
 
 builtin_interfaces/Time timestamp
 
