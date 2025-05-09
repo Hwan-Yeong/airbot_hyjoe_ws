@@ -1,5 +1,7 @@
 #include "airbot_sensor_to_pointcloud/tof/pointcloud_tof.hpp"
 
+#define ENABLE_TOF_8x8 false
+
 PointCloudTof::PointCloudTof(double tof_top_sensor_frame_x_translate = 0.0942,
                              double tof_top_sensor_frame_y_translate = 0.0,
                              double tof_top_sensor_frame_z_translate = 0.56513,
@@ -43,15 +45,11 @@ void PointCloudTof::updateRobotPose(tPose &pose)
 
 void PointCloudTof::updateLeftSubCellIndexArray(std::vector<int> &left_sub_cell_idx_array)
 {
-    left_y_tan_.clear();
-    left_z_tan_.clear();
     updateSubCellIndexArray(left_sub_cell_idx_array, left_y_tan_, left_z_tan_);
 }
 
 void PointCloudTof::updateRightSubCellIndexArray(std::vector<int> &right_sub_cell_idx_array)
 {
-    right_y_tan_.clear();
-    right_z_tan_.clear();
     updateSubCellIndexArray(right_sub_cell_idx_array, right_y_tan_, right_z_tan_);
 }
 
@@ -175,6 +173,7 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
 
 void PointCloudTof::updateSubCellIndexArray(const std::vector<int> &sub_cell_idx_array, std::vector<double> &y_tan_out, std::vector<double> &z_tan_out)
 {
+#if ENABLE_TOF_8x8
     // =========== 사용자 입력 기반으로 사용할 8x8 마스킹 Mat 만들기 ===========
     bool masked_mat[8][8] = {false};
 
@@ -252,6 +251,16 @@ void PointCloudTof::updateSubCellIndexArray(const std::vector<int> &sub_cell_idx
             z_tan_out.emplace_back(z);
         }
     }
+#else
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            double y = std::tan(tof_bot_fov_ang_*((3 - 2*j)/8.0)*M_PI/180);
+            double z = std::tan(tof_bot_fov_ang_*((3 - 2*i)/8.0)*M_PI/180);
+            y_tan_out.emplace_back(y);
+            z_tan_out.emplace_back(z);
+        }
+    }
+#endif
 }
 
 std::vector<tPoint> PointCloudTof::transformTofMsg2PointsOnSensorFrame(std::vector<double> input_tof_dist, bool isBothSide, TOF_SIDE side)
