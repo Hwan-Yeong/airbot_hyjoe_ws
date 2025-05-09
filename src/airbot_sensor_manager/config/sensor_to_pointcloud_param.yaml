@@ -16,19 +16,19 @@ airbot_sensor_to_pointcloud:
           use: true
           pitch_angle_deg: -0.0 # (-)가 들리는 방향
           sub_cell_idx_array: [
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0, 0
+            0, 0, 1, 1,
+            0, 0, 1, 1,
+            0, 0, 1, 1,
+            2, 2, 3, 3
           ]
         right:
           use: true
           pitch_angle_deg: -0.0 # (-)가 들리는 방향
           sub_cell_idx_array: [
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0, 0
+            0, 0, 1, 1,
+            0, 0, 1, 1,
+            0, 0, 1, 1,
+            2, 2, 3, 3
           ]
         row:
           use: true
