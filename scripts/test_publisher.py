@@ -55,15 +55,23 @@ class CliffDetectionErrorSimulation(Node):
         if not self.ir_monified:
             self.bottom_ir_data.ff = True
             self.bottom_ir_data.br = True
+            self.bottom_ir_data.adc_ff = 1900
+            self.bottom_ir_data.adc_br = 1900
         else:
             self.bottom_ir_data.ff = False
             self.bottom_ir_data.br = False
+            self.bottom_ir_data.adc_ff = 4070
+            self.bottom_ir_data.adc_br = 4070
 
         # self.bottom_ir_data.ff = True
         self.bottom_ir_data.fl = False
         self.bottom_ir_data.bb = False
         self.bottom_ir_data.bl = False
         self.bottom_ir_data.fr = False
+        self.bottom_ir_data.adc_fl = 4070
+        self.bottom_ir_data.adc_bb = 4070
+        self.bottom_ir_data.adc_bl = 4070
+        self.bottom_ir_data.adc_fr = 4070
         self.bottom_ir_data.robot_x = 0.0
         self.bottom_ir_data.robot_y = 0.0
         self.bottom_ir_data.robot_angle = 0.0

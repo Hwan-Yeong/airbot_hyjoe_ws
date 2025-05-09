@@ -136,22 +136,22 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
     // 값이 방향에 따라서 일정하게 변하지 않기 때문에
     // 방향을 나누어서 값 변화에 대해서 전도 현상값의 범위를 조정해야 함
     // front - front_L - back_L - back - back_R - front_R
-    if (input.first.ff == 1) {
+    if (input.first.adc_ff < 2000) {
         count++;
     }
-    if (input.first.fl == 1) {
+    if (input.first.adc_fl < 2000) {
         count++;
     }
-    if (input.first.fr == 1) {
+    if (input.first.adc_fr < 2000) {
         count++;
     }
-    if (input.first.bb == 1) {
+    if (input.first.adc_bb < 2000) {
         count++;
     }
-    if (input.first.bl == 1) {
+    if (input.first.adc_bl < 2000) {
         count++;
     }
-    if (input.first.br == 1) {
+    if (input.first.adc_br < 2000) {
         count++;
     }
 
@@ -178,8 +178,8 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
         if(!prev_status){
             // [250407] hyjoe : 전도 에러 발생시 낙하IR상태, roll, pitch 정보 1번만 로깅
             RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"),
-                "Occured (ff : %d)  (fl : %d) (fr :%d) (bb : %d) (bl : %d) (br : %d)  (pich : %.3f deg) (roll : %.3f deg)",
-                input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll
+                "Occured (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) (adc_bb : %d) (adc_bl : %d) (adc_br : %d)  (pich : %.3f deg) (roll : %.3f deg)",
+                input.first.adc_ff, input.first.adc_fr, input.first.adc_fr, input.first.adc_bb, input.first.adc_bl, input.first.adc_br, deg_pitch, deg_roll
             );
             prev_status=true;
         }
@@ -188,8 +188,8 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
         if(prev_status){
             // [250407] hyjoe : 전도 에러 발생 한적이 있었던 경우, 해제시 1번만 낙하IR상태, roll, pitch 정보 1번만 로깅
             RCLCPP_INFO(rclcpp::get_logger("FallDownErrorMonitor"),
-                "Released (ff : %d)  (fl : %d) (fr :%d) (bf : %d) (bl : %d) (br : %d)  (pich : %.3f deg) (roll : %.3f deg)",
-                input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br, deg_pitch, deg_roll
+                "Released (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) (adc_bf : %d) (adc_bl : %d) (adc_br : %d)  (pich : %.3f deg) (roll : %.3f deg)",
+                input.first.adc_ff, input.first.adc_fr, input.first.adc_fr, input.first.adc_bb, input.first.adc_bl, input.first.adc_br, deg_pitch, deg_roll
             );
             prev_status=false;
         }
@@ -324,7 +324,6 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
 
 bool LiftErrorMonitor::checkError(const InputType &input)
 {
-    return false;
     /*
         < 들림 에러 검사 >
         해당 모니터는 10ms마다 호출한다는 것을 가정합니다.
@@ -339,23 +338,29 @@ bool LiftErrorMonitor::checkError(const InputType &input)
 
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     static int count = 0;
-    bool irLiftFlag = false;
-    bool imuLiftFlag = false;
+    static bool irLiftFlag = false;
+    static bool imuLiftFlag = false;
 
-    count = (input.first.ff == true) + (input.first.fl == true) + (input.first.fr == true) +
-            (input.first.bb == true) + (input.first.bl == true) + (input.first.br == true);
+    count = (input.first.adc_ff < 2000) + (input.first.adc_fl < 2000) + (input.first.adc_fr < 2000) +
+            (input.first.adc_bb < 2000) + (input.first.adc_bl < 2000) + (input.first.adc_br < 2000);
 
     if (count == 0) { // 모든 IR 센서가 false일 경우 에러 해제.
+        if (errorState) {
+            RCLCPP_INFO(rclcpp::get_logger("LiftErrorMonitor"),
+                "LiftError Released!"
+            );
+        }
         errorCount = 0;
         errorState = false;
-        return errorState;
     } else if (count >= 4) { // ir 센서 true개수 4개 이상이면 ir 들림 의심
+        // [250407] hyjoe : 들림 에러 발생 의심시 IR센서 상태 로깅
+        if (!irLiftFlag) {
+            RCLCPP_WARN(rclcpp::get_logger("LiftErrorMonitor"),
+                "Over 4 IR sensors Lift Detected! (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) (adc_bb : %d) (adc_bl : %d) (adc_br : %d)",
+                input.first.adc_ff, input.first.adc_fr, input.first.adc_fr, input.first.adc_bb, input.first.adc_bl, input.first.adc_br
+            );
+        }
         irLiftFlag = true;
-        // [250407] hyjoe : 들림 에러 발생 의심시 IR센서 상태 로깅 (로봇이 들리는 경우가 자주 발생하지는 않을 것 같아 상태 지속 시 계속 로깅)
-        RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"),
-            "Over 4 IR sensors Lift Detected! (ff : %d)  (fl : %d) (fr :%d) (bb : %d) (bl : %d) (br : %d)",
-            input.first.ff, input.first.fr, input.first.fr, input.first.bb, input.first.bl, input.first.br
-        );
     } else {
         irLiftFlag = false;
     }
@@ -364,12 +369,14 @@ bool LiftErrorMonitor::checkError(const InputType &input)
 
     // acc_z가 10.5이상이고 acc_z가 9.2이하이면 imu 들림 의심 (기준값 수정 필요할 수도 있음)
     if (acc_z <= 9.2 || acc_z >= 10.5) {
-        imuLiftFlag = true;
         // [250407] hyjoe : 들림 에러 발생 의심시 imu z축 가속도값 로깅 (승월이나 전도시에도 해당 로그 나올 수 있지만, 추후 정확한 상태 진단을 위해 일단 로깅)
-        RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"),
-            "Imu z axis acceleration Lift Detected! (acc_z: %.3f m/s^2)",
-            acc_z
-        );
+        if (!imuLiftFlag) {
+            RCLCPP_WARN(rclcpp::get_logger("LiftErrorMonitor"),
+                "Imu z axis acceleration Lift Detected! (acc_z: %.3f m/s^2)",
+                acc_z
+            );
+        }
+        imuLiftFlag = true;
     } else {
         imuLiftFlag = false;
     }
@@ -383,12 +390,14 @@ bool LiftErrorMonitor::checkError(const InputType &input)
     }*/
 
     if (errorCount >= 10) {
+        // [250407] hyjoe : 들림 에러 발생 시 에러 체크 카운터 로깅
+        if (!errorState) {
+            RCLCPP_WARN(rclcpp::get_logger("LiftErrorMonitor"),
+                "IR & IMU both Lift Detected! (error count: %d)",
+                static_cast<int>(errorCount)
+            );
+        }
         errorState = true;
-        // [250407] hyjoe : 들림 에러 발생 시 에러 체크 카운터 로깅 (얼마나 오래 지속되고있는지 계속 로깅 - 해제 시점 알 수 있음)
-        RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"),
-            "IR & IMU both Lift Detected! (error count: %d)",
-            static_cast<int>(errorCount)
-        );
     }
 
     return errorState;
@@ -463,7 +472,7 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
             prePositionXArray[i] = curPositionX;
             prePositionYArray[i] = curPositionY;
 
-            if (timeDiff >= 3.0 || accumDist[i] >= 0.3) { // 낙하센서 3초 지속 감지 or 낙하센서 감지된 상태에서 30cm 이동
+            if (/*timeDiff >= 3.0 || */accumDist[i] >= 0.3) { // 낙하센서 3초 지속 감지 or 낙하센서 감지된 상태에서 30cm 이동
                 if (preErrorState[i] == false) {
                     RCLCPP_INFO(rclcpp::get_logger("CliffDetectionErrorMonitor"),
                         "Cliff IR #[%d] : %s, timediff: %.3f sec, Accumulated Distance: %.3f m",
