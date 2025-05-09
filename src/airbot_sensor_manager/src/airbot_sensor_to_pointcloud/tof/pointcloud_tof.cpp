@@ -177,7 +177,7 @@ void PointCloudTof::updateSubCellIndexArray(const std::vector<int> &sub_cell_idx
     // =========== 사용자 입력 기반으로 사용할 8x8 마스킹 Mat 만들기 ===========
     bool masked_mat[8][8] = {false};
 
-    //// Input 디버깅 출력
+    //// Input sub cell 인덱스 로깅
     RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "==== Input sub_cell_idx_array ====");
     for (int r = 0; r < 4; ++r) {
         std::stringstream ss;
@@ -214,7 +214,7 @@ void PointCloudTof::updateSubCellIndexArray(const std::vector<int> &sub_cell_idx
         }
     }
 
-    //// Masked 행렬 디버깅 출력
+    //// Masked 행렬 로깅
     RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "==== Masked 8x8 Matrix ====");
     for (int i = 0; i < 8; ++i) {
         std::stringstream ss;
