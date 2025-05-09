@@ -15,9 +15,21 @@ airbot_sensor_to_pointcloud:
         left:
           use: true
           pitch_angle_deg: -0.0 # (-)가 들리는 방향
+          sub_cell_idx_array: [
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 0
+          ]
         right:
           use: true
           pitch_angle_deg: -0.0 # (-)가 들리는 방향
+          sub_cell_idx_array: [
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 0
+          ]
         row:
           use: true
           publish_rate_ms: 50
@@ -60,6 +72,15 @@ airbot_sensor_to_pointcloud:
 #       [08, 09, 10, 11]       #
 #       [12, 13, 14, 15]       #
 #                              #
+################################
+######  ToF Sub Cell idx  #####
+#                             #
+#          +-------+          #
+#          | 0 | 1 |          #
+#          |---|---|          #
+#          | 2 | 3 |          #
+#          +-------+          #
+#                             #
 ################################
 #######  Camera Object  ########
 ######     Class ID      #######

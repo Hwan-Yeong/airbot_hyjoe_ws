@@ -41,7 +41,9 @@ private:
     CameraObjectLogger camera_object_logger_;
 
     std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
-    std::shared_ptr<rclcpp::ParameterCallbackHandle> param_callback_handle_;
+    std::shared_ptr<rclcpp::ParameterCallbackHandle> target_frame_callback_handle_;
+    std::shared_ptr<rclcpp::ParameterCallbackHandle> mtof_left_subcell_callback_handle_;
+    std::shared_ptr<rclcpp::ParameterCallbackHandle> mtof_right_subcell_callback_handle_;
 
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sensor_to_pointcloud_cmd_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
@@ -82,6 +84,8 @@ private:
     double tilting_ang_1d_tof_, bot_left_pitch_angle_, bot_right_pitch_angle_;
     double object_max_distance_;
     tTofPitchAngle botTofPitchAngle;
+    std::vector<int> mtof_left_sub_cell_idx_array_;
+    std::vector<int> mtof_right_sub_cell_idx_array_;
 
     sensor_msgs::msg::PointCloud2 pc_tof_1d_msg, pc_tof_multi_msg,
         pc_tof_left_row1_msg, pc_tof_left_row2_msg, pc_tof_left_row3_msg, pc_tof_left_row4_msg,

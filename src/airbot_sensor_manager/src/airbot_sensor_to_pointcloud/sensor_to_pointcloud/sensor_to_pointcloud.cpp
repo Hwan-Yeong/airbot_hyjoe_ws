@@ -44,7 +44,7 @@ SensorToPointcloud::SensorToPointcloud()
 
     // Dynamic Parameter Handler
     param_handler_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
-    param_callback_handle_ = param_handler_->add_parameter_callback(
+    target_frame_callback_handle_ = param_handler_->add_parameter_callback(
         "target_frame",
         [this](const rclcpp::Parameter & param) {
             if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
@@ -64,8 +64,42 @@ SensorToPointcloud::SensorToPointcloud()
         }
     );
 
+    mtof_left_subcell_callback_handle_ = param_handler_->add_parameter_callback(
+        "tof.multi.left.sub_cell_idx_array",
+        [this](const rclcpp::Parameter & param) {
+            if (param.get_type() == rclcpp::ParameterType::PARAMETER_INTEGER_ARRAY) {
+                auto new_array = param.as_integer_array();
+                if (new_array.size() != 16) {
+                    RCLCPP_WARN(this->get_logger(), "Invalid left sub_cell_idx_array size: %zu", new_array.size());
+                    return;
+                }
+                std::vector<int> vec(new_array.begin(), new_array.end());
+                // point_cloud_tof_.updateLeftSubCellIndexArray(vec);
+                RCLCPP_INFO(this->get_logger(), "Updated left sub_cell_idx_array");
+            }
+        }
+    );
+
+    mtof_right_subcell_callback_handle_ = param_handler_->add_parameter_callback(
+        "tof.multi.right.sub_cell_idx_array",
+        [this](const rclcpp::Parameter & param) {
+            if (param.get_type() == rclcpp::ParameterType::PARAMETER_INTEGER_ARRAY) {
+                auto new_array = param.as_integer_array();
+                if (new_array.size() != 16) {
+                    RCLCPP_WARN(this->get_logger(), "Invalid right sub_cell_idx_array size: %zu", new_array.size());
+                    return;
+                }
+                std::vector<int> vec(new_array.begin(), new_array.end());
+                // point_cloud_tof_.updateRightSubCellIndexArray(vec);
+                RCLCPP_INFO(this->get_logger(), "Updated right sub_cell_idx_array");
+            }
+        }
+    );
+
     // Update Parameters
     point_cloud_tof_.updateTargetFrame(target_frame_);
+    // point_cloud_tof_.updateLeftSubCellIndexArray(mtof_left_sub_cell_idx_array_);
+    // point_cloud_tof_.updateRightSubCellIndexArray(mtof_right_sub_cell_idx_array_);
     bounding_box_generator_.updateTargetFrame(target_frame_);
     point_cloud_cliff_.updateTargetFrame(target_frame_);
     point_cloud_collosion_.updateTargetFrame(target_frame_);
@@ -160,8 +194,10 @@ void SensorToPointcloud::declareParams()
     this->declare_parameter("tof.multi.publish_rate_ms",100);
     this->declare_parameter("tof.multi.left.use",false);
     this->declare_parameter("tof.multi.left.pitch_angle_deg",0.0);
+    this->declare_parameter("tof.multi.left.sub_cell_idx_array",std::vector<int64_t>(16, 0));
     this->declare_parameter("tof.multi.right.use",false);
     this->declare_parameter("tof.multi.right.pitch_angle_deg",0.0);
+    this->declare_parameter("tof.multi.right.sub_cell_idx_array",std::vector<int64_t>(16, 0));
     this->declare_parameter("tof.multi.row.use",false);
     this->declare_parameter("tof.multi.row.publish_rate_ms",100);
 
@@ -194,8 +230,14 @@ void SensorToPointcloud::setParams()
     this->get_parameter("tof.multi.publish_rate_ms", publish_rate_multi_tof_);
     this->get_parameter("tof.multi.left.use", use_tof_left_);
     this->get_parameter("tof.multi.left.pitch_angle_deg", bot_left_pitch_angle_);
+    std::vector<int64_t> tmp64_left;
+    this->get_parameter("tof.multi.left.sub_cell_idx_array", tmp64_left);
+    mtof_left_sub_cell_idx_array_.assign(tmp64_left.begin(), tmp64_left.end());
     this->get_parameter("tof.multi.right.use", use_tof_right_);
     this->get_parameter("tof.multi.right.pitch_angle_deg", bot_right_pitch_angle_);
+    std::vector<int64_t> tmp64_right;
+    this->get_parameter("tof.multi.right.sub_cell_idx_array", tmp64_right);
+    mtof_right_sub_cell_idx_array_.assign(tmp64_right.begin(), tmp64_right.end());
     this->get_parameter("tof.multi.row.use", use_tof_row_);
     this->get_parameter("tof.multi.row.publish_rate_ms", publish_rate_row_tof_);
 
@@ -234,8 +276,28 @@ void SensorToPointcloud::printParams()
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Publish Rate: %d ms", publish_rate_multi_tof_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Use: %d", use_tof_left_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Pitch Angle: %.2f", bot_left_pitch_angle_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Sub Cell Index Array:");
+    for (int i = 0; i < 4; ++i) {
+        std::stringstream row_stream;
+        row_stream << "    [ ";
+        for (int j = 0; j < 4; ++j) {
+            row_stream << mtof_left_sub_cell_idx_array_[i * 4 + j] << " ";
+        }
+        row_stream << "]";
+        RCLCPP_INFO(this->get_logger(), "%s", row_stream.str().c_str());
+    }
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Use: %d", use_tof_right_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Pitch Angle: %.2f", bot_right_pitch_angle_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Sub Cell Index Array:");
+    for (int i = 0; i < 4; ++i) {
+        std::stringstream row_stream;
+        row_stream << "    [ ";
+        for (int j = 0; j < 4; ++j) {
+            row_stream << mtof_right_sub_cell_idx_array_[i * 4 + j] << " ";
+        }
+        row_stream << "]";
+        RCLCPP_INFO(this->get_logger(), "%s", row_stream.str().c_str());
+    }
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Row Use: %d", use_tof_row_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Row Publish Rate: %d ms", publish_rate_row_tof_);
 
@@ -251,9 +313,9 @@ void SensorToPointcloud::printParams()
         RCLCPP_INFO(this->get_logger(), "    Class ID: %d, Confidence: %d", conf.first, conf.second);
     }
     RCLCPP_INFO(this->get_logger(), "  Camera Logger Use: %d", use_camera_object_logger_);
-    RCLCPP_INFO(this->get_logger(), "  Camera Logger Margins: Distance Diff: %.2f, Width Diff: %.2f, Height Diff: %.2f", 
-                camera_logger_distance_margin_, 
-                camera_logger_width_margin_, 
+    RCLCPP_INFO(this->get_logger(), "  Camera Logger Margins: Distance Diff: %.2f, Width Diff: %.2f, Height Diff: %.2f",
+                camera_logger_distance_margin_,
+                camera_logger_width_margin_,
                 camera_logger_height_margin_);
 
     // Cliff Settings
