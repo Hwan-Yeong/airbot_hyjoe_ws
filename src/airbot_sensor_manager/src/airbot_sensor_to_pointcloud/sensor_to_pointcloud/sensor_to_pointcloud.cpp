@@ -97,6 +97,7 @@ SensorToPointcloud::SensorToPointcloud()
     );
 
     // Update Parameters
+    point_cloud_tof_.updateTofMode(use_tof_8x8_);
     point_cloud_tof_.updateTargetFrame(target_frame_);
     point_cloud_tof_.updateLeftSubCellIndexArray(mtof_left_sub_cell_idx_array_);
     point_cloud_tof_.updateRightSubCellIndexArray(mtof_right_sub_cell_idx_array_);
@@ -192,6 +193,7 @@ void SensorToPointcloud::declareParams()
     this->declare_parameter("tof.1D.publish_rate_ms",100);
     this->declare_parameter("tof.1D.tilting_angle_deg",0.0);
     this->declare_parameter("tof.multi.publish_rate_ms",100);
+    this->declare_parameter("tof.multi.enable_8x8", false);
     this->declare_parameter("tof.multi.left.use",false);
     this->declare_parameter("tof.multi.left.pitch_angle_deg",0.0);
     this->declare_parameter("tof.multi.left.sub_cell_idx_array",std::vector<int64_t>(16, 0));
@@ -228,6 +230,7 @@ void SensorToPointcloud::setParams()
     this->get_parameter("tof.1D.publish_rate_ms", publish_rate_1d_tof_);
     this->get_parameter("tof.1D.tilting_angle_deg", tilting_ang_1d_tof_);
     this->get_parameter("tof.multi.publish_rate_ms", publish_rate_multi_tof_);
+    this->get_parameter("tof.multi.enable_8x8", use_tof_8x8_);
     this->get_parameter("tof.multi.left.use", use_tof_left_);
     this->get_parameter("tof.multi.left.pitch_angle_deg", bot_left_pitch_angle_);
     std::vector<int64_t> tmp64_left;
@@ -269,12 +272,13 @@ void SensorToPointcloud::printParams()
 
     // TOF Settings
     RCLCPP_INFO(this->get_logger(), "[TOF Settings]");
-    RCLCPP_INFO(this->get_logger(), "  TOF All Use: %d", use_tof_);
-    RCLCPP_INFO(this->get_logger(), "  TOF 1D Use: %d", use_tof_1D_);
+    RCLCPP_INFO(this->get_logger(), "  TOF All Use: %s", use_tof_ ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  TOF 1D Use: %s", use_tof_1D_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  TOF 1D Publish Rate: %d ms", publish_rate_1d_tof_);
     RCLCPP_INFO(this->get_logger(), "  TOF 1D Tilting Angle: %.2f deg", tilting_ang_1d_tof_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Publish Rate: %d ms", publish_rate_multi_tof_);
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Use: %d", use_tof_left_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi 8x8 Use: %s", use_tof_8x8_ ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Use: %s", use_tof_left_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Pitch Angle: %.2f", bot_left_pitch_angle_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Sub Cell Index Array:");
     for (int i = 0; i < 4; ++i) {
@@ -286,7 +290,7 @@ void SensorToPointcloud::printParams()
         row_stream << "]";
         RCLCPP_INFO(this->get_logger(), "%s", row_stream.str().c_str());
     }
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Use: %d", use_tof_right_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Use: %s", use_tof_right_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Pitch Angle: %.2f", bot_right_pitch_angle_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Sub Cell Index Array:");
     for (int i = 0; i < 4; ++i) {
@@ -298,12 +302,12 @@ void SensorToPointcloud::printParams()
         row_stream << "]";
         RCLCPP_INFO(this->get_logger(), "%s", row_stream.str().c_str());
     }
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Row Use: %d", use_tof_row_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Row Use: %s", use_tof_row_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Row Publish Rate: %d ms", publish_rate_row_tof_);
 
     // Camera Settings
     RCLCPP_INFO(this->get_logger(), "[Camera Settings]");
-    RCLCPP_INFO(this->get_logger(), "  Camera Use: %d", use_camera_);
+    RCLCPP_INFO(this->get_logger(), "  Camera Use: %s", use_camera_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  Camera Publish Rate: %d ms", publish_rate_camera_);
     RCLCPP_INFO(this->get_logger(), "  Camera Pointcloud Resolution: %.2f", camera_pointcloud_resolution_);
     RCLCPP_INFO(this->get_logger(), "  Camera Object Direction: %s", camera_object_direction_ ? "True" : "False");
@@ -312,7 +316,7 @@ void SensorToPointcloud::printParams()
     for (const auto& conf : camera_class_id_confidence_th_) {
         RCLCPP_INFO(this->get_logger(), "    Class ID: %d, Confidence: %d", conf.first, conf.second);
     }
-    RCLCPP_INFO(this->get_logger(), "  Camera Logger Use: %d", use_camera_object_logger_);
+    RCLCPP_INFO(this->get_logger(), "  Camera Logger Use: %s", use_camera_object_logger_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  Camera Logger Margins: Distance Diff: %.2f, Width Diff: %.2f, Height Diff: %.2f",
                 camera_logger_distance_margin_,
                 camera_logger_width_margin_,
@@ -320,12 +324,12 @@ void SensorToPointcloud::printParams()
 
     // Cliff Settings
     RCLCPP_INFO(this->get_logger(), "[Cliff Settings]");
-    RCLCPP_INFO(this->get_logger(), "  Cliff Use: %d", use_cliff_);
+    RCLCPP_INFO(this->get_logger(), "  Cliff Use: %s", use_cliff_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  Cliff Publish Rate: %d ms", publish_rate_cliff_);
 
     // Collision Settings
     RCLCPP_INFO(this->get_logger(), "[Collision Settings]");
-    RCLCPP_INFO(this->get_logger(), "  Collision Use: %d", use_collision_);
+    RCLCPP_INFO(this->get_logger(), "  Collision Use: %s", use_collision_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  Collision Publish Rate: %d ms", publish_rate_collision_);
     RCLCPP_INFO(this->get_logger(), "===============================================================");
 

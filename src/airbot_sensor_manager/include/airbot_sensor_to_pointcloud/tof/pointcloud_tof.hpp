@@ -26,6 +26,7 @@ public:
                   double tof_bot_fov_ang);
     ~PointCloudTof();
 
+    void updateTofMode(bool use_8x8);
     void updateTargetFrame(std::string &updated_frame);
     void updateRobotPose(tPose &pose);
     void updateLeftSubCellIndexArray(std::vector<int> &left_sub_cell_idx_array);
@@ -37,6 +38,7 @@ private:
     FrameConverter frame_converter_;
     PointCloudGenerator pointcloud_generator_;
 
+    bool use_tof_8x8_;
     tPose robot_pose_;
     std::string target_frame_;
     tPoint tof_top_translation_;

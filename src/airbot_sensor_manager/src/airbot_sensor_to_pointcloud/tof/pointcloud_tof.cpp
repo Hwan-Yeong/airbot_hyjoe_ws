@@ -27,6 +27,11 @@ PointCloudTof::~PointCloudTof()
 {
 }
 
+void PointCloudTof::updateTofMode(bool use_8x8)
+{
+    use_tof_8x8_ = use_8x8;
+}
+
 /**
  * @brief ### 노드 초기화 시점에, 파라미터로 받은 frame_id로 업데이트
  */
@@ -173,94 +178,94 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
 
 void PointCloudTof::updateSubCellIndexArray(const std::vector<int> &sub_cell_idx_array, std::vector<double> &y_tan_out, std::vector<double> &z_tan_out)
 {
-#if ENABLE_TOF_8x8
-    // =========== 사용자 입력 기반으로 사용할 8x8 마스킹 Mat 만들기 ===========
-    bool masked_mat[8][8] = {false};
+    if (use_tof_8x8_) {
+        // =========== 사용자 입력 기반으로 사용할 8x8 마스킹 Mat 만들기 ===========
+        bool masked_mat[8][8] = {false};
 
-    //// Input sub cell 인덱스 로깅
-    RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "==== Input sub_cell_idx_array ====");
-    for (int r = 0; r < 4; ++r) {
-        std::stringstream ss;
-        for (int c = 0; c < 4; ++c) {
-            ss << sub_cell_idx_array[r * 4 + c] << " ";
+        //// Input sub cell 인덱스 로깅
+        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "==== Input sub_cell_idx_array ====");
+        for (int r = 0; r < 4; ++r) {
+            std::stringstream ss;
+            for (int c = 0; c < 4; ++c) {
+                ss << sub_cell_idx_array[r * 4 + c] << " ";
+            }
+            RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "%s", ss.str().c_str());
         }
-        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "%s", ss.str().c_str());
-    }
-    ////
+        ////
 
-    for (int r = 0; r < 4; ++r) {
-        for (int c = 0; c < 4; ++c) {
-            int val = sub_cell_idx_array[r * 4 + c];
-            int base_row = r * 2;
-            int base_col = c * 2;
+        for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 4; ++c) {
+                int val = sub_cell_idx_array[r * 4 + c];
+                int base_row = r * 2;
+                int base_col = c * 2;
 
-            switch (val)
-            {
-                case 0:
-                    masked_mat[base_row][base_col] = true;
-                    break;
-                case 1:
-                    masked_mat[base_row][base_col +1] = true;
-                    break;
-                case 2:
-                    masked_mat[base_row + 1][base_col] = true;
-                    break;
-                case 3:
-                    masked_mat[base_row + 1][base_col + 1] = true;
-                    break;
-                default:
-                    break;
+                switch (val)
+                {
+                    case 0:
+                        masked_mat[base_row][base_col] = true;
+                        break;
+                    case 1:
+                        masked_mat[base_row][base_col +1] = true;
+                        break;
+                    case 2:
+                        masked_mat[base_row + 1][base_col] = true;
+                        break;
+                    case 3:
+                        masked_mat[base_row + 1][base_col + 1] = true;
+                        break;
+                    default:
+                        break;
+                }
             }
         }
-    }
 
-    //// Masked 행렬 로깅
-    RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "==== Masked 8x8 Matrix ====");
-    for (int i = 0; i < 8; ++i) {
-        std::stringstream ss;
-        for (int j = 0; j < 8; ++j) {
-            ss << (masked_mat[i][j] ? "1 " : "0 ");
+        //// Masked 행렬 로깅
+        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "==== Masked 8x8 Matrix ====");
+        for (int i = 0; i < 8; ++i) {
+            std::stringstream ss;
+            for (int j = 0; j < 8; ++j) {
+                ss << (masked_mat[i][j] ? "1 " : "0 ");
+            }
+            RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "%s", ss.str().c_str());
         }
-        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "%s", ss.str().c_str());
-    }
-    ////
+        ////
 
-    // =========== true인 거 기반으로 y_tan[4][4], z_tan[4][4] 만들기 ===========
-    std::vector<std::pair<int, int>> true_indices;
-    y_tan_out.clear();
-    z_tan_out.clear();
+        // =========== true인 거 기반으로 y_tan[4][4], z_tan[4][4] 만들기 ===========
+        std::vector<std::pair<int, int>> true_indices;
+        y_tan_out.clear();
+        z_tan_out.clear();
 
-    for (int i = 0; i < 8; ++i) {
-        for (int j = 0; j < 8; ++j) {
-            if (masked_mat[i][j]) {
-                true_indices.emplace_back(i, j);
+        for (int i = 0; i < 8; ++i) {
+            for (int j = 0; j < 8; ++j) {
+                if (masked_mat[i][j]) {
+                    true_indices.emplace_back(i, j);
+                }
             }
         }
-    }
 
-    if (true_indices.size() != 16) {
-        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"),
-            "Expected 16 true values in mask, but got %zu",
-            true_indices.size()
-        );
+        if (true_indices.size() != 16) {
+            RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"),
+                "Expected 16 true values in mask, but got %zu",
+                true_indices.size()
+            );
+        } else {
+            for (const auto& [i, j] : true_indices) {
+                double y = std::tan(tof_bot_fov_ang_*((7 - 2*j)/16.0)*M_PI/180);
+                double z = std::tan(tof_bot_fov_ang_*((7 - 2*i)/16.0)*M_PI/180);
+                y_tan_out.emplace_back(y);
+                z_tan_out.emplace_back(z);
+            }
+        }
     } else {
-        for (const auto& [i, j] : true_indices) {
-            double y = std::tan(tof_bot_fov_ang_*((7 - 2*j)/16.0)*M_PI/180);
-            double z = std::tan(tof_bot_fov_ang_*((7 - 2*i)/16.0)*M_PI/180);
-            y_tan_out.emplace_back(y);
-            z_tan_out.emplace_back(z);
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                double y = std::tan(tof_bot_fov_ang_*((3 - 2*j)/8.0)*M_PI/180);
+                double z = std::tan(tof_bot_fov_ang_*((3 - 2*i)/8.0)*M_PI/180);
+                y_tan_out.emplace_back(y);
+                z_tan_out.emplace_back(z);
+            }
         }
     }
-#else
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            double y = std::tan(tof_bot_fov_ang_*((3 - 2*j)/8.0)*M_PI/180);
-            double z = std::tan(tof_bot_fov_ang_*((3 - 2*i)/8.0)*M_PI/180);
-            y_tan_out.emplace_back(y);
-            z_tan_out.emplace_back(z);
-        }
-    }
-#endif
 }
 
 std::vector<tPoint> PointCloudTof::transformTofMsg2PointsOnSensorFrame(std::vector<double> input_tof_dist, bool isBothSide, TOF_SIDE side)

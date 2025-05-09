@@ -12,6 +12,7 @@ airbot_sensor_to_pointcloud:
         tilting_angle_deg: 39.0 # double type
       multi:
         publish_rate_ms: 50
+        enable_8x8: false
         left:
           use: true
           pitch_angle_deg: -0.0 # (-)가 들리는 방향

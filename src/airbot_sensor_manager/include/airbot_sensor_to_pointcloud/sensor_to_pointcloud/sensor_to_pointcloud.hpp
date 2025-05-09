@@ -76,7 +76,7 @@ private:
     double camera_logger_distance_margin_, camera_logger_width_margin_, camera_logger_height_margin_;
     std::vector<std::string> camera_param_raw_vector_;
     std::map<int, int> camera_class_id_confidence_th_;
-    bool camera_object_direction_;
+    bool camera_object_direction_, use_tof_8x8_;
     int publish_rate_1d_tof_, publish_rate_multi_tof_, publish_rate_row_tof_,
         publish_rate_camera_, publish_rate_cliff_, publish_rate_collision_;
     int publish_cnt_1d_tof_, publish_cnt_multi_tof_, publish_cnt_row_tof_,
