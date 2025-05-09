@@ -74,7 +74,7 @@ SensorToPointcloud::SensorToPointcloud()
                     return;
                 }
                 std::vector<int> vec(new_array.begin(), new_array.end());
-                // point_cloud_tof_.updateLeftSubCellIndexArray(vec);
+                point_cloud_tof_.updateLeftSubCellIndexArray(vec);
                 RCLCPP_INFO(this->get_logger(), "Updated left sub_cell_idx_array");
             }
         }
@@ -90,7 +90,7 @@ SensorToPointcloud::SensorToPointcloud()
                     return;
                 }
                 std::vector<int> vec(new_array.begin(), new_array.end());
-                // point_cloud_tof_.updateRightSubCellIndexArray(vec);
+                point_cloud_tof_.updateRightSubCellIndexArray(vec);
                 RCLCPP_INFO(this->get_logger(), "Updated right sub_cell_idx_array");
             }
         }
@@ -98,8 +98,8 @@ SensorToPointcloud::SensorToPointcloud()
 
     // Update Parameters
     point_cloud_tof_.updateTargetFrame(target_frame_);
-    // point_cloud_tof_.updateLeftSubCellIndexArray(mtof_left_sub_cell_idx_array_);
-    // point_cloud_tof_.updateRightSubCellIndexArray(mtof_right_sub_cell_idx_array_);
+    point_cloud_tof_.updateLeftSubCellIndexArray(mtof_left_sub_cell_idx_array_);
+    point_cloud_tof_.updateRightSubCellIndexArray(mtof_right_sub_cell_idx_array_);
     bounding_box_generator_.updateTargetFrame(target_frame_);
     point_cloud_cliff_.updateTargetFrame(target_frame_);
     point_cloud_collosion_.updateTargetFrame(target_frame_);

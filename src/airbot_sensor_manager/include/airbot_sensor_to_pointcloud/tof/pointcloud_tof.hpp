@@ -28,6 +28,8 @@ public:
 
     void updateTargetFrame(std::string &updated_frame);
     void updateRobotPose(tPose &pose);
+    void updateLeftSubCellIndexArray(std::vector<int> &left_sub_cell_idx_array);
+    void updateRightSubCellIndexArray(std::vector<int> &right_sub_cell_idx_array);
     sensor_msgs::msg::PointCloud2 updateTopTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, double tilting_angle);
     sensor_msgs::msg::PointCloud2 updateBotTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, tTofPitchAngle pitchAngle, bool isShowRow = false, ROW_NUMBER row = ROW_NUMBER::FIRST);
 
@@ -45,18 +47,14 @@ private:
     double tof_bot_right_sensor_frame_yaw_ang_;
     double tof_bot_fov_ang_;
 
-    double tof_bot_row_1_z_tan_;
-    double tof_bot_row_2_z_tan_;
-    double tof_bot_row_3_z_tan_;
-    double tof_bot_row_4_z_tan_;
-    double tof_bot_col_1_xy_tan_;
-    double tof_bot_col_2_xy_tan_;
-    double tof_bot_col_3_xy_tan_;
-    double tof_bot_col_4_xy_tan_;
+    std::vector<double> left_y_tan_;
+    std::vector<double> left_z_tan_;
+    std::vector<double> right_y_tan_;
+    std::vector<double> right_z_tan_;
 
     std::vector<bool> zero_dist_index = std::vector<bool>(false);
 
-    std::vector<tPoint> transformTofMsg2PointsOnSensorFrame(std::vector<double> input_tof_dist, bool isBothSide);
+    std::vector<tPoint> transformTofMsg2PointsOnSensorFrame(std::vector<double> input_tof_dist, bool isBothSide, TOF_SIDE side);
     std::vector<tPoint> filterPoints(const std::vector<tPoint> &input_points);
 };
 
