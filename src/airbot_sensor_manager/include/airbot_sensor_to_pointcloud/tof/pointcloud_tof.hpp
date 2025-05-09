@@ -54,6 +54,7 @@ private:
 
     std::vector<bool> zero_dist_index = std::vector<bool>(false);
 
+    void updateSubCellIndexArray(const std::vector<int>& sub_cell_idx_array, std::vector<double>& y_tan_out, std::vector<double>& z_tan_out);
     std::vector<tPoint> transformTofMsg2PointsOnSensorFrame(std::vector<double> input_tof_dist, bool isBothSide, TOF_SIDE side);
     std::vector<tPoint> filterPoints(const std::vector<tPoint> &input_points);
 };

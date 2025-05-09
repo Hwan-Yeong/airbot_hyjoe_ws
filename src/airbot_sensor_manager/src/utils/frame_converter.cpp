@@ -9,11 +9,7 @@ FrameConverter::~FrameConverter()
 {
 }
 
-std::vector<tPoint> FrameConverter::transformTofSensor2RobotFrame(const std::vector<tPoint> &input_points,
-                                                                  bool isLeft,
-                                                                  double rotation_yaw,
-                                                                  double rotation_pitch,
-                                                                  tPoint translation)
+std::vector<tPoint> FrameConverter::transformTofSensor2RobotFrame(const std::vector<tPoint> &input_points, bool isLeft, double rotation_yaw, double rotation_pitch, tPoint translation)
 {
     std::vector<tPoint> points;
     tPoint p;
@@ -42,8 +38,7 @@ std::vector<tPoint> FrameConverter::transformTofSensor2RobotFrame(const std::vec
     return points;
 }
 
-std::vector<tPoint> FrameConverter::transformCameraSensor2RobotFrame(const std::vector<tPoint> &input_points,
-                                                                     tPoint translation)
+std::vector<tPoint> FrameConverter::transformCameraSensor2RobotFrame(const std::vector<tPoint> &input_points, tPoint translation)
 {
     std::vector<tPoint> points;
     tPoint p;
@@ -58,8 +53,7 @@ std::vector<tPoint> FrameConverter::transformCameraSensor2RobotFrame(const std::
     return points;
 }
 
-std::vector<tPoint> FrameConverter::transformCliffSensor2RobotFrame(robot_custom_msgs::msg::BottomIrData::SharedPtr msg,
-                                                                    std::vector<tPoint> &sensor_positions)
+std::vector<tPoint> FrameConverter::transformCliffSensor2RobotFrame(robot_custom_msgs::msg::BottomIrData::SharedPtr msg, std::vector<tPoint> &sensor_positions)
 {
     std::vector<tPoint> active_sensor_points;
 
@@ -73,24 +67,22 @@ std::vector<tPoint> FrameConverter::transformCliffSensor2RobotFrame(robot_custom
     return active_sensor_points;
 }
 
-std::vector<tPoint> FrameConverter::transformCollisionData2RobotFrame(robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg,
-                                                                      double offset_m)
+std::vector<tPoint> FrameConverter::transformCollisionData2RobotFrame(robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg, double offset_m)
 {
     std::vector<tPoint> points;
     if (msg->event_trigger) {
         tPoint collision_point;
-    
+
         collision_point.x = offset_m;
         collision_point.y = 0.0;
         collision_point.z = 0.0;
-    
+
         points.push_back(collision_point);
     }
     return points;
 }
 
-std::vector<tPoint> FrameConverter::transformRobot2GlobalFrame(const std::vector<tPoint> &input_points,
-                                                               tPose robot_pose)
+std::vector<tPoint> FrameConverter::transformRobot2GlobalFrame(const std::vector<tPoint> &input_points, tPose robot_pose)
 {
     std::vector<tPoint> global_points;
     tPoint global_point;

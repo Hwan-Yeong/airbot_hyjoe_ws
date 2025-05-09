@@ -43,154 +43,16 @@ void PointCloudTof::updateRobotPose(tPose &pose)
 
 void PointCloudTof::updateLeftSubCellIndexArray(std::vector<int> &left_sub_cell_idx_array)
 {
-    // =========== 사용자 입력 기반으로 사용할 8x8 마스킹 Mat 만들기 ===========
-    bool masked_mat[8][8] = {false};
-
-    ////
-    RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "==== Input left_sub_cell_idx_array ====");
-    for (int r = 0; r < 4; ++r) {
-        std::stringstream ss;
-        for (int c = 0; c < 4; ++c) {
-            ss << left_sub_cell_idx_array[r * 4 + c] << " ";
-        }
-        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "%s", ss.str().c_str());
-    }
-    ////
-
-    for (int r = 0; r < 4; ++r) {
-        for (int c = 0; c < 4; ++c) {
-            int val = left_sub_cell_idx_array[r * 4 + c];
-            int base_row = r * 2;
-            int base_col = c * 2;
-
-            switch (val)
-            {
-                case 0:
-                    masked_mat[base_row][base_col] = true;
-                    break;
-                case 1:
-                    masked_mat[base_row][base_col +1] = true;
-                    break;
-                case 2:
-                    masked_mat[base_row + 1][base_col] = true;
-                    break;
-                case 3:
-                    masked_mat[base_row + 1][base_col + 1] = true;
-                    break;
-                default:
-                    break;
-            }
-        }
-    }
-
-    ////
-    RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "==== Masked 8x8 Matrix ====");
-    for (int i = 0; i < 8; ++i) {
-        std::stringstream ss;
-        for (int j = 0; j < 8; ++j) {
-            ss << (masked_mat[i][j] ? "1 " : "0 ");
-        }
-        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "%s", ss.str().c_str());
-    }
-    ////
-
-    // =========== true인 거 기반으로 y_tan[4][4], z_tan[4][4] 만들기 ===========
-    std::vector<std::pair<int, int>> true_indices;
     left_y_tan_.clear();
     left_z_tan_.clear();
-
-    for (int i = 0; i < 8; ++i) {
-        for (int j = 0; j < 8; ++j) {
-            if (masked_mat[i][j]) {
-                true_indices.emplace_back(i, j);
-            }
-        }
-    }
-
-    if (true_indices.size() != 16) {
-        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "[Left] Expected 16 true values in mask, but got %zu", true_indices.size());
-    } else {
-        for (const auto& [i, j] : true_indices) {
-            left_y_tan_.emplace_back(std::tan(tof_bot_fov_ang_*((7 - 2*j)/16.0)*M_PI/180));
-            left_z_tan_.emplace_back(std::tan(tof_bot_fov_ang_*((7 - 2*i)/16.0)*M_PI/180));
-        }
-    }
+    updateSubCellIndexArray(left_sub_cell_idx_array, left_y_tan_, left_z_tan_);
 }
 
 void PointCloudTof::updateRightSubCellIndexArray(std::vector<int> &right_sub_cell_idx_array)
 {
-    // =========== 사용자 입력 기반으로 사용할 8x8 마스킹 Mat 만들기 ===========
-    bool masked_mat[8][8] = {false};
-
-    ////
-    RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "==== Input right_sub_cell_idx_array ====");
-    for (int r = 0; r < 4; ++r) {
-        std::stringstream ss;
-        for (int c = 0; c < 4; ++c) {
-            ss << right_sub_cell_idx_array[r * 4 + c] << " ";
-        }
-        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "%s", ss.str().c_str());
-    }
-    ////
-
-    for (int r = 0; r < 4; ++r) {
-        for (int c = 0; c < 4; ++c) {
-            int val = right_sub_cell_idx_array[r * 4 + c];
-            int base_row = r * 2;
-            int base_col = c * 2;
-
-            switch (val)
-            {
-                case 0:
-                    masked_mat[base_row][base_col] = true;
-                    break;
-                case 1:
-                    masked_mat[base_row][base_col +1] = true;
-                    break;
-                case 2:
-                    masked_mat[base_row + 1][base_col] = true;
-                    break;
-                case 3:
-                    masked_mat[base_row + 1][base_col + 1] = true;
-                    break;
-                default:
-                    break;
-            }
-        }
-    }
-
-    ////
-    RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "==== Masked 8x8 Matrix ====");
-    for (int i = 0; i < 8; ++i) {
-        std::stringstream ss;
-        for (int j = 0; j < 8; ++j) {
-            ss << (masked_mat[i][j] ? "1 " : "0 ");
-        }
-        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "%s", ss.str().c_str());
-    }
-    ////
-
-    // =========== true인 거 기반으로 y_tan[4][4], z_tan[4][4] 만들기 ===========
-    std::vector<std::pair<int, int>> true_indices;
     right_y_tan_.clear();
     right_z_tan_.clear();
-
-    for (int i = 0; i < 8; ++i) {
-        for (int j = 0; j < 8; ++j) {
-            if (masked_mat[i][j]) {
-                true_indices.emplace_back(i, j);
-            }
-        }
-    }
-
-    if (true_indices.size() != 16) {
-        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "[Right] Expected 16 true values in mask, but got %zu", true_indices.size());
-    } else {
-        for (const auto& [i, j] : true_indices) {
-            right_y_tan_.emplace_back(std::tan(tof_bot_fov_ang_*((7 - 2*j)/16.0)*M_PI/180));
-            right_z_tan_.emplace_back(std::tan(tof_bot_fov_ang_*((7 - 2*i)/16.0)*M_PI/180));
-        }
-    }
+    updateSubCellIndexArray(right_sub_cell_idx_array, right_y_tan_, right_z_tan_);
 }
 
 sensor_msgs::msg::PointCloud2 PointCloudTof::updateTopTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, double tilting_angle)
@@ -204,8 +66,7 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateTopTofPointCloudMsg(const rob
     std::vector<tPoint> points_on_robot_frame = {point_on_robot_frame};
 
     if (target_frame_ == "map") {
-        std::vector<tPoint> points_on_map_frame = frame_converter_.transformRobot2GlobalFrame(points_on_robot_frame,
-                                                                                               robot_pose_);
+        std::vector<tPoint> points_on_map_frame = frame_converter_.transformRobot2GlobalFrame(points_on_robot_frame, robot_pose_);
         return pointcloud_generator_.generatePointCloud2Message(points_on_map_frame, target_frame_);
     } else if (target_frame_ == "base_link") {
         return pointcloud_generator_.generatePointCloud2Message(points_on_robot_frame, target_frame_);
@@ -234,27 +95,25 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
         zero_dist_index = std::vector<bool>(16,false);
         multi_tof_points_on_sensor_frame = transformTofMsg2PointsOnSensorFrame(multi_tof_bot_left, false, TOF_SIDE::LEFT);
         multi_tof_points_on_robot_frame = frame_converter_.transformTofSensor2RobotFrame(multi_tof_points_on_sensor_frame,
-                                                                                          true,
-                                                                                          tof_bot_left_sensor_frame_yaw_ang_,
-                                                                                          tof_bot_left_sensor_frame_pitch_ang_,
-                                                                                          tof_bot_translation_);
+                                                                                         true,
+                                                                                         tof_bot_left_sensor_frame_yaw_ang_,
+                                                                                         tof_bot_left_sensor_frame_pitch_ang_,
+                                                                                         tof_bot_translation_);
         if (target_frame_ == "map") {
             multi_tof_points_on_map_frame
-                = frame_converter_.transformRobot2GlobalFrame(multi_tof_points_on_robot_frame,
-                                                               robot_pose_);
+                = frame_converter_.transformRobot2GlobalFrame(multi_tof_points_on_robot_frame, robot_pose_);
         }
         break;
     case TOF_SIDE::RIGHT:
         zero_dist_index = std::vector<bool>(16,false);
         multi_tof_points_on_sensor_frame = transformTofMsg2PointsOnSensorFrame(multi_tof_bot_right, false, TOF_SIDE::RIGHT);
         multi_tof_points_on_robot_frame = frame_converter_.transformTofSensor2RobotFrame(multi_tof_points_on_sensor_frame,
-                                                                                          false,
-                                                                                          tof_bot_right_sensor_frame_yaw_ang_,
-                                                                                          tof_bot_right_sensor_frame_pitch_ang_,
-                                                                                          tof_bot_translation_);
+                                                                                         false,
+                                                                                         tof_bot_right_sensor_frame_yaw_ang_,
+                                                                                         tof_bot_right_sensor_frame_pitch_ang_,
+                                                                                         tof_bot_translation_);
         if (target_frame_ == "map") {
-            multi_tof_points_on_map_frame = frame_converter_.transformRobot2GlobalFrame(multi_tof_points_on_robot_frame,
-                                                                                         robot_pose_);
+            multi_tof_points_on_map_frame = frame_converter_.transformRobot2GlobalFrame(multi_tof_points_on_robot_frame, robot_pose_);
         }
         break;
     case TOF_SIDE::BOTH:
@@ -262,24 +121,19 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
         multi_left_tof_points_on_sensor_frame = transformTofMsg2PointsOnSensorFrame(multi_tof_bot_left, false, TOF_SIDE::LEFT);
         multi_right_tof_points_on_sensor_frame = transformTofMsg2PointsOnSensorFrame(multi_tof_bot_right, true, TOF_SIDE::RIGHT);
         multi_left_tof_points_on_robot_frame = frame_converter_.transformTofSensor2RobotFrame(multi_left_tof_points_on_sensor_frame,
-                                                                                               true,
-                                                                                               tof_bot_left_sensor_frame_yaw_ang_,
-                                                                                               tof_bot_left_sensor_frame_pitch_ang_,
-                                                                                               tof_bot_translation_);
+                                                                                              true,
+                                                                                              tof_bot_left_sensor_frame_yaw_ang_,
+                                                                                              tof_bot_left_sensor_frame_pitch_ang_,
+                                                                                              tof_bot_translation_);
         multi_right_tof_points_on_robot_frame = frame_converter_.transformTofSensor2RobotFrame(multi_right_tof_points_on_sensor_frame,
-                                                                                                false,
-                                                                                                tof_bot_right_sensor_frame_yaw_ang_,
-                                                                                                tof_bot_right_sensor_frame_pitch_ang_,
-                                                                                                tof_bot_translation_);
-        multi_tof_points_on_robot_frame.insert(multi_tof_points_on_robot_frame.end(), 
-                                               multi_left_tof_points_on_robot_frame.begin(), 
-                                               multi_left_tof_points_on_robot_frame.end());
-        multi_tof_points_on_robot_frame.insert(multi_tof_points_on_robot_frame.end(), 
-                                               multi_right_tof_points_on_robot_frame.begin(), 
-                                               multi_right_tof_points_on_robot_frame.end());
+                                                                                               false,
+                                                                                               tof_bot_right_sensor_frame_yaw_ang_,
+                                                                                               tof_bot_right_sensor_frame_pitch_ang_,
+                                                                                               tof_bot_translation_);
+        multi_tof_points_on_robot_frame.insert(multi_tof_points_on_robot_frame.end(), multi_left_tof_points_on_robot_frame.begin(), multi_left_tof_points_on_robot_frame.end());
+        multi_tof_points_on_robot_frame.insert(multi_tof_points_on_robot_frame.end(), multi_right_tof_points_on_robot_frame.begin(), multi_right_tof_points_on_robot_frame.end());
         if (target_frame_ == "map") {
-            multi_tof_points_on_map_frame = frame_converter_.transformRobot2GlobalFrame(multi_tof_points_on_robot_frame,
-                                                                                         robot_pose_);
+            multi_tof_points_on_map_frame = frame_converter_.transformRobot2GlobalFrame(multi_tof_points_on_robot_frame, robot_pose_);
         }
         break;
     default:
@@ -292,24 +146,17 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
         if (target_frame_ == "map") {
             multi_tof_points_on_map_frame.erase(multi_tof_points_on_map_frame.begin(),
                                                 multi_tof_points_on_map_frame.begin() + start_index);
-            zero_dist_index.erase(zero_dist_index.begin(),
-                                  zero_dist_index.begin() + start_index);
-            if ((end_index - start_index) < static_cast<int>(multi_tof_points_on_map_frame.size())) {  
-                multi_tof_points_on_map_frame.erase(multi_tof_points_on_map_frame.begin() + (end_index - start_index), 
-                                                    multi_tof_points_on_map_frame.end());
-                zero_dist_index.erase(zero_dist_index.begin() + (end_index - start_index), 
-                                      zero_dist_index.end());
+            zero_dist_index.erase(zero_dist_index.begin(), zero_dist_index.begin() + start_index);
+            if ((end_index - start_index) < static_cast<int>(multi_tof_points_on_map_frame.size())) {
+                multi_tof_points_on_map_frame.erase(multi_tof_points_on_map_frame.begin() + (end_index - start_index), multi_tof_points_on_map_frame.end());
+                zero_dist_index.erase(zero_dist_index.begin() + (end_index - start_index), zero_dist_index.end());
             }
         } else if (target_frame_ == "base_link") {
-            multi_tof_points_on_robot_frame.erase(multi_tof_points_on_robot_frame.begin(),
-                                                  multi_tof_points_on_robot_frame.begin() + start_index);
-            zero_dist_index.erase(zero_dist_index.begin(),
-                                  zero_dist_index.begin() + start_index);
-            if ((end_index - start_index) < static_cast<int>(multi_tof_points_on_robot_frame.size())) {  
-                multi_tof_points_on_robot_frame.erase(multi_tof_points_on_robot_frame.begin() + (end_index - start_index), 
-                                                      multi_tof_points_on_robot_frame.end());
-                zero_dist_index.erase(zero_dist_index.begin() + (end_index - start_index), 
-                                      zero_dist_index.end());
+            multi_tof_points_on_robot_frame.erase(multi_tof_points_on_robot_frame.begin(), multi_tof_points_on_robot_frame.begin() + start_index);
+            zero_dist_index.erase(zero_dist_index.begin(), zero_dist_index.begin() + start_index);
+            if ((end_index - start_index) < static_cast<int>(multi_tof_points_on_robot_frame.size())) {
+                multi_tof_points_on_robot_frame.erase(multi_tof_points_on_robot_frame.begin() + (end_index - start_index), multi_tof_points_on_robot_frame.end());
+                zero_dist_index.erase(zero_dist_index.begin() + (end_index - start_index), zero_dist_index.end());
             }
         }
     }
@@ -323,6 +170,87 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
     } else {
         RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Select Wrong Target Frame: %s", target_frame_.c_str());
         return sensor_msgs::msg::PointCloud2();
+    }
+}
+
+void PointCloudTof::updateSubCellIndexArray(const std::vector<int> &sub_cell_idx_array, std::vector<double> &y_tan_out, std::vector<double> &z_tan_out)
+{
+    // =========== 사용자 입력 기반으로 사용할 8x8 마스킹 Mat 만들기 ===========
+    bool masked_mat[8][8] = {false};
+
+    //// Input 디버깅 출력
+    RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "==== Input sub_cell_idx_array ====");
+    for (int r = 0; r < 4; ++r) {
+        std::stringstream ss;
+        for (int c = 0; c < 4; ++c) {
+            ss << sub_cell_idx_array[r * 4 + c] << " ";
+        }
+        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "%s", ss.str().c_str());
+    }
+    ////
+
+    for (int r = 0; r < 4; ++r) {
+        for (int c = 0; c < 4; ++c) {
+            int val = sub_cell_idx_array[r * 4 + c];
+            int base_row = r * 2;
+            int base_col = c * 2;
+
+            switch (val)
+            {
+                case 0:
+                    masked_mat[base_row][base_col] = true;
+                    break;
+                case 1:
+                    masked_mat[base_row][base_col +1] = true;
+                    break;
+                case 2:
+                    masked_mat[base_row + 1][base_col] = true;
+                    break;
+                case 3:
+                    masked_mat[base_row + 1][base_col + 1] = true;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    //// Masked 행렬 디버깅 출력
+    RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "==== Masked 8x8 Matrix ====");
+    for (int i = 0; i < 8; ++i) {
+        std::stringstream ss;
+        for (int j = 0; j < 8; ++j) {
+            ss << (masked_mat[i][j] ? "1 " : "0 ");
+        }
+        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "%s", ss.str().c_str());
+    }
+    ////
+
+    // =========== true인 거 기반으로 y_tan[4][4], z_tan[4][4] 만들기 ===========
+    std::vector<std::pair<int, int>> true_indices;
+    y_tan_out.clear();
+    z_tan_out.clear();
+
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            if (masked_mat[i][j]) {
+                true_indices.emplace_back(i, j);
+            }
+        }
+    }
+
+    if (true_indices.size() != 16) {
+        RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"),
+            "Expected 16 true values in mask, but got %zu",
+            true_indices.size()
+        );
+    } else {
+        for (const auto& [i, j] : true_indices) {
+            double y = std::tan(tof_bot_fov_ang_*((7 - 2*j)/16.0)*M_PI/180);
+            double z = std::tan(tof_bot_fov_ang_*((7 - 2*i)/16.0)*M_PI/180);
+            y_tan_out.emplace_back(y);
+            z_tan_out.emplace_back(z);
+        }
     }
 }
 
