@@ -1,4 +1,4 @@
-#include "logger/camera_object_logger.hpp"
+#include "airbot_sensor_to_pointcloud/modules/camera/logging/camera_object_logger.hpp"
 
 CameraObjectLogger::CameraObjectLogger()
 {

@@ -19,11 +19,11 @@
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 #include <builtin_interfaces/msg/time.hpp>
-#include "airbot_sensor_to_pointcloud/tof/pointcloud_tof.hpp"
-#include "airbot_sensor_to_pointcloud/camera/pointcloud_camera.hpp"
-#include "airbot_sensor_to_pointcloud/cliff/pointcloud_cliff.hpp"
-#include "airbot_sensor_to_pointcloud/collision/pointcloud_collision.hpp"
-#include "logger/camera_object_logger.hpp"
+#include "airbot_sensor_to_pointcloud/modules/tof/pointcloud_tof.hpp"
+#include "airbot_sensor_to_pointcloud/modules/camera/pointcloud_camera.hpp"
+#include "airbot_sensor_to_pointcloud/modules/cliff/pointcloud_cliff.hpp"
+#include "airbot_sensor_to_pointcloud/modules/collision/pointcloud_collision.hpp"
+#include "airbot_sensor_to_pointcloud/modules/camera/logging/camera_object_logger.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 
 class SensorToPointcloud : public rclcpp::Node

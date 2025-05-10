@@ -1,4 +1,4 @@
-#include "airbot_sensor_to_pointcloud/sensor_to_pointcloud/sensor_to_pointcloud.hpp"
+#include "airbot_sensor_to_pointcloud/sensor_to_pointcloud_node.hpp"
 
 using namespace std::chrono_literals;
 

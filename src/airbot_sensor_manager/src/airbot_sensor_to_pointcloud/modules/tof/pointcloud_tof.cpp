@@ -1,4 +1,4 @@
-#include "airbot_sensor_to_pointcloud/tof/pointcloud_tof.hpp"
+#include "airbot_sensor_to_pointcloud/modules/tof/pointcloud_tof.hpp"
 
 #define ENABLE_TOF_8x8 false
 

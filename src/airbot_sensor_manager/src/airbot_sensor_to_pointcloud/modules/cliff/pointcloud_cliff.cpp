@@ -1,4 +1,4 @@
-#include "airbot_sensor_to_pointcloud/cliff/pointcloud_cliff.hpp"
+#include "airbot_sensor_to_pointcloud/modules/cliff/pointcloud_cliff.hpp"
 
 PointCloudCliff::PointCloudCliff(double distance_center_to_front_ir_sensor = 0.15,
                                  double angle_to_next_ir_sensor = 50)
