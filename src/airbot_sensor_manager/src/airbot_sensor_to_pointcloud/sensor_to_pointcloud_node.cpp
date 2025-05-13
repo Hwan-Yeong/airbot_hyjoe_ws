@@ -145,14 +145,16 @@ SensorToPointcloud::SensorToPointcloud()
                 "sensor_to_pointcloud/tof/multi/left/row_3", 10);
             pc_tof_left_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
                 "sensor_to_pointcloud/tof/multi/left/row_4", 10);
-            pc_tof_left_row5_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/left/row_5", 10);
-            pc_tof_left_row6_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/left/row_6", 10);
-            pc_tof_left_row7_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/left/row_7", 10);
-            pc_tof_left_row8_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/left/row_8", 10);
+            if (use_tof_8x8_) {
+                pc_tof_left_row5_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/left/row_5", 10);
+                pc_tof_left_row6_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/left/row_6", 10);
+                pc_tof_left_row7_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/left/row_7", 10);
+                pc_tof_left_row8_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/left/row_8", 10);
+            }
             pc_tof_right_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
                 "sensor_to_pointcloud/tof/multi/right/row_1", 10);
             pc_tof_right_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
@@ -161,14 +163,16 @@ SensorToPointcloud::SensorToPointcloud()
                 "sensor_to_pointcloud/tof/multi/right/row_3", 10);
             pc_tof_right_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
                 "sensor_to_pointcloud/tof/multi/right/row_4", 10);
-            pc_tof_right_row5_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/right/row_5", 10);
-            pc_tof_right_row6_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/right/row_6", 10);
-            pc_tof_right_row7_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/right/row_7", 10);
-            pc_tof_right_row8_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/right/row_8", 10);
+            if (use_tof_8x8_) {
+                pc_tof_right_row5_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/right/row_5", 10);
+                pc_tof_right_row6_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/right/row_6", 10);
+                pc_tof_right_row7_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/right/row_7", 10);
+                pc_tof_right_row8_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/right/row_8", 10);
+            }
         }
         RCLCPP_INFO(this->get_logger(), "Multi TOF Row init finished!");
     }
@@ -404,20 +408,24 @@ void SensorToPointcloud::publisherMonitor()
                 pc_tof_left_row2_msg = sensor_msgs::msg::PointCloud2(); //clear
                 pc_tof_left_row3_msg = sensor_msgs::msg::PointCloud2(); //clear
                 pc_tof_left_row4_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_left_row5_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_left_row6_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_left_row7_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_left_row8_msg = sensor_msgs::msg::PointCloud2(); //clear
+                if (use_tof_8x8_) {
+                    pc_tof_left_row5_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    pc_tof_left_row6_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    pc_tof_left_row7_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    pc_tof_left_row8_msg = sensor_msgs::msg::PointCloud2(); //clear
+                }
             }
             if (use_tof_right_) {
                 pc_tof_right_row1_msg = sensor_msgs::msg::PointCloud2(); //clear
                 pc_tof_right_row2_msg = sensor_msgs::msg::PointCloud2(); //clear
                 pc_tof_right_row3_msg = sensor_msgs::msg::PointCloud2(); //clear
                 pc_tof_right_row4_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_right_row5_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_right_row6_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_right_row7_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_right_row8_msg = sensor_msgs::msg::PointCloud2(); //clear
+                if (use_tof_8x8_) {
+                    pc_tof_right_row5_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    pc_tof_right_row6_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    pc_tof_right_row7_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    pc_tof_right_row8_msg = sensor_msgs::msg::PointCloud2(); //clear
+                }
             }
         }
     }
