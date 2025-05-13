@@ -4,6 +4,10 @@ import numpy as np
 from typing import List, Literal
 
 
+VIZ_LEFT = True
+VIZ_RIGHT = True
+
+
 class TPoint:
     def __init__(self, x=0.0, y=0.0, z=0.0):
         self.x = x
@@ -46,6 +50,7 @@ right_idx = [
 tof_fov_angle_deg = 45  # FOV 각도
 distances = [1.0] * 16  # 거리 고정 1m
 robot_radius = 0.19  # 로봇 반지름
+height_from_base_link = 0.05 # 바닥으로부터 로봇 중심까지의 높이
 
 yaw = 15.0
 pitch = -5.0
@@ -165,6 +170,7 @@ def rotate_origin_90_deg(p: TPoint):
 
 # ====== 박스 장애물 그리기 ======
 def draw_box_in_robot_frame(
+    ax,  # ← 추가: 적용할 subplot axis
     distance_from_origin: float,
     angle_deg_robot_frame: float,
     width: float,
@@ -173,41 +179,28 @@ def draw_box_in_robot_frame(
     label='Obstacle',
     color='gray'
 ):
-    """
-    박스 아랫변 중앙이 로봇 중심 기준 (distance, angle)에 있고,
-    그 아랫변에 수직으로 박스가 위로 세워진 형태로 회전시킴.
-    """
     theta = np.deg2rad(angle_deg_robot_frame)
 
-    # (1) 아랫변 중앙 좌표 (로봇 좌표계 기준)
     base_cx = (distance_from_origin + height) * np.cos(theta)
     base_cy = (distance_from_origin + height) * np.sin(theta)
 
-    # (2) 박스 좌하단 꼭짓점: 아랫변 중심에서
-    # 왼쪽으로 width/2, 위쪽으로 height
-    # local 기준에서 (-w/2, 0) → 좌하단, 방향은 박스 기준 수직 방향
-    angle_box = theta + np.pi / 2  # 박스가 세워져 있으므로 +90도
+    angle_box = theta + np.pi / 2
 
     dx_local = -width / 2
     dy_local = 0
 
-    # (3) local 좌표 회전 (박스 수직 방향 기준)
     dx_rot = dx_local * np.cos(angle_box) - dy_local * np.sin(angle_box)
     dy_rot = dx_local * np.sin(angle_box) + dy_local * np.cos(angle_box)
 
-    # (4) 로봇 좌표계 기준 좌하단 꼭짓점
     corner_rx = base_cx + dx_rot
     corner_ry = base_cy + dy_rot
 
-    # (5) +90도 시각화 좌표계 변환
     def rotate_90(x, y):
         return -y, x
 
     corner_x_plot, corner_y_plot = rotate_90(corner_rx, corner_ry)
-    base_cx_plot, base_cy_plot = rotate_90(base_cx, base_cy)
-    angle_plot = np.rad2deg(angle_box) + 90  # 시각화 기준 각도
+    angle_plot = np.rad2deg(angle_box) + 90
 
-    # (6) Rectangle 그리기
     rect = patches.Rectangle(
         (corner_x_plot, corner_y_plot),
         width,
@@ -219,61 +212,74 @@ def draw_box_in_robot_frame(
         alpha=alpha,
         label=label
     )
-    plt.gca().add_patch(rect)
+    ax.add_patch(rect)
 
+# ====== 사다리꼴 그리기 ======
+def draw_robot_body_trapezoid(ax, bottom_width: float, top_width: float, height: float, color='gray', alpha=1.0):
+    """
+    Side view (X-Z plane)에 로봇을 사다리꼴로 도식화.
+    - ax: 시각화할 matplotlib axis
+    - bottom_width: 밑변 길이 (양방향으로 절반씩 나감)
+    - top_width: 윗변 길이 (양방향으로 절반씩 나감)
+    - height: 높이 (위 방향, +Z)
+    """
 
+    offset = 0.024
+
+    # 좌하, 우하, 우상, 좌상 순서로 꼭짓점 정의
+    x0 = -bottom_width / 2
+    x1 = bottom_width / 2
+    x2 = top_width / 2
+    x3 = -top_width / 2
+
+    z0 = -offset
+    z1 = -offset
+    z2 = height-offset
+    z3 = height-offset
+
+    points = [(x0, z0), (x1, z1), (x2, z2), (x3, z3)]
+
+    polygon = patches.Polygon(points, closed=True, edgecolor='black', facecolor=color, alpha=alpha)
+    ax.add_patch(polygon)
 
 # ========== [6] 시각화 ==========
-def visualize_fov(left_points, right_points, origin_left: TPoint, origin_right: TPoint, viz_left, viz_right):
-    # 센서 기준 위치도 회전
+def visualize_fov_combined_view(
+    left_points, right_points,
+    origin_left: TPoint, origin_right: TPoint,
+    viz_left=True, viz_right=True
+):
+    fig, axes = plt.subplots(2, 1, figsize=(8, 12))
+    fig.suptitle("Sensor FOV Visualization (Top View & Side View)", fontsize=16, fontweight='bold')
+
+    # ======================== Top View (X-Y) ========================
+    ax_top = axes[0]
     origin_left_xy = rotate_origin_90_deg(origin_left)
     origin_right_xy = rotate_origin_90_deg(origin_right)
-
-    # 포인트들도 회전
     left_points_xy = rotate_points_90_deg(left_points)
     right_points_xy = rotate_points_90_deg(right_points)
 
-    plt.figure(figsize=(8, 8))
-    plt.axis('equal')
-    plt.grid(True)
-    plt.title("Sensor FOV Visualization (+90° Rotated)")
+    ax_top.axis('equal')
+    ax_top.grid(True)
+    ax_top.set_title("Top View (X-Y Plane)")
+    ax_top.set_xlabel("X (Forward)")
+    ax_top.set_ylabel("Y (Left)")
 
-    # 로봇 중심점
-    plt.plot(0, 0, 'ko', markersize=8, label="Robot")
-
-    # 로봇 바디
+    ax_top.plot(0, 0, 'ko', markersize=8, label="Robot")
     circle = plt.Circle((0, 0), robot_radius, color='gray', fill=False, linestyle='-', linewidth=1.5, label="R = 0.19m")
-    plt.gca().add_patch(circle)
+    ax_top.add_patch(circle)
 
-    # 장애물
-    draw_box_in_robot_frame(
-        distance_from_origin = 0.4,
-        angle_deg_robot_frame = -15,
-        width=0.6,
-        height=0.2,
-        label="Obstacle",
-        color='gray'
-    )
-    draw_box_in_robot_frame(
-        distance_from_origin = 0.4,
-        angle_deg_robot_frame = 15,
-        width=0.6,
-        height=0.2,
-        label="Obstacle",
-        color='blue'
-    )
+    draw_box_in_robot_frame(ax_top, 0.4, -15, 0.6, 0.2, label="Obstacle", color='gray')
+    draw_box_in_robot_frame(ax_top, 0.4, 15, 0.6, 0.2, label="Obstacle", color='blue')
 
-    if viz_left :
-        # 왼쪽 센서 FOV
+    if viz_left:
         for p in left_points_xy:
-            plt.plot([origin_left_xy[0], p[0]], [origin_left_xy[1], p[1]], 'b--', alpha=0.6)
-            plt.plot(p[0], p[1], 'bo')
+            ax_top.plot([origin_left_xy[0], p[0]], [origin_left_xy[1], p[1]], 'b--', alpha=0.6)
+            ax_top.plot(p[0], p[1], 'bo')
 
-    if viz_right :
-        # 오른쪽 센서 FOV
+    if viz_right:
         for p in right_points_xy:
-            plt.plot([origin_right_xy[0], p[0]], [origin_right_xy[1], p[1]], 'r--', alpha=0.6)
-            plt.plot(p[0], p[1], 'ro')
+            ax_top.plot([origin_right_xy[0], p[0]], [origin_right_xy[1], p[1]], 'r--', alpha=0.6)
+            ax_top.plot(p[0], p[1], 'ro')
 
     closest_point = find_closest_intersection(
         TPoint(0, 0),
@@ -285,12 +291,12 @@ def visualize_fov(left_points, right_points, origin_left: TPoint, origin_right: 
 
     if closest_point:
         dist = np.sqrt(closest_point.x**2 + closest_point.y**2)
-        plt.plot(closest_point.x, closest_point.y, 'ro', markersize=10, color='green')
-        plt.text(
+        ax_top.plot(closest_point.x, closest_point.y, 'o', markersize=10, color='green')
+        ax_top.text(
             0.95, 0.05,
-            f"Closest Intersection\nDist = {dist:.3f} m",
-            transform=plt.gca().transAxes,
-            fontsize=15,
+            f"Closest Intersection\nDist from base_link = {dist:.3f} m",
+            transform=ax_top.transAxes,
+            fontsize=13,
             fontweight='bold',
             color='green',
             ha='right',
@@ -298,13 +304,83 @@ def visualize_fov(left_points, right_points, origin_left: TPoint, origin_right: 
             bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.3')
         )
 
-    plt.legend()
-    plt.xlabel("X (Up)")
-    plt.ylabel("Y (Left)")
-    # plt.xlim(-2, 2)
-    # plt.ylim(-2, 2)
-    plt.show()
+    ax_top.legend()
 
+    # ======================== Side View (X-Z) ========================
+    ax_side = axes[1]
+    ax_side.axis('equal')
+    ax_side.grid(True)
+    ax_side.set_title("Side View (X-Z Plane)")
+    ax_side.set_xlabel("X (Forward)")
+    ax_side.set_ylabel("Z (Up)")
+    ax_side.axhline(y=-height_from_base_link, color='black', linewidth=2.0, linestyle='-')
+    ax_side.text(
+        -0.1, -height_from_base_link-0.05,
+        "Ground",
+        # f"Ground\nHeight: {height_from_base_link:.3f} m",
+        fontsize=13,
+        fontweight='bold',
+    )
+    ax_side.plot(0, 0, 'ko', markersize=8, label="Robot")
+
+    # 사다리꼴 로봇 바디
+    draw_robot_body_trapezoid(
+        ax_side,
+        bottom_width=robot_radius*2-0.05,
+        top_width=robot_radius*2,
+        height=0.110,
+        color='lightgray',
+        alpha=1.0
+    )
+    circle = plt.Circle((0, 0), height_from_base_link, color='gray', fill=False, linestyle='-', linewidth=1.5)
+    ax_side.add_patch(circle)
+
+    if viz_left:
+        for pt in left_points:
+            ax_side.plot([origin_left.x, pt.x], [origin_left.z, pt.z], 'b--', alpha=0.6)
+            ax_side.plot(pt.x, pt.z, 'bo')
+
+    if viz_right:
+        for pt in right_points:
+            ax_side.plot([origin_right.x, pt.x], [origin_right.z, pt.z], 'r--', alpha=0.6)
+            ax_side.plot(pt.x, pt.z, 'ro')
+
+    ground_z = -height_from_base_link
+    ground_hits = []
+
+    if viz_left:
+        for pt in left_points:
+            inter = compute_intersection_with_ground(origin_left, pt, ground_z)
+            if inter:
+                ground_hits.append(inter)
+
+    if viz_right:
+        for pt in right_points:
+            inter = compute_intersection_with_ground(origin_right, pt, ground_z)
+            if inter:
+                ground_hits.append(inter)
+
+    if ground_hits:
+        # 가장 가까운 X값 기준으로 정렬
+        ground_hits.sort(key=lambda p: p.x)
+        closest = ground_hits[0]
+        ax_side.plot(closest.x, closest.z, 'o', color='green', markersize=10)
+        ax_side.text(
+            0.05, 0.05,
+            f"Closest Intersection\nDist from base_link = {closest.x:.2f} m",
+            transform=ax_side.transAxes,
+            fontsize=13,
+            fontweight='bold',
+            color='green',
+            ha='left',
+            va='bottom',
+            bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.3')
+        )
+
+    ax_side.legend()
+
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.show()
 
 # ========== 교점찾기 ===========
 def compute_intersection(p1, p2, p3, p4):
@@ -338,6 +414,19 @@ def find_closest_intersection(origin: TPoint, left_origin: TPoint, left_points: 
     intersections.sort(key=lambda x: x[0])
     return intersections[0][1]  # closest TPoint
 
+def compute_intersection_with_ground(p1: TPoint, p2: TPoint, ground_z: float):
+    """
+    (p1, p2) 직선과 z=ground_z 평면의 교점 계산
+    """
+    if abs(p2.z - p1.z) < 1e-6:
+        return None  # 평행
+    t = (ground_z - p1.z) / (p2.z - p1.z)
+    if not (0.0 <= t <= 1.0):
+        return None  # 선분 범위 벗어남
+    x = p1.x + t * (p2.x - p1.x)
+    z = ground_z
+    return TPoint(x, 0.0, z)
+
 # ========== 실행 ==========
 
 # LEFT
@@ -367,11 +456,8 @@ right_robot_points = transform_tof_sensor_to_robot_frame(
 )
 
 # 시각화
-# visualize_fov(left_sensor_points, right_sensor_points,
-#               TPoint(x=0.0, y=0.0), TPoint(x=0.0, y=-0.0),
-#               False, True
-# )
-visualize_fov(left_robot_points, right_robot_points,
-              TPoint(x=0.145, y=0.076), TPoint(x=0.145, y=-0.076),
-              True, True
+visualize_fov_combined_view(left_robot_points, right_robot_points,
+              TPoint(x=0.145, y=0.076, z=0.03),
+              TPoint(x=0.145, y=-0.076, z=0.03),
+              viz_left=VIZ_LEFT, viz_right=VIZ_RIGHT
 )
