@@ -144,8 +144,46 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
     }
 
     if (isShowRow) {
-        int start_index = static_cast<int>(row) * 4;
-        int end_index = start_index + 4;
+        int start_index;
+        int end_index;
+
+        if (!use_tof_8x8_) {
+            start_index = static_cast<int>(row) * 4;
+            end_index = start_index + 4;
+        } else {
+            switch(row)
+            {
+            case ROW_NUMBER::FIRST:
+                start_index = 0;
+                end_index = 4;
+                break;
+            case ROW_NUMBER::THIRD:
+                start_index = 4;
+                end_index = 8;
+                break;
+            case ROW_NUMBER::FIFTH:
+                start_index = 8;
+                end_index = 10;
+                break;
+            case ROW_NUMBER::SIXTH:
+                start_index = 10;
+                end_index = 12;
+                break;
+            case ROW_NUMBER::SEVENTH:
+                start_index = 12;
+                end_index = 14;
+                break;
+            case ROW_NUMBER::EIGHTH:
+                start_index = 14;
+                end_index = 16;
+                break;
+            default:
+                start_index = 0;
+                end_index = 0;
+                break;
+            }
+        }
+
         if (target_frame_ == "map") {
             multi_tof_points_on_map_frame.erase(multi_tof_points_on_map_frame.begin(),
                                                 multi_tof_points_on_map_frame.begin() + start_index);
@@ -193,6 +231,21 @@ void PointCloudTof::updateSubCellIndexArray(const std::vector<int> &sub_cell_idx
         }
         ////
 
+        for (int idx : sub_cell_idx_array) {
+            if (idx >= 0 && idx <64) {
+                int row = idx / 8;
+                int col = idx % 8;
+                masked_mat[row][col] = true;
+            } else {
+                RCLCPP_WARN(rclcpp::get_logger("PointCloudTof"),
+                    "Each value in sub_cell_idx_array must be between 0 and 63. Invalid input idx: %d",
+                    idx
+                );
+            }
+        }
+
+        /*
+        sub_index 개념일 때 사용...
         for (int r = 0; r < 4; ++r) {
             for (int c = 0; c < 4; ++c) {
                 int val = sub_cell_idx_array[r * 4 + c];
@@ -218,6 +271,7 @@ void PointCloudTof::updateSubCellIndexArray(const std::vector<int> &sub_cell_idx
                 }
             }
         }
+        */
 
         //// Masked 행렬 로깅
         RCLCPP_INFO(rclcpp::get_logger("PointCloudTof"), "==== Masked 8x8 Matrix ====");
@@ -230,7 +284,7 @@ void PointCloudTof::updateSubCellIndexArray(const std::vector<int> &sub_cell_idx
         }
         ////
 
-        // =========== true인 거 기반으로 y_tan[4][4], z_tan[4][4] 만들기 ===========
+        // =========== true인 거 기반으로 y_tan, z_tan 만들기 ===========
         std::vector<std::pair<int, int>> true_indices;
         y_tan_out.clear();
         z_tan_out.clear();
@@ -272,38 +326,33 @@ std::vector<tPoint> PointCloudTof::transformTofMsg2PointsOnSensorFrame(std::vect
 {
     std::vector<tPoint> points;
 
-    constexpr int ROWS = 4;
-    constexpr int COLS = 4;
+    constexpr int INDEX_SIZE = 16;
 
-    for (int row = 0; row < ROWS; ++row) {
-        for (int col = 0; col < COLS; ++col) {
-            int index = row * COLS + col;
-
-            if (!isBothSide) {
-                if (input_tof_dist[index] > 0.001) { // 0값 필터링을 위한 인덱스 저장
-                    zero_dist_index[index] = false;
-                } else {
-                    zero_dist_index[index] = true;
-                }
+    for (int index = 0; index < INDEX_SIZE; ++index) {
+        if (!isBothSide) {
+            if (input_tof_dist[index] > 0.001) { // 0값 필터링을 위한 인덱스 저장
+                zero_dist_index[index] = false;
             } else {
-                if (input_tof_dist[index] > 0.001) { // 0값 필터링을 위한 인덱스 저장
-                    zero_dist_index[index+16] = false;
-                } else {
-                    zero_dist_index[index+16] = true;
-                }
+                zero_dist_index[index] = true;
             }
-
-            tPoint p;
-            p.x = input_tof_dist[index];
-            if (side == TOF_SIDE::LEFT) {
-                p.y = input_tof_dist[index] * left_y_tan_[(row * ROWS) + col];
-                p.z = input_tof_dist[index] * left_z_tan_[(row * ROWS) + col];
+        } else {
+            if (input_tof_dist[index] > 0.001) { // 0값 필터링을 위한 인덱스 저장
+                zero_dist_index[index+16] = false;
             } else {
-                p.y = input_tof_dist[index] * right_y_tan_[(row * ROWS) + col];
-                p.z = input_tof_dist[index] * right_z_tan_[(row * ROWS) + col];
+                zero_dist_index[index+16] = true;
             }
-            points.push_back(p);
         }
+
+        tPoint p;
+        p.x = input_tof_dist[index];
+        if (side == TOF_SIDE::LEFT) {
+            p.y = p.x * left_y_tan_[index];
+            p.z = p.x * left_z_tan_[index];
+        } else {
+            p.y = p.x * right_y_tan_[index];
+            p.z = p.x * right_z_tan_[index];
+        }
+        points.push_back(p);
     }
 
     return points;

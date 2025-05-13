@@ -19,7 +19,11 @@ enum class ROW_NUMBER
     FIRST,
     SECOND,
     THIRD,
-    FOURTH
+    FOURTH,
+    FIFTH,
+    SIXTH,
+    SEVENTH,
+    EIGHTH
 };
 
 class FrameConverter
