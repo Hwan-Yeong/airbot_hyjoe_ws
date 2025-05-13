@@ -40,11 +40,11 @@ airbot_sensor_to_pointcloud:
       publish_rate_ms: 100
       pointcloud_resolution: 0.05
       class_id_confidence_th: # 형식: "class id: confidence score"
-        - "0: 50" #cable
-        - "1: 75" #carpet
-        - "2: 60" #clothes
+        - "0: 0" #cable  #50
+        - "1: 0" #carpet  #75
+        - "2: 0" #clothes  #60
         # - "5: 80" #obstacle 미사용
-        - "6: 30" #poop
+        - "6: 0" #poop  #30
         # - "8: 80" #threshold 미사용
       object_direction: true  # 정방향(CCW+):True, 역방향(CW+):False
       object_max_distance_m: 1.5 # 최대 장애물 거리 (해당 거리 이내의 장애물 정보만 처리)
