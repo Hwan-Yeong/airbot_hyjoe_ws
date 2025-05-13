@@ -147,12 +147,12 @@ void ErrorMonitorNode::errorMonitor()
         && (publish_cnt_low_battery_error_ >= publish_cnt_low_battery_error_rate_)) {
         bool low_battery_error = this->runMonitor<LowBatteryErrorMonitor>(std::make_pair(battery_data, robot_state));
         if (low_battery_error) {
-            RCLCPP_INFO(this->get_logger(), "low_battery_error : %s", low_battery_error ? "true" : "false");
-            error_msg.data = true;
-            low_battery_error_pub_->publish(error_msg);
+            // RCLCPP_INFO(this->get_logger(), "low_battery_error : %s", low_battery_error ? "true" : "false");
+            // error_msg.data = true;
+            // low_battery_error_pub_->publish(error_msg);
         } else {
-            error_msg.data = false;
-            low_battery_error_pub_->publish(error_msg);
+            // error_msg.data = false;
+            // low_battery_error_pub_->publish(error_msg);
         }
         publish_cnt_low_battery_error_ = 0;
         update_battery_status_low_battery = false;
@@ -178,7 +178,7 @@ void ErrorMonitorNode::errorMonitor()
         && (publish_cnt_battery_discharge_error_ >= publish_cnt_battery_discharge_error_rate_)) {
         bool battery_discharge_error = this->runMonitor<BatteryDischargingErrorMonitor>(std::make_pair(battery_data, robot_state));
         if (battery_discharge_error) {
-            RCLCPP_INFO(this->get_logger(), "battery_discharge_error : %s", battery_discharge_error ? "true" : "false");
+            // RCLCPP_INFO(this->get_logger(), "battery_discharge_error : %s", battery_discharge_error ? "true" : "false");
             error_msg.data = true;
             battery_discharge_error_pub_->publish(error_msg);
         } else {
