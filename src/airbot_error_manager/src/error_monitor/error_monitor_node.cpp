@@ -148,11 +148,11 @@ void ErrorMonitorNode::errorMonitor()
         bool low_battery_error = this->runMonitor<LowBatteryErrorMonitor>(std::make_pair(battery_data, robot_state));
         if (low_battery_error) {
             // RCLCPP_INFO(this->get_logger(), "low_battery_error : %s", low_battery_error ? "true" : "false");
-            // error_msg.data = true;
-            // low_battery_error_pub_->publish(error_msg);
+            error_msg.data = true;
+            low_battery_error_pub_->publish(error_msg);
         } else {
-            // error_msg.data = false;
-            // low_battery_error_pub_->publish(error_msg);
+            error_msg.data = false;
+            low_battery_error_pub_->publish(error_msg);
         }
         publish_cnt_low_battery_error_ = 0;
         update_battery_status_low_battery = false;
