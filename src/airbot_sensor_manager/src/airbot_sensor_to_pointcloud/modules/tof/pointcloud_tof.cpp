@@ -151,42 +151,8 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
             start_index = static_cast<int>(row) * 4;
             end_index = start_index + 4;
         } else {
-            if (input_index == -1) {
-                switch(row)
-                {
-                case ROW_NUMBER::FIRST:
-                    start_index = 0;
-                    end_index = 4;
-                    break;
-                case ROW_NUMBER::THIRD:
-                    start_index = 4;
-                    end_index = 8;
-                    break;
-                case ROW_NUMBER::FIFTH:
-                    start_index = 8;
-                    end_index = 10;
-                    break;
-                case ROW_NUMBER::SIXTH:
-                    start_index = 10;
-                    end_index = 12;
-                    break;
-                case ROW_NUMBER::SEVENTH:
-                    start_index = 12;
-                    end_index = 14;
-                    break;
-                case ROW_NUMBER::EIGHTH:
-                    start_index = 14;
-                    end_index = 16;
-                    break;
-                default:
-                    start_index = 0;
-                    end_index = 0;
-                    break;
-                }
-            } else {
-                start_index = input_index;
-                end_index = input_index + 1;
-            }
+            start_index = input_index;
+            end_index = input_index + 1;
         }
 
         if (target_frame_ == "map") {
@@ -217,6 +183,68 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
         RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Select Wrong Target Frame: %s", target_frame_.c_str());
         return sensor_msgs::msg::PointCloud2();
     }
+}
+
+std::vector<sensor_msgs::msg::PointCloud2> PointCloudTof::generateAllBotTofPointCloudMsgs(const robot_custom_msgs::msg::TofData::SharedPtr &msg, TOF_SIDE side, const tTofPitchAngle &pitchAngle)
+{
+    tof_bot_left_sensor_frame_pitch_ang_ = pitchAngle.bot_left;
+    tof_bot_right_sensor_frame_pitch_ang_ = pitchAngle.bot_right;
+
+    std::vector<double> tof_dists = (side == TOF_SIDE::LEFT)
+                                        ? std::vector<double>(msg->bot_left.begin(), msg->bot_left.end())
+                                        : std::vector<double>(msg->bot_right.begin(), msg->bot_right.end());
+
+    std::vector<bool> full_zero_dist_index(tof_dists.size(), false);
+
+    std::vector<tPoint> sensor_pts;
+    constexpr int INDEX_SIZE = 16;
+
+    for (int i = 0; i < INDEX_SIZE; ++i) {
+        double dist = tof_dists[i];
+        bool is_zero = dist <= 0.001;
+        full_zero_dist_index[i] = is_zero;
+
+        tPoint p;
+        p.x = dist;
+        if (side == TOF_SIDE::LEFT) {
+            p.y = dist * left_y_tan_[i];
+            p.z = dist * left_z_tan_[i];
+        } else {
+            p.y = dist * right_y_tan_[i];
+            p.z = dist * right_z_tan_[i];
+        }
+        sensor_pts.push_back(p);
+    }
+
+    std::vector<tPoint> robot_pts = frame_converter_.transformTofSensor2RobotFrame(
+        sensor_pts,
+        side == TOF_SIDE::LEFT,
+        side == TOF_SIDE::LEFT ? tof_bot_left_sensor_frame_yaw_ang_ : tof_bot_right_sensor_frame_yaw_ang_,
+        side == TOF_SIDE::LEFT ? tof_bot_left_sensor_frame_pitch_ang_ : tof_bot_right_sensor_frame_pitch_ang_,
+        tof_bot_translation_);
+
+    std::vector<tPoint> global_pts = (target_frame_ == "map")
+        ? frame_converter_.transformRobot2GlobalFrame(robot_pts, robot_pose_)
+        : robot_pts;
+
+    std::vector<sensor_msgs::msg::PointCloud2> result_msgs;
+    const size_t step = use_tof_8x8_ ? 1 : 4;
+    const size_t count = global_pts.size();
+
+    for (size_t i = 0; i < count; i += step) {
+        auto sliced_points = std::vector<tPoint>(global_pts.begin() + i, global_pts.begin() + std::min(i + step, count));
+        std::vector<bool> sliced_zero_mask(full_zero_dist_index.begin() + i, full_zero_dist_index.begin() + std::min(i + step, count));
+
+        std::vector<tPoint> filtered;
+        for (size_t j = 0; j < sliced_zero_mask.size(); ++j) {
+            if (!sliced_zero_mask[j]) {
+                filtered.push_back(sliced_points[j]);
+            }
+        }
+        result_msgs.push_back(pointcloud_generator_.generatePointCloud2Message(filtered, target_frame_));
+    }
+
+    return result_msgs;
 }
 
 void PointCloudTof::updateSubCellIndexArray(const std::vector<int> &sub_cell_idx_array, std::vector<double> &y_tan_out, std::vector<double> &z_tan_out)
