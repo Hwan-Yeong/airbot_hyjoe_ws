@@ -35,9 +35,9 @@ class TofDataLogger(Node):
                      + [f'Left[{i}]' for i in self.left_indices] \
                      + [f'Right[{i}]' for i in self.right_indices]
             writer.writerow(header)
-            writer.writerow(['MIN'] + [''] * (len(self.left_indices) + len(self.right_indices)))
-            writer.writerow(['MAX'] + [''] * (len(self.left_indices) + len(self.right_indices)))
-            writer.writerow(['Diff_MIN_MAX'] + [''] * (len(self.left_indices) + len(self.right_indices)))
+            # writer.writerow(['MIN'] + [''] * (len(self.left_indices) + len(self.right_indices)))
+            # writer.writerow(['MAX'] + [''] * (len(self.left_indices) + len(self.right_indices)))
+            # writer.writerow(['Diff_MIN_MAX'] + [''] * (len(self.left_indices) + len(self.right_indices)))
 
     def callback(self, msg: TofData):
         if self.start_stamp is None:
@@ -59,9 +59,9 @@ class TofDataLogger(Node):
             left_cols = list(map(list, zip(*[r[1:1+len(self.left_indices)] for r in self.logged_data])))
             right_cols = list(map(list, zip(*[r[1+len(self.left_indices):] for r in self.logged_data])))
 
-            min_vals = [round(min(col), 3) for col in left_cols + right_cols]
-            max_vals = [round(max(col), 3) for col in left_cols + right_cols]
-            diff_vals = [round(abs(max_v - min_v), 3) for min_v, max_v in zip(min_vals, max_vals)]
+            # min_vals = [round(min(col), 3) for col in left_cols + right_cols]
+            # max_vals = [round(max(col), 3) for col in left_cols + right_cols]
+            # diff_vals = [round(abs(max_v - min_v), 3) for min_v, max_v in zip(min_vals, max_vals)]
 
             with open(self.file_path, 'w', newline='') as f:
                 writer = csv.writer(f, delimiter='\t')
@@ -69,9 +69,9 @@ class TofDataLogger(Node):
                          + [f'Left[{i}]' for i in self.left_indices] \
                          + [f'Right[{i}]' for i in self.right_indices]
                 writer.writerow(header)
-                writer.writerow(['MIN'] + min_vals)
-                writer.writerow(['MAX'] + max_vals)
-                writer.writerow(['Diff_MIN_MAX'] + diff_vals)
+                # writer.writerow(['MIN'] + min_vals)
+                # writer.writerow(['MAX'] + max_vals)
+                # writer.writerow(['Diff_MIN_MAX'] + diff_vals)
                 writer.writerows(self.logged_data)
 
         # 종료 조건 체크
