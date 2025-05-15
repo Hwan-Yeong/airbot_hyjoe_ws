@@ -138,17 +138,17 @@ SensorToPointcloud::SensorToPointcloud()
             "sensor_to_pointcloud/tof/multi", 10);
         RCLCPP_INFO(this->get_logger(), "1D/Multi TOF init finished!");
         if (use_tof_row_) {
+            int tof_cnt = 0;
             if (use_tof_8x8_) {
                 for (auto index : mtof_left_sub_cell_idx_array_) {
-                    std::string idx_string = std::to_string(index);
-                    std::string topic_name = "sensor_to_pointcloud/tof/multi/left/idx_" + idx_string;
-                    pc_8x8_tof_left_pub_map_[index] = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    std::string topic_name = "sensor_to_pointcloud/tof/multi/left/idx_" + std::to_string(index);
+                    pc_8x8_tof_left_pub_map_[tof_cnt++] = this->create_publisher<sensor_msgs::msg::PointCloud2>(
                         topic_name, 10);
                 }
+                tof_cnt = 0;
                 for (auto index : mtof_right_sub_cell_idx_array_) {
-                    std::string idx_string = std::to_string(index);
-                    std::string topic_name = "sensor_to_pointcloud/tof/multi/right/idx_" + idx_string;
-                    pc_8x8_tof_right_pub_map_[index] = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    std::string topic_name = "sensor_to_pointcloud/tof/multi/right/idx_" + std::to_string(index);
+                    pc_8x8_tof_right_pub_map_[tof_cnt++] = this->create_publisher<sensor_msgs::msg::PointCloud2>(
                         topic_name, 10);
                 }
             } else {
@@ -464,8 +464,8 @@ void SensorToPointcloud::publisherMonitor()
             if (publish_cnt_row_tof_ >= publish_rate_row_tof_) {
                 if (use_tof_left_) {
                     if (use_tof_8x8_) {
-                        for (auto index : mtof_left_sub_cell_idx_array_) {
-                            pc_8x8_tof_left_pub_map_[index]->publish(pc_8x8_tof_left_msg_map_[index]);
+                        for (int i=0; i<mtof_left_sub_cell_idx_array_.size(); i++) {
+                            pc_8x8_tof_left_pub_map_[i]->publish(pc_8x8_tof_left_msg_map_[i]);
                         }
                     } else {
                         pc_tof_left_row1_pub_->publish(pc_tof_left_row1_msg);
@@ -476,8 +476,8 @@ void SensorToPointcloud::publisherMonitor()
                 }
                 if (use_tof_right_) {
                     if (use_tof_8x8_) {
-                        for (auto index : mtof_right_sub_cell_idx_array_) {
-                            pc_8x8_tof_right_pub_map_[index]->publish(pc_8x8_tof_right_msg_map_[index]);
+                        for (int i=0; i<mtof_right_sub_cell_idx_array_.size(); i++) {
+                            pc_8x8_tof_right_pub_map_[i]->publish(pc_8x8_tof_right_msg_map_[i]);
                         }
                     } else {
                         pc_tof_right_row1_pub_->publish(pc_tof_right_row1_msg);
