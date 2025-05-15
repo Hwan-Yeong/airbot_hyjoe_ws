@@ -23,7 +23,8 @@ enum class ROW_NUMBER
     FIFTH,
     SIXTH,
     SEVENTH,
-    EIGHTH
+    EIGHTH,
+    NONE
 };
 
 class FrameConverter

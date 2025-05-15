@@ -32,7 +32,7 @@ public:
     void updateLeftSubCellIndexArray(std::vector<int> &left_sub_cell_idx_array);
     void updateRightSubCellIndexArray(std::vector<int> &right_sub_cell_idx_array);
     sensor_msgs::msg::PointCloud2 updateTopTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, double tilting_angle);
-    sensor_msgs::msg::PointCloud2 updateBotTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, tTofPitchAngle pitchAngle, bool isShowRow = false, ROW_NUMBER row = ROW_NUMBER::FIRST);
+    sensor_msgs::msg::PointCloud2 updateBotTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, tTofPitchAngle pitchAngle, bool isShowRow = false, ROW_NUMBER row = ROW_NUMBER::FIRST, int input_index = -1);
 
 private:
     FrameConverter frame_converter_;

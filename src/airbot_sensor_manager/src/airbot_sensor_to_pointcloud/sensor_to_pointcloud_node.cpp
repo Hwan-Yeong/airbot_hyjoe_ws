@@ -137,41 +137,36 @@ SensorToPointcloud::SensorToPointcloud()
             "sensor_to_pointcloud/tof/multi", 10);
         RCLCPP_INFO(this->get_logger(), "1D/Multi TOF init finished!");
         if (use_tof_row_) {
-            pc_tof_left_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/left/row_1", 10);
-            pc_tof_left_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/left/row_2", 10);
-            pc_tof_left_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/left/row_3", 10);
-            pc_tof_left_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/left/row_4", 10);
             if (use_tof_8x8_) {
-                pc_tof_left_row5_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                    "sensor_to_pointcloud/tof/multi/left/row_5", 10);
-                pc_tof_left_row6_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                    "sensor_to_pointcloud/tof/multi/left/row_6", 10);
-                pc_tof_left_row7_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                    "sensor_to_pointcloud/tof/multi/left/row_7", 10);
-                pc_tof_left_row8_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                    "sensor_to_pointcloud/tof/multi/left/row_8", 10);
-            }
-            pc_tof_right_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/right/row_1", 10);
-            pc_tof_right_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/right/row_2", 10);
-            pc_tof_right_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/right/row_3", 10);
-            pc_tof_right_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                "sensor_to_pointcloud/tof/multi/right/row_4", 10);
-            if (use_tof_8x8_) {
-                pc_tof_right_row5_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                    "sensor_to_pointcloud/tof/multi/right/row_5", 10);
-                pc_tof_right_row6_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                    "sensor_to_pointcloud/tof/multi/right/row_6", 10);
-                pc_tof_right_row7_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                    "sensor_to_pointcloud/tof/multi/right/row_7", 10);
-                pc_tof_right_row8_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-                    "sensor_to_pointcloud/tof/multi/right/row_8", 10);
+                for (auto index : mtof_left_sub_cell_idx_array_) {
+                    std::string idx_string = std::to_string(index);
+                    std::string topic_name = "sensor_to_pointcloud/tof/multi/left/idx_" + idx_string;
+                    pc_8x8_tof_left_pub_map_[index] = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                        topic_name, 10);
+                }
+                for (auto index : mtof_right_sub_cell_idx_array_) {
+                    std::string idx_string = std::to_string(index);
+                    std::string topic_name = "sensor_to_pointcloud/tof/multi/right/idx_" + idx_string;
+                    pc_8x8_tof_right_pub_map_[index] = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                        topic_name, 10);
+                }
+            } else {
+                pc_tof_left_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/left/row_1", 10);
+                pc_tof_left_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/left/row_2", 10);
+                pc_tof_left_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/left/row_3", 10);
+                pc_tof_left_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/left/row_4", 10);
+                pc_tof_right_row1_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/right/row_1", 10);
+                pc_tof_right_row2_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/right/row_2", 10);
+                pc_tof_right_row3_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/right/row_3", 10);
+                pc_tof_right_row4_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+                    "sensor_to_pointcloud/tof/multi/right/row_4", 10);
             }
         }
         RCLCPP_INFO(this->get_logger(), "Multi TOF Row init finished!");
@@ -404,27 +399,29 @@ void SensorToPointcloud::publisherMonitor()
         }
         if (use_tof_row_) {
             if (use_tof_left_) {
-                pc_tof_left_row1_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_left_row2_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_left_row3_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_left_row4_msg = sensor_msgs::msg::PointCloud2(); //clear
                 if (use_tof_8x8_) {
-                    pc_tof_left_row5_msg = sensor_msgs::msg::PointCloud2(); //clear
-                    pc_tof_left_row6_msg = sensor_msgs::msg::PointCloud2(); //clear
-                    pc_tof_left_row7_msg = sensor_msgs::msg::PointCloud2(); //clear
-                    pc_tof_left_row8_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    // pc_tof_left_row5_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    // pc_tof_left_row6_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    // pc_tof_left_row7_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    // pc_tof_left_row8_msg = sensor_msgs::msg::PointCloud2(); //clear
+                } else {
+                    pc_tof_left_row1_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    pc_tof_left_row2_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    pc_tof_left_row3_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    pc_tof_left_row4_msg = sensor_msgs::msg::PointCloud2(); //clear
                 }
             }
             if (use_tof_right_) {
-                pc_tof_right_row1_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_right_row2_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_right_row3_msg = sensor_msgs::msg::PointCloud2(); //clear
-                pc_tof_right_row4_msg = sensor_msgs::msg::PointCloud2(); //clear
                 if (use_tof_8x8_) {
-                    pc_tof_right_row5_msg = sensor_msgs::msg::PointCloud2(); //clear
-                    pc_tof_right_row6_msg = sensor_msgs::msg::PointCloud2(); //clear
-                    pc_tof_right_row7_msg = sensor_msgs::msg::PointCloud2(); //clear
-                    pc_tof_right_row8_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    // pc_tof_right_row5_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    // pc_tof_right_row6_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    // pc_tof_right_row7_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    // pc_tof_right_row8_msg = sensor_msgs::msg::PointCloud2(); //clear
+                } else {
+                    pc_tof_right_row1_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    pc_tof_right_row2_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    pc_tof_right_row3_msg = sensor_msgs::msg::PointCloud2(); //clear
+                    pc_tof_right_row4_msg = sensor_msgs::msg::PointCloud2(); //clear
                 }
             }
         }
@@ -464,27 +461,27 @@ void SensorToPointcloud::publisherMonitor()
         if (use_tof_row_) {
             if (publish_cnt_row_tof_ >= publish_rate_row_tof_) {
                 if (use_tof_left_) {
-                    pc_tof_left_row1_pub_->publish(pc_tof_left_row1_msg);
-                    pc_tof_left_row2_pub_->publish(pc_tof_left_row2_msg);
-                    pc_tof_left_row3_pub_->publish(pc_tof_left_row3_msg);
-                    pc_tof_left_row4_pub_->publish(pc_tof_left_row4_msg);
                     if (use_tof_8x8_) {
-                        pc_tof_left_row5_pub_->publish(pc_tof_left_row5_msg);
-                        pc_tof_left_row6_pub_->publish(pc_tof_left_row6_msg);
-                        pc_tof_left_row7_pub_->publish(pc_tof_left_row7_msg);
-                        pc_tof_left_row8_pub_->publish(pc_tof_left_row8_msg);
+                        for (auto index : mtof_left_sub_cell_idx_array_) {
+                            pc_8x8_tof_left_pub_map_[index]->publish(pc_8x8_tof_left_msg_map_[index]);
+                        }
+                    } else {
+                        pc_tof_left_row1_pub_->publish(pc_tof_left_row1_msg);
+                        pc_tof_left_row2_pub_->publish(pc_tof_left_row2_msg);
+                        pc_tof_left_row3_pub_->publish(pc_tof_left_row3_msg);
+                        pc_tof_left_row4_pub_->publish(pc_tof_left_row4_msg);
                     }
                 }
                 if (use_tof_right_) {
-                    pc_tof_right_row1_pub_->publish(pc_tof_right_row1_msg);
-                    pc_tof_right_row2_pub_->publish(pc_tof_right_row2_msg);
-                    pc_tof_right_row3_pub_->publish(pc_tof_right_row3_msg);
-                    pc_tof_right_row4_pub_->publish(pc_tof_right_row4_msg);
                     if (use_tof_8x8_) {
-                        pc_tof_right_row5_pub_->publish(pc_tof_right_row5_msg);
-                        pc_tof_right_row6_pub_->publish(pc_tof_right_row6_msg);
-                        pc_tof_right_row7_pub_->publish(pc_tof_right_row7_msg);
-                        pc_tof_right_row8_pub_->publish(pc_tof_right_row8_msg);
+                        for (auto index : mtof_right_sub_cell_idx_array_) {
+                            pc_8x8_tof_right_pub_map_[index]->publish(pc_8x8_tof_right_msg_map_[index]);
+                        }
+                    } else {
+                        pc_tof_right_row1_pub_->publish(pc_tof_right_row1_msg);
+                        pc_tof_right_row2_pub_->publish(pc_tof_right_row2_msg);
+                        pc_tof_right_row3_pub_->publish(pc_tof_right_row3_msg);
+                        pc_tof_right_row4_pub_->publish(pc_tof_right_row4_msg);
                     }
                 }
                 publish_cnt_row_tof_ = 0;
@@ -563,10 +560,14 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
                 pc_tof_left_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::THIRD);
                 pc_tof_left_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::FOURTH);
                 if (use_tof_8x8_) {
-                    pc_tof_left_row5_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::FIFTH);
-                    pc_tof_left_row6_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::SIXTH);
-                    pc_tof_left_row7_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::SEVENTH);
-                    pc_tof_left_row8_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::EIGHTH);
+                    // pc_tof_left_row5_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::FIFTH);
+                    // pc_tof_left_row6_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::SIXTH);
+                    // pc_tof_left_row7_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::SEVENTH);
+                    // pc_tof_left_row8_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::EIGHTH);
+                    for (size_t i=0; i<mtof_left_sub_cell_idx_array_.size(); i++) {
+                        int index = i;
+                        pc_8x8_tof_left_msg_map_[index] = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::NONE, index);
+                    }
                 }
             }
             if (use_tof_right_) {
@@ -575,10 +576,14 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
                 pc_tof_right_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::THIRD);
                 pc_tof_right_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::FOURTH);
                 if (use_tof_8x8_) {
-                    pc_tof_right_row5_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::FIFTH);
-                    pc_tof_right_row6_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::SIXTH);
-                    pc_tof_right_row7_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::SEVENTH);
-                    pc_tof_right_row8_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::EIGHTH);
+                    // pc_tof_right_row5_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::FIFTH);
+                    // pc_tof_right_row6_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::SIXTH);
+                    // pc_tof_right_row7_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::SEVENTH);
+                    // pc_tof_right_row8_msg = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::EIGHTH);
+                    for (size_t i=0; i<mtof_right_sub_cell_idx_array_.size(); i++) {
+                        int index = i;
+                        pc_8x8_tof_right_msg_map_[index] = point_cloud_tof_.updateBotTofPointCloudMsg(msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::NONE, index);
+                    }
                 }
             }
         }

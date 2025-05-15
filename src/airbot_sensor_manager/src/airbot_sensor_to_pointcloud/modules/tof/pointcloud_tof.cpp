@@ -79,7 +79,7 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateTopTofPointCloudMsg(const rob
     }
 }
 
-sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, tTofPitchAngle pitchAngle, bool isShowRow, ROW_NUMBER row)
+sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, tTofPitchAngle pitchAngle, bool isShowRow, ROW_NUMBER row, int input_index)
 {
     tof_bot_left_sensor_frame_pitch_ang_ = pitchAngle.bot_left;
     tof_bot_right_sensor_frame_pitch_ang_ = pitchAngle.bot_right;
@@ -151,36 +151,41 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateBotTofPointCloudMsg(const rob
             start_index = static_cast<int>(row) * 4;
             end_index = start_index + 4;
         } else {
-            switch(row)
-            {
-            case ROW_NUMBER::FIRST:
-                start_index = 0;
-                end_index = 4;
-                break;
-            case ROW_NUMBER::THIRD:
-                start_index = 4;
-                end_index = 8;
-                break;
-            case ROW_NUMBER::FIFTH:
-                start_index = 8;
-                end_index = 10;
-                break;
-            case ROW_NUMBER::SIXTH:
-                start_index = 10;
-                end_index = 12;
-                break;
-            case ROW_NUMBER::SEVENTH:
-                start_index = 12;
-                end_index = 14;
-                break;
-            case ROW_NUMBER::EIGHTH:
-                start_index = 14;
-                end_index = 16;
-                break;
-            default:
-                start_index = 0;
-                end_index = 0;
-                break;
+            if (input_index == -1) {
+                switch(row)
+                {
+                case ROW_NUMBER::FIRST:
+                    start_index = 0;
+                    end_index = 4;
+                    break;
+                case ROW_NUMBER::THIRD:
+                    start_index = 4;
+                    end_index = 8;
+                    break;
+                case ROW_NUMBER::FIFTH:
+                    start_index = 8;
+                    end_index = 10;
+                    break;
+                case ROW_NUMBER::SIXTH:
+                    start_index = 10;
+                    end_index = 12;
+                    break;
+                case ROW_NUMBER::SEVENTH:
+                    start_index = 12;
+                    end_index = 14;
+                    break;
+                case ROW_NUMBER::EIGHTH:
+                    start_index = 14;
+                    end_index = 16;
+                    break;
+                default:
+                    start_index = 0;
+                    end_index = 0;
+                    break;
+                }
+            } else {
+                start_index = input_index;
+                end_index = input_index + 1;
             }
         }
 
