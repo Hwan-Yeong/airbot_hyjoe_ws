@@ -80,7 +80,7 @@ private:
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
         low_battery_error_pub_, fall_down_error_pub_,
         board_overheat_error_pub_, battery_discharge_error_pub_,
-        charging_error_pub_, lift_error_pub_;
+        charging_error_pub_, lift_error_pub_, cliff_detection_error_pub_;
 
     std::unordered_map<std::type_index, std::shared_ptr<void>> monitors_;
 

@@ -40,8 +40,8 @@ ErrorMonitorNode::ErrorMonitorNode()
     board_overheat_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/board_overheat", 10);
     battery_discharge_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/discharging_battery", 10);
     charging_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/e_code/charging", 10);
-    // lift_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("/", 10);
-    // cliff_detection_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("/", 10);
+    lift_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/lifted", 10);
+    cliff_detection_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/cliff_detected", 10);
 
     // Timer
     timer_ = this->create_wall_timer(
@@ -212,11 +212,11 @@ void ErrorMonitorNode::errorMonitor()
         bool lift_error = this->runMonitor<LiftErrorMonitor>(std::make_pair(bottom_ir_data, imu_data));
         if (lift_error) {
             // RCLCPP_INFO(this->get_logger(), "lift_error : %s", lift_error ? "true" : "false");
-            // error_msg.data = true;
-            // lift_error_pub_->publish(error_msg);
+            error_msg.data = true;
+            lift_error_pub_->publish(error_msg);
         } else {
-            // error_msg.data = false;
-            // lift_error_pub_->publish(error_msg);
+            error_msg.data = false;
+            lift_error_pub_->publish(error_msg);
         }
         publish_cnt_lift_error_ = 0;
         update_bottom_ir_data_lift = false;
@@ -229,11 +229,11 @@ void ErrorMonitorNode::errorMonitor()
         bool cliff_detection_error = this->runMonitor<CliffDetectionErrorMonitor>(std::make_tuple(bottom_ir_data, odom_data, robot_state));
         if (cliff_detection_error) {
             // RCLCPP_INFO(this->get_logger(), "cliff_detection_error : %s", cliff_detection_error ? "true" : "false");
-            // error_msg.data = true;
-            // cliff_detection_error_pub_->publish(error_msg);
+            error_msg.data = true;
+            cliff_detection_error_pub_->publish(error_msg);
         } else {
-            // error_msg.data = false;
-            // cliff_detection_error_pub_->publish(error_msg);
+            error_msg.data = false;
+            cliff_detection_error_pub_->publish(error_msg);
         }
         publish_cnt_cliff_detection_error_ = 0;
         update_bottom_ir_data_cliff_detection = false;

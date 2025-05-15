@@ -82,6 +82,10 @@ airbot_error_manager:
         sub_topic: "error/f_code/bot_tof_right"
         error_code: "F17-1"
         description: "Right ToF sensor communication failure"
+      f_20: # IMU 센서와 통신이 안될 경우 에러
+        sub_topic: "error/f_code/imu"
+        error_code: "F20"
+        description: "IMU sensor communication failure"
     s_error:
       s_02: # 배터리 저전력 에러
         sub_topic: "error/s_code/low_battery"
@@ -103,6 +107,14 @@ airbot_error_manager:
         sub_topic: "error/s_code/fall_down"
         error_code: "S07"
         description: "Fall Down"
+      s_07_1: # 제품의 들림 감지 시 에러
+        sub_topic: "error/s_code/lifted"
+        error_code: "S07-1"
+        description: "Robot Lifted"
+      s_07_2: # 낙하 IR 지속 감지 시 에러
+        sub_topic: "error/s_code/cliff_detected"
+        error_code: "S07-2"
+        description: "Cliff IR Detected"
       s_08: # 도킹을 못하는 경우 에러
         sub_topic: "error/s_code/unable_to_dock"
         error_code: "S08"
