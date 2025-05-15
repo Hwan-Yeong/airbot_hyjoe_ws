@@ -464,8 +464,9 @@ void SensorToPointcloud::publisherMonitor()
             if (publish_cnt_row_tof_ >= publish_rate_row_tof_) {
                 if (use_tof_left_) {
                     if (use_tof_8x8_) {
-                        for (int i=0; i<mtof_left_sub_cell_idx_array_.size(); i++) {
-                            pc_8x8_tof_left_pub_map_[i]->publish(pc_8x8_tof_left_msg_map_[i]);
+                        for (size_t i=0; i<mtof_left_sub_cell_idx_array_.size(); i++) {
+                            int index = i;
+                            pc_8x8_tof_left_pub_map_[index]->publish(pc_8x8_tof_left_msg_map_[index]);
                         }
                     } else {
                         pc_tof_left_row1_pub_->publish(pc_tof_left_row1_msg);
@@ -476,8 +477,9 @@ void SensorToPointcloud::publisherMonitor()
                 }
                 if (use_tof_right_) {
                     if (use_tof_8x8_) {
-                        for (int i=0; i<mtof_right_sub_cell_idx_array_.size(); i++) {
-                            pc_8x8_tof_right_pub_map_[i]->publish(pc_8x8_tof_right_msg_map_[i]);
+                        for (size_t i=0; i<mtof_right_sub_cell_idx_array_.size(); i++) {
+                            int index = i;
+                            pc_8x8_tof_right_pub_map_[index]->publish(pc_8x8_tof_right_msg_map_[index]);
                         }
                     } else {
                         pc_tof_right_row1_pub_->publish(pc_tof_right_row1_msg);
