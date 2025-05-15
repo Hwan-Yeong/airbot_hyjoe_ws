@@ -19,6 +19,7 @@
 #include "std_msgs/msg/bool.hpp"
 #include "robot_custom_msgs/msg/error_list.hpp"
 #include "robot_custom_msgs/msg/error_list_array.hpp"
+#include "robot_custom_msgs/msg/robot_state.hpp"
 
 
 /**
@@ -43,6 +44,7 @@ private:
 
     void initSubscribers(const YAML::Node& config);
     void errorCallback(const std::string& error_code, std_msgs::msg::Bool::SharedPtr msg);
+    void robotStateCallback(const robot_custom_msgs::msg::RobotState::SharedPtr msg);
     void publishErrorList();
     void updateErrorLists(std::string code);
     void addError(const std::string &error_code);
@@ -55,8 +57,10 @@ private:
     std::unordered_map<std::string, std::string> error_code_descriptions_;
     std::unordered_set<std::string> erase_after_pub_error_codes_;
     rclcpp::Publisher<robot_custom_msgs::msg::ErrorListArray>::SharedPtr error_list_pub_;
+    rclcpp::Subscription<robot_custom_msgs::msg::RobotState>::SharedPtr robot_state_sub_;
     rclcpp::TimerBase::SharedPtr pub_timer_;
     int pub_cnt, error_list_size;
+    int robot_state_, cur_robot_state, prev_robot_state;
 };
 
 #endif // ERROR_MANAGER_HPP

@@ -45,6 +45,9 @@ ErrorManagerNode::ErrorManagerNode()
     erase_after_pub_error_codes_.insert("S06");
 
     error_list_pub_ = this->create_publisher<robot_custom_msgs::msg::ErrorListArray>("/error_list", 10);
+    robot_state_sub_ = this->create_subscription<robot_custom_msgs::msg::RobotState>(
+        "/state_datas", 10, std::bind(&ErrorManagerNode::robotStateCallback, this, std::placeholders::_1)
+    );
 
     pub_timer_ = this->create_wall_timer(
         publish_rate_ms,
@@ -105,6 +108,11 @@ void ErrorManagerNode::errorCallback(const std::string& error_code, std_msgs::ms
     }
 }
 
+void ErrorManagerNode::robotStateCallback(const robot_custom_msgs::msg::RobotState::SharedPtr msg)
+{
+    robot_state_ = msg->state;
+}
+
 void ErrorManagerNode::publishErrorList()
 {
     robot_custom_msgs::msg::ErrorListArray error_msg_array;
@@ -113,6 +121,21 @@ void ErrorManagerNode::publishErrorList()
     msg_time.sec = static_cast<int32_t>(now_time.seconds());
     msg_time.nanosec = now_time.nanoseconds() % 1000000000;
     error_msg_array.timestamp = msg_time;
+
+    static bool isReleasedAllError = false;
+
+    cur_robot_state = robot_state_;
+
+    if (!isReleasedAllError && prev_robot_state == 9 && cur_robot_state != 9) { //ROBOT_STATE::ERROR
+        // allErrorReleased();
+        RCLCPP_INFO(this->get_logger(), "Realesedc all error lists!!!!");
+        isReleasedAllError = true;
+        return;
+    }
+
+    if (cur_robot_state == 9) {
+        isReleasedAllError = false;
+    }
 
     for (auto it = error_list_.begin(); it != error_list_.end();) {
         auto& error = *it;
@@ -151,6 +174,8 @@ void ErrorManagerNode::publishErrorList()
     if (!error_msg_array.data_array.empty()) {
         error_list_pub_->publish(error_msg_array);
     }
+
+    prev_robot_state = robot_state_;
 }
 
 void ErrorManagerNode::updateErrorLists(std::string code)
