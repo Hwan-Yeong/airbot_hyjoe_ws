@@ -1,6 +1,8 @@
 #include "error_monitor/error_monitor.hpp"
 
 
+#define CLIFF_IR_ADC_THRESHOLD 900
+
 bool LowBatteryErrorMonitor::checkError(const InputType& input)
 {
     if (input.second.state == 4 || input.second.state == 5) { // 4: RETURN_CHARGER, 5: DOCKING
@@ -136,22 +138,22 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
     // 값이 방향에 따라서 일정하게 변하지 않기 때문에
     // 방향을 나누어서 값 변화에 대해서 전도 현상값의 범위를 조정해야 함
     // front - front_L - back_L - back - back_R - front_R
-    if (input.first.adc_ff < 2000) {
+    if (input.first.adc_ff < CLIFF_IR_ADC_THRESHOLD) {
         count++;
     }
-    if (input.first.adc_fl < 2000) {
+    if (input.first.adc_fl < CLIFF_IR_ADC_THRESHOLD) {
         count++;
     }
-    if (input.first.adc_fr < 2000) {
+    if (input.first.adc_fr < CLIFF_IR_ADC_THRESHOLD) {
         count++;
     }
-    if (input.first.adc_bb < 2000) {
+    if (input.first.adc_bb < CLIFF_IR_ADC_THRESHOLD) {
         count++;
     }
-    if (input.first.adc_bl < 2000) {
+    if (input.first.adc_bl < CLIFF_IR_ADC_THRESHOLD) {
         count++;
     }
-    if (input.first.adc_br < 2000) {
+    if (input.first.adc_br < CLIFF_IR_ADC_THRESHOLD) {
         count++;
     }
 
@@ -341,8 +343,8 @@ bool LiftErrorMonitor::checkError(const InputType &input)
     static bool irLiftFlag = false;
     static bool imuLiftFlag = false;
 
-    count = (input.first.adc_ff < 2000) + (input.first.adc_fl < 2000) + (input.first.adc_fr < 2000) +
-            (input.first.adc_bb < 2000) + (input.first.adc_bl < 2000) + (input.first.adc_br < 2000);
+    count = (input.first.adc_ff < CLIFF_IR_ADC_THRESHOLD) + (input.first.adc_fl < CLIFF_IR_ADC_THRESHOLD) + (input.first.adc_fr < CLIFF_IR_ADC_THRESHOLD) +
+            (input.first.adc_bb < CLIFF_IR_ADC_THRESHOLD) + (input.first.adc_bl < CLIFF_IR_ADC_THRESHOLD) + (input.first.adc_br < CLIFF_IR_ADC_THRESHOLD);
 
     if (count == 0) { // 모든 IR 센서가 false일 경우 에러 해제.
         if (errorState) {
