@@ -13,6 +13,7 @@ airbot_sensor_to_pointcloud:
       multi:
         publish_rate_ms: 50
         enable_8x8: true
+        lpf_alpha: 0.8
         left:
           use: true
           pitch_angle_deg: -0.0 # (-)가 들리는 방향
