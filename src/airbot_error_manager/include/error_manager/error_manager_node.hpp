@@ -49,6 +49,7 @@ private:
     void updateErrorLists(std::string code);
     void addError(const std::string &error_code);
     void releaseErrorLists(std::string code);
+    void allErrorReleased();
     void printErrorList();
 
     YAML::Node config{};

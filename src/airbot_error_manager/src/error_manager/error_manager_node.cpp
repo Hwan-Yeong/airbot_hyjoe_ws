@@ -127,8 +127,8 @@ void ErrorManagerNode::publishErrorList()
     cur_robot_state = robot_state_;
 
     if (!isReleasedAllError && prev_robot_state == 9 && cur_robot_state != 9) { //ROBOT_STATE::ERROR
-        // allErrorReleased();
-        RCLCPP_INFO(this->get_logger(), "Realesedc all error lists!!!!");
+        RCLCPP_INFO(this->get_logger(), "Realesed all error in error_lists_ [Num of errors: %zu]", error_list_.size());
+        allErrorReleased();
         isReleasedAllError = true;
         return;
     }
@@ -239,6 +239,15 @@ void ErrorManagerNode::releaseErrorLists(std::string code)
             it->should_publish = true;
             it->error.count = 1; // 카운트 초기화 (다시 pub_cnt 만큼 보내기 위해)
         }
+    }
+}
+
+void ErrorManagerNode::allErrorReleased()
+{
+    for (auto& error : error_list_) {
+        error.error.error_occurred = false;
+        error.should_publish = true;
+        error.error.count = 1;
     }
 }
 
