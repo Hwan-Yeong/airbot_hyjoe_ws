@@ -554,40 +554,50 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
         if (use_tof_1D_) {
             pc_tof_1d_msg = point_cloud_tof_.updateTopTofPointCloudMsg(msg, tilting_ang_1d_tof_);
         }
-        // 클레빌이 안쓰면 퍼블리싱 안해도 됨.
-        // if (use_tof_left_ || use_tof_right_) {
-        //     TOF_SIDE side = (use_tof_left_ && use_tof_right_) ? TOF_SIDE::BOTH :
-        //                     (use_tof_left_ ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
-        //     pc_tof_multi_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, side, botTofPitchAngle, false);
-        // }
-        if (use_tof_row_) {
-            if (use_tof_left_) {
-                if (use_tof_8x8_) {
-                    auto pc_left_msgs = point_cloud_tof_.generateAllBotTofPointCloudMsgs(filtered_msg, TOF_SIDE::LEFT, botTofPitchAngle);
+        if (use_tof_8x8_) {
+            if (use_tof_left_ || use_tof_right_) {
+                TOF_SIDE side = (use_tof_left_ && use_tof_right_)
+                                ? TOF_SIDE::BOTH : (use_tof_left_ ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
+                auto pc_msgs = point_cloud_tof_.generateAllBotTofPointCloudMsgs(filtered_msg, side, botTofPitchAngle);
+                if (side == TOF_SIDE::LEFT) {
                     for (size_t i=0; i<mtof_left_sub_cell_idx_array_.size(); i++) {
                         int index = i;
-                        pc_8x8_tof_left_msg_map_[index] = pc_left_msgs[index];
+                        pc_8x8_tof_left_msg_map_[index] = pc_msgs[index];
                     }
-                } else {
-                    pc_tof_left_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::FIRST);
-                    pc_tof_left_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::SECOND);
-                    pc_tof_left_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::THIRD);
-                    pc_tof_left_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::FOURTH);
-                }
-            }
-            if (use_tof_right_) {
-                if (use_tof_8x8_) {
-                    auto pc_right_msgs = point_cloud_tof_.generateAllBotTofPointCloudMsgs(filtered_msg, TOF_SIDE::RIGHT, botTofPitchAngle);
+                } else if (side == TOF_SIDE::RIGHT) {
                     for (size_t i=0; i<mtof_right_sub_cell_idx_array_.size(); i++) {
                         int index = i;
-                        pc_8x8_tof_right_msg_map_[index] = pc_right_msgs[index];
+                        pc_8x8_tof_right_msg_map_[index] = pc_msgs[index];
                     }
-                } else {
-                    pc_tof_right_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::FIRST);
-                    pc_tof_right_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::SECOND);
-                    pc_tof_right_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::THIRD);
-                    pc_tof_right_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::FOURTH);
+                } else { // TOF_SIDE::BOTH
+                    size_t left_size = mtof_left_sub_cell_idx_array_.size();
+                    size_t right_size = mtof_right_sub_cell_idx_array_.size();
+
+                    for (size_t i = 0; i < left_size; i++) {
+                        pc_8x8_tof_left_msg_map_[i] = pc_msgs[i]; // 앞쪽 0~15
+                    }
+
+                    for (size_t i = 0; i < right_size; i++) {
+                        pc_8x8_tof_right_msg_map_[i] = pc_msgs[left_size + i]; // 뒤쪽 16~31
+                    }
+                    pc_tof_multi_msg = pointcloud_generator_.mergePointCloud2Vector(pc_msgs, target_frame_);
                 }
+            }
+        } else {
+            if (use_tof_left_ && use_tof_right_) {
+                pc_tof_multi_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::BOTH, botTofPitchAngle, false);
+            }
+            if (use_tof_left_) {
+                pc_tof_left_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::FIRST);
+                pc_tof_left_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::SECOND);
+                pc_tof_left_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::THIRD);
+                pc_tof_left_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::LEFT, botTofPitchAngle, true, ROW_NUMBER::FOURTH);
+            }
+            if (use_tof_right_) {
+                pc_tof_right_row1_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::FIRST);
+                pc_tof_right_row2_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::SECOND);
+                pc_tof_right_row3_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::THIRD);
+                pc_tof_right_row4_msg = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, TOF_SIDE::RIGHT, botTofPitchAngle, true, ROW_NUMBER::FOURTH);
             }
         }
     }

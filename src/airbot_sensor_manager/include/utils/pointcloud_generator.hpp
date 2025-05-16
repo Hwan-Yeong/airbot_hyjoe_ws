@@ -9,6 +9,9 @@
 #include "vision_msgs/msg/bounding_box2_d.hpp"
 #include "vision_msgs/msg/bounding_box2_d_array.hpp"
 #include "utils/common_struct.hpp"
+#include <pcl_conversions/pcl_conversions.h>
+#include "pcl/point_cloud.h"
+#include "pcl/point_types.h"
 
 class PointCloudGenerator
 {
@@ -16,6 +19,7 @@ public:
     PointCloudGenerator();
     ~PointCloudGenerator();
 
+    sensor_msgs::msg::PointCloud2 mergePointCloud2Vector(const std::vector<sensor_msgs::msg::PointCloud2>& pc_msgs, std::string frame);
     sensor_msgs::msg::PointCloud2 generatePointCloud2Message(const std::vector<tPoint> &points, std::string frame);
     sensor_msgs::msg::PointCloud2 generatePointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution);
 private:

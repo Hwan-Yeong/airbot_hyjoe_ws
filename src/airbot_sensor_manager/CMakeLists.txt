@@ -19,10 +19,16 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)
+find_package(PCL REQUIRED)
+find_package(pcl_conversions REQUIRED)
 
 include_directories(
   include
+  ${PCL_INCLUDE_DIRS}
 )
+
+link_directories(${PCL_LIBRARY_DIRS} ${YAML_CPP_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 
 ################################
 ##### SENSOR_TO_POINTCLOUD #####
@@ -48,6 +54,8 @@ ament_target_dependencies(sensor_to_pointcloud
   tf2_geometry_msgs
   vision_msgs
   visualization_msgs
+  pcl_conversions
+  PCL
 )
 install(TARGETS sensor_to_pointcloud
 DESTINATION lib/${PROJECT_NAME}

@@ -40,6 +40,8 @@ private:
     BoundingBoxGenerator bounding_box_generator_;
     CameraObjectLogger camera_object_logger_;
     TofLowPassFilter tof_lpf;
+    PointCloudGenerator pointcloud_generator_;
+
 
     std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> target_frame_callback_handle_;

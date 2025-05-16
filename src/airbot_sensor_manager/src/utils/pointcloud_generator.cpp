@@ -154,3 +154,23 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(co
 
     return msg;
 }
+
+sensor_msgs::msg::PointCloud2 PointCloudGenerator::mergePointCloud2Vector(const std::vector<sensor_msgs::msg::PointCloud2> &pc_msgs, std::string frame)
+{
+    pcl::PointCloud<pcl::PointXYZ> merged_cloud;
+
+    for (const auto& pc : pc_msgs) {
+        pcl::PointCloud<pcl::PointXYZ> tmp_cloud;
+        if (!pc.fields.empty()) {
+            pcl::fromROSMsg(pc, tmp_cloud);
+        }
+        merged_cloud += tmp_cloud;
+    }
+
+    sensor_msgs::msg::PointCloud2 output_msg;
+    pcl::toROSMsg(merged_cloud, output_msg);
+    output_msg.header.frame_id = frame;
+    output_msg.header.stamp = rclcpp::Clock().now();
+
+    return output_msg;
+}
