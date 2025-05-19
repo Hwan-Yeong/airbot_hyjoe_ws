@@ -6,14 +6,6 @@ ErrorMonitorNode::ErrorMonitorNode()
     initVariables();
     setParams();
 
-    addMonitor<LowBatteryErrorMonitor>(std::make_shared<LowBatteryErrorMonitor>());
-    addMonitor<FallDownErrorMonitor>(std::make_shared<FallDownErrorMonitor>());
-    addMonitor<BoardOverheatErrorMonitor>(std::make_shared<BoardOverheatErrorMonitor>());
-    addMonitor<BatteryDischargingErrorMonitor>(std::make_shared<BatteryDischargingErrorMonitor>());
-    addMonitor<ChargingErrorMonitor>(std::make_shared<ChargingErrorMonitor>());
-    addMonitor<LiftErrorMonitor>(std::make_shared<LiftErrorMonitor>());
-    addMonitor<CliffDetectionErrorMonitor>(std::make_shared<CliffDetectionErrorMonitor>());
-
     // Subscriber
     bottom_ir_data_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
         "bottom_ir_data", 10, std::bind(&ErrorMonitorNode::bottomIrDataCallback, this, std::placeholders::_1)
@@ -51,6 +43,17 @@ ErrorMonitorNode::ErrorMonitorNode()
 
 ErrorMonitorNode::~ErrorMonitorNode()
 {
+}
+
+void ErrorMonitorNode::init()
+{
+    addMonitor<LowBatteryErrorMonitor>(std::make_shared<LowBatteryErrorMonitor>());
+    addMonitor<FallDownErrorMonitor>(std::make_shared<FallDownErrorMonitor>());
+    addMonitor<BoardOverheatErrorMonitor>(std::make_shared<BoardOverheatErrorMonitor>());
+    addMonitor<BatteryDischargingErrorMonitor>(std::make_shared<BatteryDischargingErrorMonitor>());
+    addMonitor<ChargingErrorMonitor>(std::make_shared<ChargingErrorMonitor>());
+    addMonitor<LiftErrorMonitor>(std::make_shared<LiftErrorMonitor>());
+    addMonitor<CliffDetectionErrorMonitor>(std::make_shared<CliffDetectionErrorMonitor>());
 }
 
 void ErrorMonitorNode::initVariables()

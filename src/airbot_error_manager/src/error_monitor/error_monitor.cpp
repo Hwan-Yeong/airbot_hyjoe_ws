@@ -32,7 +32,7 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
         if (time >= 30) {
             if (!prev_status) {
                 // [250407] hyjoe : low battery 에러 발생시 모니터 체크 시간(sec), 배터리 상태 1번만 로깅
-                RCLCPP_WARN(rclcpp::get_logger("LowBatteryErrorMonitor"),
+                RCLCPP_INFO(node_ptr_->get_logger(),
                     "elapsed time since error check started: %.3f, remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
                     time, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
                 );
@@ -42,7 +42,7 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
         } else {
             if (prev_status) {
                 // [250407] hyjoe : low battery 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
-                RCLCPP_WARN(rclcpp::get_logger("LowBatteryErrorMonitor"),
+                RCLCPP_INFO(node_ptr_->get_logger(),
                     "start to low battery monitor (remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA)",
                     input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
                 );
@@ -55,7 +55,7 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
         prev_status=true;
         if (prev_no_low_battery) {
             // [250407] hyjoe : low battery 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
-            RCLCPP_INFO(rclcpp::get_logger("LowBatteryErrorMonitor"),
+            RCLCPP_INFO(node_ptr_->get_logger(),
                 "Low Battery error released (remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA)",
                 input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
             );
@@ -93,7 +93,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
         if (time >= 30) {
             if (!prev_status) {
                 // [250407] hyjoe : 배터리 방전 에러 발생시 모니터 체크 시간(sec), 배터리 충전량 상태 1번만 로깅
-                RCLCPP_WARN(rclcpp::get_logger("BatteryDischargingErrorMonitor"),
+                RCLCPP_INFO(node_ptr_->get_logger(),
                     "elapsed time since error check started: %.3f, remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
                     time, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
                 );
@@ -103,7 +103,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
         } else {
             if (prev_status) {
                 // [250407] hyjoe : 배터리 방전 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 충전량 상태 로깅
-                RCLCPP_WARN(rclcpp::get_logger("BatteryDischargingErrorMonitor"),
+                RCLCPP_INFO(node_ptr_->get_logger(),
                     "start to battery discharging monitor (remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA)",
                     input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
                 );
@@ -117,7 +117,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
 
         if (prev_no_low_battery) {
             // [250407] hyjoe : 배터리 방전 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
-            RCLCPP_INFO(rclcpp::get_logger("BatteryDischargingErrorMonitor"),
+            RCLCPP_INFO(node_ptr_->get_logger(),
                 "Battery Discharging error released (remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA)",
                 input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
             );
@@ -179,7 +179,7 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
     if (imu_range && bottomdata_range) { // 전도가 일어남, 데이터 값에 따른 결정
         if(!prev_status){
             // [250407] hyjoe : 전도 에러 발생시 낙하IR상태, roll, pitch 정보 1번만 로깅
-            RCLCPP_WARN(rclcpp::get_logger("FallDownErrorMonitor"),
+            RCLCPP_INFO(node_ptr_->get_logger(),
                 "Occured (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) (adc_bb : %d) (adc_bl : %d) (adc_br : %d)  (pich : %.3f deg) (roll : %.3f deg)",
                 input.first.adc_ff, input.first.adc_fr, input.first.adc_fr, input.first.adc_bb, input.first.adc_bl, input.first.adc_br, deg_pitch, deg_roll
             );
@@ -189,7 +189,7 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
     } else { // 전도가 일어나지 않음
         if(prev_status){
             // [250407] hyjoe : 전도 에러 발생 한적이 있었던 경우, 해제시 1번만 낙하IR상태, roll, pitch 정보 1번만 로깅
-            RCLCPP_INFO(rclcpp::get_logger("FallDownErrorMonitor"),
+            RCLCPP_INFO(node_ptr_->get_logger(),
                 "Released (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) (adc_bf : %d) (adc_bl : %d) (adc_br : %d)  (pich : %.3f deg) (roll : %.3f deg)",
                 input.first.adc_ff, input.first.adc_fr, input.first.adc_fr, input.first.adc_bb, input.first.adc_bl, input.first.adc_br, deg_pitch, deg_roll
             );
@@ -215,7 +215,7 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
     for (const auto& file_path : temp_files) {
         std::ifstream file(file_path);
         if (!file) {
-            RCLCPP_ERROR(rclcpp::get_logger("BoardOverheatErrorMonitor"),
+            RCLCPP_ERROR(node_ptr_->get_logger(),
                 "Failed to read temperature file: %s",
                 file_path.c_str()
             );
@@ -232,7 +232,7 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
             // Check for high temperature warning
             if (temp_value > 70.0) {
                 // [250407] hyjoe : 보드 과열 에러 발생 시 파일 위치, 보드 온도 로깅 (계속)
-                RCLCPP_INFO(rclcpp::get_logger("BoardOverheatErrorMonitor"),
+                RCLCPP_INFO(node_ptr_->get_logger(),
                     "Warning: High temperature detected!,File: %s, Temperature: %.2f°C",
                     file_path.c_str(), temp_value
                 );
@@ -240,7 +240,7 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
             }
         }
         catch (const std::invalid_argument& e) {
-            RCLCPP_ERROR(rclcpp::get_logger("BoardOverheatErrorMonitor"),
+            RCLCPP_ERROR(node_ptr_->get_logger(),
                 "Invalid temperature data in file %s: %s",
                 file_path.c_str(), e.what()
             );
@@ -265,7 +265,7 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
 
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     double currentTime = clock.now().seconds();
-    // RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "cur time: %.3f", currentTime);
+    // RCLCPP_INFO(node_ptr_->get_logger(), "cur time: %.3f", currentTime);
     uint8_t currentCharge = input.first.battery_percent;
 
     bool isCharging = input.second.docking_status & 0X30; // charger found || start charging
@@ -286,26 +286,26 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
             initialCharge = currentCharge;
             isFirstCheck = false;
             // [250407] hyjoe : 충전 에러 체크 시작할 때 배터리 상태 로그 출력
-            RCLCPP_WARN(
-                rclcpp::get_logger("ChargingErrorMonitor"),
+            RCLCPP_INFO(
+                node_ptr_->get_logger(),
                 "remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
                 input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
             );
         }
         double timediff = currentTime - lastCheckTime;
-        // RCLCPP_INFO(rclcpp::get_logger("ChargingErrorMonitor"), "time diff: %.3f", timediff);
+        // RCLCPP_INFO(node_ptr_->get_logger(), "time diff: %.3f", timediff);
         if (timediff >= 1200) { // [250329] KKS : 20분 변경 // 10분 경과 시 평가
             int chargeDiff = static_cast<int>(currentCharge) - static_cast<int>(initialCharge);
             if (chargeDiff <= 2) { // 현재 충전량이 2퍼센트 이하인 경우
                 errorState = true;
                 // [250407] hyjoe : 충전 에러 발생 시 충전단자 상태, 배터리량 로그 출력
-                RCLCPP_WARN(
-                    rclcpp::get_logger("ChargingErrorMonitor"),
+                RCLCPP_INFO(
+                    node_ptr_->get_logger(),
                     "docking status: 0x%02X, remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
                     input.second.docking_status, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
                 );
                 // [250407] hyjoe : 충전 에러 발생 시 에러 체크 시작으로부터 경과시간 로그 출력
-                RCLCPP_WARN(rclcpp::get_logger("ChargingErrorMonitor"),
+                RCLCPP_INFO(node_ptr_->get_logger(),
                     "elapsed time since error check started: %.3f sec, chargeDiff: %d %%",
                     timediff, chargeDiff
                 );
@@ -348,7 +348,7 @@ bool LiftErrorMonitor::checkError(const InputType &input)
 
     if (count == 0) { // 모든 IR 센서가 false일 경우 에러 해제.
         if (errorState) {
-            RCLCPP_INFO(rclcpp::get_logger("LiftErrorMonitor"),
+            RCLCPP_INFO(node_ptr_->get_logger(),
                 "LiftError Released!"
             );
         }
@@ -357,7 +357,7 @@ bool LiftErrorMonitor::checkError(const InputType &input)
     } else if (count >= 4) { // ir 센서 true개수 4개 이상이면 ir 들림 의심
         // [250407] hyjoe : 들림 에러 발생 의심시 IR센서 상태 로깅
         if (!irLiftFlag) {
-            RCLCPP_WARN(rclcpp::get_logger("LiftErrorMonitor"),
+            RCLCPP_INFO(node_ptr_->get_logger(),
                 "Over 4 IR sensors Lift Detected! (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) (adc_bb : %d) (adc_bl : %d) (adc_br : %d)",
                 input.first.adc_ff, input.first.adc_fr, input.first.adc_fr, input.first.adc_bb, input.first.adc_bl, input.first.adc_br
             );
@@ -373,7 +373,7 @@ bool LiftErrorMonitor::checkError(const InputType &input)
     if (acc_z <= 9.2 || acc_z >= 10.5) {
         // [250407] hyjoe : 들림 에러 발생 의심시 imu z축 가속도값 로깅 (승월이나 전도시에도 해당 로그 나올 수 있지만, 추후 정확한 상태 진단을 위해 일단 로깅)
         if (!imuLiftFlag) {
-            RCLCPP_WARN(rclcpp::get_logger("LiftErrorMonitor"),
+            RCLCPP_INFO(node_ptr_->get_logger(),
                 "Imu z axis acceleration Lift Detected! (acc_z: %.3f m/s^2)",
                 acc_z
             );
@@ -394,7 +394,7 @@ bool LiftErrorMonitor::checkError(const InputType &input)
     if (errorCount >= 10) {
         // [250407] hyjoe : 들림 에러 발생 시 에러 체크 카운터 로깅
         if (!errorState) {
-            RCLCPP_WARN(rclcpp::get_logger("LiftErrorMonitor"),
+            RCLCPP_INFO(node_ptr_->get_logger(),
                 "IR & IMU both Lift Detected! (error count: %d)",
                 static_cast<int>(errorCount)
             );
@@ -439,7 +439,7 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
         if (cliff[i] == false) {
             isFirstCheckArray[i] = true;
             if (preErrorState[i] == true) { // 낙하 에러 해제시 로깅
-                RCLCPP_INFO(rclcpp::get_logger("CliffDetectionErrorMonitor"),
+                RCLCPP_INFO(node_ptr_->get_logger(),
                     "Cliff IR #[%d] : %s, IR Detection Error Released",
                     i+1, cliff[i] ? "true" : "false"
                 );
@@ -454,7 +454,7 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
                 accumDist[i] = 0.0;
                 isFirstCheckArray[i] = false;
                 // 낙하 에러 체크 시작 시 최초 한번 로깅
-                RCLCPP_INFO(rclcpp::get_logger("CliffDetectionErrorMonitor"),
+                RCLCPP_INFO(node_ptr_->get_logger(),
                     "Initial check => Cliff IR #[%d] : %s, pre_position (X, Y): (%.3f, %.3f)",
                     i+1, cliff[i] ? "true" : "false", prePositionXArray[i], prePositionYArray[i]
                 );
@@ -476,7 +476,7 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
 
             if (/*timeDiff >= 3.0 || */accumDist[i] >= 0.3) { // 낙하센서 3초 지속 감지 or 낙하센서 감지된 상태에서 30cm 이동
                 if (preErrorState[i] == false) {
-                    RCLCPP_INFO(rclcpp::get_logger("CliffDetectionErrorMonitor"),
+                    RCLCPP_INFO(node_ptr_->get_logger(),
                         "Cliff IR #[%d] : %s, timediff: %.3f sec, Accumulated Distance: %.3f m",
                         i+1, cliff[i] ? "true" : "false", timeDiff, accumDist[i]
                     );

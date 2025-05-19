@@ -20,8 +20,11 @@ public:
     ErrorMonitorNode();
     ~ErrorMonitorNode();
 
+    void init();
+
     template<typename MonitorType>
     void addMonitor(std::shared_ptr<MonitorType> monitor) {
+        monitor->setNode(shared_from_this());
         monitors_[typeid(MonitorType)] = monitor;
     }
 

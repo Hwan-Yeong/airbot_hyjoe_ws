@@ -37,6 +37,11 @@ class LowBatteryErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_ms
 public:
     using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::RobotState>;
     bool checkError(const InputType& input) override;
+    void setNode(const rclcpp::Node::SharedPtr& node) {
+        node_ptr_ = node;
+    }
+private:
+    rclcpp::Node::SharedPtr node_ptr_;
 };
 
 class BatteryDischargingErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::RobotState>>
@@ -44,6 +49,11 @@ class BatteryDischargingErrorMonitor : public BaseErrorMonitor<std::pair<robot_c
 public:
     using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::RobotState>;
     bool checkError(const InputType& input) override;
+    void setNode(const rclcpp::Node::SharedPtr& node) {
+            node_ptr_ = node;
+        }
+private:
+    rclcpp::Node::SharedPtr node_ptr_;
 };
 
 class FallDownErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>>
@@ -51,6 +61,11 @@ class FallDownErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs
 public:
     using InputType = std::pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>;
     bool checkError(const InputType& input) override;
+    void setNode(const rclcpp::Node::SharedPtr& node) {
+            node_ptr_ = node;
+        }
+private:
+    rclcpp::Node::SharedPtr node_ptr_;
 private:
     void get_rpy_from_quaternion(const geometry_msgs::msg::Quaternion& quaternion, double& roll, double& pitch, double& yaw);
 };
@@ -60,7 +75,11 @@ class LiftErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::ms
 public:
     using InputType = std::pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>;
     bool checkError(const InputType& input) override;
+    void setNode(const rclcpp::Node::SharedPtr& node) {
+            node_ptr_ = node;
+        }
 private:
+    rclcpp::Node::SharedPtr node_ptr_;
     unsigned int errorCount = 0;
     bool errorState = false;
 };
@@ -70,7 +89,11 @@ class BoardOverheatErrorMonitor : public BaseErrorMonitor<std::nullptr_t>
 public:
     using InputType = std::nullptr_t;
     bool checkError(const InputType& input) override;
+    void setNode(const rclcpp::Node::SharedPtr& node) {
+        node_ptr_ = node;
+    }
 private:
+rclcpp::Node::SharedPtr node_ptr_;
     float total_temp;
     int valid_reads ;
     double avg_temp;
@@ -90,7 +113,11 @@ class ChargingErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs
 public:
     using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>;
     bool checkError(const InputType& input) override;
+    void setNode(const rclcpp::Node::SharedPtr& node) {
+        node_ptr_ = node;
+    }
 private:
+    rclcpp::Node::SharedPtr node_ptr_;
     uint8_t initialCharge = 0;
     bool errorState = false;
     bool isFirstCheck = true;
@@ -102,6 +129,11 @@ class CliffDetectionErrorMonitor : public BaseErrorMonitor<std::tuple<robot_cust
 public:
     using InputType = std::tuple<robot_custom_msgs::msg::BottomIrData, nav_msgs::msg::Odometry, robot_custom_msgs::msg::RobotState>;
     bool checkError(const InputType& input) override;
+    void setNode(const rclcpp::Node::SharedPtr& node) {
+        node_ptr_ = node;
+    }
+private:
+    rclcpp::Node::SharedPtr node_ptr_;
 };
 
 
