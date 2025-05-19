@@ -25,6 +25,7 @@
 #include "airbot_sensor_to_pointcloud/modules/collision/pointcloud_collision.hpp"
 #include "airbot_sensor_to_pointcloud/modules/camera/logging/camera_object_logger.hpp"
 #include "airbot_sensor_to_pointcloud/filters/tof_low_pass_filter.hpp"
+#include "airbot_sensor_to_pointcloud/filters/tof_moving_average_filter.hpp"
 
 class SensorToPointcloud : public rclcpp::Node
 {
@@ -41,7 +42,8 @@ private:
     PointCloudCollision point_cloud_collosion_;
     BoundingBoxGenerator bounding_box_generator_;
     CameraObjectLogger camera_object_logger_;
-    TofLowPassFilter tof_lpf;
+    TofLowPassFilter tof_lpf_;
+    TofMovingAverageFilter tof_window_filter_;
     PointCloudGenerator pointcloud_generator_;
 
 
@@ -86,6 +88,7 @@ private:
     double tilting_ang_1d_tof_, bot_left_pitch_angle_, bot_right_pitch_angle_;
     double object_max_distance_;
     double mtof_lpf_alpha_;
+    int mtof_average_window_size_;
     tTofPitchAngle botTofPitchAngle;
     std::vector<int> mtof_left_sub_cell_idx_array_;
     std::vector<int> mtof_right_sub_cell_idx_array_;

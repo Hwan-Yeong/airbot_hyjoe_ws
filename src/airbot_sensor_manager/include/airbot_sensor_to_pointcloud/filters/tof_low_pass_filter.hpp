@@ -35,22 +35,14 @@ public:
             double raw_left = input_msg->bot_left[i];
             double raw_right = input_msg->bot_right[i];
 
-            double filtered_left = (raw_left < 1e-3) ? prev_left_[i] : alpha_ * raw_left + (1.0 - alpha_) * prev_left_[i];
-            double filtered_right = (raw_right < 1e-3) ? prev_right_[i] : alpha_ * raw_right + (1.0 - alpha_) * prev_right_[i];
+            double filtered_left = alpha_ * raw_left + (1.0 - alpha_) * prev_left_[i];
+            double filtered_right = alpha_ * raw_right + (1.0 - alpha_) * prev_right_[i];
 
-            output->bot_left[i] = filtered_left;
-            output->bot_right[i] = filtered_right;
+            output->bot_left[i] = (raw_left < 1e-3) ? 0.0 : filtered_left;
+            output->bot_right[i] = (raw_right < 1e-3) ? 0.0 : filtered_right;
 
             prev_left_[i] = filtered_left;
             prev_right_[i] = filtered_right;
-
-            // if (i == 4) {
-            //     RCLCPP_INFO(
-            //         rclcpp::get_logger("TofLowPassFilter"),
-            //         " {alpha: %.2f} [%2d] L: raw = %.3f, filtered = %.3f | R: raw = %.3f, filtered = %.3f,",
-            //         alpha_, i, raw_left, filtered_left, raw_right, filtered_right
-            //     );
-            // }
         }
 
         return output;
