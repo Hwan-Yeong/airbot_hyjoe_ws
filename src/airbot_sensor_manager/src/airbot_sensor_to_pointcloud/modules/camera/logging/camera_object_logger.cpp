@@ -8,6 +8,11 @@ CameraObjectLogger::~CameraObjectLogger()
 {
 }
 
+void CameraObjectLogger::setNode(const rclcpp::Node::SharedPtr& node)
+{
+    node_ptr_ = node;
+}
+
 void CameraObjectLogger::updateParams(double dist_margin, double width_margin, double height_margin)
 {
     dist_margin_ = dist_margin;
@@ -21,11 +26,10 @@ void CameraObjectLogger::log(std::pair<robot_custom_msgs::msg::CameraDataArray, 
 
     if (new_objects != objects_) {
         objects_ = new_objects;
-        auto logger = rclcpp::get_logger("CameraObjectLogger");
-        RCLCPP_INFO(logger, "================ [UPDATE] ================");
+        RCLCPP_INFO(node_ptr_->get_logger(), "================ [UPDATE] ================");
         for (const auto& [id, object_list] : objects_) {
             for (const auto& object : object_list) {
-                RCLCPP_INFO(logger, "[ID]: %u, [Position (X, Y): (%.3f, %.3f)], [Size (W, H): (%.3f, %.3f)]",
+                RCLCPP_INFO(node_ptr_->get_logger(), "[ID]: %u, [Position (X, Y): (%.3f, %.3f)], [Size (W, H): (%.3f, %.3f)]",
                             id, object.center.position.x, object.center.position.y, object.size_x, object.size_y);
             }
         }
@@ -35,7 +39,7 @@ void CameraObjectLogger::log(std::pair<robot_custom_msgs::msg::CameraDataArray, 
 void CameraObjectLogger::logInfoClear()
 {
     objects_.clear();
-    RCLCPP_INFO(rclcpp::get_logger("CameraObjectLogger"), "Camera Objects Log Clear");
+    RCLCPP_INFO(node_ptr_->get_logger(), "Camera Objects Log Clear");
 }
 
 std::map<int, std::vector<vision_msgs::msg::BoundingBox2D>> CameraObjectLogger::updateObjects(

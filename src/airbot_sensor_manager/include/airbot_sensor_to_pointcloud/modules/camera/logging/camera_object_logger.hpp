@@ -14,11 +14,13 @@ public:
     CameraObjectLogger();
     ~CameraObjectLogger();
 
+    void setNode(const rclcpp::Node::SharedPtr& node);
     void updateParams(double dist_margin, double width_margin, double height_margin);
     void log(std::pair<robot_custom_msgs::msg::CameraDataArray, vision_msgs::msg::BoundingBox2DArray> object_info);
     void logInfoClear();
 
 private:
+    rclcpp::Node::SharedPtr node_ptr_;
     double dist_margin_;
     double width_margin_;
     double height_margin_;

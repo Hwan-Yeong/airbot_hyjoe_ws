@@ -32,6 +32,8 @@ public:
     SensorToPointcloud();
     ~SensorToPointcloud();
 
+    void init();
+
 private:
     PointCloudTof point_cloud_tof_;
     PointCloudCamera point_cloud_camera_;

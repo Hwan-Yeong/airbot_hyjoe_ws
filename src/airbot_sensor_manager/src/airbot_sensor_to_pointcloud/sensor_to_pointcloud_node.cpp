@@ -200,6 +200,11 @@ SensorToPointcloud::~SensorToPointcloud()
     param_handler_.reset();
 }
 
+void SensorToPointcloud::init()
+{
+    camera_object_logger_.setNode(shared_from_this());
+}
+
 void SensorToPointcloud::declareParams()
 {
     this->declare_parameter("target_frame","base_link");
