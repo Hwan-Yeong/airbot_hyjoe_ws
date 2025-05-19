@@ -220,7 +220,8 @@ std::vector<sensor_msgs::msg::PointCloud2> PointCloudTof::generateAllBotTofPoint
             ? frame_converter_.transformRobot2GlobalFrame(robot_pts, robot_pose_)
             : robot_pts;
 
-        const size_t step = use_tof_8x8_ ? 1 : 4;
+        // const size_t step = use_tof_8x8_ ? 1 : 4;
+        const size_t step = 1;
         const size_t count = global_pts.size();
 
         for (size_t i = 0; i < count; i += step) {

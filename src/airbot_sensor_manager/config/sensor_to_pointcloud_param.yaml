@@ -12,7 +12,7 @@ airbot_sensor_to_pointcloud:
         tilting_angle_deg: 39.0 # double type
       multi:
         publish_rate_ms: 50
-        enable_8x8: true
+        enable_8x8: false
         lpf_alpha: 0.8
         left:
           use: true
