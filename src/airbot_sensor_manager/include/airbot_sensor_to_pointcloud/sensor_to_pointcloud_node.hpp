@@ -101,6 +101,7 @@ private:
     void setParams();
     void printParams();
     void initVariables();
+    void initPublisher();
     void updateAllParameters();
     void updateAllFrames();
 
