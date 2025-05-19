@@ -111,7 +111,11 @@ private:
     void setParams();
     void printParams();
     void initVariables();
+    void updateAllParameters();
+    void updateAllFrames();
+
     void publisherMonitor();
+
     void activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);

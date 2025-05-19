@@ -50,10 +50,7 @@ SensorToPointcloud::SensorToPointcloud()
             if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
                 std::string before = target_frame_;
                 target_frame_ = param.as_string();
-                point_cloud_tof_.updateTargetFrame(target_frame_);
-                bounding_box_generator_.updateTargetFrame(target_frame_);
-                point_cloud_cliff_.updateTargetFrame(target_frame_);
-                point_cloud_collosion_.updateTargetFrame(target_frame_);
+                updateAllFrames();
                 std::string after;
                 if (this->get_parameter("target_frame", after)) {
                     RCLCPP_INFO(this->get_logger(), "[=== Updating target_frame: %s -> %s ===]", before.c_str(), after.c_str());
@@ -97,23 +94,7 @@ SensorToPointcloud::SensorToPointcloud()
     );
 
     // Update Parameters
-    tof_lpf_.updateAlpha(mtof_lpf_alpha_);
-    tof_window_filter_.updateWindowSize(mtof_average_window_size_);
-    point_cloud_tof_.updateTofMode(use_tof_8x8_);
-    point_cloud_tof_.updateTargetFrame(target_frame_);
-    point_cloud_tof_.updateLeftSubCellIndexArray(mtof_left_sub_cell_idx_array_);
-    point_cloud_tof_.updateRightSubCellIndexArray(mtof_right_sub_cell_idx_array_);
-    bounding_box_generator_.updateTargetFrame(target_frame_);
-    point_cloud_cliff_.updateTargetFrame(target_frame_);
-    point_cloud_collosion_.updateTargetFrame(target_frame_);
-    camera_object_logger_.updateParams(camera_logger_distance_margin_,camera_logger_width_margin_,camera_logger_height_margin_);
-    for (const auto& item : camera_param_raw_vector_) {
-        std::istringstream ss(item);
-        std::string key, value;
-        if (std::getline(ss, key, ':') && std::getline(ss, value)) {
-            camera_class_id_confidence_th_[std::stoi(key)] = std::stoi(value);
-        }
-    }
+    updateAllParameters();
     printParams();
     RCLCPP_INFO(this->get_logger(), "All Parameters init finished!");
 
@@ -198,6 +179,32 @@ SensorToPointcloud::~SensorToPointcloud()
 void SensorToPointcloud::init()
 {
     camera_object_logger_.setNode(shared_from_this());
+}
+
+void SensorToPointcloud::updateAllParameters()
+{
+    updateAllFrames();
+    tof_lpf_.updateAlpha(mtof_lpf_alpha_);
+    tof_window_filter_.updateWindowSize(mtof_average_window_size_);
+    point_cloud_tof_.updateTofMode(use_tof_8x8_);
+    point_cloud_tof_.updateLeftSubCellIndexArray(mtof_left_sub_cell_idx_array_);
+    point_cloud_tof_.updateRightSubCellIndexArray(mtof_right_sub_cell_idx_array_);
+    camera_object_logger_.updateParams(camera_logger_distance_margin_,camera_logger_width_margin_,camera_logger_height_margin_);
+    for (const auto& item : camera_param_raw_vector_) {
+        std::istringstream ss(item);
+        std::string key, value;
+        if (std::getline(ss, key, ':') && std::getline(ss, value)) {
+            camera_class_id_confidence_th_[std::stoi(key)] = std::stoi(value);
+        }
+    }
+}
+
+void SensorToPointcloud::updateAllFrames()
+{
+    point_cloud_tof_.updateTargetFrame(target_frame_);
+    bounding_box_generator_.updateTargetFrame(target_frame_);
+    point_cloud_cliff_.updateTargetFrame(target_frame_);
+    point_cloud_collosion_.updateTargetFrame(target_frame_);
 }
 
 void SensorToPointcloud::declareParams()
