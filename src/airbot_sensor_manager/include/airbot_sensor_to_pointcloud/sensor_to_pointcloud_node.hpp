@@ -27,6 +27,8 @@
 #include "airbot_sensor_to_pointcloud/filters/tof_low_pass_filter.hpp"
 #include "airbot_sensor_to_pointcloud/filters/tof_moving_average_filter.hpp"
 
+using PC2PublisherPtr = rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr;
+
 class SensorToPointcloud : public rclcpp::Node
 {
 public:
@@ -58,16 +60,7 @@ private:
     rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr cliff_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::AbnormalEventData>::SharedPtr collision_sub_;
 
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_1d_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_tof_multi_pub_;
-    std::unordered_map<int, rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr> pc_4x4_tof_left_pub_map_;
-    std::unordered_map<int, rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr> pc_4x4_tof_right_pub_map_;
-    std::unordered_map<int, rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr> pc_8x8_tof_left_pub_map_;
-    std::unordered_map<int, rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr> pc_8x8_tof_right_pub_map_;
-
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_camera_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_cliff_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pc_collision_pub_;
+    std::unordered_map<std::string, PC2PublisherPtr> pointcloud_pubs_;
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr bbox_array_camera_pub_;
 
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
@@ -93,10 +86,7 @@ private:
     std::vector<int> mtof_left_sub_cell_idx_array_;
     std::vector<int> mtof_right_sub_cell_idx_array_;
 
-    sensor_msgs::msg::PointCloud2 pc_tof_1d_msg, pc_tof_multi_msg,
-        pc_tof_left_row1_msg, pc_tof_left_row2_msg, pc_tof_left_row3_msg, pc_tof_left_row4_msg,
-        pc_tof_right_row1_msg, pc_tof_right_row2_msg, pc_tof_right_row3_msg, pc_tof_right_row4_msg,
-        pc_camera_msg, pc_cliff_msg, pc_collision_msg;
+    sensor_msgs::msg::PointCloud2 pc_tof_1d_msg, pc_tof_multi_msg, pc_camera_msg, pc_cliff_msg, pc_collision_msg;
     std::unordered_map<int, sensor_msgs::msg::PointCloud2> pc_8x8_tof_left_msg_map_;
     std::unordered_map<int, sensor_msgs::msg::PointCloud2> pc_8x8_tof_right_msg_map_;
     std::unordered_map<int, sensor_msgs::msg::PointCloud2> pc_4x4_tof_left_msg_map_;
