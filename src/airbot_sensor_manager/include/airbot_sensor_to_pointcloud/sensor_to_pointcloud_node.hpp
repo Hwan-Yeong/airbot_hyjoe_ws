@@ -102,10 +102,13 @@ private:
     void printParams();
     void initVariables();
     void initPublisher();
+
     void updateAllParameters();
     void updateAllFrames();
 
     void publisherMonitor();
+
+    void publishEmptyMsg();
 
     void activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);

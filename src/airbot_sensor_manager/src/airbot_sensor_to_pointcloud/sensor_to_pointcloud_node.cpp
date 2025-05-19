@@ -510,6 +510,47 @@ void SensorToPointcloud::publisherMonitor()
     if (publish_cnt_collision_ > 10000)  publish_cnt_collision_ = 0;
 }
 
+void SensorToPointcloud::publishEmptyMsg()
+{
+    sensor_msgs::msg::PointCloud2 empty_cloud;
+    empty_cloud.header.stamp = this->now();
+    empty_cloud.header.frame_id = target_frame_;
+    empty_cloud.height = 1;
+    empty_cloud.width = 0;
+    empty_cloud.is_dense = false;
+    empty_cloud.is_bigendian = false;
+    empty_cloud.point_step = 12;  // x, y, z (float32 x 3)
+    empty_cloud.row_step = 0;
+
+    // x, y, z 필드 설정
+    sensor_msgs::msg::PointField field_x, field_y, field_z;
+    field_x.name = "x";
+    field_x.offset = 0;
+    field_x.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_x.count = 1;
+
+    field_y.name = "y";
+    field_y.offset = 4;
+    field_y.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_y.count = 1;
+
+    field_z.name = "z";
+    field_z.offset = 8;
+    field_z.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_z.count = 1;
+
+    empty_cloud.fields = {field_x, field_y, field_z};
+    empty_cloud.data.clear();
+
+    for (auto& [name, pub] : pointcloud_pubs_) {
+        if (pub && pub->get_subscription_count() > 0) {
+            pub->publish(empty_cloud);
+        }
+    }
+
+    RCLCPP_INFO(this->get_logger(), "All Active Publisher publish empty_cloud msgs!");
+}
+
 void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg)
 {
     if (msg) {
@@ -517,6 +558,7 @@ void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr 
         if(isActiveSensorToPointcloud){
             RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] activeCmdCallback : Active");
         }else{
+            publishEmptyMsg();
             RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] activeCmdCallback : De-Active");
         }
     } else {
