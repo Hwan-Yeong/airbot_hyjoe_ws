@@ -587,7 +587,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
         if (use_tof_left_ || use_tof_right_) {
             TOF_SIDE side = (use_tof_left_ && use_tof_right_)
                             ? TOF_SIDE::BOTH : (use_tof_left_ ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
-            auto pc_msgs = point_cloud_tof_.generateAllBotTofPointCloudMsgs(lp_filtered_msg, side, botTofPitchAngle);
+            auto pc_msgs = point_cloud_tof_.updateBotTofPointCloudMsg(lp_filtered_msg, side, botTofPitchAngle);
             if (side == TOF_SIDE::LEFT) {
                 if (use_tof_8x8_) {
                     int i = 0;

@@ -14,19 +14,6 @@ enum class TOF_SIDE
     BOTH
 };
 
-enum class ROW_NUMBER
-{
-    FIRST,
-    SECOND,
-    THIRD,
-    FOURTH,
-    FIFTH,
-    SIXTH,
-    SEVENTH,
-    EIGHTH,
-    NONE
-};
-
 class FrameConverter
 {
 public:
