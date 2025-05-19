@@ -69,6 +69,46 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(co
     return msg;
 }
 
+sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2EmptyMessage(const std::string &frame)
+{
+    sensor_msgs::msg::PointCloud2 msg;
+
+    msg.header.stamp = rclcpp::Clock().now();
+    msg.header.frame_id = frame;
+
+    msg.height = 1;                // 단일 행
+    msg.width = 0;                 // 데이터 포인트 0개
+    msg.is_dense = true;           // 빈 메시지이므로 dense라고 봐도 무방
+    msg.is_bigendian = false;
+    msg.point_step = 12;           // 3 floats * 4 bytes
+    msg.row_step = msg.point_step * msg.width;  // 0
+
+    // 필드 정의 (x, y, z)
+    sensor_msgs::msg::PointField field_x;
+    field_x.name = "x";
+    field_x.offset = 0;
+    field_x.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_x.count = 1;
+
+    sensor_msgs::msg::PointField field_y;
+    field_y.name = "y";
+    field_y.offset = 4;
+    field_y.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_y.count = 1;
+
+    sensor_msgs::msg::PointField field_z;
+    field_z.name = "z";
+    field_z.offset = 8;
+    field_z.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_z.count = 1;
+
+    msg.fields = {field_x, field_y, field_z};
+
+    msg.data.clear();
+
+    return msg;
+}
+
 /**
  * @input: vision_msgs::msg::BoundingBox2DArray
  * ### Convert Camera Data

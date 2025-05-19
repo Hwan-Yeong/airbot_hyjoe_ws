@@ -232,10 +232,11 @@ std::vector<sensor_msgs::msg::PointCloud2> PointCloudTof::generateAllBotTofPoint
             for (size_t j = 0; j < sliced_zero_mask.size(); ++j) {
                 if (!sliced_zero_mask[j]) {
                     filtered.push_back(sliced_points[j]);
+                    result_msgs.push_back(pointcloud_generator_.generatePointCloud2Message(filtered, target_frame_));
+                } else {
+                    result_msgs.push_back(pointcloud_generator_.generatePointCloud2EmptyMessage(target_frame_));
                 }
             }
-
-            result_msgs.push_back(pointcloud_generator_.generatePointCloud2Message(filtered, target_frame_));
         }
     };
 
