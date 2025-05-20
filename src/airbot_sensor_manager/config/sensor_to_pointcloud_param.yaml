@@ -16,6 +16,7 @@ airbot_sensor_to_pointcloud:
         filter:
           average_window_size: 3
           lpf_alpha: 0.8
+          complementary_alpha: 0.9
         left:
           use: true
           pitch_angle_deg: -0.0 # (-)가 들리는 방향

@@ -26,6 +26,7 @@
 #include "airbot_sensor_to_pointcloud/modules/camera/logging/camera_object_logger.hpp"
 #include "airbot_sensor_to_pointcloud/filters/tof_low_pass_filter.hpp"
 #include "airbot_sensor_to_pointcloud/filters/tof_moving_average_filter.hpp"
+#include "airbot_sensor_to_pointcloud/filters/tof_complementary_filte.hpp"
 
 using PC2PublisherPtr = rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr;
 
@@ -44,9 +45,10 @@ private:
     PointCloudCollision point_cloud_collosion_;
     BoundingBoxGenerator bounding_box_generator_;
     CameraObjectLogger camera_object_logger_;
-    TofLowPassFilter tof_lpf_;
-    TofMovingAverageFilter tof_window_filter_;
     PointCloudGenerator pointcloud_generator_;
+    TofLowPassFilter tof_lpf_;
+    TofMovingAverageFilter tof_ma_filter_;
+    TofComplementaryFilter tof_complementary_filter_;
 
 
     std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
@@ -62,6 +64,9 @@ private:
 
     std::unordered_map<std::string, PC2PublisherPtr> pointcloud_pubs_;
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr bbox_array_camera_pub_;
+
+    //debug
+    rclcpp::Publisher<robot_custom_msgs::msg::TofData>::SharedPtr tof_debug_pub_;
 
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
@@ -80,7 +85,7 @@ private:
     publish_cnt_camera_, publish_cnt_cliff_, publish_cnt_collision_;
     double tilting_ang_1d_tof_, bot_left_pitch_angle_, bot_right_pitch_angle_;
     double object_max_distance_;
-    double mtof_lpf_alpha_;
+    double mtof_lpf_alpha_, mtof_complementary_alpha_;
     int mtof_average_window_size_;
     tTofPitchAngle botTofPitchAngle;
     std::vector<int> mtof_left_sub_cell_idx_array_;

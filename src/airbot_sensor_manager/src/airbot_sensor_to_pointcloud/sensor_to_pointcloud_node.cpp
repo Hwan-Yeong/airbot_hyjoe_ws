@@ -134,7 +134,8 @@ void SensorToPointcloud::updateAllParameters()
 {
     updateAllFrames();
     tof_lpf_.updateAlpha(mtof_lpf_alpha_);
-    tof_window_filter_.updateWindowSize(mtof_average_window_size_);
+    tof_ma_filter_.updateWindowSize(mtof_average_window_size_);
+    tof_complementary_filter_.updateParams(mtof_complementary_alpha_, mtof_lpf_alpha_, mtof_average_window_size_);
     point_cloud_tof_.updateTofMode(use_tof_8x8_);
     point_cloud_tof_.updateLeftSubCellIndexArray(mtof_left_sub_cell_idx_array_);
     point_cloud_tof_.updateRightSubCellIndexArray(mtof_right_sub_cell_idx_array_);
@@ -168,6 +169,7 @@ void SensorToPointcloud::declareParams()
     this->declare_parameter("tof.multi.enable_8x8", false);
     this->declare_parameter("tof.multi.filter.lpf_alpha", 0.0);
     this->declare_parameter("tof.multi.filter.average_window_size",3);
+    this->declare_parameter("tof.multi.filter.complementary_alpha", 0.0);
     this->declare_parameter("tof.multi.left.use",false);
     this->declare_parameter("tof.multi.left.pitch_angle_deg",0.0);
     this->declare_parameter("tof.multi.left.sub_cell_idx_array",std::vector<int64_t>(16, 0));
@@ -207,6 +209,7 @@ void SensorToPointcloud::setParams()
     this->get_parameter("tof.multi.enable_8x8", use_tof_8x8_);
     this->get_parameter("tof.multi.filter.lpf_alpha", mtof_lpf_alpha_);
     this->get_parameter("tof.multi.filter.average_window_size", mtof_average_window_size_);
+    this->get_parameter("tof.multi.filter.complementary_alpha", mtof_complementary_alpha_);
     this->get_parameter("tof.multi.left.use", use_tof_left_);
     this->get_parameter("tof.multi.left.pitch_angle_deg", bot_left_pitch_angle_);
     std::vector<int64_t> tmp64_left;
@@ -256,6 +259,7 @@ void SensorToPointcloud::printParams()
     RCLCPP_INFO(this->get_logger(), "  TOF Multi 8x8 Use: %s", use_tof_8x8_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - LPf Alpha: %.2f", mtof_lpf_alpha_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Average Window Size: %d", mtof_average_window_size_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Complementary Alpha: %.2f", mtof_complementary_alpha_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Use: %s", use_tof_left_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Pitch Angle: %.2f", bot_left_pitch_angle_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Sub Cell Index Array:");
@@ -368,6 +372,11 @@ void SensorToPointcloud::initPublisher()
             "sensor_to_pointcloud/camera/bbox", 10
         );
     }
+
+    //debug
+    tof_debug_pub_ = this->create_publisher<robot_custom_msgs::msg::TofData>(
+        "filtered_tof_data", 10
+    );
 
     RCLCPP_INFO(this->get_logger(), "Publisher init finished!");
 }
@@ -581,8 +590,10 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
         point_cloud_tof_.updateRobotPose(pose);
     }
 
-    robot_custom_msgs::msg::TofData::SharedPtr mavg_filtered_msg = tof_window_filter_.update(msg);
-    robot_custom_msgs::msg::TofData::SharedPtr lp_filtered_msg = tof_lpf_.update(mavg_filtered_msg);
+    // robot_custom_msgs::msg::TofData::SharedPtr mavg_filtered_msg = tof_ma_filter_.update(msg);
+    // robot_custom_msgs::msg::TofData::SharedPtr lp_filtered_msg = tof_lpf_.update(mavg_filtered_msg);
+    robot_custom_msgs::msg::TofData::SharedPtr comp_filtered_msg = tof_complementary_filter_.update(msg);
+    tof_debug_pub_->publish(*comp_filtered_msg);
 
     if (use_tof_) {
         if (use_tof_1D_) {
@@ -592,7 +603,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
         if (use_tof_left_ || use_tof_right_) {
             TOF_SIDE side = (use_tof_left_ && use_tof_right_)
                             ? TOF_SIDE::BOTH : (use_tof_left_ ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
-            auto pc_msgs = point_cloud_tof_.updateBotTofPointCloudMsg(lp_filtered_msg, side, botTofPitchAngle);
+            auto pc_msgs = point_cloud_tof_.updateBotTofPointCloudMsg(comp_filtered_msg, side, botTofPitchAngle);
             if (side == TOF_SIDE::LEFT) {
                 if (use_tof_8x8_) {
                     int i = 0;
