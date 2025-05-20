@@ -360,9 +360,14 @@ void SensorToPointcloud::initPublisher()
             }
         }
     }
-    if (use_camera_) pointcloud_pubs_["camera_object"] = create_pc_pub("camera_object");
     if (use_cliff_) pointcloud_pubs_["cliff"] = create_pc_pub("cliff");
     if (use_collision_) pointcloud_pubs_["collision"] = create_pc_pub("collision");
+    if (use_camera_) {
+        pointcloud_pubs_["camera_object"] = create_pc_pub("camera_object");
+        bbox_array_camera_pub_ = this->create_publisher<vision_msgs::msg::BoundingBox2DArray>(
+            "sensor_to_pointcloud/camera/bbox", 10
+        );
+    }
 
     RCLCPP_INFO(this->get_logger(), "Publisher init finished!");
 }
