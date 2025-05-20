@@ -50,8 +50,8 @@ public:
                 right_history_[i].pop_front();
             }
 
-            raw_left<1e-3 ? 0.0 : output->bot_left[i] = average(left_history_[i]);
-            raw_right<1e-3 ? 0.0 : output->bot_right[i] = average(right_history_[i]);
+            output->bot_left[i] = raw_left<1e-3 ? 0.0 : average(left_history_[i]);
+            output->bot_right[i] = raw_right<1e-3 ? 0.0 : average(right_history_[i]);
         }
         return output;
     }
