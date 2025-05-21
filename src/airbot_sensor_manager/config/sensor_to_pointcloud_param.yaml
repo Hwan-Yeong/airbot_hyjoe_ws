@@ -16,17 +16,28 @@ airbot_sensor_to_pointcloud:
         filter:
           moving_average:
             use: true
-            enabled_row: [3,4] # disable: 0
+            enabled_4x4_idx: [
+              8, 9, 10, 11,
+              12, 13, 14, 15
+            ]
             window_size: 3
             max_distance_th: 0.7
           low_pass:
             use: true
-            enabled_row: [1,2,3,4] # disable: 0
+            enabled_4x4_idx: [
+              0, 1, 2, 3,
+              4, 5, 6, 7,
+              8, 9, 10, 11,
+              12, 13, 14, 15
+            ]
             alpha: 0.8
             # a*raw + (1-a)*estimated
           complementary:
             use: true
-            enabled_row: [0] # disable: 0
+            enabled_4x4_idx: [
+              8, 9, 10, 11,
+              12, 13, 14, 15
+            ]
             alpha: 0.9
             # a*lpf + (1-a)*maf
         left:

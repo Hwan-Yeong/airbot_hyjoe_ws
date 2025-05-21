@@ -14,18 +14,13 @@ public:
     TofLowPassFilter()
         : alpha_(0.5), prev_left_(16, 0.0), prev_right_(16, 0.0), is_initialized_(false) {}
 
-    void updateParams(double new_alpha, std::vector<int>& enabled_row)
+    void updateParams(double new_alpha, std::vector<int>& enabled_idx)
     {
         alpha_ = new_alpha;
 
         valid_idx.fill(false);
-        for (int row : enabled_row) {
-            if (row >= 1 && row <= 4) {
-                int base = (row - 1) * 4;
-                for (int i = 0; i < 4; ++i) {
-                    valid_idx[base + i] = true;
-                }
-            }
+        for (int idx : enabled_idx) {
+            if (idx >= 0 && idx < 16) valid_idx[idx] = true;
         }
     }
 

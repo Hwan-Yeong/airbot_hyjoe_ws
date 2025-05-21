@@ -46,9 +46,9 @@ private:
     BoundingBoxGenerator bounding_box_generator_;
     CameraObjectLogger camera_object_logger_;
     PointCloudGenerator pointcloud_generator_;
-    TofLowPassFilter tof_lpf_;
+    TofLowPassFilter tof_lp_filter_;
     TofMovingAverageFilter tof_ma_filter_;
-    TofComplementaryFilter tof_complementary_filter_;
+    TofComplementaryFilter tof_comp_filter_;
 
 
     std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
@@ -86,14 +86,14 @@ private:
     publish_cnt_camera_, publish_cnt_cliff_, publish_cnt_collision_;
     double tilting_ang_1d_tof_, bot_left_pitch_angle_, bot_right_pitch_angle_;
     double object_max_distance_;
-    double mtof_lpf_alpha_, mtof_complementary_alpha_, mtof_ma_max_distance_th_;
+    double mtof_lp_filter_alpha_, mtof_complementary_alpha_, mtof_ma_max_distance_th_;
     int mtof_average_window_size_;
     tTofPitchAngle botTofPitchAngle;
     std::vector<int> mtof_left_sub_cell_idx_array_;
     std::vector<int> mtof_right_sub_cell_idx_array_;
-    std::vector<int> mtof_ma_filter_enabled_row_;
-    std::vector<int> mtof_lp_filter_enabled_row_;
-    std::vector<int> mtof_comp_filter_enabled_row_;
+    std::vector<int> mtof_ma_filter_enabled_4x4_idx_;
+    std::vector<int> mtof_lp_filter_enabled_4x4_idx_;
+    std::vector<int> mtof_comp_filter_enabled_4x4_idx_;
 
     sensor_msgs::msg::PointCloud2 pc_tof_1d_msg, pc_tof_multi_msg, pc_camera_msg, pc_cliff_msg, pc_collision_msg;
     std::unordered_map<int, sensor_msgs::msg::PointCloud2> pc_8x8_tof_left_msg_map_;

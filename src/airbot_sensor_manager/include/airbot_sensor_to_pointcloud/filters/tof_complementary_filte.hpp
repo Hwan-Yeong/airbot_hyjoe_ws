@@ -23,20 +23,15 @@ public:
         lpf_right_.resize(16, 0.0);
     }
 
-    void updateParams(double alpha_comp, double alpha_lpf, int window_size, std::vector<int>& enabled_row)
+    void updateParams(double alpha_comp, double alpha_lpf, int window_size, std::vector<int>& enabled_idx)
     {
         comp_alpha_ = alpha_comp;
         lpf_alpha_ = alpha_lpf;
         ma_window_size_ = window_size;
 
         valid_idx.fill(false);
-        for (int row : enabled_row) {
-            if (row >= 1 && row <= 4) {
-                int base = (row - 1) * 4;
-                for (int i = 0; i < 4; ++i) {
-                    valid_idx[base + i] = true;
-                }
-            }
+        for (int idx : enabled_idx) {
+            if (idx >= 0 && idx < 16) valid_idx[idx] = true;
         }
     }
 

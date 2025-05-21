@@ -18,19 +18,14 @@ public:
         right_history_.resize(16);
     }
 
-    void updateParams(int new_window_size, std::vector<int>& enabled_row, double max_distance_th)
+    void updateParams(int new_window_size, std::vector<int>& enabled_idx, double max_distance_th)
     {
         window_size_ = new_window_size;
         max_distance_th_ = max_distance_th;
 
         valid_idx.fill(false);
-        for (int row : enabled_row) {
-            if (row >= 1 && row <= 4) {
-                int base = (row - 1) * 4;
-                for (int i = 0; i < 4; ++i) {
-                    valid_idx[base + i] = true;
-                }
-            }
+        for (int idx : enabled_idx) {
+            if (idx >= 0 && idx < 16) valid_idx[idx] = true;
         }
     }
 
