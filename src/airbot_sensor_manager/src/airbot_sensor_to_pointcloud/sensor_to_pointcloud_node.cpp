@@ -133,9 +133,7 @@ void SensorToPointcloud::init()
 void SensorToPointcloud::updateAllParameters()
 {
     updateAllFrames();
-    tof_lp_filter_.updateParams(mtof_lp_filter_alpha_, mtof_lp_filter_enabled_4x4_idx_);
-    tof_ma_filter_.updateParams(mtof_average_window_size_, mtof_ma_filter_enabled_4x4_idx_, mtof_ma_max_distance_th_);
-    tof_comp_filter_.updateParams(mtof_complementary_alpha_, mtof_lp_filter_alpha_, mtof_average_window_size_, mtof_comp_filter_enabled_4x4_idx_);
+    updateAllFilters();
     point_cloud_tof_.updateTofMode(use_tof_8x8_);
     point_cloud_tof_.updateLeftSubCellIndexArray(mtof_left_sub_cell_idx_array_);
     point_cloud_tof_.updateRightSubCellIndexArray(mtof_right_sub_cell_idx_array_);
@@ -155,6 +153,13 @@ void SensorToPointcloud::updateAllFrames()
     bounding_box_generator_.updateTargetFrame(target_frame_);
     point_cloud_cliff_.updateTargetFrame(target_frame_);
     point_cloud_collosion_.updateTargetFrame(target_frame_);
+}
+
+void SensorToPointcloud::updateAllFilters()
+{
+    tof_lp_filter_.updateParams(mtof_lp_filter_alpha_, mtof_lp_filter_enabled_4x4_idx_);
+    tof_ma_filter_.updateParams(mtof_average_window_size_, mtof_ma_filter_enabled_4x4_idx_, mtof_ma_max_distance_th_);
+    tof_comp_filter_.updateParams(mtof_complementary_alpha_, mtof_lp_filter_alpha_, mtof_average_window_size_, mtof_comp_filter_enabled_4x4_idx_);
 }
 
 void SensorToPointcloud::declareParams()

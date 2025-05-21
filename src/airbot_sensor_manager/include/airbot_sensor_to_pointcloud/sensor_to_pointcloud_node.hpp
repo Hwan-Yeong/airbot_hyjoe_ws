@@ -114,6 +114,7 @@ private:
 
     void updateAllParameters();
     void updateAllFrames();
+    void updateAllFilters();
 
     void publisherMonitor();
 
