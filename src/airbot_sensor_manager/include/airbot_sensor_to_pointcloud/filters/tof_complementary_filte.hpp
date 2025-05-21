@@ -23,11 +23,21 @@ public:
         lpf_right_.resize(16, 0.0);
     }
 
-    void updateParams(double alpha_comp, double alpha_lpf, int window_size)
+    void updateParams(double alpha_comp, double alpha_lpf, int window_size, std::vector<int>& enabled_row)
     {
         comp_alpha_ = alpha_comp;
         lpf_alpha_ = alpha_lpf;
         ma_window_size_ = window_size;
+
+        valid_idx.fill(false);
+        for (int row : enabled_row) {
+            if (row >= 1 && row <= 4) {
+                int base = (row - 1) * 4;
+                for (int i = 0; i < 4; ++i) {
+                    valid_idx[base + i] = true;
+                }
+            }
+        }
     }
 
     robot_custom_msgs::msg::TofData::SharedPtr update(const robot_custom_msgs::msg::TofData::SharedPtr& input_msg)
@@ -35,6 +45,8 @@ public:
         auto output = std::make_shared<robot_custom_msgs::msg::TofData>(*input_msg);
 
         for (int i = 0; i < 16; ++i) {
+            if (!valid_idx[i]) continue;
+
             double raw_left = input_msg->bot_left[i];
             double raw_right = input_msg->bot_right[i];
 
@@ -76,6 +88,7 @@ private:
     int ma_window_size_;
     double comp_alpha_;
     double lpf_alpha_;
+    std::array<bool, 16> valid_idx;
 
     std::vector<double> lpf_left_;
     std::vector<double> lpf_right_;

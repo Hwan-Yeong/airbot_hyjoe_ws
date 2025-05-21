@@ -73,7 +73,8 @@ private:
     bool isActiveSensorToPointcloud;
     std::string target_frame_;
     bool use_tof_, use_tof_1D_, use_tof_left_, use_tof_right_, use_tof_row_,
-    use_camera_, use_cliff_, use_collision_, use_camera_object_logger_;
+    use_camera_, use_cliff_, use_collision_, use_camera_object_logger_,
+    use_mtof_ma_filter_, use_mtof_lp_filter_, use_mtof_comp_filter_;
     float camera_pointcloud_resolution_;
     double camera_logger_distance_margin_, camera_logger_width_margin_, camera_logger_height_margin_;
     std::vector<std::string> camera_param_raw_vector_;
@@ -85,11 +86,14 @@ private:
     publish_cnt_camera_, publish_cnt_cliff_, publish_cnt_collision_;
     double tilting_ang_1d_tof_, bot_left_pitch_angle_, bot_right_pitch_angle_;
     double object_max_distance_;
-    double mtof_lpf_alpha_, mtof_complementary_alpha_;
+    double mtof_lpf_alpha_, mtof_complementary_alpha_, mtof_ma_max_distance_th_;
     int mtof_average_window_size_;
     tTofPitchAngle botTofPitchAngle;
     std::vector<int> mtof_left_sub_cell_idx_array_;
     std::vector<int> mtof_right_sub_cell_idx_array_;
+    std::vector<int> mtof_ma_filter_enabled_row_;
+    std::vector<int> mtof_lp_filter_enabled_row_;
+    std::vector<int> mtof_comp_filter_enabled_row_;
 
     sensor_msgs::msg::PointCloud2 pc_tof_1d_msg, pc_tof_multi_msg, pc_camera_msg, pc_cliff_msg, pc_collision_msg;
     std::unordered_map<int, sensor_msgs::msg::PointCloud2> pc_8x8_tof_left_msg_map_;

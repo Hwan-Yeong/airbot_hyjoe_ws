@@ -133,9 +133,9 @@ void SensorToPointcloud::init()
 void SensorToPointcloud::updateAllParameters()
 {
     updateAllFrames();
-    tof_lpf_.updateAlpha(mtof_lpf_alpha_);
-    tof_ma_filter_.updateWindowSize(mtof_average_window_size_);
-    tof_complementary_filter_.updateParams(mtof_complementary_alpha_, mtof_lpf_alpha_, mtof_average_window_size_);
+    tof_lpf_.updateParams(mtof_lpf_alpha_, mtof_lp_filter_enabled_row_);
+    tof_ma_filter_.updateParams(mtof_average_window_size_, mtof_ma_filter_enabled_row_, mtof_ma_max_distance_th_);
+    tof_complementary_filter_.updateParams(mtof_complementary_alpha_, mtof_lpf_alpha_, mtof_average_window_size_, mtof_comp_filter_enabled_row_);
     point_cloud_tof_.updateTofMode(use_tof_8x8_);
     point_cloud_tof_.updateLeftSubCellIndexArray(mtof_left_sub_cell_idx_array_);
     point_cloud_tof_.updateRightSubCellIndexArray(mtof_right_sub_cell_idx_array_);
@@ -167,9 +167,16 @@ void SensorToPointcloud::declareParams()
     this->declare_parameter("tof.1D.tilting_angle_deg",0.0);
     this->declare_parameter("tof.multi.publish_rate_ms",100);
     this->declare_parameter("tof.multi.enable_8x8", false);
-    this->declare_parameter("tof.multi.filter.lpf_alpha", 0.0);
-    this->declare_parameter("tof.multi.filter.average_window_size",3);
-    this->declare_parameter("tof.multi.filter.complementary_alpha", 0.0);
+    this->declare_parameter("tof.multi.filter.moving_average.use",false);
+    this->declare_parameter("tof.multi.filter.moving_average.enabled_row", std::vector<int64_t>());
+    this->declare_parameter("tof.multi.filter.moving_average.window_size",0);
+    this->declare_parameter("tof.multi.filter.moving_average.max_distance_th",0.0);
+    this->declare_parameter("tof.multi.filter.low_pass.use",false);
+    this->declare_parameter("tof.multi.filter.low_pass.enabled_row", std::vector<int64_t>());
+    this->declare_parameter("tof.multi.filter.low_pass.alpha", 0.0);
+    this->declare_parameter("tof.multi.filter.complementary.use",false);
+    this->declare_parameter("tof.multi.filter.complementary.enabled_row", std::vector<int64_t>{});
+    this->declare_parameter("tof.multi.filter.complementary.alpha", 0.0);
     this->declare_parameter("tof.multi.left.use",false);
     this->declare_parameter("tof.multi.left.pitch_angle_deg",0.0);
     this->declare_parameter("tof.multi.left.sub_cell_idx_array",std::vector<int64_t>(16, 0));
@@ -207,9 +214,22 @@ void SensorToPointcloud::setParams()
     this->get_parameter("tof.1D.tilting_angle_deg", tilting_ang_1d_tof_);
     this->get_parameter("tof.multi.publish_rate_ms", publish_rate_multi_tof_);
     this->get_parameter("tof.multi.enable_8x8", use_tof_8x8_);
-    this->get_parameter("tof.multi.filter.lpf_alpha", mtof_lpf_alpha_);
-    this->get_parameter("tof.multi.filter.average_window_size", mtof_average_window_size_);
-    this->get_parameter("tof.multi.filter.complementary_alpha", mtof_complementary_alpha_);
+    this->get_parameter("tof.multi.filter.moving_average.use", use_mtof_ma_filter_);
+    std::vector<int64_t> tmp64_ma;
+    this->get_parameter("tof.multi.filter.moving_average.enabled_row", tmp64_ma);
+    mtof_ma_filter_enabled_row_.assign(tmp64_ma.begin(), tmp64_ma.end());
+    this->get_parameter("tof.multi.filter.moving_average.window_size", mtof_average_window_size_);
+    this->get_parameter("tof.multi.filter.moving_average.max_distance_th", mtof_ma_max_distance_th_);
+    this->get_parameter("tof.multi.filter.low_pass.use", use_mtof_lp_filter_);
+    std::vector<int64_t> tmp64_lp;
+    this->get_parameter("tof.multi.filter.low_pass.enabled_row", tmp64_lp);
+    mtof_lp_filter_enabled_row_.assign(tmp64_lp.begin(), tmp64_lp.end());
+    this->get_parameter("tof.multi.filter.low_pass.alpha", mtof_lpf_alpha_);
+    this->get_parameter("tof.multi.filter.complementary.use", use_mtof_comp_filter_);
+    std::vector<int64_t> tmp64_comp;
+    this->get_parameter("tof.multi.filter.complementary.enabled_row", tmp64_comp);
+    mtof_comp_filter_enabled_row_.assign(tmp64_comp.begin(), tmp64_comp.end());
+    this->get_parameter("tof.multi.filter.complementary.alpha", mtof_complementary_alpha_);
     this->get_parameter("tof.multi.left.use", use_tof_left_);
     this->get_parameter("tof.multi.left.pitch_angle_deg", bot_left_pitch_angle_);
     std::vector<int64_t> tmp64_left;
@@ -257,8 +277,36 @@ void SensorToPointcloud::printParams()
     RCLCPP_INFO(this->get_logger(), "  TOF 1D Tilting Angle: %.2f deg", tilting_ang_1d_tof_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Publish Rate: %d ms", publish_rate_multi_tof_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi 8x8 Use: %s", use_tof_8x8_ ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - LPf Alpha: %.2f", mtof_lpf_alpha_);
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Average Window Size: %d", mtof_average_window_size_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Moving Average Use: %s", use_mtof_ma_filter_ ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Moving Average Enabled Row:");
+    std::stringstream ma_row_stream;
+    ma_row_stream << "    [ ";
+    for (int i = 0; i < static_cast<int>(mtof_ma_filter_enabled_row_.size()); ++i) {
+        ma_row_stream << mtof_ma_filter_enabled_row_[i] << " ";
+    }
+    ma_row_stream << "]";
+    RCLCPP_INFO(this->get_logger(), "%s", ma_row_stream.str().c_str());
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Moving Average Window Size: %d", mtof_average_window_size_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Moving Average Max Distance Threshold: %.2f", mtof_ma_max_distance_th_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Low Pass Use: %s", use_mtof_lp_filter_ ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Low Pass Enabled Row:");
+    std::stringstream lp_row_stream;
+    lp_row_stream << "    [ ";
+    for (int i = 0; i < static_cast<int>(mtof_lp_filter_enabled_row_.size()); ++i) {
+        lp_row_stream << mtof_lp_filter_enabled_row_[i] << " ";
+    }
+    lp_row_stream << "]";
+    RCLCPP_INFO(this->get_logger(), "%s", lp_row_stream.str().c_str());
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Low Pass Alpha: %.2f", mtof_lpf_alpha_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Complementary Use: %s", use_mtof_comp_filter_ ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Complementary Enabled Row:");
+    std::stringstream comp_row_stream;
+    comp_row_stream << "    [ ";
+    for (int i = 0; i < static_cast<int>(mtof_comp_filter_enabled_row_.size()); ++i) {
+        comp_row_stream << mtof_comp_filter_enabled_row_[i] << " ";
+    }
+    comp_row_stream << "]";
+    RCLCPP_INFO(this->get_logger(), "%s", comp_row_stream.str().c_str());
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Complementary Alpha: %.2f", mtof_complementary_alpha_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Use: %s", use_tof_left_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Pitch Angle: %.2f", bot_left_pitch_angle_);
@@ -394,57 +442,6 @@ void SensorToPointcloud::publisherMonitor()
     publish_cnt_camera_ += 10;
     publish_cnt_cliff_ += 10;
     publish_cnt_collision_ += 10;
-
-    // msg Reset
-    if (!isTofUpdating) {
-        if (use_tof_1D_) {
-            pc_tof_1d_msg = sensor_msgs::msg::PointCloud2(); //clear
-        }
-        if (use_tof_left_ || use_tof_right_) {
-            pc_tof_multi_msg = sensor_msgs::msg::PointCloud2(); //clear
-        }
-        if (use_tof_row_) {
-            if (use_tof_left_) {
-                if (use_tof_8x8_) {
-                    for (auto& [key, msg] : pc_8x8_tof_left_msg_map_) {
-                        msg = sensor_msgs::msg::PointCloud2(); //clear
-                    }
-                } else {
-                    for (auto& [key, msg] : pc_4x4_tof_left_msg_map_) {
-                        msg = sensor_msgs::msg::PointCloud2(); //clear
-                    }
-                }
-            }
-            if (use_tof_right_) {
-                if (use_tof_8x8_) {
-                    for (auto& [key, msg] : pc_8x8_tof_right_msg_map_) {
-                        msg = sensor_msgs::msg::PointCloud2(); //clear
-                    }
-                } else {
-                    for (auto& [key, msg] : pc_4x4_tof_right_msg_map_) {
-                        msg = sensor_msgs::msg::PointCloud2(); //clear
-                    }
-                }
-            }
-        }
-    }
-    if (!isCameraUpdating) {
-        if (use_camera_) {
-            pc_camera_msg = sensor_msgs::msg::PointCloud2(); //clear
-            bbox_msg = vision_msgs::msg::BoundingBox2DArray(); //clear
-            marker_msg = visualization_msgs::msg::MarkerArray(); //clear
-        }
-    }
-    if (!isCliffUpdating) {
-        if (use_cliff_) {
-            pc_cliff_msg = sensor_msgs::msg::PointCloud2();
-        }
-    }
-    if (!isCollisionUpdating) {
-        if (use_collision_) {
-            pc_collision_msg = sensor_msgs::msg::PointCloud2();
-        }
-    }
 
     // publish pointCloud Data
     if (use_tof_ && isTofUpdating) { // ToF
@@ -590,10 +587,11 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
         point_cloud_tof_.updateRobotPose(pose);
     }
 
-    // robot_custom_msgs::msg::TofData::SharedPtr mavg_filtered_msg = tof_ma_filter_.update(msg);
-    // robot_custom_msgs::msg::TofData::SharedPtr lp_filtered_msg = tof_lpf_.update(mavg_filtered_msg);
-    robot_custom_msgs::msg::TofData::SharedPtr comp_filtered_msg = tof_complementary_filter_.update(msg);
-    tof_debug_pub_->publish(*comp_filtered_msg);
+    robot_custom_msgs::msg::TofData::SharedPtr filtered_msg = msg;
+    if (use_mtof_ma_filter_) filtered_msg = tof_ma_filter_.update(filtered_msg);
+    if (use_mtof_lp_filter_) filtered_msg = tof_lpf_.update(filtered_msg);
+    if (use_mtof_comp_filter_) filtered_msg = tof_complementary_filter_.update(filtered_msg);
+    tof_debug_pub_->publish(*filtered_msg);
 
     if (use_tof_) {
         if (use_tof_1D_) {
@@ -603,7 +601,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
         if (use_tof_left_ || use_tof_right_) {
             TOF_SIDE side = (use_tof_left_ && use_tof_right_)
                             ? TOF_SIDE::BOTH : (use_tof_left_ ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
-            auto pc_msgs = point_cloud_tof_.updateBotTofPointCloudMsg(comp_filtered_msg, side, botTofPitchAngle);
+            auto pc_msgs = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, side, botTofPitchAngle);
             if (side == TOF_SIDE::LEFT) {
                 if (use_tof_8x8_) {
                     int i = 0;
@@ -668,10 +666,10 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
         bounding_box_generator_.updateRobotPose(pose);
     }
 
-    if (use_camera_object_logger_) {
-        camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th_, camera_object_direction_, object_max_distance_));
-    }
     if (use_camera_) {
+        if (use_camera_object_logger_) {
+            camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th_, camera_object_direction_, object_max_distance_));
+        }
         bbox_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th_, camera_object_direction_, object_max_distance_);
         pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_msg, camera_pointcloud_resolution_);
     }

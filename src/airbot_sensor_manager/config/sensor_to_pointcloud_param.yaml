@@ -14,9 +14,21 @@ airbot_sensor_to_pointcloud:
         publish_rate_ms: 50
         enable_8x8: false
         filter:
-          average_window_size: 3
-          lpf_alpha: 0.8
-          complementary_alpha: 0.9
+          moving_average:
+            use: true
+            enabled_row: [3,4] # disable: 0
+            window_size: 3
+            max_distance_th: 0.7
+          low_pass:
+            use: true
+            enabled_row: [1,2,3,4] # disable: 0
+            alpha: 0.8
+            # a*raw + (1-a)*estimated
+          complementary:
+            use: true
+            enabled_row: [0] # disable: 0
+            alpha: 0.9
+            # a*lpf + (1-a)*maf
         left:
           use: true
           pitch_angle_deg: -0.0 # (-)가 들리는 방향

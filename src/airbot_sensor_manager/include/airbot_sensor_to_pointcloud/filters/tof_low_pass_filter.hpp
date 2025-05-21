@@ -14,9 +14,19 @@ public:
     TofLowPassFilter()
         : alpha_(0.5), prev_left_(16, 0.0), prev_right_(16, 0.0), is_initialized_(false) {}
 
-    void updateAlpha(double new_alpha)
+    void updateParams(double new_alpha, std::vector<int>& enabled_row)
     {
         alpha_ = new_alpha;
+
+        valid_idx.fill(false);
+        for (int row : enabled_row) {
+            if (row >= 1 && row <= 4) {
+                int base = (row - 1) * 4;
+                for (int i = 0; i < 4; ++i) {
+                    valid_idx[base + i] = true;
+                }
+            }
+        }
     }
 
     robot_custom_msgs::msg::TofData::SharedPtr update(const robot_custom_msgs::msg::TofData::SharedPtr& input_msg)
@@ -32,6 +42,8 @@ public:
         }
 
         for (int i = 0; i < 16; ++i) {
+            if (!valid_idx[i]) continue;
+
             double raw_left = input_msg->bot_left[i];
             double raw_right = input_msg->bot_right[i];
 
@@ -54,6 +66,8 @@ public:
 
 private:
     double alpha_;
+    std::array<bool, 16> valid_idx;
+
     std::vector<double> prev_left_;
     std::vector<double> prev_right_;
     bool is_initialized_;

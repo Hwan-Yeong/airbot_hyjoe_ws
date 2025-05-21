@@ -18,9 +18,20 @@ public:
         right_history_.resize(16);
     }
 
-    void updateWindowSize(int new_window_size)
+    void updateParams(int new_window_size, std::vector<int>& enabled_row, double max_distance_th)
     {
         window_size_ = new_window_size;
+        max_distance_th_ = max_distance_th;
+
+        valid_idx.fill(false);
+        for (int row : enabled_row) {
+            if (row >= 1 && row <= 4) {
+                int base = (row - 1) * 4;
+                for (int i = 0; i < 4; ++i) {
+                    valid_idx[base + i] = true;
+                }
+            }
+        }
     }
 
     robot_custom_msgs::msg::TofData::SharedPtr update(const robot_custom_msgs::msg::TofData::SharedPtr& input_msg)
@@ -28,16 +39,20 @@ public:
         auto output = std::make_shared<robot_custom_msgs::msg::TofData>(*input_msg);
 
         for (int i = 0; i < 16; ++i) {
+            if (!valid_idx[i]) {
+                continue;
+            }
+
             double raw_left = input_msg->bot_left[i];
             double raw_right = input_msg->bot_right[i];
 
-            if (raw_left > 1e-3) {
+            if (raw_left > 1e-3 && raw_left < max_distance_th_) {
                 left_history_[i].push_back(raw_left);
             } else {
                 // nothing
             }
 
-            if (raw_right > 1e-3) {
+            if (raw_right > 1e-3 && raw_right < max_distance_th_) {
                 right_history_[i].push_back(raw_right);
             } else {
                 // nothing
@@ -58,6 +73,9 @@ public:
 
 private:
     int window_size_;
+    double max_distance_th_;
+    std::array<bool, 16> valid_idx;
+
     std::vector<std::deque<double>> left_history_;
     std::vector<std::deque<double>> right_history_;
 
