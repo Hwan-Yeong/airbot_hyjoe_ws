@@ -225,12 +225,12 @@ void SensorToPointcloud::setParams()
 
     this->get_parameter("output.topic_prefix", topic_prefix_);
 
-    this->get_parameter("output.tof_mono.use",use_tof_1D_);
+    this->get_parameter("output.tof_mono.use",use_1d_tof_);
     this->get_parameter("output.tof_mono.topic", tof_mono_topic_);
     this->get_parameter("output.tof_mono.publish_rate_ms", publish_rate_1d_tof_);
     this->get_parameter("output.tof_mono.tilting_angle_deg", tilting_ang_1d_tof_);
 
-    this->get_parameter("output.tof_multi.use", use_tof_);
+    this->get_parameter("output.tof_multi.use", use_multi_tof_);
     this->get_parameter("output.tof_multi.topic", tof_multi_topic_);
     this->get_parameter("output.tof_multi.publish_rate_ms", publish_rate_multi_tof_);
     this->get_parameter("output.tof_multi.enable_8x8", use_tof_8x8_);
@@ -250,13 +250,13 @@ void SensorToPointcloud::setParams()
     this->get_parameter("output.tof_multi.filter.complementary.enabled_4x4_idx", tmp64_comp);
     mtof_comp_filter_enabled_4x4_idx_.assign(tmp64_comp.begin(), tmp64_comp.end());
     this->get_parameter("output.tof_multi.filter.complementary.alpha", mtof_complementary_alpha_);
-    this->get_parameter("output.tof_multi_left.use", use_tof_left_);
+    this->get_parameter("output.tof_multi_left.use", use_mtof_left_);
     this->get_parameter("output.tof_multi_left.topic", tof_left_topic_);
     this->get_parameter("output.tof_multi_left.pitch_angle_deg", bot_left_pitch_angle_);
     std::vector<int64_t> tmp64_left;
     this->get_parameter("output.tof_multi_left.sub_cell_idx_array", tmp64_left);
     mtof_left_sub_cell_idx_array_.assign(tmp64_left.begin(), tmp64_left.end());
-    this->get_parameter("output.tof_multi_right.use", use_tof_right_);
+    this->get_parameter("output.tof_multi_right.use", use_mtof_right_);
     this->get_parameter("output.tof_multi_right.topic", tof_right_topic_);
     this->get_parameter("output.tof_multi_right.pitch_angle_deg", bot_right_pitch_angle_);
     std::vector<int64_t> tmp64_right;
@@ -294,8 +294,8 @@ void SensorToPointcloud::printParams()
 
     // TOF Settings
     RCLCPP_INFO(this->get_logger(), "[TOF Settings]");
-    RCLCPP_INFO(this->get_logger(), "  TOF All Use: %s", use_tof_ ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "  TOF 1D Use: %s", use_tof_1D_ ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  TOF All Use: %s", use_multi_tof_ ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  TOF 1D Use: %s", use_1d_tof_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  TOF 1D Publish Rate: %d ms", publish_rate_1d_tof_);
     RCLCPP_INFO(this->get_logger(), "  TOF 1D Tilting Angle: %.2f deg", tilting_ang_1d_tof_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Publish Rate: %d ms", publish_rate_multi_tof_);
@@ -331,7 +331,7 @@ void SensorToPointcloud::printParams()
     comp_row_stream << "]";
     RCLCPP_INFO(this->get_logger(), "%s", comp_row_stream.str().c_str());
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Filter - Complementary Alpha: %.2f", mtof_complementary_alpha_);
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Use: %s", use_tof_left_ ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Use: %s", use_mtof_left_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Pitch Angle: %.2f", bot_left_pitch_angle_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Sub Cell Index Array:");
     for (int i = 0; i < 4; ++i) {
@@ -343,7 +343,7 @@ void SensorToPointcloud::printParams()
         row_stream << "]";
         RCLCPP_INFO(this->get_logger(), "%s", row_stream.str().c_str());
     }
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Use: %s", use_tof_right_ ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Use: %s", use_mtof_right_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Pitch Angle: %.2f", bot_right_pitch_angle_);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Sub Cell Index Array:");
     for (int i = 0; i < 4; ++i) {
@@ -412,35 +412,31 @@ void SensorToPointcloud::initPublisher()
         );
     };
 
-    if (use_tof_ && use_tof_1D_) pointcloud_pubs_[tof_mono_topic_] = create_pc_pub(tof_mono_topic_);
-    if (use_tof_) {
-        pointcloud_pubs_[tof_multi_topic_] = create_pc_pub(tof_multi_topic_);
-        if (use_tof_8x8_) {
-            if (use_tof_left_) {
-                for (auto index : mtof_left_sub_cell_idx_array_) {
-                    pointcloud_pubs_[tof_left_topic_ + std::to_string(index)]
-                        = create_pc_pub(tof_left_topic_ + std::to_string(index));
-                }
+    if (use_1d_tof_) pointcloud_pubs_[tof_mono_topic_] = create_pc_pub(tof_mono_topic_);
+    if (use_multi_tof_) pointcloud_pubs_[tof_multi_topic_] = create_pc_pub(tof_multi_topic_);
+
+    if (use_tof_8x8_) {
+        if (use_mtof_left_) {
+            for (auto index : mtof_left_sub_cell_idx_array_) {
+                pointcloud_pubs_[tof_left_topic_ + std::to_string(index)] = create_pc_pub(tof_left_topic_ + std::to_string(index));
             }
-            if (use_tof_right_){
-                for (auto index : mtof_right_sub_cell_idx_array_) {
-                    pointcloud_pubs_[tof_right_topic_ + std::to_string(index)]
-                        = create_pc_pub(tof_right_topic_ + std::to_string(index));
-                }
+        }
+        if (use_mtof_right_){
+            for (auto index : mtof_right_sub_cell_idx_array_) {
+                pointcloud_pubs_[tof_right_topic_ + std::to_string(index)] = create_pc_pub(tof_right_topic_ + std::to_string(index));
             }
-        } else {
-            for (int i = 0; i < 16; ++i) {
-                if (use_tof_left_) {
-                    pointcloud_pubs_[tof_left_topic_ + std::to_string(i)]
-                        = create_pc_pub(tof_left_topic_ + std::to_string(i));
-                }
-                if (use_tof_right_){
-                    pointcloud_pubs_[tof_right_topic_ + std::to_string(i)]
-                        = create_pc_pub(tof_right_topic_ + std::to_string(i));
-                }
+        }
+    } else {
+        for (int i = 0; i < 16; ++i) {
+            if (use_mtof_left_) {
+                pointcloud_pubs_[tof_left_topic_ + std::to_string(i)] = create_pc_pub(tof_left_topic_ + std::to_string(i));
+            }
+            if (use_mtof_right_){
+                pointcloud_pubs_[tof_right_topic_ + std::to_string(i)] = create_pc_pub(tof_right_topic_ + std::to_string(i));
             }
         }
     }
+
     if (use_cliff_) pointcloud_pubs_[cliff_topic_] = create_pc_pub(cliff_topic_);
     if (use_collision_) pointcloud_pubs_[collision_topic_] = create_pc_pub(collision_topic_);
     if (use_camera_) {
@@ -473,41 +469,40 @@ void SensorToPointcloud::publisherMonitor()
     publish_cnt_collision_ += 10;
 
     // publish pointCloud Data
-    if (use_tof_ && isTofUpdating) { // ToF
-        if (use_tof_1D_) {
+    if (isTofUpdating) { // ToF
+        if (use_1d_tof_) {
             if (publish_cnt_1d_tof_ >= publish_rate_1d_tof_) {
-                pointcloud_pubs_["tof/mono"]->publish(pc_tof_1d_msg);
+                pointcloud_pubs_[tof_mono_topic_]->publish(pc_tof_1d_msg);
                 publish_cnt_1d_tof_ = 0;
             }
         }
-        if (use_tof_left_ || use_tof_right_) {
+        if (use_multi_tof_) {
             if (publish_cnt_multi_tof_ >= publish_rate_multi_tof_) {
-                pointcloud_pubs_["tof/multi"]->publish(pc_tof_multi_msg);
+                pointcloud_pubs_[tof_multi_topic_]->publish(pc_tof_multi_msg);
                 publish_cnt_multi_tof_ = 0;
             }
         }
         if (publish_cnt_row_tof_ >= publish_rate_multi_tof_) {
-            if (use_tof_left_) {
-                if (use_tof_8x8_) {
+            if (use_tof_8x8_) {
+                if (use_mtof_left_) {
                     for (auto index : mtof_left_sub_cell_idx_array_) {
                         std::string topic_name = tof_left_topic_ + std::to_string(index);
                         pointcloud_pubs_[topic_name]->publish(pc_8x8_tof_left_msg_map_[index]);
                     }
-                } else {
-                    for (size_t i=0; i<16; i++) {
-                        std::string topic_name = tof_left_topic_ + std::to_string(i);
-                        pointcloud_pubs_[topic_name]->publish(pc_4x4_tof_left_msg_map_[i]);
-                    }
                 }
-            }
-            if (use_tof_right_) {
-                if (use_tof_8x8_) {
+                if (use_mtof_right_) {
                     for (auto index : mtof_right_sub_cell_idx_array_) {
                         std::string topic_name = tof_right_topic_ + std::to_string(index);
                         pointcloud_pubs_[topic_name]->publish(pc_8x8_tof_right_msg_map_[index]);
                     }
-                } else {
-                    for (size_t i=0; i<16; i++) {
+                }
+            } else {
+                for (int i = 0; i < 16; ++i) {
+                    if (use_mtof_left_) {
+                        std::string topic_name = tof_left_topic_ + std::to_string(i);
+                        pointcloud_pubs_[topic_name]->publish(pc_4x4_tof_left_msg_map_[i]);
+                    }
+                    if (use_mtof_right_) {
                         std::string topic_name = tof_right_topic_ + std::to_string(i);
                         pointcloud_pubs_[topic_name]->publish(pc_4x4_tof_right_msg_map_[i]);
                     }
@@ -517,9 +512,9 @@ void SensorToPointcloud::publisherMonitor()
         }
         isTofUpdating = false;
     }
-    if (use_camera_ && isCameraUpdating) { // Camera
+    if (use_camera_ && isCameraUpdating) {
         if (publish_cnt_camera_ >= publish_rate_camera_) {
-            pointcloud_pubs_["camera_object"]->publish(pc_camera_msg);
+            pointcloud_pubs_[camera_topic_]->publish(pc_camera_msg);
             bbox_array_camera_pub_->publish(bbox_msg);
             isCameraUpdating = false;
             publish_cnt_camera_ = 0;
@@ -527,14 +522,14 @@ void SensorToPointcloud::publisherMonitor()
     }
     if (use_cliff_ && isCliffUpdating) {
         if (publish_cnt_cliff_ >= publish_rate_cliff_) {
-            pointcloud_pubs_["cliff"]->publish(pc_cliff_msg);
+            pointcloud_pubs_[cliff_topic_]->publish(pc_cliff_msg);
             isCliffUpdating = false;
             publish_cnt_cliff_ = 0;
         }
     }
     if (use_collision_ && isCollisionUpdating) {
         if (publish_cnt_collision_ >= publish_rate_collision_) {
-            pointcloud_pubs_["collision"]->publish(pc_collision_msg);
+            pointcloud_pubs_[collision_topic_]->publish(pc_collision_msg);
             isCollisionUpdating = false;
             publish_cnt_collision_ = 0;
         }
@@ -620,62 +615,57 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
     if (use_mtof_comp_filter_) filtered_msg = tof_comp_filter_.update(filtered_msg);
     tof_debug_pub_->publish(*filtered_msg);
 
-    if (use_tof_) {
-        if (use_tof_1D_) {
-            pc_tof_1d_msg = point_cloud_tof_.updateTopTofPointCloudMsg(msg, tilting_ang_1d_tof_);
-        }
-        // if (use_tof_8x8_) {
-        if (use_tof_left_ || use_tof_right_) {
-            TOF_SIDE side = (use_tof_left_ && use_tof_right_)
-                            ? TOF_SIDE::BOTH : (use_tof_left_ ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
-            auto pc_msgs = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, side, botTofPitchAngle);
-            if (side == TOF_SIDE::LEFT) {
-                if (use_tof_8x8_) {
-                    int i = 0;
-                    for (auto index : mtof_left_sub_cell_idx_array_) {
-                        pc_8x8_tof_left_msg_map_[index] = pc_msgs[i];
-                        i++;
-                    }
-                } else {
-                    for (int i=0; i<16; i++) {
-                        pc_4x4_tof_left_msg_map_[i] = pc_msgs[i];
-                    }
+    if (use_1d_tof_) pc_tof_1d_msg = point_cloud_tof_.updateTopTofPointCloudMsg(msg, tilting_ang_1d_tof_);
+    if (use_multi_tof_ || use_mtof_left_ || use_mtof_right_) {
+        TOF_SIDE side = (use_mtof_left_ && use_mtof_right_)
+                        ? TOF_SIDE::BOTH : (use_mtof_left_ ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
+        auto pc_msgs = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, side, botTofPitchAngle);
+        if (side == TOF_SIDE::LEFT) {
+            if (use_tof_8x8_) {
+                int i = 0;
+                for (auto index : mtof_left_sub_cell_idx_array_) {
+                    pc_8x8_tof_left_msg_map_[index] = pc_msgs[i];
+                    i++;
                 }
-            } else if (side == TOF_SIDE::RIGHT) {
-                if (use_tof_8x8_) {
-                    for (auto index : mtof_right_sub_cell_idx_array_) {
-                        int i = 0;
-                        pc_8x8_tof_right_msg_map_[index] = pc_msgs[i];
-                        i++;
-                    }
-                } else {
-                    for (int i=0; i<16; i++) {
-                        pc_4x4_tof_right_msg_map_[i] = pc_msgs[i];
-                    }
+            } else {
+                for (int i=0; i<16; i++) {
+                    pc_4x4_tof_left_msg_map_[i] = pc_msgs[i];
                 }
-            } else { // TOF_SIDE::BOTH
-                if (use_tof_8x8_) {
+            }
+        } else if (side == TOF_SIDE::RIGHT) {
+            if (use_tof_8x8_) {
+                for (auto index : mtof_right_sub_cell_idx_array_) {
                     int i = 0;
-                    int j = 0;
-                    for (auto index : mtof_left_sub_cell_idx_array_) {
-                        pc_8x8_tof_left_msg_map_[index] = pc_msgs[i]; // 앞쪽 0~15
-                        i++;
-                    }
+                    pc_8x8_tof_right_msg_map_[index] = pc_msgs[i];
+                    i++;
+                }
+            } else {
+                for (int i=0; i<16; i++) {
+                    pc_4x4_tof_right_msg_map_[i] = pc_msgs[i];
+                }
+            }
+        } else { // TOF_SIDE::BOTH
+            if (use_tof_8x8_) {
+                int i = 0;
+                int j = 0;
+                for (auto index : mtof_left_sub_cell_idx_array_) {
+                    pc_8x8_tof_left_msg_map_[index] = pc_msgs[i]; // 앞쪽 0~15
+                    i++;
+                }
 
-                    for (auto index : mtof_right_sub_cell_idx_array_) {
-                        pc_8x8_tof_right_msg_map_[index] = pc_msgs[16 + j]; // 뒤쪽 16~31
-                        j++;
-                    }
-                    pc_tof_multi_msg = pointcloud_generator_.mergePointCloud2Vector(pc_msgs, target_frame_);
-                } else {
-                    for (int i=0; i<16; i++) {
-                        pc_4x4_tof_left_msg_map_[i] = pc_msgs[i];
-                    }
-                    for (int i=0; i<16; i++) {
-                        pc_4x4_tof_right_msg_map_[i] = pc_msgs[16+i];
-                    }
-                    pc_tof_multi_msg = pointcloud_generator_.mergePointCloud2Vector(pc_msgs, target_frame_);
+                for (auto index : mtof_right_sub_cell_idx_array_) {
+                    pc_8x8_tof_right_msg_map_[index] = pc_msgs[16 + j]; // 뒤쪽 16~31
+                    j++;
                 }
+                if (use_multi_tof_) pc_tof_multi_msg = pointcloud_generator_.mergePointCloud2Vector(pc_msgs, target_frame_);
+            } else {
+                for (int i=0; i<16; i++) {
+                    pc_4x4_tof_left_msg_map_[i] = pc_msgs[i];
+                }
+                for (int i=0; i<16; i++) {
+                    pc_4x4_tof_right_msg_map_[i] = pc_msgs[16+i];
+                }
+                if (use_multi_tof_) pc_tof_multi_msg = pointcloud_generator_.mergePointCloud2Vector(pc_msgs, target_frame_);
             }
         }
     }
@@ -714,9 +704,7 @@ void SensorToPointcloud::cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrDa
         point_cloud_cliff_.updateRobotPose(pose);
     }
 
-    if (use_cliff_) {
-        pc_cliff_msg = point_cloud_cliff_.updateCliffPointCloudMsg(msg);
-    }
+    if (use_cliff_) pc_cliff_msg = point_cloud_cliff_.updateCliffPointCloudMsg(msg);
 
     isCliffUpdating = true;
 }
@@ -731,9 +719,7 @@ void SensorToPointcloud::collisionMsgUpdate(const robot_custom_msgs::msg::Abnorm
         point_cloud_collosion_.updateRobotPose(pose);
     }
 
-    if (use_collision_ && msg->event_trigger) {
-        pc_collision_msg = point_cloud_collosion_.updateCollisionPointCloudMsg(msg);
-    }
+    if (use_collision_ && msg->event_trigger) pc_collision_msg = point_cloud_collosion_.updateCollisionPointCloudMsg(msg);
 
     isCollisionUpdating = true;
 }
