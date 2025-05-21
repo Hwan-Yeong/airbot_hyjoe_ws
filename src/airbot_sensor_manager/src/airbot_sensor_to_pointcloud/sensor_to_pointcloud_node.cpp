@@ -166,104 +166,122 @@ void SensorToPointcloud::declareParams()
 {
     this->declare_parameter("target_frame","base_link");
 
-    this->declare_parameter("tof.all.use",false);
-    this->declare_parameter("tof.1D.use",false);
-    this->declare_parameter("tof.1D.publish_rate_ms",100);
-    this->declare_parameter("tof.1D.tilting_angle_deg",0.0);
-    this->declare_parameter("tof.multi.publish_rate_ms",100);
-    this->declare_parameter("tof.multi.enable_8x8", false);
-    this->declare_parameter("tof.multi.filter.moving_average.use",false);
-    this->declare_parameter("tof.multi.filter.moving_average.enabled_4x4_idx", std::vector<int64_t>());
-    this->declare_parameter("tof.multi.filter.moving_average.window_size",0);
-    this->declare_parameter("tof.multi.filter.moving_average.max_distance_th",0.0);
-    this->declare_parameter("tof.multi.filter.low_pass.use",false);
-    this->declare_parameter("tof.multi.filter.low_pass.enabled_4x4_idx", std::vector<int64_t>());
-    this->declare_parameter("tof.multi.filter.low_pass.alpha", 0.0);
-    this->declare_parameter("tof.multi.filter.complementary.use",false);
-    this->declare_parameter("tof.multi.filter.complementary.enabled_4x4_idx", std::vector<int64_t>{});
-    this->declare_parameter("tof.multi.filter.complementary.alpha", 0.0);
-    this->declare_parameter("tof.multi.left.use",false);
-    this->declare_parameter("tof.multi.left.pitch_angle_deg",0.0);
-    this->declare_parameter("tof.multi.left.sub_cell_idx_array",std::vector<int64_t>(16, 0));
-    this->declare_parameter("tof.multi.right.use",false);
-    this->declare_parameter("tof.multi.right.pitch_angle_deg",0.0);
-    this->declare_parameter("tof.multi.right.sub_cell_idx_array",std::vector<int64_t>(16, 0));
-    this->declare_parameter("tof.multi.row.use",false);
-    this->declare_parameter("tof.multi.row.publish_rate_ms",100);
+    this->declare_parameter("output.topic_prefix","sensor_to_pointcloud/");
 
-    this->declare_parameter("camera.use",false);
-    this->declare_parameter("camera.publish_rate_ms",100);
-    this->declare_parameter("camera.pointcloud_resolution",0.05);
-    this->declare_parameter("camera.class_id_confidence_th",std::vector<std::string>());
-    this->declare_parameter("camera.object_direction",false);
-    this->declare_parameter("camera.object_max_distance_m",1.0);
-    this->declare_parameter("camera.logger.use",false);
-    this->declare_parameter("camera.logger.margin.distance_diff",1.0);
-    this->declare_parameter("camera.logger.margin.width_diff",1.0);
-    this->declare_parameter("camera.logger.margin.height_diff",1.0);
+    this->declare_parameter("output.tof_mono.use",false);
+    this->declare_parameter("output.tof_mono.topic","tof/mono");
+    this->declare_parameter("output.tof_mono.publish_rate_ms",100);
+    this->declare_parameter("output.tof_mono.tilting_angle_deg",0.0);
 
-    this->declare_parameter("cliff.use",false);
-    this->declare_parameter("cliff.publish_rate_ms",100);
+    this->declare_parameter("output.tof_multi.use",false);
+    this->declare_parameter("output.tof_multi.topic","tof/multi");
+    this->declare_parameter("output.tof_multi.publish_rate_ms",100);
+    this->declare_parameter("output.tof_multi.enable_8x8", false);
+    this->declare_parameter("output.tof_multi.filter.moving_average.use",false);
+    this->declare_parameter("output.tof_multi.filter.moving_average.enabled_4x4_idx", std::vector<int64_t>());
+    this->declare_parameter("output.tof_multi.filter.moving_average.window_size",0);
+    this->declare_parameter("output.tof_multi.filter.moving_average.max_distance_th",0.0);
+    this->declare_parameter("output.tof_multi.filter.low_pass.use",false);
+    this->declare_parameter("output.tof_multi.filter.low_pass.enabled_4x4_idx", std::vector<int64_t>());
+    this->declare_parameter("output.tof_multi.filter.low_pass.alpha", 0.0);
+    this->declare_parameter("output.tof_multi.filter.complementary.use",false);
+    this->declare_parameter("output.tof_multi.filter.complementary.enabled_4x4_idx", std::vector<int64_t>{});
+    this->declare_parameter("output.tof_multi.filter.complementary.alpha", 0.0);
 
-    this->declare_parameter("collision.use",false);
-    this->declare_parameter("collision.publish_rate_ms",100);
+    this->declare_parameter("output.tof_multi_left.use",false);
+    this->declare_parameter("output.tof_multi_left.topic","tof/multi/left/idx_");
+    this->declare_parameter("output.tof_multi_left.pitch_angle_deg",0.0);
+    this->declare_parameter("output.tof_multi_left.sub_cell_idx_array",std::vector<int64_t>(16, 0));
+
+    this->declare_parameter("output.tof_multi_right.use",false);
+    this->declare_parameter("output.tof_multi_right.topic","tof/multi/right/idx_");
+    this->declare_parameter("output.tof_multi_right.pitch_angle_deg",0.0);
+    this->declare_parameter("output.tof_multi_right.sub_cell_idx_array",std::vector<int64_t>(16, 0));
+
+    this->declare_parameter("output.camera.use",false);
+    this->declare_parameter("output.camera.topic","camera_object");
+    this->declare_parameter("output.camera.publish_rate_ms",100);
+    this->declare_parameter("output.camera.pointcloud_resolution",0.05);
+    this->declare_parameter("output.camera.class_id_confidence_th",std::vector<std::string>());
+    this->declare_parameter("output.camera.object_direction",false);
+    this->declare_parameter("output.camera.object_max_distance_m",1.0);
+    this->declare_parameter("output.camera.logger.use",false);
+    this->declare_parameter("output.camera.logger.margin.distance_diff",1.0);
+    this->declare_parameter("output.camera.logger.margin.width_diff",1.0);
+    this->declare_parameter("output.camera.logger.margin.height_diff",1.0);
+
+    this->declare_parameter("output.cliff.use",false);
+    this->declare_parameter("output.cliff.topic","cliff");
+    this->declare_parameter("output.cliff.publish_rate_ms",100);
+
+    this->declare_parameter("output.collision.use",false);
+    this->declare_parameter("output.collision.topic","collision");
+    this->declare_parameter("output.collision.publish_rate_ms",100);
 }
 
 void SensorToPointcloud::setParams()
 {
     this->get_parameter("target_frame", target_frame_);
 
-    this->get_parameter("tof.all.use", use_tof_);
-    this->get_parameter("tof.1D.use", use_tof_1D_);
-    this->get_parameter("tof.1D.publish_rate_ms", publish_rate_1d_tof_);
-    this->get_parameter("tof.1D.tilting_angle_deg", tilting_ang_1d_tof_);
-    this->get_parameter("tof.multi.publish_rate_ms", publish_rate_multi_tof_);
-    this->get_parameter("tof.multi.enable_8x8", use_tof_8x8_);
-    this->get_parameter("tof.multi.filter.moving_average.use", use_mtof_ma_filter_);
+    this->get_parameter("output.topic_prefix", topic_prefix_);
+
+    this->get_parameter("output.tof_mono.use",use_tof_1D_);
+    this->get_parameter("output.tof_mono.topic", tof_mono_topic_);
+    this->get_parameter("output.tof_mono.publish_rate_ms", publish_rate_1d_tof_);
+    this->get_parameter("output.tof_mono.tilting_angle_deg", tilting_ang_1d_tof_);
+
+    this->get_parameter("output.tof_multi.use", use_tof_);
+    this->get_parameter("output.tof_multi.topic", tof_multi_topic_);
+    this->get_parameter("output.tof_multi.publish_rate_ms", publish_rate_multi_tof_);
+    this->get_parameter("output.tof_multi.enable_8x8", use_tof_8x8_);
+    this->get_parameter("output.tof_multi.filter.moving_average.use", use_mtof_ma_filter_);
     std::vector<int64_t> tmp64_ma;
-    this->get_parameter("tof.multi.filter.moving_average.enabled_4x4_idx", tmp64_ma);
+    this->get_parameter("output.tof_multi.filter.moving_average.enabled_4x4_idx", tmp64_ma);
     mtof_ma_filter_enabled_4x4_idx_.assign(tmp64_ma.begin(), tmp64_ma.end());
-    this->get_parameter("tof.multi.filter.moving_average.window_size", mtof_average_window_size_);
-    this->get_parameter("tof.multi.filter.moving_average.max_distance_th", mtof_ma_max_distance_th_);
-    this->get_parameter("tof.multi.filter.low_pass.use", use_mtof_lp_filter_);
+    this->get_parameter("output.tof_multi.filter.moving_average.window_size", mtof_average_window_size_);
+    this->get_parameter("output.tof_multi.filter.moving_average.max_distance_th", mtof_ma_max_distance_th_);
+    this->get_parameter("output.tof_multi.filter.low_pass.use", use_mtof_lp_filter_);
     std::vector<int64_t> tmp64_lp;
-    this->get_parameter("tof.multi.filter.low_pass.enabled_4x4_idx", tmp64_lp);
+    this->get_parameter("output.tof_multi.filter.low_pass.enabled_4x4_idx", tmp64_lp);
     mtof_lp_filter_enabled_4x4_idx_.assign(tmp64_lp.begin(), tmp64_lp.end());
-    this->get_parameter("tof.multi.filter.low_pass.alpha", mtof_lp_filter_alpha_);
-    this->get_parameter("tof.multi.filter.complementary.use", use_mtof_comp_filter_);
+    this->get_parameter("output.tof_multi.filter.low_pass.alpha", mtof_lp_filter_alpha_);
+    this->get_parameter("output.tof_multi.filter.complementary.use", use_mtof_comp_filter_);
     std::vector<int64_t> tmp64_comp;
-    this->get_parameter("tof.multi.filter.complementary.enabled_4x4_idx", tmp64_comp);
+    this->get_parameter("output.tof_multi.filter.complementary.enabled_4x4_idx", tmp64_comp);
     mtof_comp_filter_enabled_4x4_idx_.assign(tmp64_comp.begin(), tmp64_comp.end());
-    this->get_parameter("tof.multi.filter.complementary.alpha", mtof_complementary_alpha_);
-    this->get_parameter("tof.multi.left.use", use_tof_left_);
-    this->get_parameter("tof.multi.left.pitch_angle_deg", bot_left_pitch_angle_);
+    this->get_parameter("output.tof_multi.filter.complementary.alpha", mtof_complementary_alpha_);
+    this->get_parameter("output.tof_multi_left.use", use_tof_left_);
+    this->get_parameter("output.tof_multi_left.topic", tof_left_topic_);
+    this->get_parameter("output.tof_multi_left.pitch_angle_deg", bot_left_pitch_angle_);
     std::vector<int64_t> tmp64_left;
-    this->get_parameter("tof.multi.left.sub_cell_idx_array", tmp64_left);
+    this->get_parameter("output.tof_multi_left.sub_cell_idx_array", tmp64_left);
     mtof_left_sub_cell_idx_array_.assign(tmp64_left.begin(), tmp64_left.end());
-    this->get_parameter("tof.multi.right.use", use_tof_right_);
-    this->get_parameter("tof.multi.right.pitch_angle_deg", bot_right_pitch_angle_);
+    this->get_parameter("output.tof_multi_right.use", use_tof_right_);
+    this->get_parameter("output.tof_multi_right.topic", tof_right_topic_);
+    this->get_parameter("output.tof_multi_right.pitch_angle_deg", bot_right_pitch_angle_);
     std::vector<int64_t> tmp64_right;
-    this->get_parameter("tof.multi.right.sub_cell_idx_array", tmp64_right);
+    this->get_parameter("output.tof_multi_right.sub_cell_idx_array", tmp64_right);
     mtof_right_sub_cell_idx_array_.assign(tmp64_right.begin(), tmp64_right.end());
-    this->get_parameter("tof.multi.row.use", use_tof_row_);
-    this->get_parameter("tof.multi.row.publish_rate_ms", publish_rate_row_tof_);
 
-    this->get_parameter("camera.use", use_camera_);
-    this->get_parameter("camera.publish_rate_ms", publish_rate_camera_);
-    this->get_parameter("camera.pointcloud_resolution", camera_pointcloud_resolution_);
-    this->get_parameter("camera.class_id_confidence_th", camera_param_raw_vector_);
-    this->get_parameter("camera.object_direction", camera_object_direction_);
-    this->get_parameter("camera.object_max_distance_m", object_max_distance_);
-    this->get_parameter("camera.logger.use", use_camera_object_logger_);
-    this->get_parameter("camera.logger.margin.distance_diff", camera_logger_distance_margin_);
-    this->get_parameter("camera.logger.margin.width_diff", camera_logger_width_margin_);
-    this->get_parameter("camera.logger.margin.height_diff", camera_logger_height_margin_);
+    this->get_parameter("output.camera.use", use_camera_);
+    this->get_parameter("output.camera.topic", camera_topic_);
+    this->get_parameter("output.camera.publish_rate_ms", publish_rate_camera_);
+    this->get_parameter("output.camera.pointcloud_resolution", camera_pointcloud_resolution_);
+    this->get_parameter("output.camera.class_id_confidence_th", camera_param_raw_vector_);
+    this->get_parameter("output.camera.object_direction", camera_object_direction_);
+    this->get_parameter("output.camera.object_max_distance_m", object_max_distance_);
+    this->get_parameter("output.camera.logger.use", use_camera_object_logger_);
+    this->get_parameter("output.camera.logger.margin.distance_diff", camera_logger_distance_margin_);
+    this->get_parameter("output.camera.logger.margin.width_diff", camera_logger_width_margin_);
+    this->get_parameter("output.camera.logger.margin.height_diff", camera_logger_height_margin_);
 
-    this->get_parameter("cliff.use", use_cliff_);
-    this->get_parameter("cliff.publish_rate_ms", publish_rate_cliff_);
+    this->get_parameter("output.cliff.use", use_cliff_);
+    this->get_parameter("output.cliff.topic", cliff_topic_);
+    this->get_parameter("output.cliff.publish_rate_ms", publish_rate_cliff_);
 
-    this->get_parameter("collision.use", use_collision_);
-    this->get_parameter("collision.publish_rate_ms", publish_rate_collision_);
+    this->get_parameter("output.collision.use", use_collision_);
+    this->get_parameter("output.collision.topic", collision_topic_);
+    this->get_parameter("output.collision.publish_rate_ms", publish_rate_collision_);
 }
 
 void SensorToPointcloud::printParams()
@@ -337,8 +355,6 @@ void SensorToPointcloud::printParams()
         row_stream << "]";
         RCLCPP_INFO(this->get_logger(), "%s", row_stream.str().c_str());
     }
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Row Use: %s", use_tof_row_ ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Row Publish Rate: %d ms", publish_rate_row_tof_);
 
     // Camera Settings
     RCLCPP_INFO(this->get_logger(), "[Camera Settings]");
@@ -392,35 +408,43 @@ void SensorToPointcloud::initPublisher()
 {
     auto create_pc_pub = [this](const std::string& topic_name) {
         return this->create_publisher<sensor_msgs::msg::PointCloud2>(
-            "sensor_to_pointcloud/" + topic_name, 10
+            topic_prefix_ + topic_name, 10
         );
     };
 
-    if (use_tof_ && use_tof_1D_) pointcloud_pubs_["tof/mono"] = create_pc_pub("tof/mono");
-    if (use_tof_) pointcloud_pubs_["tof/multi"] = create_pc_pub("tof/multi");
-    if (use_tof_ && use_tof_row_) {
+    if (use_tof_ && use_tof_1D_) pointcloud_pubs_[tof_mono_topic_] = create_pc_pub(tof_mono_topic_);
+    if (use_tof_) {
+        pointcloud_pubs_[tof_multi_topic_] = create_pc_pub(tof_multi_topic_);
         if (use_tof_8x8_) {
-            for (auto index : mtof_left_sub_cell_idx_array_) {
-                pointcloud_pubs_["tof/multi/left/idx_" + std::to_string(index)]
-                    = create_pc_pub("tof/multi/left/idx_" + std::to_string(index));
+            if (use_tof_left_) {
+                for (auto index : mtof_left_sub_cell_idx_array_) {
+                    pointcloud_pubs_[tof_left_topic_ + std::to_string(index)]
+                        = create_pc_pub(tof_left_topic_ + std::to_string(index));
+                }
             }
-            for (auto index : mtof_right_sub_cell_idx_array_) {
-                pointcloud_pubs_["tof/multi/right/idx_" + std::to_string(index)]
-                    = create_pc_pub("tof/multi/right/idx_" + std::to_string(index));
+            if (use_tof_right_){
+                for (auto index : mtof_right_sub_cell_idx_array_) {
+                    pointcloud_pubs_[tof_right_topic_ + std::to_string(index)]
+                        = create_pc_pub(tof_right_topic_ + std::to_string(index));
+                }
             }
         } else {
             for (int i = 0; i < 16; ++i) {
-                pointcloud_pubs_["tof/multi/left/idx_" + std::to_string(i)]
-                    = create_pc_pub("tof/multi/left/idx_" + std::to_string(i));
-                pointcloud_pubs_["tof/multi/right/idx_" + std::to_string(i)]
-                    = create_pc_pub("tof/multi/right/idx_" + std::to_string(i));
+                if (use_tof_left_) {
+                    pointcloud_pubs_[tof_left_topic_ + std::to_string(i)]
+                        = create_pc_pub(tof_left_topic_ + std::to_string(i));
+                }
+                if (use_tof_right_){
+                    pointcloud_pubs_[tof_right_topic_ + std::to_string(i)]
+                        = create_pc_pub(tof_right_topic_ + std::to_string(i));
+                }
             }
         }
     }
-    if (use_cliff_) pointcloud_pubs_["cliff"] = create_pc_pub("cliff");
-    if (use_collision_) pointcloud_pubs_["collision"] = create_pc_pub("collision");
+    if (use_cliff_) pointcloud_pubs_[cliff_topic_] = create_pc_pub(cliff_topic_);
+    if (use_collision_) pointcloud_pubs_[collision_topic_] = create_pc_pub(collision_topic_);
     if (use_camera_) {
-        pointcloud_pubs_["camera_object"] = create_pc_pub("camera_object");
+        pointcloud_pubs_[camera_topic_] = create_pc_pub(camera_topic_);
         bbox_array_camera_pub_ = this->create_publisher<vision_msgs::msg::BoundingBox2DArray>(
             "sensor_to_pointcloud/camera/bbox", 10
         );
@@ -462,36 +486,34 @@ void SensorToPointcloud::publisherMonitor()
                 publish_cnt_multi_tof_ = 0;
             }
         }
-        if (use_tof_row_) {
-            if (publish_cnt_row_tof_ >= publish_rate_row_tof_) {
-                if (use_tof_left_) {
-                    if (use_tof_8x8_) {
-                        for (auto index : mtof_left_sub_cell_idx_array_) {
-                            std::string topic_name = "tof/multi/left/idx_" + std::to_string(index);
-                            pointcloud_pubs_[topic_name]->publish(pc_8x8_tof_left_msg_map_[index]);
-                        }
-                    } else {
-                        for (size_t i=0; i<16; i++) {
-                            std::string topic_name = "tof/multi/left/idx_" + std::to_string(i);
-                            pointcloud_pubs_[topic_name]->publish(pc_4x4_tof_left_msg_map_[i]);
-                        }
+        if (publish_cnt_row_tof_ >= publish_rate_multi_tof_) {
+            if (use_tof_left_) {
+                if (use_tof_8x8_) {
+                    for (auto index : mtof_left_sub_cell_idx_array_) {
+                        std::string topic_name = tof_left_topic_ + std::to_string(index);
+                        pointcloud_pubs_[topic_name]->publish(pc_8x8_tof_left_msg_map_[index]);
+                    }
+                } else {
+                    for (size_t i=0; i<16; i++) {
+                        std::string topic_name = tof_left_topic_ + std::to_string(i);
+                        pointcloud_pubs_[topic_name]->publish(pc_4x4_tof_left_msg_map_[i]);
                     }
                 }
-                if (use_tof_right_) {
-                    if (use_tof_8x8_) {
-                        for (auto index : mtof_right_sub_cell_idx_array_) {
-                            std::string topic_name = "tof/multi/right/idx_" + std::to_string(index);
-                            pointcloud_pubs_[topic_name]->publish(pc_8x8_tof_right_msg_map_[index]);
-                        }
-                    } else {
-                        for (size_t i=0; i<16; i++) {
-                            std::string topic_name = "tof/multi/right/idx_" + std::to_string(i);
-                            pointcloud_pubs_[topic_name]->publish(pc_4x4_tof_right_msg_map_[i]);
-                        }
-                    }
-                }
-                publish_cnt_row_tof_ = 0;
             }
+            if (use_tof_right_) {
+                if (use_tof_8x8_) {
+                    for (auto index : mtof_right_sub_cell_idx_array_) {
+                        std::string topic_name = tof_right_topic_ + std::to_string(index);
+                        pointcloud_pubs_[topic_name]->publish(pc_8x8_tof_right_msg_map_[index]);
+                    }
+                } else {
+                    for (size_t i=0; i<16; i++) {
+                        std::string topic_name = tof_right_topic_ + std::to_string(i);
+                        pointcloud_pubs_[topic_name]->publish(pc_4x4_tof_right_msg_map_[i]);
+                    }
+                }
+            }
+            publish_cnt_row_tof_ = 0;
         }
         isTofUpdating = false;
     }

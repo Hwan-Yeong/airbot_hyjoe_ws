@@ -71,7 +71,9 @@ private:
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
     bool isActiveSensorToPointcloud;
-    std::string target_frame_;
+    std::string target_frame_, topic_prefix_;
+    std::string tof_mono_topic_, tof_multi_topic_, tof_left_topic_, tof_right_topic_;
+    std::string camera_topic_, cliff_topic_, collision_topic_;
     bool use_tof_, use_tof_1D_, use_tof_left_, use_tof_right_, use_tof_row_,
     use_camera_, use_cliff_, use_collision_, use_camera_object_logger_,
     use_mtof_ma_filter_, use_mtof_lp_filter_, use_mtof_comp_filter_;
