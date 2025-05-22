@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include "rclcpp/rclcpp.hpp"
+#include "yaml-cpp/yaml.h"
 #include "std_msgs/msg/bool.hpp"
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
@@ -30,6 +31,44 @@
 
 using PC2PublisherPtr = rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr;
 
+struct tMultiTof {
+    bool use = false;
+    std::string topic;
+    double pitch_angle_deg = 0.0;
+    std::vector<int> sub_cell_idx_array;
+};
+
+struct tSensor {
+    bool use = false;
+    std::string topic;
+    int publish_rate = 0;
+    double pitch_angle_deg = 0.0;
+};
+
+struct tSensorConfig {
+    tSensor one_d_tof;
+    tSensor multi_tof;
+    tMultiTof multi_tof_left;
+    tMultiTof multi_tof_right;
+    tSensor camera;
+    tSensor cliff;
+    tSensor collision;
+};
+
+struct tFilter {
+    bool use = false;
+    std::vector<int> enabled_4x4_idx;
+    double alpha = 0.0;
+    int window_size = 0;
+    double max_distance_th = 0.0;
+};
+
+struct tFilterConfig {
+    tFilter moving_average;
+    tFilter low_pass;
+    tFilter complementary;
+};
+
 class SensorToPointcloud : public rclcpp::Node
 {
 public:
@@ -50,6 +89,7 @@ private:
     TofMovingAverageFilter tof_ma_filter_;
     TofComplementaryFilter tof_comp_filter_;
 
+    YAML::Node config{};
 
     std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> target_frame_callback_handle_;
@@ -75,8 +115,7 @@ private:
     std::string tof_mono_topic_, tof_multi_topic_, tof_left_topic_, tof_right_topic_;
     std::string camera_topic_, cliff_topic_, collision_topic_;
     bool use_multi_tof_, use_1d_tof_, use_mtof_left_, use_mtof_right_, use_tof_row_,
-    use_camera_, use_cliff_, use_collision_, use_camera_object_logger_,
-    use_mtof_ma_filter_, use_mtof_lp_filter_, use_mtof_comp_filter_;
+    use_camera_, use_cliff_, use_collision_, use_camera_object_logger_;
     float camera_pointcloud_resolution_;
     double camera_logger_distance_margin_, camera_logger_width_margin_, camera_logger_height_margin_;
     std::vector<std::string> camera_param_raw_vector_;
@@ -88,14 +127,12 @@ private:
     publish_cnt_camera_, publish_cnt_cliff_, publish_cnt_collision_;
     double tilting_ang_1d_tof_, bot_left_pitch_angle_, bot_right_pitch_angle_;
     double object_max_distance_;
-    double mtof_lp_filter_alpha_, mtof_complementary_alpha_, mtof_ma_max_distance_th_;
-    int mtof_average_window_size_;
-    tTofPitchAngle botTofPitchAngle;
+
+    tFilterConfig mtof_filter_;
+    tSensorConfig sensor_config_;
+    tTofPitchAngle botTofPitchAngle_;
     std::vector<int> mtof_left_sub_cell_idx_array_;
     std::vector<int> mtof_right_sub_cell_idx_array_;
-    std::vector<int> mtof_ma_filter_enabled_4x4_idx_;
-    std::vector<int> mtof_lp_filter_enabled_4x4_idx_;
-    std::vector<int> mtof_comp_filter_enabled_4x4_idx_;
 
     sensor_msgs::msg::PointCloud2 pc_tof_1d_msg, pc_tof_multi_msg, pc_camera_msg, pc_cliff_msg, pc_collision_msg;
     std::unordered_map<int, sensor_msgs::msg::PointCloud2> pc_8x8_tof_left_msg_map_;
@@ -112,7 +149,11 @@ private:
     void setParams();
     void printParams();
     void initVariables();
-    void initPublisher();
+    void initSensorConfig(const YAML::Node& config);
+    void initPublisher(const YAML::Node& config);
+    void initFilterParam(const YAML::Node & node);
+    tSensor parseSensorConfig(const YAML::Node& node);
+    tMultiTof parseToFSensorConfig(const YAML::Node& node);
 
     void updateAllParameters();
     void updateAllFrames();

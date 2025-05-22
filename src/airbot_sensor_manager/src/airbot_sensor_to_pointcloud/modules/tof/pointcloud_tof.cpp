@@ -65,7 +65,7 @@ sensor_msgs::msg::PointCloud2 PointCloudTof::updateTopTofPointCloudMsg(const rob
     double tof_top_sensor_frame_pitch_sine = std::sin(tilting_angle*M_PI/180);
     point_on_robot_frame.x = tof_top_translation_.x + msg->top * tof_top_sensor_frame_pitch_cosine;
     point_on_robot_frame.y = tof_top_translation_.y;
-    point_on_robot_frame.z = tof_top_translation_.z + msg->top * tof_top_sensor_frame_pitch_sine;
+    point_on_robot_frame.z = tof_top_translation_.z - msg->top * tof_top_sensor_frame_pitch_sine;
     std::vector<tPoint> points_on_robot_frame = {point_on_robot_frame};
 
     if (target_frame_ == "map") {

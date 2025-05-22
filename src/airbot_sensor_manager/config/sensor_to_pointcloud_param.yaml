@@ -9,7 +9,7 @@ airbot_sensor_to_pointcloud:
         use: true
         topic: "tof/mono"
         publish_rate_ms: 10
-        tilting_angle_deg: 39.0 # double type
+        pitch_angle_deg: -39.0 # double type
 
       tof_multi:
         use: true
@@ -78,6 +78,7 @@ airbot_sensor_to_pointcloud:
           # - "5: 80" #obstacle 미사용
           - "6: 0" #poop      #30
           # - "8: 80" #threshold 미사용
+          - "12: 0" #pole
         object_direction: true  # 정방향(CCW+):True, 역방향(CW+):False
         object_max_distance_m: 1.5 # 최대 장애물 거리 (해당 거리 이내의 장애물 정보만 처리)
         logger:
@@ -132,6 +133,7 @@ airbot_sensor_to_pointcloud:
 #        9: person             #
 #        10: dog               #
 #        11: cat               #
+#        12: pole              #
 #                              #
 ################################
 ###########  Bot IR  ###########
