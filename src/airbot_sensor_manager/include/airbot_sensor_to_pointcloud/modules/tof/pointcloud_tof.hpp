@@ -7,16 +7,6 @@
 #include "utils/frame_converter.hpp"
 #include "utils/pointcloud_generator.hpp"
 
-struct tTofPitchAngle {
-    double bot_left;
-    double bot_right;
-};
-
-struct tFilteredPointCloud {
-    sensor_msgs::msg::PointCloud2 pointcloud;
-    std::vector<bool> zero_dist_mask;
-};
-
 class PointCloudTof
 {
 public:

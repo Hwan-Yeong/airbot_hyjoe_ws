@@ -31,44 +31,6 @@
 
 using PC2PublisherPtr = rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr;
 
-struct tMultiTof {
-    bool use = false;
-    std::string topic;
-    double pitch_angle_deg = 0.0;
-    std::vector<int> sub_cell_idx_array;
-};
-
-struct tSensor {
-    bool use = false;
-    std::string topic;
-    int publish_rate = 0;
-    double pitch_angle_deg = 0.0;
-};
-
-struct tSensorConfig {
-    tSensor one_d_tof;
-    tSensor multi_tof;
-    tMultiTof multi_tof_left;
-    tMultiTof multi_tof_right;
-    tSensor camera;
-    tSensor cliff;
-    tSensor collision;
-};
-
-struct tFilter {
-    bool use = false;
-    std::vector<int> enabled_4x4_idx;
-    double alpha = 0.0;
-    int window_size = 0;
-    double max_distance_th = 0.0;
-};
-
-struct tFilterConfig {
-    tFilter moving_average;
-    tFilter low_pass;
-    tFilter complementary;
-};
-
 class SensorToPointcloud : public rclcpp::Node
 {
 public:

@@ -15,7 +15,7 @@ airbot_sensor_to_pointcloud:
         use: true
         topic: "tof/multi"
         publish_rate_ms: 50
-        enable_8x8: false
+        enable_8x8: true
         filter:
           moving_average:
             use: true

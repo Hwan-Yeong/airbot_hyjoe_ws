@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <vector>
+#include "sensor_msgs/msg/point_cloud2.hpp"
 
 
 struct tPoint
@@ -54,6 +55,54 @@ struct tPose
     bool operator != (const tPose& other) const {
         return !(*this == other);
     }
+};
+
+struct tTofPitchAngle {
+    double bot_left;
+    double bot_right;
+};
+
+struct tFilteredPointCloud {
+    sensor_msgs::msg::PointCloud2 pointcloud;
+    std::vector<bool> zero_dist_mask;
+};
+
+struct tMultiTof {
+    bool use = false;
+    std::string topic;
+    double pitch_angle_deg = 0.0;
+    std::vector<int> sub_cell_idx_array;
+};
+
+struct tSensor {
+    bool use = false;
+    std::string topic;
+    int publish_rate = 0;
+    double pitch_angle_deg = 0.0;
+};
+
+struct tSensorConfig {
+    tSensor one_d_tof;
+    tSensor multi_tof;
+    tMultiTof multi_tof_left;
+    tMultiTof multi_tof_right;
+    tSensor camera;
+    tSensor cliff;
+    tSensor collision;
+};
+
+struct tFilter {
+    bool use = false;
+    std::vector<int> enabled_4x4_idx;
+    double alpha = 0.0;
+    int window_size = 0;
+    double max_distance_th = 0.0;
+};
+
+struct tFilterConfig {
+    tFilter moving_average;
+    tFilter low_pass;
+    tFilter complementary;
 };
 
 #endif
