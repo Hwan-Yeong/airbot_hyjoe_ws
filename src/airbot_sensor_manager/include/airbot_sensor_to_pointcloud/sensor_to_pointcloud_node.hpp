@@ -110,6 +110,8 @@ private:
 
     void declareParams();
     void setParams();
+    void printSensorConfig(const std::string& name, const tSensor& cfg);
+    void printFilterConfig(const std::string& name, const tFilter& filter);
     void printParams();
     void initVariables();
     void initSensorConfig(const YAML::Node& config);
