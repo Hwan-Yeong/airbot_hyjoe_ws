@@ -33,8 +33,10 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
             if (!prev_status) {
                 // [250407] hyjoe : low battery 에러 발생시 모니터 체크 시간(sec), 배터리 상태 1번만 로깅
                 RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[LowBatteryErrorMonitor] elapsed time since error check started: %.3f, remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
-                    time, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
+                    "[LowBatteryErrorMonitor] elapsed time since error check started: %.3f, remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA\n"
+                    "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                    time, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current,
+                    input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
                 );
                 prev_status = true;
             }
@@ -43,8 +45,10 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
             if (prev_status) {
                 // [250407] hyjoe : low battery 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
                 RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[LowBatteryErrorMonitor] start to low battery monitor (remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA)",
-                    input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
+                    "[LowBatteryErrorMonitor] start to low battery monitor (remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA)\n"
+                    "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                    input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current,
+                    input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
                 );
                 prev_status=false;
             }
@@ -56,8 +60,10 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
         if (prev_no_low_battery) {
             // [250407] hyjoe : low battery 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[LowBatteryErrorMonitor] Low Battery error released (remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA)",
-                input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
+                "[LowBatteryErrorMonitor] Low Battery error released (remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA)\n"
+                "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current,
+                input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
             );
             prev_no_low_battery = false;
         }
@@ -94,8 +100,10 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
             if (!prev_status) {
                 // [250407] hyjoe : 배터리 방전 에러 발생시 모니터 체크 시간(sec), 배터리 충전량 상태 1번만 로깅
                 RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[BatteryDischargingErrorMonitor] elapsed time since error check started: %.3f, remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
-                    time, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
+                    "[BatteryDischargingErrorMonitor] elapsed time since error check started: %.3f, remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA\n"
+                    "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                    time, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current,
+                    input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
                 );
                 prev_status = true;
             }
@@ -104,8 +112,10 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
             if (prev_status) {
                 // [250407] hyjoe : 배터리 방전 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 충전량 상태 로깅
                 RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[BatteryDischargingErrorMonitor] start to battery discharging monitor (remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA)",
-                    input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
+                    "[BatteryDischargingErrorMonitor] start to battery discharging monitor (remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA)\n"
+                    "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                    input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current,
+                    input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
                 );
                 prev_status=false;
             }
@@ -118,7 +128,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
         if (prev_no_low_battery) {
             // [250407] hyjoe : 배터리 방전 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[BatteryDischargingErrorMonitor] Battery Discharging error released (remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA)",
+                "[BatteryDischargingErrorMonitor] Battery Discharging error released (remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA)\n",
                 input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
             );
             prev_no_low_battery = false;
@@ -288,8 +298,10 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
             // [250407] hyjoe : 충전 에러 체크 시작할 때 배터리 상태 로그 출력
             RCLCPP_INFO(
                 node_ptr_->get_logger(),
-                "[ChargingErrorMonitor] remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
-                input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
+                "[ChargingErrorMonitor] remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA\n"
+                "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current,
+                input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
             );
         }
         double timediff = currentTime - lastCheckTime;
@@ -301,8 +313,10 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
                 // [250407] hyjoe : 충전 에러 발생 시 충전단자 상태, 배터리량 로그 출력
                 RCLCPP_INFO(
                     node_ptr_->get_logger(),
-                    "[ChargingErrorMonitor] docking status: 0x%02X, remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA",
-                    input.second.docking_status, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current
+                    "[ChargingErrorMonitor] docking status: 0x%02X, remaining capacity: %d mAh, battery percent: %d %%, battery current: %.3f mA\n"
+                    "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                    input.second.docking_status, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current,
+                    input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
                 );
                 // [250407] hyjoe : 충전 에러 발생 시 에러 체크 시작으로부터 경과시간 로그 출력
                 RCLCPP_INFO(node_ptr_->get_logger(),
@@ -369,8 +383,9 @@ bool LiftErrorMonitor::checkError(const InputType &input)
 
     double acc_z = input.second.linear_acceleration.z;
 
+    //250521 KKS : 낙하가 감지되지 않을 경우 z축 검사하지 않음
     // acc_z가 10.5이상이고 acc_z가 9.2이하이면 imu 들림 의심 (기준값 수정 필요할 수도 있음)
-    if (acc_z <= 9.2 || acc_z >= 10.5) {
+    if (irLiftFlag && (acc_z <= 9.2 || acc_z >= 10.5)) {
         // [250407] hyjoe : 들림 에러 발생 의심시 imu z축 가속도값 로깅 (승월이나 전도시에도 해당 로그 나올 수 있지만, 추후 정확한 상태 진단을 위해 일단 로깅)
         if (!imuLiftFlag) {
             RCLCPP_INFO(node_ptr_->get_logger(),

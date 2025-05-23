@@ -134,11 +134,11 @@ void ErrorMonitorNode::errorMonitor()
         bool fall_down_error = this->runMonitor<FallDownErrorMonitor>(std::make_pair(bottom_ir_data, imu_data));
         if (fall_down_error) {
             //RCLCPP_INFO(this->get_logger(), "fall_down_error : %s", fall_down_error ? "true" : "false");
-            error_msg.data = true;
-            fall_down_error_pub_->publish(error_msg);
+            // error_msg.data = true;
+            // fall_down_error_pub_->publish(error_msg);
         } else {
-            error_msg.data = false;
-            fall_down_error_pub_->publish(error_msg);
+            // error_msg.data = false;
+            // fall_down_error_pub_->publish(error_msg);
         }
         publish_cnt_fall_down_error_ = 0;
         update_bottom_ir_data_fall_down = false;
@@ -215,11 +215,11 @@ void ErrorMonitorNode::errorMonitor()
         bool lift_error = this->runMonitor<LiftErrorMonitor>(std::make_pair(bottom_ir_data, imu_data));
         if (lift_error) {
             // RCLCPP_INFO(this->get_logger(), "lift_error : %s", lift_error ? "true" : "false");
-            error_msg.data = true;
-            lift_error_pub_->publish(error_msg);
+            // error_msg.data = true;
+            // lift_error_pub_->publish(error_msg);
         } else {
-            error_msg.data = false;
-            lift_error_pub_->publish(error_msg);
+            // error_msg.data = false;
+            // lift_error_pub_->publish(error_msg);
         }
         publish_cnt_lift_error_ = 0;
         update_bottom_ir_data_lift = false;
