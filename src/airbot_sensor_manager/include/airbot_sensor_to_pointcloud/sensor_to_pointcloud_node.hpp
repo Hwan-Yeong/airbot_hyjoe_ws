@@ -110,29 +110,19 @@ private:
 
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
-    bool isActiveSensorToPointcloud;
-    std::string target_frame_, topic_prefix_;
-    std::string tof_mono_topic_, tof_multi_topic_, tof_left_topic_, tof_right_topic_;
-    std::string camera_topic_, cliff_topic_, collision_topic_;
-    bool use_multi_tof_, use_1d_tof_, use_mtof_left_, use_mtof_right_, use_tof_row_,
-    use_camera_, use_cliff_, use_collision_, use_camera_object_logger_;
+    std::string target_frame_;
     float camera_pointcloud_resolution_;
     double camera_logger_distance_margin_, camera_logger_width_margin_, camera_logger_height_margin_;
     std::vector<std::string> camera_param_raw_vector_;
     std::map<int, int> camera_class_id_confidence_th_;
-    bool camera_object_direction_, use_tof_8x8_;
-    int publish_rate_1d_tof_, publish_rate_multi_tof_, publish_rate_row_tof_,
-    publish_rate_camera_, publish_rate_cliff_, publish_rate_collision_;
+    bool camera_object_direction_, use_tof_8x8_, use_camera_log_;
     int publish_cnt_1d_tof_, publish_cnt_multi_tof_, publish_cnt_row_tof_,
     publish_cnt_camera_, publish_cnt_cliff_, publish_cnt_collision_;
-    double tilting_ang_1d_tof_, bot_left_pitch_angle_, bot_right_pitch_angle_;
     double object_max_distance_;
 
     tFilterConfig mtof_filter_;
     tSensorConfig sensor_config_;
     tTofPitchAngle botTofPitchAngle_;
-    std::vector<int> mtof_left_sub_cell_idx_array_;
-    std::vector<int> mtof_right_sub_cell_idx_array_;
 
     sensor_msgs::msg::PointCloud2 pc_tof_1d_msg, pc_tof_multi_msg, pc_camera_msg, pc_cliff_msg, pc_collision_msg;
     std::unordered_map<int, sensor_msgs::msg::PointCloud2> pc_8x8_tof_left_msg_map_;
@@ -143,6 +133,7 @@ private:
     vision_msgs::msg::BoundingBox2DArray bbox_msg;
     visualization_msgs::msg::MarkerArray marker_msg;
 
+    bool isActiveSensorToPointcloud;
     bool isTofUpdating, isCameraUpdating, isCliffUpdating, isCollisionUpdating;
 
     void declareParams();

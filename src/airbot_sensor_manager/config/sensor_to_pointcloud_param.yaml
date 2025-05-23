@@ -1,7 +1,7 @@
 airbot_sensor_to_pointcloud:
   ros__parameters:
 
-    target_frame: "base_link" # "map" or "base_link"
+    target_frame: "map" # "map" or "base_link"
 
     output:
       topic_prefix: "sensor_to_pointcloud/"

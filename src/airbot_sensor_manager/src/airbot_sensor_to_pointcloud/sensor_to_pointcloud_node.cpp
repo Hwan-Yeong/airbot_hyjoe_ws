@@ -130,8 +130,8 @@ void SensorToPointcloud::init()
     declareParams();
     setParams();
     initSensorConfig(this->config);
-    botTofPitchAngle_.bot_left = bot_left_pitch_angle_;
-    botTofPitchAngle_.bot_right = bot_right_pitch_angle_;
+    botTofPitchAngle_.bot_left = sensor_config_.multi_tof_left.pitch_angle_deg;
+    botTofPitchAngle_.bot_right = sensor_config_.multi_tof_right.pitch_angle_deg;
     initPublisher(this->config);
     initFilterParam(this->config["tof_multi"]["filter"]);
     updateAllParameters();
@@ -143,8 +143,8 @@ void SensorToPointcloud::updateAllParameters()
     updateAllFrames();
     updateAllFilters();
     point_cloud_tof_.updateTofMode(use_tof_8x8_);
-    point_cloud_tof_.updateLeftSubCellIndexArray(mtof_left_sub_cell_idx_array_);
-    point_cloud_tof_.updateRightSubCellIndexArray(mtof_right_sub_cell_idx_array_);
+    point_cloud_tof_.updateLeftSubCellIndexArray(sensor_config_.multi_tof_left.sub_cell_idx_array);
+    point_cloud_tof_.updateRightSubCellIndexArray(sensor_config_.multi_tof_right.sub_cell_idx_array);
     camera_object_logger_.updateParams(camera_logger_distance_margin_,camera_logger_width_margin_,camera_logger_height_margin_);
     for (const auto& item : camera_param_raw_vector_) {
         std::istringstream ss(item);
@@ -174,29 +174,8 @@ void SensorToPointcloud::declareParams()
 {
     this->declare_parameter("target_frame","base_link");
 
-    this->declare_parameter("output.tof_mono.use",false);
-    this->declare_parameter("output.tof_mono.topic","tof/mono");
-    this->declare_parameter("output.tof_mono.publish_rate_ms",100);
-    this->declare_parameter("output.tof_mono.tilting_angle_deg",0.0);
-
-    this->declare_parameter("output.tof_multi.use",false);
-    this->declare_parameter("output.tof_multi.topic","tof/multi");
-    this->declare_parameter("output.tof_multi.publish_rate_ms",100);
     this->declare_parameter("output.tof_multi.enable_8x8", false);
 
-    this->declare_parameter("output.tof_multi_left.use",false);
-    this->declare_parameter("output.tof_multi_left.topic","tof/multi/left/idx_");
-    this->declare_parameter("output.tof_multi_left.pitch_angle_deg",0.0);
-    this->declare_parameter("output.tof_multi_left.sub_cell_idx_array",std::vector<int64_t>(16, 0));
-
-    this->declare_parameter("output.tof_multi_right.use",false);
-    this->declare_parameter("output.tof_multi_right.topic","tof/multi/right/idx_");
-    this->declare_parameter("output.tof_multi_right.pitch_angle_deg",0.0);
-    this->declare_parameter("output.tof_multi_right.sub_cell_idx_array",std::vector<int64_t>(16, 0));
-
-    this->declare_parameter("output.camera.use",false);
-    this->declare_parameter("output.camera.topic","camera_object");
-    this->declare_parameter("output.camera.publish_rate_ms",100);
     this->declare_parameter("output.camera.pointcloud_resolution",0.05);
     this->declare_parameter("output.camera.class_id_confidence_th",std::vector<std::string>());
     this->declare_parameter("output.camera.object_direction",false);
@@ -205,14 +184,6 @@ void SensorToPointcloud::declareParams()
     this->declare_parameter("output.camera.logger.margin.distance_diff",1.0);
     this->declare_parameter("output.camera.logger.margin.width_diff",1.0);
     this->declare_parameter("output.camera.logger.margin.height_diff",1.0);
-
-    this->declare_parameter("output.cliff.use",false);
-    this->declare_parameter("output.cliff.topic","cliff");
-    this->declare_parameter("output.cliff.publish_rate_ms",100);
-
-    this->declare_parameter("output.collision.use",false);
-    this->declare_parameter("output.collision.topic","collision");
-    this->declare_parameter("output.collision.publish_rate_ms",100);
 }
 
 void SensorToPointcloud::setParams()
@@ -223,53 +194,12 @@ void SensorToPointcloud::setParams()
 
     this->get_parameter("output.camera.class_id_confidence_th", camera_param_raw_vector_);
     this->get_parameter("output.camera.pointcloud_resolution", camera_pointcloud_resolution_);
-
     this->get_parameter("output.camera.object_direction", camera_object_direction_);
     this->get_parameter("output.camera.object_max_distance_m", object_max_distance_);
-
-    this->get_parameter("output.camera.logger.use", use_camera_object_logger_);
+    this->get_parameter("output.camera.logger.use", use_camera_log_);
     this->get_parameter("output.camera.logger.margin.distance_diff", camera_logger_distance_margin_);
     this->get_parameter("output.camera.logger.margin.width_diff", camera_logger_width_margin_);
     this->get_parameter("output.camera.logger.margin.height_diff", camera_logger_height_margin_);
-
-
-
-
-
-    this->get_parameter("output.tof_mono.use",use_1d_tof_);
-    this->get_parameter("output.tof_mono.topic", tof_mono_topic_);
-    this->get_parameter("output.tof_mono.publish_rate_ms", publish_rate_1d_tof_);
-    this->get_parameter("output.tof_mono.tilting_angle_deg", tilting_ang_1d_tof_);
-
-    this->get_parameter("output.tof_multi.use", use_multi_tof_);
-    this->get_parameter("output.tof_multi.topic", tof_multi_topic_);
-    this->get_parameter("output.tof_multi.publish_rate_ms", publish_rate_multi_tof_);
-
-    this->get_parameter("output.tof_multi_left.use", use_mtof_left_);
-    this->get_parameter("output.tof_multi_left.topic", tof_left_topic_);
-    this->get_parameter("output.tof_multi_left.pitch_angle_deg", bot_left_pitch_angle_);
-    std::vector<int64_t> tmp64_left;
-    this->get_parameter("output.tof_multi_left.sub_cell_idx_array", tmp64_left);
-    mtof_left_sub_cell_idx_array_.assign(tmp64_left.begin(), tmp64_left.end());
-
-    this->get_parameter("output.tof_multi_right.use", use_mtof_right_);
-    this->get_parameter("output.tof_multi_right.topic", tof_right_topic_);
-    this->get_parameter("output.tof_multi_right.pitch_angle_deg", bot_right_pitch_angle_);
-    std::vector<int64_t> tmp64_right;
-    this->get_parameter("output.tof_multi_right.sub_cell_idx_array", tmp64_right);
-    mtof_right_sub_cell_idx_array_.assign(tmp64_right.begin(), tmp64_right.end());
-
-    this->get_parameter("output.camera.use", use_camera_);
-    this->get_parameter("output.camera.topic", camera_topic_);
-    this->get_parameter("output.camera.publish_rate_ms", publish_rate_camera_);
-
-    this->get_parameter("output.cliff.use", use_cliff_);
-    this->get_parameter("output.cliff.topic", cliff_topic_);
-    this->get_parameter("output.cliff.publish_rate_ms", publish_rate_cliff_);
-
-    this->get_parameter("output.collision.use", use_collision_);
-    this->get_parameter("output.collision.topic", collision_topic_);
-    this->get_parameter("output.collision.publish_rate_ms", publish_rate_collision_);
 }
 
 void SensorToPointcloud::printParams()
@@ -282,32 +212,32 @@ void SensorToPointcloud::printParams()
 
     // TOF Settings
     RCLCPP_INFO(this->get_logger(), "[TOF Settings]");
-    RCLCPP_INFO(this->get_logger(), "  TOF All Use: %s", use_multi_tof_ ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "  TOF 1D Use: %s", use_1d_tof_ ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "  TOF 1D Publish Rate: %d ms", publish_rate_1d_tof_);
-    RCLCPP_INFO(this->get_logger(), "  TOF 1D Tilting Angle: %.2f deg", tilting_ang_1d_tof_);
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Publish Rate: %d ms", publish_rate_multi_tof_);
+    RCLCPP_INFO(this->get_logger(), "  TOF 1D Use: %s", sensor_config_.one_d_tof.use ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  TOF 1D Publish Rate: %d ms", sensor_config_.one_d_tof.publish_rate);
+    RCLCPP_INFO(this->get_logger(), "  TOF 1D Tilting Angle: %.2f deg", sensor_config_.one_d_tof.pitch_angle_deg);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Use: %s", sensor_config_.multi_tof.use ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Publish Rate: %d ms", sensor_config_.multi_tof.publish_rate);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi 8x8 Use: %s", use_tof_8x8_ ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Use: %s", use_mtof_left_ ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Pitch Angle: %.2f", bot_left_pitch_angle_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Use: %s", sensor_config_.multi_tof_left.use ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Pitch Angle: %.2f", sensor_config_.multi_tof_left.pitch_angle_deg);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Left Sub Cell Index Array:");
     for (int i = 0; i < 4; ++i) {
         std::stringstream row_stream;
         row_stream << "    [ ";
         for (int j = 0; j < 4; ++j) {
-            row_stream << mtof_left_sub_cell_idx_array_[i * 4 + j] << " ";
+            row_stream << sensor_config_.multi_tof_left.sub_cell_idx_array[i * 4 + j] << " ";
         }
         row_stream << "]";
         RCLCPP_INFO(this->get_logger(), "%s", row_stream.str().c_str());
     }
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Use: %s", use_mtof_right_ ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Pitch Angle: %.2f", bot_right_pitch_angle_);
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Use: %s", sensor_config_.multi_tof_right.use ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Pitch Angle: %.2f", sensor_config_.multi_tof_right.pitch_angle_deg);
     RCLCPP_INFO(this->get_logger(), "  TOF Multi Right Sub Cell Index Array:");
     for (int i = 0; i < 4; ++i) {
         std::stringstream row_stream;
         row_stream << "    [ ";
         for (int j = 0; j < 4; ++j) {
-            row_stream << mtof_right_sub_cell_idx_array_[i * 4 + j] << " ";
+            row_stream << sensor_config_.multi_tof_right.sub_cell_idx_array[i * 4 + j] << " ";
         }
         row_stream << "]";
         RCLCPP_INFO(this->get_logger(), "%s", row_stream.str().c_str());
@@ -345,16 +275,17 @@ void SensorToPointcloud::printParams()
 
     // Camera Settings
     RCLCPP_INFO(this->get_logger(), "[Camera Settings]");
-    RCLCPP_INFO(this->get_logger(), "  Camera Use: %s", use_camera_ ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "  Camera Publish Rate: %d ms", publish_rate_camera_);
+    RCLCPP_INFO(this->get_logger(), "  Camera Use: %s", sensor_config_.camera.use ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  Camera Publish Rate: %d ms", sensor_config_.camera.publish_rate);
     RCLCPP_INFO(this->get_logger(), "  Camera Pointcloud Resolution: %.2f", camera_pointcloud_resolution_);
     RCLCPP_INFO(this->get_logger(), "  Camera Object Direction: %s", camera_object_direction_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  Camera Object Max Distance: %.2f", object_max_distance_);
     RCLCPP_INFO(this->get_logger(), "  Camera Class ID Confidence Threshold:");
     for (const auto& conf : camera_class_id_confidence_th_) {
-        RCLCPP_INFO(this->get_logger(), "    Class ID: %d, Confidence: %d", conf.first, conf.second);
+        // RCLCPP_INFO(this->get_logger(), "    Class ID: %d, Confidence: %d", conf.first, conf.second);
+        RCLCPP_INFO(this->get_logger(), "    Class ID: %d", conf.first);
     }
-    RCLCPP_INFO(this->get_logger(), "  Camera Logger Use: %s", use_camera_object_logger_ ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  Camera Logger Use: %s", use_camera_log_ ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  Camera Logger Margins: Distance Diff: %.2f, Width Diff: %.2f, Height Diff: %.2f",
                 camera_logger_distance_margin_,
                 camera_logger_width_margin_,
@@ -362,13 +293,13 @@ void SensorToPointcloud::printParams()
 
     // Cliff Settings
     RCLCPP_INFO(this->get_logger(), "[Cliff Settings]");
-    RCLCPP_INFO(this->get_logger(), "  Cliff Use: %s", use_cliff_ ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "  Cliff Publish Rate: %d ms", publish_rate_cliff_);
+    RCLCPP_INFO(this->get_logger(), "  Cliff Use: %s", sensor_config_.cliff.use ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  Cliff Publish Rate: %d ms", sensor_config_.cliff.publish_rate);
 
     // Collision Settings
     RCLCPP_INFO(this->get_logger(), "[Collision Settings]");
-    RCLCPP_INFO(this->get_logger(), "  Collision Use: %s", use_collision_ ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "  Collision Publish Rate: %d ms", publish_rate_collision_);
+    RCLCPP_INFO(this->get_logger(), "  Collision Use: %s", sensor_config_.collision.use ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  Collision Publish Rate: %d ms", sensor_config_.collision.publish_rate);
     RCLCPP_INFO(this->get_logger(), "===============================================================");
     RCLCPP_INFO(this->get_logger(), "All Parameters init finished!");
 }
@@ -408,13 +339,14 @@ void SensorToPointcloud::initSensorConfig(const YAML::Node& config)
 
 void SensorToPointcloud::initPublisher(const YAML::Node& config)
 {
+    std::string topic_prefix;
     if (config["topic_prefix"] && config["topic_prefix"].IsScalar()) {
-        topic_prefix_ = config["topic_prefix"].as<std::string>();
+        topic_prefix = config["topic_prefix"].as<std::string>();
     }
 
-    auto create_pc_pub = [this](const std::string& topic_name) {
+    auto create_pc_pub = [this, topic_prefix](const std::string& topic_name) {
         return this->create_publisher<sensor_msgs::msg::PointCloud2>(
-            topic_prefix_ + topic_name, 10
+            topic_prefix + topic_name, 10
         );
     };
 
@@ -551,40 +483,40 @@ void SensorToPointcloud::publisherMonitor()
 
     // publish pointCloud Data
     if (isTofUpdating) { // ToF
-        if (use_1d_tof_) {
-            if (publish_cnt_1d_tof_ >= publish_rate_1d_tof_) {
-                pointcloud_pubs_[tof_mono_topic_]->publish(pc_tof_1d_msg);
+        if (sensor_config_.one_d_tof.use) {
+            if (publish_cnt_1d_tof_ >= sensor_config_.one_d_tof.publish_rate) {
+                pointcloud_pubs_[sensor_config_.one_d_tof.topic]->publish(pc_tof_1d_msg);
                 publish_cnt_1d_tof_ = 0;
             }
         }
-        if (use_multi_tof_) {
-            if (publish_cnt_multi_tof_ >= publish_rate_multi_tof_) {
-                pointcloud_pubs_[tof_multi_topic_]->publish(pc_tof_multi_msg);
+        if (sensor_config_.multi_tof.use) {
+            if (publish_cnt_multi_tof_ >= sensor_config_.multi_tof.publish_rate) {
+                pointcloud_pubs_[sensor_config_.multi_tof.topic]->publish(pc_tof_multi_msg);
                 publish_cnt_multi_tof_ = 0;
             }
         }
-        if (publish_cnt_row_tof_ >= publish_rate_multi_tof_) {
+        if (publish_cnt_row_tof_ >= sensor_config_.multi_tof.publish_rate) {
             if (use_tof_8x8_) {
-                if (use_mtof_left_) {
-                    for (auto index : mtof_left_sub_cell_idx_array_) {
-                        std::string topic_name = tof_left_topic_ + std::to_string(index);
+                if (sensor_config_.multi_tof_left.use) {
+                    for (auto index : sensor_config_.multi_tof_left.sub_cell_idx_array) {
+                        std::string topic_name = sensor_config_.multi_tof_left.topic + std::to_string(index);
                         pointcloud_pubs_[topic_name]->publish(pc_8x8_tof_left_msg_map_[index]);
                     }
                 }
-                if (use_mtof_right_) {
-                    for (auto index : mtof_right_sub_cell_idx_array_) {
-                        std::string topic_name = tof_right_topic_ + std::to_string(index);
+                if (sensor_config_.multi_tof_right.use) {
+                    for (auto index : sensor_config_.multi_tof_right.sub_cell_idx_array) {
+                        std::string topic_name = sensor_config_.multi_tof_right.topic+ std::to_string(index);
                         pointcloud_pubs_[topic_name]->publish(pc_8x8_tof_right_msg_map_[index]);
                     }
                 }
             } else {
                 for (int i = 0; i < 16; ++i) {
-                    if (use_mtof_left_) {
-                        std::string topic_name = tof_left_topic_ + std::to_string(i);
+                    if (sensor_config_.multi_tof_left.use) {
+                        std::string topic_name = sensor_config_.multi_tof_left.topic + std::to_string(i);
                         pointcloud_pubs_[topic_name]->publish(pc_4x4_tof_left_msg_map_[i]);
                     }
-                    if (use_mtof_right_) {
-                        std::string topic_name = tof_right_topic_ + std::to_string(i);
+                    if (sensor_config_.multi_tof_right.use) {
+                        std::string topic_name = sensor_config_.multi_tof_right.topic + std::to_string(i);
                         pointcloud_pubs_[topic_name]->publish(pc_4x4_tof_right_msg_map_[i]);
                     }
                 }
@@ -593,24 +525,24 @@ void SensorToPointcloud::publisherMonitor()
         }
         isTofUpdating = false;
     }
-    if (use_camera_ && isCameraUpdating) {
-        if (publish_cnt_camera_ >= publish_rate_camera_) {
-            pointcloud_pubs_[camera_topic_]->publish(pc_camera_msg);
+    if (sensor_config_.camera.use && isCameraUpdating) {
+        if (publish_cnt_camera_ >= sensor_config_.camera.publish_rate) {
+            pointcloud_pubs_[sensor_config_.camera.topic]->publish(pc_camera_msg);
             bbox_array_camera_pub_->publish(bbox_msg);
             isCameraUpdating = false;
             publish_cnt_camera_ = 0;
         }
     }
-    if (use_cliff_ && isCliffUpdating) {
-        if (publish_cnt_cliff_ >= publish_rate_cliff_) {
-            pointcloud_pubs_[cliff_topic_]->publish(pc_cliff_msg);
+    if (sensor_config_.cliff.use && isCliffUpdating) {
+        if (publish_cnt_cliff_ >= sensor_config_.cliff.publish_rate) {
+            pointcloud_pubs_[sensor_config_.cliff.topic]->publish(pc_cliff_msg);
             isCliffUpdating = false;
             publish_cnt_cliff_ = 0;
         }
     }
-    if (use_collision_ && isCollisionUpdating) {
-        if (publish_cnt_collision_ >= publish_rate_collision_) {
-            pointcloud_pubs_[collision_topic_]->publish(pc_collision_msg);
+    if (sensor_config_.collision.use && isCollisionUpdating) {
+        if (publish_cnt_collision_ >= sensor_config_.collision.publish_rate) {
+            pointcloud_pubs_[sensor_config_.collision.topic]->publish(pc_collision_msg);
             isCollisionUpdating = false;
             publish_cnt_collision_ = 0;
         }
@@ -696,15 +628,15 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
     if (mtof_filter_.complementary.use) filtered_msg = tof_comp_filter_.update(filtered_msg);
     tof_debug_pub_->publish(*filtered_msg);
 
-    if (use_1d_tof_) pc_tof_1d_msg = point_cloud_tof_.updateTopTofPointCloudMsg(msg, tilting_ang_1d_tof_);
-    if (use_multi_tof_ || use_mtof_left_ || use_mtof_right_) {
-        TOF_SIDE side = (use_mtof_left_ && use_mtof_right_)
-                        ? TOF_SIDE::BOTH : (use_mtof_left_ ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
+    if (sensor_config_.one_d_tof.use) pc_tof_1d_msg = point_cloud_tof_.updateTopTofPointCloudMsg(msg, sensor_config_.one_d_tof.pitch_angle_deg);
+    if (sensor_config_.multi_tof.use || sensor_config_.multi_tof_left.use || sensor_config_.multi_tof_right.use) {
+        TOF_SIDE side = (sensor_config_.multi_tof_left.use && sensor_config_.multi_tof_right.use)
+                        ? TOF_SIDE::BOTH : (sensor_config_.multi_tof_left.use ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT);
         auto pc_msgs = point_cloud_tof_.updateBotTofPointCloudMsg(filtered_msg, side, botTofPitchAngle_);
         if (side == TOF_SIDE::LEFT) {
             if (use_tof_8x8_) {
                 int i = 0;
-                for (auto index : mtof_left_sub_cell_idx_array_) {
+                for (auto index : sensor_config_.multi_tof_left.sub_cell_idx_array) {
                     pc_8x8_tof_left_msg_map_[index] = pc_msgs[i];
                     i++;
                 }
@@ -715,7 +647,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
             }
         } else if (side == TOF_SIDE::RIGHT) {
             if (use_tof_8x8_) {
-                for (auto index : mtof_right_sub_cell_idx_array_) {
+                for (auto index : sensor_config_.multi_tof_right.sub_cell_idx_array) {
                     int i = 0;
                     pc_8x8_tof_right_msg_map_[index] = pc_msgs[i];
                     i++;
@@ -729,16 +661,16 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
             if (use_tof_8x8_) {
                 int i = 0;
                 int j = 0;
-                for (auto index : mtof_left_sub_cell_idx_array_) {
+                for (auto index : sensor_config_.multi_tof_left.sub_cell_idx_array) {
                     pc_8x8_tof_left_msg_map_[index] = pc_msgs[i]; // 앞쪽 0~15
                     i++;
                 }
 
-                for (auto index : mtof_right_sub_cell_idx_array_) {
+                for (auto index : sensor_config_.multi_tof_right.sub_cell_idx_array) {
                     pc_8x8_tof_right_msg_map_[index] = pc_msgs[16 + j]; // 뒤쪽 16~31
                     j++;
                 }
-                if (use_multi_tof_) pc_tof_multi_msg = pointcloud_generator_.mergePointCloud2Vector(pc_msgs, target_frame_);
+                if (sensor_config_.multi_tof.use) pc_tof_multi_msg = pointcloud_generator_.mergePointCloud2Vector(pc_msgs, target_frame_);
             } else {
                 for (int i=0; i<16; i++) {
                     pc_4x4_tof_left_msg_map_[i] = pc_msgs[i];
@@ -746,7 +678,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
                 for (int i=0; i<16; i++) {
                     pc_4x4_tof_right_msg_map_[i] = pc_msgs[16+i];
                 }
-                if (use_multi_tof_) pc_tof_multi_msg = pointcloud_generator_.mergePointCloud2Vector(pc_msgs, target_frame_);
+                if (sensor_config_.multi_tof.use) pc_tof_multi_msg = pointcloud_generator_.mergePointCloud2Vector(pc_msgs, target_frame_);
             }
         }
     }
@@ -756,7 +688,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
 
 void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg)
 {
-    if (target_frame_ == "map" || use_camera_object_logger_) {
+    if (target_frame_ == "map" || sensor_config_.camera.use) {
         tPose pose;
         pose.position.x = msg->robot_x;
         pose.position.y = msg->robot_y;
@@ -764,8 +696,8 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
         bounding_box_generator_.updateRobotPose(pose);
     }
 
-    if (use_camera_) {
-        if (use_camera_object_logger_) {
+    if (use_camera_log_) {
+        if (sensor_config_.camera.use) {
             camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th_, camera_object_direction_, object_max_distance_));
         }
         bbox_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th_, camera_object_direction_, object_max_distance_);
@@ -785,7 +717,7 @@ void SensorToPointcloud::cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrDa
         point_cloud_cliff_.updateRobotPose(pose);
     }
 
-    if (use_cliff_) pc_cliff_msg = point_cloud_cliff_.updateCliffPointCloudMsg(msg);
+    if (sensor_config_.cliff.use) pc_cliff_msg = point_cloud_cliff_.updateCliffPointCloudMsg(msg);
 
     isCliffUpdating = true;
 }
@@ -800,7 +732,7 @@ void SensorToPointcloud::collisionMsgUpdate(const robot_custom_msgs::msg::Abnorm
         point_cloud_collosion_.updateRobotPose(pose);
     }
 
-    if (use_collision_ && msg->event_trigger) pc_collision_msg = point_cloud_collosion_.updateCollisionPointCloudMsg(msg);
+    if (sensor_config_.collision.use && msg->event_trigger) pc_collision_msg = point_cloud_collosion_.updateCollisionPointCloudMsg(msg);
 
     isCollisionUpdating = true;
 }
