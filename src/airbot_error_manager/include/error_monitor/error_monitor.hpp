@@ -96,6 +96,7 @@ public:
     bool checkError(const InputType& input) override;
 private:
     uint8_t initialCharge = 0;
+    uint8_t prevChargePercentage = 0;
     bool errorState = false;
     bool isFirstCheck = true;
     double lastCheckTime = 0;
