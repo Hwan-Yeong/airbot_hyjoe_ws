@@ -67,25 +67,19 @@ struct tFilteredPointCloud {
     std::vector<bool> zero_dist_mask;
 };
 
-struct tMultiTof {
-    bool use = false;
-    std::string topic;
-    double pitch_angle_deg = 0.0;
-    std::vector<int> sub_cell_idx_array;
-};
-
 struct tSensor {
     bool use = false;
     std::string topic;
     int publish_rate = 0;
     double pitch_angle_deg = 0.0;
+    std::vector<int> sub_cell_idx_array;
 };
 
 struct tSensorConfig {
     tSensor one_d_tof;
     tSensor multi_tof;
-    tMultiTof multi_tof_left;
-    tMultiTof multi_tof_right;
+    tSensor multi_tof_left;
+    tSensor multi_tof_right;
     tSensor camera;
     tSensor cliff;
     tSensor collision;

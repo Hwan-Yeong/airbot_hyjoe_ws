@@ -67,36 +67,50 @@ private:
     std::unordered_map<std::string, PC2PublisherPtr> pointcloud_pubs_;
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr bbox_array_camera_pub_;
 
+    rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
+
     //debug
     rclcpp::Publisher<robot_custom_msgs::msg::TofData>::SharedPtr tof_debug_pub_;
 
-    rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
-
     std::string target_frame_;
+
+    bool use_tof_8x8_;
+    bool use_camera_log_;
+    bool camera_object_direction_;
+    int publish_cnt_1d_tof_;
+    int publish_cnt_row_tof_;
+    int publish_cnt_multi_tof_;
+    int publish_cnt_camera_;
+    int publish_cnt_cliff_;
+    int publish_cnt_collision_;
     float camera_pointcloud_resolution_;
-    double camera_logger_distance_margin_, camera_logger_width_margin_, camera_logger_height_margin_;
+    double camera_logger_distance_margin_;
+    double camera_logger_width_margin_;
+    double camera_logger_height_margin_;
+    double object_max_distance_;
     std::vector<std::string> camera_param_raw_vector_;
     std::map<int, int> camera_class_id_confidence_th_;
-    bool camera_object_direction_, use_tof_8x8_, use_camera_log_;
-    int publish_cnt_1d_tof_, publish_cnt_multi_tof_, publish_cnt_row_tof_,
-    publish_cnt_camera_, publish_cnt_cliff_, publish_cnt_collision_;
-    double object_max_distance_;
 
     tFilterConfig mtof_filter_;
     tSensorConfig sensor_config_;
     tTofPitchAngle botTofPitchAngle_;
 
-    sensor_msgs::msg::PointCloud2 pc_tof_1d_msg, pc_tof_multi_msg, pc_camera_msg, pc_cliff_msg, pc_collision_msg;
+    sensor_msgs::msg::PointCloud2 pc_tof_1d_msg;
+    sensor_msgs::msg::PointCloud2 pc_tof_multi_msg;
+    sensor_msgs::msg::PointCloud2 pc_camera_msg;
+    sensor_msgs::msg::PointCloud2 pc_cliff_msg;
+    sensor_msgs::msg::PointCloud2 pc_collision_msg;
     std::unordered_map<int, sensor_msgs::msg::PointCloud2> pc_8x8_tof_left_msg_map_;
     std::unordered_map<int, sensor_msgs::msg::PointCloud2> pc_8x8_tof_right_msg_map_;
     std::unordered_map<int, sensor_msgs::msg::PointCloud2> pc_4x4_tof_left_msg_map_;
     std::unordered_map<int, sensor_msgs::msg::PointCloud2> pc_4x4_tof_right_msg_map_;
-
     vision_msgs::msg::BoundingBox2DArray bbox_msg;
-    visualization_msgs::msg::MarkerArray marker_msg;
 
     bool isActiveSensorToPointcloud;
-    bool isTofUpdating, isCameraUpdating, isCliffUpdating, isCollisionUpdating;
+    bool isTofUpdating;
+    bool isCameraUpdating;
+    bool isCliffUpdating;
+    bool isCollisionUpdating;
 
     void declareParams();
     void setParams();
@@ -105,16 +119,14 @@ private:
     void initSensorConfig(const YAML::Node& config);
     void initPublisher(const YAML::Node& config);
     void initFilterParam(const YAML::Node & node);
-    tSensor parseSensorConfig(const YAML::Node& node);
-    tMultiTof parseToFSensorConfig(const YAML::Node& node);
+    tSensor getSensorCfg(const YAML::Node& node);
 
     void updateAllParameters();
     void updateAllFrames();
     void updateAllFilters();
+    void publishEmptyMsg();
 
     void publisherMonitor();
-
-    void publishEmptyMsg();
 
     void activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);

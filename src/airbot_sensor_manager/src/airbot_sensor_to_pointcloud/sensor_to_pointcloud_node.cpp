@@ -327,13 +327,13 @@ void SensorToPointcloud::initSensorConfig(const YAML::Node& config)
         YAML::Node sensor_config = it->second;
 
         if (sensor_name == "topic_prefix") continue;
-        if (sensor_name == "tof_mono") sensor_config_.one_d_tof = parseSensorConfig(sensor_config);
-        else if (sensor_name == "tof_multi") sensor_config_.multi_tof = parseSensorConfig(sensor_config);
-        else if (sensor_name == "tof_multi_left") sensor_config_.multi_tof_left = parseToFSensorConfig(sensor_config);
-        else if (sensor_name == "tof_multi_right") sensor_config_.multi_tof_right = parseToFSensorConfig(sensor_config);
-        else if (sensor_name == "camera") sensor_config_.camera = parseSensorConfig(sensor_config);
-        else if (sensor_name == "cliff") sensor_config_.cliff = parseSensorConfig(sensor_config);
-        else if (sensor_name == "collision") sensor_config_.collision = parseSensorConfig(sensor_config);
+        if (sensor_name == "tof_mono") sensor_config_.one_d_tof = getSensorCfg(sensor_config);
+        else if (sensor_name == "tof_multi") sensor_config_.multi_tof = getSensorCfg(sensor_config);
+        else if (sensor_name == "tof_multi_left") sensor_config_.multi_tof_left = getSensorCfg(sensor_config);
+        else if (sensor_name == "tof_multi_right") sensor_config_.multi_tof_right = getSensorCfg(sensor_config);
+        else if (sensor_name == "camera") sensor_config_.camera = getSensorCfg(sensor_config);
+        else if (sensor_name == "cliff") sensor_config_.cliff = getSensorCfg(sensor_config);
+        else if (sensor_name == "collision") sensor_config_.collision = getSensorCfg(sensor_config);
     }
 }
 
@@ -442,28 +442,19 @@ void SensorToPointcloud::initFilterParam(const YAML::Node& node)
     }
 }
 
-tSensor SensorToPointcloud::parseSensorConfig(const YAML::Node& node)
+tSensor SensorToPointcloud::getSensorCfg(const YAML::Node& node)
 {
     tSensor cfg;
     if (node["use"]) cfg.use = node["use"].as<bool>();
     if (node["topic"]) cfg.topic = node["topic"].as<std::string>();
     if (node["publish_rate_ms"]) cfg.publish_rate = node["publish_rate_ms"].as<int>();
     if (node["pitch_angle_deg"]) cfg.pitch_angle_deg = node["pitch_angle_deg"].as<double>();
-
-    return cfg;
-}
-
-tMultiTof SensorToPointcloud::parseToFSensorConfig(const YAML::Node& node)
-{
-    tMultiTof cfg;
-    if (node["use"]) cfg.use = node["use"].as<bool>();
-    if (node["topic"]) cfg.topic = node["topic"].as<std::string>();
-    if (node["pitch_angle_deg"]) cfg.pitch_angle_deg = node["pitch_angle_deg"].as<double>();
     if (node["sub_cell_idx_array"]) {
         for (auto idx_node : node["sub_cell_idx_array"]) {
             cfg.sub_cell_idx_array.push_back(idx_node.as<int>());
         }
     }
+
     return cfg;
 }
 
