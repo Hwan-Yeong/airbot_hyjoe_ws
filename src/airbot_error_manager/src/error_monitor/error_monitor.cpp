@@ -295,11 +295,14 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
         // 최초 한번은 무조건 로깅함 (prev 초기값: 0)
         RCLCPP_INFO(
             node_ptr_->get_logger(),
-            "[ChargingErrorMonitor] Battery Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+            "[ChargingErrorMonitor] isCharging (on station): %s\n"
+            "Battery Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
             "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+            isCharging ? "true" : "false",
             input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
             input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
         );
+        prevChargePercentage = currentChargePercentage;
     }
 
     if (!isCharging) { // charger나 charging 상태가 모두 아니면 무조건 에러 해제.
