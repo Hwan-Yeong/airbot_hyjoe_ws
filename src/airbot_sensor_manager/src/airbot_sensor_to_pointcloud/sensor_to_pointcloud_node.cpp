@@ -221,9 +221,9 @@ void SensorToPointcloud::printSensorConfig(const std::string& name, const tSenso
         RCLCPP_INFO(this->get_logger(), "    Object Max Distance: %.2f", cfg.object_max_dist);
         if (!cfg.class_id.empty()) {
             std::stringstream class_stream;
-            class_stream << "    Class IDs: [ ";
+            class_stream << "    Target Objects (ID: Conf_th): [ ";
             for (const auto& id : cfg.class_id) {
-                class_stream << id << " ";
+                class_stream << "(" << id << "), ";
             }
             class_stream << "]";
             RCLCPP_INFO(this->get_logger(), "%s", class_stream.str().c_str());

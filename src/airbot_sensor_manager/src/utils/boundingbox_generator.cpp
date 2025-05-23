@@ -86,7 +86,9 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
             }
         } else {
             // RCLCPP_INFO(rclcpp::get_logger("BoundingBoxGenerator"),
-            //             "[Camera Filtered Data] ID: %d, SCORE: %d", static_cast<int>(obj.id), static_cast<int>(obj.score));
+            //     "[Camera Filtered Data] ID: %d, SCORE: %d",
+            //     static_cast<int>(obj.id), static_cast<int>(obj.score)
+            // );
         }
     }
 
