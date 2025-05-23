@@ -68,11 +68,18 @@ struct tFilteredPointCloud {
 };
 
 struct tSensor {
+    // general
     bool use = false;
     std::string topic;
     int publish_rate = 0;
+    // tof
     double pitch_angle_deg = 0.0;
     std::vector<int> sub_cell_idx_array;
+    // camera
+    float pc_resolution = 0.0;
+    bool direction = true; // 정방향(CCW+):True, 역방향(CW+):False
+    double object_max_dist = 0.0;
+    std::vector<std::string> class_id;
 };
 
 struct tSensorConfig {

@@ -76,19 +76,15 @@ private:
 
     bool use_tof_8x8_;
     bool use_camera_log_;
-    bool camera_object_direction_;
     int publish_cnt_1d_tof_;
     int publish_cnt_row_tof_;
     int publish_cnt_multi_tof_;
     int publish_cnt_camera_;
     int publish_cnt_cliff_;
     int publish_cnt_collision_;
-    float camera_pointcloud_resolution_;
     double camera_logger_distance_margin_;
     double camera_logger_width_margin_;
     double camera_logger_height_margin_;
-    double object_max_distance_;
-    std::vector<std::string> camera_param_raw_vector_;
     std::map<int, int> camera_class_id_confidence_th_;
 
     tFilterConfig mtof_filter_;

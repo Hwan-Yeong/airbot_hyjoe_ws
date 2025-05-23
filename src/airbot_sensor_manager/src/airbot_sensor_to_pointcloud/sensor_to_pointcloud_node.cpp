@@ -146,7 +146,7 @@ void SensorToPointcloud::updateAllParameters()
     point_cloud_tof_.updateLeftSubCellIndexArray(sensor_config_.multi_tof_left.sub_cell_idx_array);
     point_cloud_tof_.updateRightSubCellIndexArray(sensor_config_.multi_tof_right.sub_cell_idx_array);
     camera_object_logger_.updateParams(camera_logger_distance_margin_,camera_logger_width_margin_,camera_logger_height_margin_);
-    for (const auto& item : camera_param_raw_vector_) {
+    for (const auto& item : sensor_config_.camera.class_id) {
         std::istringstream ss(item);
         std::string key, value;
         if (std::getline(ss, key, ':') && std::getline(ss, value)) {
@@ -176,10 +176,6 @@ void SensorToPointcloud::declareParams()
 
     this->declare_parameter("output.tof_multi.enable_8x8", false);
 
-    this->declare_parameter("output.camera.pointcloud_resolution",0.05);
-    this->declare_parameter("output.camera.class_id_confidence_th",std::vector<std::string>());
-    this->declare_parameter("output.camera.object_direction",false);
-    this->declare_parameter("output.camera.object_max_distance_m",1.0);
     this->declare_parameter("output.camera.logger.use",false);
     this->declare_parameter("output.camera.logger.margin.distance_diff",1.0);
     this->declare_parameter("output.camera.logger.margin.width_diff",1.0);
@@ -192,10 +188,6 @@ void SensorToPointcloud::setParams()
 
     this->get_parameter("output.tof_multi.enable_8x8", use_tof_8x8_);
 
-    this->get_parameter("output.camera.class_id_confidence_th", camera_param_raw_vector_);
-    this->get_parameter("output.camera.pointcloud_resolution", camera_pointcloud_resolution_);
-    this->get_parameter("output.camera.object_direction", camera_object_direction_);
-    this->get_parameter("output.camera.object_max_distance_m", object_max_distance_);
     this->get_parameter("output.camera.logger.use", use_camera_log_);
     this->get_parameter("output.camera.logger.margin.distance_diff", camera_logger_distance_margin_);
     this->get_parameter("output.camera.logger.margin.width_diff", camera_logger_width_margin_);
@@ -277,9 +269,9 @@ void SensorToPointcloud::printParams()
     RCLCPP_INFO(this->get_logger(), "[Camera Settings]");
     RCLCPP_INFO(this->get_logger(), "  Camera Use: %s", sensor_config_.camera.use ? "True" : "False");
     RCLCPP_INFO(this->get_logger(), "  Camera Publish Rate: %d ms", sensor_config_.camera.publish_rate);
-    RCLCPP_INFO(this->get_logger(), "  Camera Pointcloud Resolution: %.2f", camera_pointcloud_resolution_);
-    RCLCPP_INFO(this->get_logger(), "  Camera Object Direction: %s", camera_object_direction_ ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "  Camera Object Max Distance: %.2f", object_max_distance_);
+    RCLCPP_INFO(this->get_logger(), "  Camera Pointcloud Resolution: %.2f", sensor_config_.camera.pc_resolution);
+    RCLCPP_INFO(this->get_logger(), "  Camera Object Direction: %s", sensor_config_.camera.direction ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "  Camera Object Max Distance: %.2f", sensor_config_.camera.object_max_dist);
     RCLCPP_INFO(this->get_logger(), "  Camera Class ID Confidence Threshold:");
     for (const auto& conf : camera_class_id_confidence_th_) {
         // RCLCPP_INFO(this->get_logger(), "    Class ID: %d, Confidence: %d", conf.first, conf.second);
@@ -454,6 +446,14 @@ tSensor SensorToPointcloud::getSensorCfg(const YAML::Node& node)
             cfg.sub_cell_idx_array.push_back(idx_node.as<int>());
         }
     }
+    if (node["pointcloud_resolution"]) cfg.pc_resolution = node["pointcloud_resolution"].as<float>();
+    if (node["object_direction"]) cfg.direction = node["object_direction"].as<bool>();
+    if (node["object_max_distance_m"]) cfg.object_max_dist = node["object_max_distance_m"].as<double>();
+    if (node["class_id_confidence_th"]) {
+        for (auto conf_node : node["class_id_confidence_th"]) {
+            cfg.class_id.push_back(conf_node.as<std::string>());
+        }
+    }
 
     return cfg;
 }
@@ -549,35 +549,7 @@ void SensorToPointcloud::publisherMonitor()
 
 void SensorToPointcloud::publishEmptyMsg()
 {
-    sensor_msgs::msg::PointCloud2 empty_cloud;
-    empty_cloud.header.stamp = this->now();
-    empty_cloud.header.frame_id = target_frame_;
-    empty_cloud.height = 1;
-    empty_cloud.width = 0;
-    empty_cloud.is_dense = false;
-    empty_cloud.is_bigendian = false;
-    empty_cloud.point_step = 12;  // x, y, z (float32 x 3)
-    empty_cloud.row_step = 0;
-
-    // x, y, z 필드 설정
-    sensor_msgs::msg::PointField field_x, field_y, field_z;
-    field_x.name = "x";
-    field_x.offset = 0;
-    field_x.datatype = sensor_msgs::msg::PointField::FLOAT32;
-    field_x.count = 1;
-
-    field_y.name = "y";
-    field_y.offset = 4;
-    field_y.datatype = sensor_msgs::msg::PointField::FLOAT32;
-    field_y.count = 1;
-
-    field_z.name = "z";
-    field_z.offset = 8;
-    field_z.datatype = sensor_msgs::msg::PointField::FLOAT32;
-    field_z.count = 1;
-
-    empty_cloud.fields = {field_x, field_y, field_z};
-    empty_cloud.data.clear();
+    sensor_msgs::msg::PointCloud2 empty_cloud = pointcloud_generator_.generatePointCloud2EmptyMessage(target_frame_);
 
     for (auto& [name, pub] : pointcloud_pubs_) {
         if (pub && pub->get_subscription_count() > 0) {
@@ -638,8 +610,8 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
             }
         } else if (side == TOF_SIDE::RIGHT) {
             if (use_tof_8x8_) {
+                int i = 0;
                 for (auto index : sensor_config_.multi_tof_right.sub_cell_idx_array) {
-                    int i = 0;
                     pc_8x8_tof_right_msg_map_[index] = pc_msgs[i];
                     i++;
                 }
@@ -689,10 +661,10 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
 
     if (use_camera_log_) {
         if (sensor_config_.camera.use) {
-            camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th_, camera_object_direction_, object_max_distance_));
+            camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th_, sensor_config_.camera.direction, sensor_config_.camera.object_max_dist));
         }
-        bbox_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th_, camera_object_direction_, object_max_distance_);
-        pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_msg, camera_pointcloud_resolution_);
+        bbox_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th_, sensor_config_.camera.direction, sensor_config_.camera.object_max_dist);
+        pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_msg, sensor_config_.camera.pc_resolution);
     }
 
     isCameraUpdating = true;
