@@ -83,8 +83,6 @@ private:
     int publish_cnt_cliff_;
     int publish_cnt_collision_;
     double camera_logger_distance_margin_;
-    double camera_logger_width_margin_;
-    double camera_logger_height_margin_;
     std::map<int, int> camera_class_id_confidence_th_;
 
     tFilterConfig mtof_filter_;
@@ -103,6 +101,10 @@ private:
     vision_msgs::msg::BoundingBox2DArray bbox_msg;
 
     bool isActiveSensorToPointcloud;
+    bool wasActiveSensorToPointcloud_tof;
+    bool wasActiveSensorToPointcloud_camera;
+    bool wasActiveSensorToPointcloud_cliff;
+    bool wasActiveSensorToPointcloud_collision;
     bool isTofUpdating;
     bool isCameraUpdating;
     bool isCliffUpdating;

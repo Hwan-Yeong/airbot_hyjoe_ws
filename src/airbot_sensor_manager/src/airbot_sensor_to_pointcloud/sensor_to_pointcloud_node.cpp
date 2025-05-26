@@ -125,6 +125,10 @@ SensorToPointcloud::~SensorToPointcloud()
 
 void SensorToPointcloud::init()
 {
+    wasActiveSensorToPointcloud_tof = false;
+    wasActiveSensorToPointcloud_camera = false;
+    wasActiveSensorToPointcloud_cliff = false;
+    wasActiveSensorToPointcloud_collision = false;
     camera_object_logger_.setNode(shared_from_this());
     initVariables();
     declareParams();
@@ -145,7 +149,7 @@ void SensorToPointcloud::updateAllParameters()
     point_cloud_tof_.updateTofMode(use_tof_8x8_);
     point_cloud_tof_.updateLeftSubCellIndexArray(sensor_config_.multi_tof_left.sub_cell_idx_array);
     point_cloud_tof_.updateRightSubCellIndexArray(sensor_config_.multi_tof_right.sub_cell_idx_array);
-    camera_object_logger_.updateParams(camera_logger_distance_margin_,camera_logger_width_margin_,camera_logger_height_margin_);
+    camera_object_logger_.updateParams(camera_logger_distance_margin_);
     for (const auto& item : sensor_config_.camera.class_id) {
         std::istringstream ss(item);
         std::string key, value;
@@ -178,8 +182,6 @@ void SensorToPointcloud::declareParams()
 
     this->declare_parameter("output.camera.logger.use",false);
     this->declare_parameter("output.camera.logger.margin.distance_diff",1.0);
-    this->declare_parameter("output.camera.logger.margin.width_diff",1.0);
-    this->declare_parameter("output.camera.logger.margin.height_diff",1.0);
 }
 
 void SensorToPointcloud::setParams()
@@ -190,8 +192,6 @@ void SensorToPointcloud::setParams()
 
     this->get_parameter("output.camera.logger.use", use_camera_log_);
     this->get_parameter("output.camera.logger.margin.distance_diff", camera_logger_distance_margin_);
-    this->get_parameter("output.camera.logger.margin.width_diff", camera_logger_width_margin_);
-    this->get_parameter("output.camera.logger.margin.height_diff", camera_logger_height_margin_);
 }
 
 void SensorToPointcloud::printSensorConfig(const std::string& name, const tSensor& cfg)
@@ -561,6 +561,22 @@ void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr 
 
 void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
+    if (wasActiveSensorToPointcloud_tof && !isActiveSensorToPointcloud) {
+        if (sensor_config_.one_d_tof.use) pc_tof_1d_msg = sensor_msgs::msg::PointCloud2();
+        if (sensor_config_.multi_tof.use) pc_tof_multi_msg = sensor_msgs::msg::PointCloud2();
+        if (sensor_config_.multi_tof_left.use) {
+            if (use_tof_8x8_) pc_8x8_tof_left_msg_map_.clear();
+            else pc_4x4_tof_left_msg_map_.clear();
+        }
+        if (sensor_config_.multi_tof_right.use) {
+            if (use_tof_8x8_) pc_8x8_tof_right_msg_map_.clear();
+            else pc_4x4_tof_right_msg_map_.clear();
+        }
+        RCLCPP_INFO(this->get_logger(), "TOF PointCloud Msg Clear");
+    }
+    wasActiveSensorToPointcloud_tof = isActiveSensorToPointcloud;
+    if (!isActiveSensorToPointcloud) return;
+
     if (target_frame_ == "map") {
         tPose pose;
         pose.position.x = msg->robot_x;
@@ -635,6 +651,14 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
 
 void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg)
 {
+    if (wasActiveSensorToPointcloud_camera && !isActiveSensorToPointcloud) {
+        if (use_camera_log_) camera_object_logger_.logInfoClear();
+        if (sensor_config_.camera.use) pc_camera_msg = sensor_msgs::msg::PointCloud2();
+        RCLCPP_INFO(this->get_logger(), "Camera PointCloud Msg Clear");
+    }
+    wasActiveSensorToPointcloud_camera = isActiveSensorToPointcloud;
+    if (!isActiveSensorToPointcloud) return;
+
     if (target_frame_ == "map" || sensor_config_.camera.use) {
         tPose pose;
         pose.position.x = msg->robot_x;
@@ -644,9 +668,9 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
     }
 
     if (use_camera_log_) {
-        if (sensor_config_.camera.use) {
-            camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th_, sensor_config_.camera.direction, sensor_config_.camera.object_max_dist));
-        }
+        camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th_, sensor_config_.camera.direction, sensor_config_.camera.object_max_dist));
+    }
+    if (sensor_config_.camera.use) {
         bbox_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th_, sensor_config_.camera.direction, sensor_config_.camera.object_max_dist);
         pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_msg, sensor_config_.camera.pc_resolution);
     }
@@ -656,6 +680,13 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
 
 void SensorToPointcloud::cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg)
 {
+    if (wasActiveSensorToPointcloud_cliff && !isActiveSensorToPointcloud) {
+        if (sensor_config_.cliff.use) pc_cliff_msg = sensor_msgs::msg::PointCloud2();
+        RCLCPP_INFO(this->get_logger(), "Cliff PointCloud Msg Clear");
+    }
+    wasActiveSensorToPointcloud_cliff = isActiveSensorToPointcloud;
+    if (!isActiveSensorToPointcloud) return;
+
     if (target_frame_ == "map") {
         tPose pose;
         pose.position.x = msg->robot_x;
@@ -671,6 +702,13 @@ void SensorToPointcloud::cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrDa
 
 void SensorToPointcloud::collisionMsgUpdate(const robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg)
 {
+    if (wasActiveSensorToPointcloud_collision && !isActiveSensorToPointcloud) {
+        if (sensor_config_.collision.use) pc_collision_msg = sensor_msgs::msg::PointCloud2();
+        RCLCPP_INFO(this->get_logger(), "Collision PointCloud Msg Clear");
+    }
+    wasActiveSensorToPointcloud_collision = isActiveSensorToPointcloud;
+    if (!isActiveSensorToPointcloud) return;
+
     if (target_frame_ == "map") {
         tPose pose;
         pose.position.x = msg->robot_x;

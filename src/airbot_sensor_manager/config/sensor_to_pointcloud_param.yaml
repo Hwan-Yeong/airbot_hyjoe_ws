@@ -84,9 +84,7 @@ airbot_sensor_to_pointcloud:
         logger:
           use: true
           margin:
-            distance_diff: 0.5
-            width_diff: 0.1
-            height_diff: 0.1
+            distance_diff: 1.0
 
       cliff:
         use: true

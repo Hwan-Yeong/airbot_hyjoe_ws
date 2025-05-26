@@ -13,11 +13,9 @@ void CameraObjectLogger::setNode(const rclcpp::Node::SharedPtr& node)
     node_ptr_ = node;
 }
 
-void CameraObjectLogger::updateParams(double dist_margin, double width_margin, double height_margin)
+void CameraObjectLogger::updateParams(double dist_margin)
 {
     dist_margin_ = dist_margin;
-    width_margin_ = width_margin;
-    height_margin_ = height_margin;
 }
 
 void CameraObjectLogger::log(std::pair<robot_custom_msgs::msg::CameraDataArray, vision_msgs::msg::BoundingBox2DArray> object_info)
@@ -38,8 +36,9 @@ void CameraObjectLogger::log(std::pair<robot_custom_msgs::msg::CameraDataArray, 
 
 void CameraObjectLogger::logInfoClear()
 {
+    RCLCPP_INFO(node_ptr_->get_logger(), "[CameraObjectLogger] Before Camera Objects Log Clear, objects.size: %zu", objects_.size());
     objects_.clear();
-    RCLCPP_INFO(node_ptr_->get_logger(), "Camera Objects Log Clear");
+    RCLCPP_INFO(node_ptr_->get_logger(), "[CameraObjectLogger] After Camera Objects Log Clear, objects.size: %zu", objects_.size());
 }
 
 std::map<int, std::vector<vision_msgs::msg::BoundingBox2D>> CameraObjectLogger::updateObjects(
@@ -58,11 +57,7 @@ std::map<int, std::vector<vision_msgs::msg::BoundingBox2D>> CameraObjectLogger::
             for (const auto& old_object : ret[id]) {
                 double distance = std::sqrt(std::pow(object.center.position.x - old_object.center.position.x, 2) +
                                             std::pow(object.center.position.y - old_object.center.position.y, 2));
-
-                double height_diff = std::abs(object.size_x - old_object.size_x);
-                double width_diff = std::abs(object.size_y - old_object.size_y);
-
-                if (distance <= dist_margin_ && width_diff <= width_margin_ && height_diff <= height_margin_) {
+                if (distance <= dist_margin_) {
                     is_new_object = false;
                     break;
                 }
