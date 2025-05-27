@@ -34,9 +34,10 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
                 // [250407] hyjoe : low battery 에러 발생시 모니터 체크 시간(sec), 배터리 상태 1번만 로깅
                 RCLCPP_INFO(node_ptr_->get_logger(),
                     "[LowBatteryErrorMonitor] elapsed time since error check started: %.3f\n"
-                    "Battery Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                    "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                     "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
                     time,
+                    input.first.battery_manufacturer,
                     input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
                     input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
                 );
@@ -48,9 +49,9 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
                 // [250407] hyjoe : low battery 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
                 RCLCPP_INFO(node_ptr_->get_logger(),
                     "[LowBatteryErrorMonitor] start to low battery monitor\n"
-                    "Battery Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                    "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                     "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                    input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                    input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
                     input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
                 );
                 prev_status=false;
@@ -64,9 +65,9 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
             // [250407] hyjoe : low battery 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
             RCLCPP_INFO(node_ptr_->get_logger(),
                 "[LowBatteryErrorMonitor] Low Battery error released\n"
-                "Battery Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                 "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
                 input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
             );
             prev_no_low_battery = false;
@@ -105,10 +106,10 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                 // [250407] hyjoe : 배터리 방전 에러 발생시 모니터 체크 시간(sec), 배터리 충전량 상태 1번만 로깅
                 RCLCPP_INFO(node_ptr_->get_logger(),
                     "[BatteryDischargingErrorMonitor] elapsed time since error check started: %.3f\n"
-                    "Battery Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                    "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                     "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
                     time,
-                    input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                    input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
                     input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
                 );
                 prev_status = true;
@@ -119,9 +120,9 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                 // [250407] hyjoe : 배터리 방전 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 충전량 상태 로깅
                 RCLCPP_INFO(node_ptr_->get_logger(),
                     "[BatteryDischargingErrorMonitor] start to battery discharging monitor\n"
-                    "Battery Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                    "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                     "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                    input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                    input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
                     input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
                 );
                 prev_status=false;
@@ -136,9 +137,9 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
             // [250407] hyjoe : 배터리 방전 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
             RCLCPP_INFO(node_ptr_->get_logger(),
                 "[BatteryDischargingErrorMonitor] Battery Discharging error released\n"
-                "Battery Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                 "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
                 input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
             );
             prev_no_low_battery = false;
@@ -295,11 +296,11 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
         // 최초 한번은 무조건 로깅함 (prev 초기값: 0)
         RCLCPP_INFO(
             node_ptr_->get_logger(),
-            "[ChargingErrorMonitor] isCharging (on station): %s\n"
-            "Battery Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+            "[ChargingErrorMonitor] Docking status: 0x%02X\n"
+            "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
             "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-            isCharging ? "true" : "false",
-            input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+            input.second.docking_status,
+            input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
             input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
         );
         prevChargePercentage = currentChargePercentage;
@@ -323,9 +324,11 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
             // [250407] hyjoe : 충전 에러 체크 시작할 때 배터리 상태 로그 출력
             RCLCPP_INFO(
                 node_ptr_->get_logger(),
-                "[ChargingErrorMonitor] Battery Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                "[ChargingErrorMonitor] Docking status: 0x%02X\n"
+                "[ChargingErrorMonitor] Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                 "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                input.second.docking_status,
+                input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
                 input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
             );
         }
@@ -339,10 +342,10 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
                 RCLCPP_INFO(
                     node_ptr_->get_logger(),
                     "[ChargingErrorMonitor] Docking status: 0x%02X\n"
-                    "Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                    "Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                     "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
                     input.second.docking_status,
-                    input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                    input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
                     input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
                 );
                 // [250407] hyjoe : 충전 에러 발생 시 에러 체크 시작으로부터 경과시간 로그 출력
