@@ -54,7 +54,7 @@ SensorToPointcloud::SensorToPointcloud()
             if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
                 std::string before = target_frame_;
                 target_frame_ = param.as_string();
-                updateAllFrames();
+                updateTargetFrame();
                 std::string after;
                 if (this->get_parameter("target_frame", after)) {
                     RCLCPP_INFO(this->get_logger(), "[=== Updating target_frame: %s -> %s ===]", before.c_str(), after.c_str());
@@ -140,144 +140,6 @@ void SensorToPointcloud::init()
     initFilterParam(this->config["tof_multi"]["filter"]);
     updateAllParameters();
     printParams();
-}
-
-void SensorToPointcloud::updateAllParameters()
-{
-    updateAllFrames();
-    updateAllFilters();
-    point_cloud_tof_.updateTofMode(use_tof_8x8_);
-    point_cloud_tof_.updateLeftSubCellIndexArray(sensor_config_.multi_tof_left.sub_cell_idx_array);
-    point_cloud_tof_.updateRightSubCellIndexArray(sensor_config_.multi_tof_right.sub_cell_idx_array);
-    camera_object_logger_.updateParams(camera_logger_distance_margin_);
-    for (const auto& item : sensor_config_.camera.class_id) {
-        std::istringstream ss(item);
-        std::string key, value;
-        if (std::getline(ss, key, ':') && std::getline(ss, value)) {
-            camera_class_id_confidence_th_[std::stoi(key)] = std::stoi(value);
-        }
-    }
-}
-
-void SensorToPointcloud::updateAllFrames()
-{
-    point_cloud_tof_.updateTargetFrame(target_frame_);
-    bounding_box_generator_.updateTargetFrame(target_frame_);
-    point_cloud_cliff_.updateTargetFrame(target_frame_);
-    point_cloud_collosion_.updateTargetFrame(target_frame_);
-}
-
-void SensorToPointcloud::updateAllFilters()
-{
-    tof_lp_filter_.updateParams(mtof_filter_.low_pass.alpha, mtof_filter_.low_pass.enabled_4x4_idx);
-    tof_ma_filter_.updateParams(mtof_filter_.moving_average.window_size, mtof_filter_.moving_average.enabled_4x4_idx, mtof_filter_.moving_average.max_distance_th);
-    tof_comp_filter_.updateParams(mtof_filter_.complementary.alpha, mtof_filter_.low_pass.alpha, mtof_filter_.moving_average.window_size, mtof_filter_.complementary.enabled_4x4_idx);
-}
-
-void SensorToPointcloud::declareParams()
-{
-    this->declare_parameter("target_frame","base_link");
-
-    this->declare_parameter("output.tof_multi.enable_8x8", false);
-
-    this->declare_parameter("output.camera.logger.use",false);
-    this->declare_parameter("output.camera.logger.margin.distance_diff",1.0);
-}
-
-void SensorToPointcloud::setParams()
-{
-    this->get_parameter("target_frame", target_frame_);
-
-    this->get_parameter("output.tof_multi.enable_8x8", use_tof_8x8_);
-
-    this->get_parameter("output.camera.logger.use", use_camera_log_);
-    this->get_parameter("output.camera.logger.margin.distance_diff", camera_logger_distance_margin_);
-}
-
-void SensorToPointcloud::printSensorConfig(const std::string& name, const tSensor& cfg)
-{
-    RCLCPP_INFO(this->get_logger(), "  [%s]", name.c_str());
-    RCLCPP_INFO(this->get_logger(), "    Use: %s", cfg.use ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "    Topic: %s", cfg.topic.c_str());
-    RCLCPP_INFO(this->get_logger(), "    Publish Rate: %d ms", cfg.publish_rate);
-    if (cfg.pitch_angle_deg != 0.0 || !cfg.sub_cell_idx_array.empty()) { // Tof
-        RCLCPP_INFO(this->get_logger(), "    Pitch Angle: %.2f deg", cfg.pitch_angle_deg);
-        if (cfg.sub_cell_idx_array.size() == 16) {
-            RCLCPP_INFO(this->get_logger(), "    Sub Cell Index Array:");
-            for (int i = 0; i < 4; ++i) {
-                std::stringstream row;
-                row << "      [ ";
-                for (int j = 0; j < 4; ++j) {
-                    row << cfg.sub_cell_idx_array[i * 4 + j] << " ";
-                }
-                row << "]";
-                RCLCPP_INFO(this->get_logger(), "%s", row.str().c_str());
-            }
-        }
-    }
-    if (cfg.pc_resolution > 0.0 || !cfg.class_id.empty()) { // Camera
-        RCLCPP_INFO(this->get_logger(), "    Point Cloud Resolution: %.2f", cfg.pc_resolution);
-        RCLCPP_INFO(this->get_logger(), "    Direction: %s", cfg.direction ? "Forward(CCW+)" : "Reverse(CW+)");
-        RCLCPP_INFO(this->get_logger(), "    Object Max Distance: %.2f", cfg.object_max_dist);
-        if (!cfg.class_id.empty()) {
-            std::stringstream class_stream;
-            class_stream << "    Target Objects (ID: Conf_th): [ ";
-            for (const auto& id : cfg.class_id) {
-                class_stream << "(" << id << "), ";
-            }
-            class_stream << "]";
-            RCLCPP_INFO(this->get_logger(), "%s", class_stream.str().c_str());
-        }
-    }
-}
-
-void SensorToPointcloud::printFilterConfig(const std::string& name, const tFilter& filter)
-{
-    RCLCPP_INFO(this->get_logger(), "     %s Filter", name.c_str());
-    RCLCPP_INFO(this->get_logger(), "        use: %s", filter.use ? "true" : "false");
-    if (name == "Moving Average") {
-        RCLCPP_INFO(this->get_logger(), "        window_size: %d", filter.window_size);
-        RCLCPP_INFO(this->get_logger(), "        max_distance_th: %.2f", filter.max_distance_th);
-    } else if (name == "Low Pass" || name == "Complementary") {
-        RCLCPP_INFO(this->get_logger(), "        alpha: %.2f", filter.alpha);
-    }
-    std::stringstream ss;
-    for (const auto& idx : filter.enabled_4x4_idx) {
-        ss << idx << " ";
-    }
-    RCLCPP_INFO(this->get_logger(), "        enabled_4x4_idx: [%s]", ss.str().c_str());
-}
-
-void SensorToPointcloud::printParams()
-{
-    RCLCPP_INFO(this->get_logger(), "================== SENSOR MANAGER PARAMETERS ==================");
-    // General Settings
-    RCLCPP_INFO(this->get_logger(), "[General]");
-    RCLCPP_INFO(this->get_logger(), "  Target Frame: '%s'", target_frame_.c_str());
-    // TOF Settings
-    RCLCPP_INFO(this->get_logger(), "[TOF Settings]");
-    printSensorConfig("TOF 1D", sensor_config_.one_d_tof);
-    printSensorConfig("TOF Multi", sensor_config_.multi_tof);
-    RCLCPP_INFO(this->get_logger(), "    TOF Multi 8x8 Use: %s", use_tof_8x8_ ? "True" : "False");
-    printSensorConfig("TOF Multi Left", sensor_config_.multi_tof_left);
-    printSensorConfig("TOF Multi Right", sensor_config_.multi_tof_right);
-    // Filters
-    RCLCPP_INFO(this->get_logger(), "---------------------- FILTERS PARAMETERS ---------------------");
-    printFilterConfig("Moving Average", mtof_filter_.moving_average);
-    printFilterConfig("Low Pass", mtof_filter_.low_pass);
-    printFilterConfig("Complementary", mtof_filter_.complementary);
-    RCLCPP_INFO(this->get_logger(), "---------------------------------------------------------------");
-    // Camera Settings
-    RCLCPP_INFO(this->get_logger(), "[Camera Settings]");
-    printSensorConfig("Camera Front", sensor_config_.camera);
-    // Cliff Settings
-    RCLCPP_INFO(this->get_logger(), "[Cliff Settings]");
-    printSensorConfig("Cliff", sensor_config_.cliff);
-    // Collision Settings
-    RCLCPP_INFO(this->get_logger(), "[Collision Settings]");
-    printSensorConfig("Collision", sensor_config_.collision);
-    RCLCPP_INFO(this->get_logger(), "===============================================================");
-    RCLCPP_INFO(this->get_logger(), "Parameter update finished!");
 }
 
 void SensorToPointcloud::initVariables()
@@ -416,6 +278,144 @@ void SensorToPointcloud::initFilterParam(const YAML::Node& node)
             mtof_filter_.complementary.alpha = filter_config["alpha"].as<double>();
         }
     }
+}
+
+void SensorToPointcloud::updateAllParameters()
+{
+    updateTargetFrame();
+    updateFilterParam();
+    point_cloud_tof_.updateTofMode(use_tof_8x8_);
+    point_cloud_tof_.updateLeftSubCellIndexArray(sensor_config_.multi_tof_left.sub_cell_idx_array);
+    point_cloud_tof_.updateRightSubCellIndexArray(sensor_config_.multi_tof_right.sub_cell_idx_array);
+    camera_object_logger_.updateParams(camera_logger_distance_margin_);
+    for (const auto& item : sensor_config_.camera.class_id) {
+        std::istringstream ss(item);
+        std::string key, value;
+        if (std::getline(ss, key, ':') && std::getline(ss, value)) {
+            camera_class_id_confidence_th_[std::stoi(key)] = std::stoi(value);
+        }
+    }
+}
+
+void SensorToPointcloud::updateTargetFrame()
+{
+    point_cloud_tof_.updateTargetFrame(target_frame_);
+    bounding_box_generator_.updateTargetFrame(target_frame_);
+    point_cloud_cliff_.updateTargetFrame(target_frame_);
+    point_cloud_collosion_.updateTargetFrame(target_frame_);
+}
+
+void SensorToPointcloud::updateFilterParam()
+{
+    tof_lp_filter_.updateParams(mtof_filter_.low_pass.alpha, mtof_filter_.low_pass.enabled_4x4_idx);
+    tof_ma_filter_.updateParams(mtof_filter_.moving_average.window_size, mtof_filter_.moving_average.enabled_4x4_idx, mtof_filter_.moving_average.max_distance_th);
+    tof_comp_filter_.updateParams(mtof_filter_.complementary.alpha, mtof_filter_.low_pass.alpha, mtof_filter_.moving_average.window_size, mtof_filter_.complementary.enabled_4x4_idx);
+}
+
+void SensorToPointcloud::declareParams()
+{
+    this->declare_parameter("target_frame","base_link");
+
+    this->declare_parameter("output.tof_multi.enable_8x8", false);
+
+    this->declare_parameter("output.camera.logger.use",false);
+    this->declare_parameter("output.camera.logger.margin.distance_diff",1.0);
+}
+
+void SensorToPointcloud::setParams()
+{
+    this->get_parameter("target_frame", target_frame_);
+
+    this->get_parameter("output.tof_multi.enable_8x8", use_tof_8x8_);
+
+    this->get_parameter("output.camera.logger.use", use_camera_log_);
+    this->get_parameter("output.camera.logger.margin.distance_diff", camera_logger_distance_margin_);
+}
+
+void SensorToPointcloud::printParams()
+{
+    RCLCPP_INFO(this->get_logger(), "================== SENSOR MANAGER PARAMETERS ==================");
+    // General Settings
+    RCLCPP_INFO(this->get_logger(), "[General]");
+    RCLCPP_INFO(this->get_logger(), "  Target Frame: '%s'", target_frame_.c_str());
+    // TOF Settings
+    RCLCPP_INFO(this->get_logger(), "[TOF Settings]");
+    printSensorConfig("TOF 1D", sensor_config_.one_d_tof);
+    printSensorConfig("TOF Multi", sensor_config_.multi_tof);
+    RCLCPP_INFO(this->get_logger(), "    TOF Multi 8x8 Use: %s", use_tof_8x8_ ? "True" : "False");
+    printSensorConfig("TOF Multi Left", sensor_config_.multi_tof_left);
+    printSensorConfig("TOF Multi Right", sensor_config_.multi_tof_right);
+    // Filters
+    RCLCPP_INFO(this->get_logger(), "---------------------- FILTERS PARAMETERS ---------------------");
+    printFilterConfig("Moving Average", mtof_filter_.moving_average);
+    printFilterConfig("Low Pass", mtof_filter_.low_pass);
+    printFilterConfig("Complementary", mtof_filter_.complementary);
+    RCLCPP_INFO(this->get_logger(), "---------------------------------------------------------------");
+    // Camera Settings
+    RCLCPP_INFO(this->get_logger(), "[Camera Settings]");
+    printSensorConfig("Camera Front", sensor_config_.camera);
+    // Cliff Settings
+    RCLCPP_INFO(this->get_logger(), "[Cliff Settings]");
+    printSensorConfig("Cliff", sensor_config_.cliff);
+    // Collision Settings
+    RCLCPP_INFO(this->get_logger(), "[Collision Settings]");
+    printSensorConfig("Collision", sensor_config_.collision);
+    RCLCPP_INFO(this->get_logger(), "===============================================================");
+    RCLCPP_INFO(this->get_logger(), "Parameter update finished!");
+}
+
+void SensorToPointcloud::printSensorConfig(const std::string& name, const tSensor& cfg)
+{
+    RCLCPP_INFO(this->get_logger(), "  [%s]", name.c_str());
+    RCLCPP_INFO(this->get_logger(), "    Use: %s", cfg.use ? "True" : "False");
+    RCLCPP_INFO(this->get_logger(), "    Topic: %s", cfg.topic.c_str());
+    RCLCPP_INFO(this->get_logger(), "    Publish Rate: %d ms", cfg.publish_rate);
+    if (cfg.pitch_angle_deg != 0.0 || !cfg.sub_cell_idx_array.empty()) { // Tof
+        RCLCPP_INFO(this->get_logger(), "    Pitch Angle: %.2f deg", cfg.pitch_angle_deg);
+        if (cfg.sub_cell_idx_array.size() == 16) {
+            RCLCPP_INFO(this->get_logger(), "    Sub Cell Index Array:");
+            for (int i = 0; i < 4; ++i) {
+                std::stringstream row;
+                row << "      [ ";
+                for (int j = 0; j < 4; ++j) {
+                    row << cfg.sub_cell_idx_array[i * 4 + j] << " ";
+                }
+                row << "]";
+                RCLCPP_INFO(this->get_logger(), "%s", row.str().c_str());
+            }
+        }
+    }
+    if (cfg.pc_resolution > 0.0 || !cfg.class_id.empty()) { // Camera
+        RCLCPP_INFO(this->get_logger(), "    Point Cloud Resolution: %.2f", cfg.pc_resolution);
+        RCLCPP_INFO(this->get_logger(), "    Direction: %s", cfg.direction ? "Forward(CCW+)" : "Reverse(CW+)");
+        RCLCPP_INFO(this->get_logger(), "    Object Max Distance: %.2f", cfg.object_max_dist);
+        if (!cfg.class_id.empty()) {
+            std::stringstream class_stream;
+            class_stream << "    Target Objects (ID: Conf_th): [ ";
+            for (const auto& id : cfg.class_id) {
+                class_stream << "(" << id << "), ";
+            }
+            class_stream << "]";
+            RCLCPP_INFO(this->get_logger(), "%s", class_stream.str().c_str());
+        }
+    }
+}
+
+void SensorToPointcloud::printFilterConfig(const std::string& name, const tFilter& filter)
+{
+    RCLCPP_INFO(this->get_logger(), "     %s Filter", name.c_str());
+    RCLCPP_INFO(this->get_logger(), "        use: %s", filter.use ? "true" : "false");
+    if (name == "Moving Average") {
+        RCLCPP_INFO(this->get_logger(), "        window_size: %d", filter.window_size);
+        RCLCPP_INFO(this->get_logger(), "        max_distance_th: %.2f", filter.max_distance_th);
+    } else if (name == "Low Pass" || name == "Complementary") {
+        RCLCPP_INFO(this->get_logger(), "        alpha: %.2f", filter.alpha);
+    }
+    std::stringstream ss;
+    for (const auto& idx : filter.enabled_4x4_idx) {
+        ss << idx << " ";
+    }
+    RCLCPP_INFO(this->get_logger(), "        enabled_4x4_idx: [%s]", ss.str().c_str());
 }
 
 tSensor SensorToPointcloud::getSensorCfg(const YAML::Node& node)

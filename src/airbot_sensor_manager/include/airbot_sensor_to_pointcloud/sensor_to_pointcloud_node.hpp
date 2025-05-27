@@ -110,23 +110,26 @@ private:
     bool isCliffUpdating;
     bool isCollisionUpdating;
 
-    void declareParams();
-    void setParams();
-    void printSensorConfig(const std::string& name, const tSensor& cfg);
-    void printFilterConfig(const std::string& name, const tFilter& filter);
-    void printParams();
     void initVariables();
     void initSensorConfig(const YAML::Node& config);
     void initPublisher(const YAML::Node& config);
     void initFilterParam(const YAML::Node & node);
-    tSensor getSensorCfg(const YAML::Node& node);
 
     void updateAllParameters();
-    void updateAllFrames();
-    void updateAllFilters();
-    void publishEmptyMsg();
+    void updateTargetFrame();
+    void updateFilterParam();
+
+    void declareParams();
+    void setParams();
+
+    void printParams();
+    void printSensorConfig(const std::string& name, const tSensor& cfg);
+    void printFilterConfig(const std::string& name, const tFilter& filter);
+
+    tSensor getSensorCfg(const YAML::Node& node);
 
     void publisherMonitor();
+    void publishEmptyMsg();
 
     void activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
