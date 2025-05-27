@@ -35,6 +35,8 @@ private:
     std::string target_frame_;
     tPoint sensor_frame_translation_;
     tPose robot_pose_;
+    double robot_cos_;
+    double robot_sin_;
 };
 
 #endif // BOUNDINGBOX_GENERATOR

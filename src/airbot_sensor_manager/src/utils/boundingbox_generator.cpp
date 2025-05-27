@@ -27,6 +27,8 @@ void BoundingBoxGenerator::updateTargetFrame(std::string &updated_frame)
 void BoundingBoxGenerator::updateRobotPose(tPose &pose)
 {
     robot_pose_ = pose;
+    robot_cos_ = std::cos(robot_pose_.orientation.yaw);
+    robot_sin_ = std::sin(robot_pose_.orientation.yaw);
 }
 
 vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMessage(
@@ -45,8 +47,6 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
     bbox_array.header.frame_id = target_frame_;
 
     std::vector<robot_custom_msgs::msg::CameraData> objects(msg->data_array.begin(), msg->data_array.end());
-    const double robot_cos = std::cos(robot_pose_.orientation.yaw);
-    const double robot_sin = std::sin(robot_pose_.orientation.yaw);
     for (const auto &obj : objects)
     {
         if (obj.distance > object_max_distance) continue; // 객체인식 장애물 최대 거리 제한
@@ -71,8 +71,8 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
                 point_on_robot_frame.y = point_on_sensor_frame.y + sensor_frame_translation_.y;
                 // point_on_robot_frame.z = point_on_sensor_frame.z + sensor_frame_translation_.z;
                 if (target_frame_ == "map") {    
-                    bbox.center.position.x = point_on_robot_frame.x*robot_cos - point_on_robot_frame.y*robot_sin + robot_pose_.position.x;
-                    bbox.center.position.y = point_on_robot_frame.x*robot_sin + point_on_robot_frame.y*robot_cos + robot_pose_.position.y;
+                    bbox.center.position.x = point_on_robot_frame.x*robot_cos_ - point_on_robot_frame.y*robot_sin_ + robot_pose_.position.x;
+                    bbox.center.position.y = point_on_robot_frame.x*robot_sin_ + point_on_robot_frame.y*robot_cos_ + robot_pose_.position.y;
                 } else if (target_frame_ == "base_link") {
                     bbox.center.position.x = point_on_robot_frame.x;
                     bbox.center.position.y = point_on_robot_frame.y;
@@ -118,8 +118,6 @@ std::pair<robot_custom_msgs::msg::CameraDataArray, vision_msgs::msg::BoundingBox
     bbox_array.header.frame_id = target_frame_;
 
     std::vector<robot_custom_msgs::msg::CameraData> objects(msg->data_array.begin(), msg->data_array.end());
-    const double robot_cos = std::cos(robot_pose_.orientation.yaw);
-    const double robot_sin = std::sin(robot_pose_.orientation.yaw);
     for (const auto &obj : objects)
     {
         if (obj.distance > object_max_distance) continue; // 객체인식 장애물 최대 거리 제한
@@ -145,8 +143,8 @@ std::pair<robot_custom_msgs::msg::CameraDataArray, vision_msgs::msg::BoundingBox
                 point_on_robot_frame.y = point_on_sensor_frame.y + sensor_frame_translation_.y;
                 // point_on_robot_frame.z = point_on_sensor_frame.z + sensor_frame_translation_.z;
 
-                bbox.center.position.x = point_on_robot_frame.x*robot_cos - point_on_robot_frame.y*robot_sin + robot_pose_.position.x;
-                bbox.center.position.y = point_on_robot_frame.x*robot_sin + point_on_robot_frame.y*robot_cos + robot_pose_.position.y;
+                bbox.center.position.x = point_on_robot_frame.x*robot_cos_ - point_on_robot_frame.y*robot_sin_ + robot_pose_.position.x;
+                bbox.center.position.y = point_on_robot_frame.x*robot_sin_ + point_on_robot_frame.y*robot_cos_ + robot_pose_.position.y;
                 bbox.center.theta = 0.0;
                 bbox.size_x = height;
                 bbox.size_y = obj.width;
