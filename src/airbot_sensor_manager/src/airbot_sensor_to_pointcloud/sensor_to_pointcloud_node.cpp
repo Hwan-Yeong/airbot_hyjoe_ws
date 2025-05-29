@@ -241,6 +241,9 @@ void SensorToPointcloud::initPublisher(const YAML::Node& config)
     tof_debug_pub_ = this->create_publisher<robot_custom_msgs::msg::TofData>(
         "filtered_tof_data", 10
     );
+    sensor_to_pointcloud_state_pub_ = this->create_publisher<std_msgs::msg::Bool>(
+        "sensor_to_pointcloud_active", 10
+    );
 
     RCLCPP_INFO(this->get_logger(), "Publisher init finished!");
 }
@@ -546,16 +549,28 @@ void SensorToPointcloud::publishEmptyMsg()
 
 void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg)
 {
-    if (msg) {
-        isActiveSensorToPointcloud = msg->data;
-        if(isActiveSensorToPointcloud){
-            RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] activeCmdCallback : Active");
-        }else{
-            publishEmptyMsg();
-            RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] activeCmdCallback : De-Active");
+    if (!msg) {
+        RCLCPP_ERROR(this->get_logger(), "cmd_sensor_to_pointcloud topic is a nullptr message.");
+        return;
+    }
+
+    isActiveSensorToPointcloud = msg->data;
+    std_msgs::msg::Bool sensor_manager_state_msg;
+    sensor_manager_state_msg.data = msg->data;
+
+    if (isActiveSensorToPointcloud){
+        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] activeCmdCallback : Active");
+        for (int i=0; i<3; ++i) {
+            sensor_to_pointcloud_state_pub_->publish(sensor_manager_state_msg);
+            rclcpp::sleep_for(std::chrono::milliseconds(1000));
         }
     } else {
-        RCLCPP_ERROR(this->get_logger(), "cmd_sensor_to_pointcloud topic is a nullptr message.");
+        publishEmptyMsg();
+        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] activeCmdCallback : De-Active");
+        for (int i=0; i<3; ++i) {
+            sensor_to_pointcloud_state_pub_->publish(sensor_manager_state_msg);
+            rclcpp::sleep_for(std::chrono::milliseconds(1000));
+        }
     }
 }
 
