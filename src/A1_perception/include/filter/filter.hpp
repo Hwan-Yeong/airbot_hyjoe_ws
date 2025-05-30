@@ -380,6 +380,7 @@ class LowObstacleFilter : public BaseFilter
     std::string input{};
     float dist_max{};
     float dist_min{};
+    float dist_diff{};
 };
 
 /**

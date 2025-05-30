@@ -714,10 +714,10 @@ LayerVector LowObstacleFilter::updateImpl(LayerVector layer_vector)
         }
         if (layer.cloud.size() > 0 && target_layer.cloud.size() > 0)
         {
-            float dist_diff = pcl::euclideanDistance(layer.cloud[0], target_layer.cloud[0]);
+            float dist = pcl::euclideanDistance(layer.cloud[0], target_layer.cloud[0]);
 
             // RCLCPP_INFO(node->get_logger(), "dist_diff: %f", dist_diff);
-            if (dist_diff <= 0.035)
+            if (dist <=this->dist_diff)
             {
                 layer.isDeletable = false;
                 if (logIntervalPassed())
@@ -727,8 +727,8 @@ LayerVector LowObstacleFilter::updateImpl(LayerVector layer_vector)
                         "low level obstacle. robot_xy(%.3f, %.3f), Obs(x:%.3f, y:%.3f, Dist diff: %.3f)",
                         position.x,
                         position.y,
-                        global_point.x,
-                        global_point.y,
+                        layer.cloud[0].x,
+                        layer.cloud[0].y,
                         dist);
                 }
             }
