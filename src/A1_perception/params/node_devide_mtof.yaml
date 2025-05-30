@@ -1,0 +1,65 @@
+A1_perception:
+  node:
+    period_ms: 10
+    climb_condition:
+      pitch_alpha: 0.001
+      enable_climbing_threshold: -1.15
+      disable_climbing_threshold: -1.15
+      timeout_ms: 1800
+    inputs:
+      robot_position:
+        topic: "/amcl_pose"
+        type: "PoseWithCovarianceStamped"
+      multi_tof_left_row1:
+        topic: "/sensor_to_pointcloud/tof/multi/left/row_1"
+        type: "PointCloud2"
+      multi_tof_left_row2:
+        topic: "/sensor_to_pointcloud/tof/multi/left/row_2"
+        type: "PointCloud2"
+      multi_tof_right_row1:
+        topic: "/sensor_to_pointcloud/tof/multi/right/row_1"
+        type: "PointCloud2"
+      multi_tof_right_row2:
+        topic: "/sensor_to_pointcloud/tof/multi/right/row_2"
+        type: "PointCloud2"
+    layers:
+      multi_tof_12:
+        inputs:
+        - "multi_tof_left_row1"
+        - "multi_tof_left_row2"
+        - "multi_tof_right_row1"
+        - "multi_tof_right_row2"
+        filter:
+          compose:
+            filters:
+              timeout:
+                timeout_milliseconds: 15000
+              sector_roi:
+                use_inside: true
+                min_range: 1.01
+                max_range: 2.5
+                min_angle: -160
+                max_angle: 160
+              density:
+                max_count: 3
+                radius: 0.1
+      multi_tof_12_realtime:
+        inputs:
+        - "multi_tof_left_row1"
+        - "multi_tof_left_row2"
+        - "multi_tof_right_row1"
+        - "multi_tof_right_row2"
+        filter:
+          compose:
+            filters:
+              timeout:
+                timeout_milliseconds: 100
+              sector_roi:
+                use_inside: true
+                min_range: 0.3
+                max_range: 1.0
+                min_angle: -50.3
+                max_angle: 50.3
+              density:
+                max_count: 3
+                radius: 0.1

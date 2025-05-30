@@ -1,0 +1,50 @@
+A1_perception:
+  node:
+    period_ms: 10
+    inputs:
+      robot_position:
+        topic: "/amcl_pose"
+        type: "PoseWithCovarianceStamped"
+      one_d_tof:
+        topic: "/obstacle/tof/mono"
+        type: "PointCloud2"
+      multi_tof:
+        topic: "/obstacle/tof/multi"
+        type: "PointCloud2"
+      camera_points:
+        topic: "/obstacle/camera_object"
+        type: "PointCloud2"
+      # lidar_points:
+      #   # 에브리봇 코드 확인후 수정해야 함
+      #   topic: "/scan"
+      #   type: "LaserScan"
+
+    layers:
+      multi_tof:
+        inputs:
+        - "multi_tof"
+        filter:
+          compose:
+            filters:
+              timeout:
+                timeout_milliseconds: 10000
+              polygon_roi:
+                use_inside: true
+                polygon: [ [ 0.0, -0.4 ], [ 0.6, -0.4 ], [ 0.6, 0.4 ], [ 0.0, 0.4 ] ]
+              density:
+                max_count: 3
+                radius: 0.1
+      cliff:
+        inputs:
+        - "multi_tof"
+        filter:
+          compose:
+            filters:
+              timeout:
+                timeout_milliseconds: 100
+              polygon_roi:
+                use_inside: true
+                polygon: [ [ 0.0, -0.4 ], [ 0.6, -0.4 ], [ 0.6, 0.4 ], [ 0.0, 0.4 ] ]
+              density:
+                max_count: 3
+                radius: 0.1

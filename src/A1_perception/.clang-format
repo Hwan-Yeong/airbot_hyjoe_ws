@@ -1,0 +1,9 @@
+BasedOnStyle: Chromium
+IndentWidth: 4
+ColumnLimit: 120
+Language: Cpp
+BreakBeforeBraces: Allman
+AlignAfterOpenBracket: AlwaysBreak
+BinPackArguments: false
+BinPackParameters: false
+AllowShortFunctionsOnASingleLine: None

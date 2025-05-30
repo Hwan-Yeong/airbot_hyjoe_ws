@@ -1,0 +1,231 @@
+A1_perception:
+  node:
+    period_ms: 10
+    climb_condition:
+      pitch_alpha: 0.001
+      enable_climbing_threshold: -1.15 
+      disable_climbing_threshold: -1.15
+      timeout_ms: 1800
+    inputs:
+      #[From nav2]
+      robot_position:           
+        topic: "/amcl_pose"
+        type: "PoseWithCovarianceStamped"
+
+      #[From everybot(lidar)]
+      lidar_pc_baselink: 
+        topic: "/scan_merged_pointcloud"
+        type: "PointCloud2"
+
+      #[From everybot(sensor_manager)]
+      collision: 
+        topic: "/sensor_to_pointcloud/collision"
+        type: "PointCloud2"
+        
+      #[From everybot(sensor_manager)]
+      camera_points: 
+        topic: "/sensor_to_pointcloud/camera_object"
+        type: "PointCloud2"
+
+      #[From everybot(mcu)]
+      imu:
+        topic: "/imu_data"
+        type: "sensor_msgs/msg/Imu"
+    #[From everybot(sensor_manager)]
+    multi_tof_inputs:
+      left: [
+        1,3,5,7,
+        17,19,21,23,
+        35,38,45,47,
+        53,55,61,63
+      ]
+      right: [
+        0,2,4,6,
+        16,18,20,22,
+        33,36,40,42,
+        48,50,56,58
+      ]
+      
+    layers:
+      one_d_tof:
+        inputs:
+        - "one_d_tof"
+        filter:
+          compose:
+            filters:
+              timeout:
+                timeout_milliseconds: 60000
+              lidar_dist_check:
+                min_range: 0.0
+                max_range: 0.1
+              one_d_roi:
+                use_inside: true
+                polygon: [ [0.41, -0.5], [0.41, 0.5], [0.18,0.5], [0.18,-0.50]]
+              one_d_tof:
+                use_stop: true
+                stop_and_back_dist: 0.33
+                line_length: 0.10
+                resolution: 0.05
+
+      camera_points:
+        inputs:
+        - "camera_points"
+        filter:
+          compose:
+            filters:
+              timeout:
+                timeout_milliseconds: 60000
+              sector_roi:
+                use_inside: true
+                min_range: 0.3
+                max_range: 5.0
+                min_angle: -180
+                max_angle: 180
+              density:
+                max_count: 3
+                radius: 0.2            
+
+      collision:
+        inputs:
+        - "collision"
+        filter:
+          compose:
+            filters:
+              collision:
+                line_length: 0.1
+                resolution: 0.05
+
+      # multi_tof_13rows:
+      #   inputs:
+      #   - "multi_tof_left_idx_1"
+      #   - "multi_tof_left_idx_3"
+      #   - "multi_tof_left_idx_5"
+      #   - "multi_tof_left_idx_7"
+      #   - "multi_tof_left_idx_17"
+      #   - "multi_tof_left_idx_19"
+      #   - "multi_tof_left_idx_21"
+      #   - "multi_tof_left_idx_23"
+      #   - "multi_tof_right_idx_0"
+      #   - "multi_tof_right_idx_2"
+      #   - "multi_tof_right_idx_4"
+      #   - "multi_tof_right_idx_6"
+      #   - "multi_tof_right_idx_16"
+      #   - "multi_tof_right_idx_18"
+      #   - "multi_tof_right_idx_20"
+      #   - "multi_tof_right_idx_22"
+      #   filter:
+      #     compose:
+      #       filters:
+      #         timeout:
+      #           timeout_milliseconds: 15000
+      #         sector_roi:
+      #           use_inside: true
+      #           min_range: 1.01
+      #           max_range: 2.5
+      #           min_angle: -160
+      #           max_angle: 160
+      #         density:
+      #           max_count: 3
+      #           radius: 0.3
+
+      # multi_tof_13rows_realtime:
+      #   inputs:
+      #   - "multi_tof_left_idx_1"
+      #   - "multi_tof_left_idx_3"
+      #   - "multi_tof_left_idx_5"
+      #   - "multi_tof_left_idx_7"
+      #   - "multi_tof_left_idx_17"
+      #   - "multi_tof_left_idx_19"
+      #   - "multi_tof_left_idx_21"
+      #   - "multi_tof_left_idx_23"
+      #   - "multi_tof_right_idx_0"
+      #   - "multi_tof_right_idx_2"
+      #   - "multi_tof_right_idx_4"
+      #   - "multi_tof_right_idx_6"
+      #   - "multi_tof_right_idx_16"
+      #   - "multi_tof_right_idx_18"
+      #   - "multi_tof_right_idx_20"
+      #   - "multi_tof_right_idx_22"
+      #   filter:
+      #     compose:
+      #       filters:
+      #         timeout:
+      #           timeout_milliseconds: 100
+      #         sector_roi:
+      #           use_inside: true
+      #           min_range: 0.3
+      #           max_range: 1.0
+      #           min_angle: -50.3
+      #           max_angle: 50.3
+      #         density:
+      #           max_count: 3
+      #           radius: 0.1
+
+      # multi_tof_6_warning_low_obstacle:
+      #   inputs:
+      #   - "multi_tof_left_row6"
+      #   - "multi_tof_right_row6"
+      #   filter:
+      #     compose:
+      #       filters:
+      #         lidar_dist_check:
+      #           min_range: 0.0
+      #           max_range: 0.1
+      #         mtof_stay:
+      #           use_inside: true
+      #           min_range: 0.7
+      #           max_range: 1.1
+      #           min_angle: -50.3
+      #           max_angle: 50.3
+      #         density:
+      #           max_count: 3
+      #           radius: 0.1
+
+      multi_tof_left_78_low_obstacle_1:
+        inputs:
+        - "multi_tof_left_idx_53"
+        filter:
+          compose:
+            filters:
+              lidar_dist_check:
+                min_range: 0.0
+                max_range: 0.3
+              low_obstacle:
+                input: "multi_tof_left_idx_61"
+
+
+      multi_tof_left_78_low_obstacle:
+        inputs:
+        - "multi_tof_left_idx_55"
+        filter:
+          compose:
+            filters:
+              lidar_dist_check:
+                min_range: 0.0
+                max_range: 0.3
+              low_obstacle:
+                input: "multi_tof_left_idx_63"
+
+      multi_tof_right_78_low_obstacle_1:
+        inputs:
+        - "multi_tof_right_idx_48"
+        filter:
+          compose:
+            filters:
+              # lidar_dist_check:
+              #   min_range: 0.0
+              #   max_range: 0.3
+              low_obstacle:
+                input: "multi_tof_right_idx_56"
+
+      multi_tof_right_78_low_obstacle:
+        inputs:
+        - "multi_tof_right_idx_50"
+        filter:
+          compose:
+            filters:
+              # lidar_dist_check:
+              #   min_range: 0.0
+              #   max_range: 0.3
+              low_obstacle:
+                input: "multi_tof_right_idx_58"
