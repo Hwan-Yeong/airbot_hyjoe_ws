@@ -126,4 +126,4 @@ airbot_error_manager:
       s_11: # 충전부 과열에 의한 화재 및 파손 방지 에러
         sub_topic: "error/s_code/station_overheat"
         error_code: "S11"
-        description: "Station overheating"
+        description: "Station Pogo Pin overheating"
