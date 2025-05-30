@@ -41,8 +41,10 @@ ErrorManagerNode::ErrorManagerNode()
     }
 
     // 에러 발생 후 에러 리스트에서 관리하지 않을 에러 등록
-    erase_after_pub_error_codes_.insert("S05");
-    erase_after_pub_error_codes_.insert("S06");
+    erase_after_pub_error_codes_.insert("S05"); // 이동불가 에러
+    erase_after_pub_error_codes_.insert("S06"); // localization fail 에러
+    erase_after_pub_error_codes_.insert("S08"); // 도킹불가 에러 (from state_manager)
+    erase_after_pub_error_codes_.insert("E07"); // 도킹스테이션 감지 에러 (from mcu)
 
     error_list_pub_ = this->create_publisher<robot_custom_msgs::msg::ErrorListArray>("/error_list", 10);
     robot_state_sub_ = this->create_subscription<robot_custom_msgs::msg::RobotState>(
