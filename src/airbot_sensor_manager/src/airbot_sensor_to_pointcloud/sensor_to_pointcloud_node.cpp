@@ -562,14 +562,14 @@ void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr 
         RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] activeCmdCallback : Active");
         for (int i=0; i<3; ++i) {
             sensor_to_pointcloud_state_pub_->publish(sensor_manager_state_msg);
-            rclcpp::sleep_for(std::chrono::milliseconds(1000));
+            rclcpp::sleep_for(std::chrono::milliseconds(1));
         }
     } else {
         publishEmptyMsg();
         RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] activeCmdCallback : De-Active");
         for (int i=0; i<3; ++i) {
             sensor_to_pointcloud_state_pub_->publish(sensor_manager_state_msg);
-            rclcpp::sleep_for(std::chrono::milliseconds(1000));
+            rclcpp::sleep_for(std::chrono::milliseconds(1));
         }
     }
 }
