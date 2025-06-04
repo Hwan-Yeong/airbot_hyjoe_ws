@@ -703,7 +703,7 @@ LayerVector LowObstacleFilter::updateImpl(LayerVector layer_vector)
     auto position = node->getPosition();
     geometry_msgs::msg::Transform transform_msg;
     tf2::toMsg(position.getTransform().inverse(), transform_msg);
-    Eigen::Affine3f inverse_transform = tf2::transformToEigen(transform_msg).cast<float>();
+    // Eigen::Affine3f inverse_transform = tf2::transformToEigen(transform_msg).cast<float>();
 
     auto target_layer = node->getSensorLayer(this->input);
     for (auto& layer : layer_vector)
