@@ -46,7 +46,8 @@ airbot_sensor_to_pointcloud:
 
       tof_multi_left:
         use: true
-        topic: "tof/multi/left/idx_"
+        topic_idx: "tof/multi/left/idx_"
+        topic_row: "tof/multi/left/row_"
         pitch_angle_deg: -5.0 # (-)가 들리는 방향
         sub_cell_idx_array: [
           1, 4, 7, 17,
@@ -57,7 +58,8 @@ airbot_sensor_to_pointcloud:
 
       tof_multi_right:
         use: true
-        topic: "tof/multi/right/idx_"
+        topic_idx: "tof/multi/right/idx_"
+        topic_row: "tof/multi/right/row_"
         pitch_angle_deg: -5.0 # (-)가 들리는 방향
         sub_cell_idx_array: [
           0, 3, 6, 16,

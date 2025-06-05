@@ -1,6 +1,14 @@
 #include "ament_index_cpp/get_package_share_directory.hpp"
 #include "airbot_sensor_to_pointcloud/sensor_to_pointcloud_node.hpp"
 
+/*
+    4x4 tof를 (기존)행별로 사용할지, 인덱스로 사용할지 결정
+
+    false: row (각 4개) <- 기존 버전
+    true : idx (각 16개)
+*/
+#define IS_4X4_INDEX false
+
 using namespace std::chrono_literals;
 
 // Robot, Sensor Geometric Specification
@@ -214,27 +222,40 @@ void SensorToPointcloud::initPublisher(const YAML::Node& config)
     if (is_enable_8x8) {
         if (sensor_config_.multi_tof_left.use) {
             for (auto index : sensor_config_.multi_tof_left.sub_cell_idx_array) {
-                pointcloud_pubs_[sensor_config_.multi_tof_left.topic + std::to_string(index)]
-                    = create_pc_pub(sensor_config_.multi_tof_left.topic + std::to_string(index));
+                pointcloud_pubs_[sensor_config_.multi_tof_left.topic_idx + std::to_string(index)]
+                = create_pc_pub(sensor_config_.multi_tof_left.topic_idx + std::to_string(index));
             }
         }
         if (sensor_config_.multi_tof_right.use){
             for (auto index : sensor_config_.multi_tof_right.sub_cell_idx_array) {
-                pointcloud_pubs_[sensor_config_.multi_tof_right.topic + std::to_string(index)]
-                    = create_pc_pub(sensor_config_.multi_tof_right.topic + std::to_string(index));
+                pointcloud_pubs_[sensor_config_.multi_tof_right.topic_idx + std::to_string(index)]
+                    = create_pc_pub(sensor_config_.multi_tof_right.topic_idx + std::to_string(index));
             }
         }
     } else {
+        #if IS_4X4_INDEX
         for (int i = 0; i < 16; ++i) {
             if (sensor_config_.multi_tof_left.use) {
-                pointcloud_pubs_[sensor_config_.multi_tof_left.topic + std::to_string(i)]
-                    = create_pc_pub(sensor_config_.multi_tof_left.topic + std::to_string(i));
+                pointcloud_pubs_[sensor_config_.multi_tof_left.topic_idx + std::to_string(i)]
+                    = create_pc_pub(sensor_config_.multi_tof_left.topic_idx + std::to_string(i));
             }
             if (sensor_config_.multi_tof_right.use){
-                pointcloud_pubs_[sensor_config_.multi_tof_right.topic + std::to_string(i)]
-                    = create_pc_pub(sensor_config_.multi_tof_right.topic + std::to_string(i));
+                pointcloud_pubs_[sensor_config_.multi_tof_right.topic_idx + std::to_string(i)]
+                    = create_pc_pub(sensor_config_.multi_tof_right.topic_idx + std::to_string(i));
             }
         }
+        #else
+        for (int i = 0; i < 4; ++i) {
+            if (sensor_config_.multi_tof_left.use) {
+                pointcloud_pubs_[sensor_config_.multi_tof_left.topic_row + std::to_string(i+1)]
+                    = create_pc_pub(sensor_config_.multi_tof_left.topic_row + std::to_string(i+1));
+            }
+            if (sensor_config_.multi_tof_right.use){
+                pointcloud_pubs_[sensor_config_.multi_tof_right.topic_row + std::to_string(i+1)]
+                    = create_pc_pub(sensor_config_.multi_tof_right.topic_row + std::to_string(i+1));
+            }
+        }
+        #endif
     }
 
     //debug
@@ -371,7 +392,15 @@ void SensorToPointcloud::printSensorConfig(const std::string& name, const tSenso
 {
     RCLCPP_INFO(this->get_logger(), "  [%s]", name.c_str());
     RCLCPP_INFO(this->get_logger(), "    Use: %s", cfg.use ? "True" : "False");
-    RCLCPP_INFO(this->get_logger(), "    Topic: %s", cfg.topic.c_str());
+    #if IS_4X4_INDEX
+    RCLCPP_INFO(this->get_logger(), "    Topic: %s", cfg.topic_idx.c_str());
+    #else
+    if (cfg.use) {
+        RCLCPP_INFO(this->get_logger(), "    Topic: %s", cfg.topic_idx.c_str());
+    } else {
+        RCLCPP_INFO(this->get_logger(), "    Topic: %s", cfg.topic_row.c_str());
+    }
+    #endif
     RCLCPP_INFO(this->get_logger(), "    Publish Rate: %d ms", cfg.publish_rate);
     if (cfg.pitch_angle_deg != 0.0 || !cfg.sub_cell_idx_array.empty()) { // Tof
         RCLCPP_INFO(this->get_logger(), "    Pitch Angle: %.2f deg", cfg.pitch_angle_deg);
@@ -426,6 +455,8 @@ tSensor SensorToPointcloud::getSensorCfg(const YAML::Node& node)
     tSensor cfg;
     if (node["use"]) cfg.use = node["use"].as<bool>();
     if (node["topic"]) cfg.topic = node["topic"].as<std::string>();
+    if (node["topic_idx"]) cfg.topic_idx = node["topic_idx"].as<std::string>();
+    if (node["topic_row"]) cfg.topic_row = node["topic_row"].as<std::string>();
     if (node["publish_rate_ms"]) cfg.publish_rate = node["publish_rate_ms"].as<int>();
     if (node["pitch_angle_deg"]) cfg.pitch_angle_deg = node["pitch_angle_deg"].as<double>();
     if (node["sub_cell_idx_array"]) {
@@ -477,27 +508,40 @@ void SensorToPointcloud::publisherMonitor()
             if (use_tof_8x8_) {
                 if (sensor_config_.multi_tof_left.use) {
                     for (auto index : sensor_config_.multi_tof_left.sub_cell_idx_array) {
-                        std::string topic_name = sensor_config_.multi_tof_left.topic + std::to_string(index);
+                        std::string topic_name = sensor_config_.multi_tof_left.topic_idx + std::to_string(index);
                         pointcloud_pubs_[topic_name]->publish(pc_8x8_tof_left_msg_map_[index]);
                     }
                 }
                 if (sensor_config_.multi_tof_right.use) {
                     for (auto index : sensor_config_.multi_tof_right.sub_cell_idx_array) {
-                        std::string topic_name = sensor_config_.multi_tof_right.topic+ std::to_string(index);
+                        std::string topic_name = sensor_config_.multi_tof_right.topic_idx+ std::to_string(index);
                         pointcloud_pubs_[topic_name]->publish(pc_8x8_tof_right_msg_map_[index]);
                     }
                 }
             } else {
+            #if IS_4X4_INDEX
                 for (int i = 0; i < 16; ++i) {
                     if (sensor_config_.multi_tof_left.use) {
-                        std::string topic_name = sensor_config_.multi_tof_left.topic + std::to_string(i);
+                        std::string topic_name = sensor_config_.multi_tof_left.topic_idx + std::to_string(i);
                         pointcloud_pubs_[topic_name]->publish(pc_4x4_tof_left_msg_map_[i]);
                     }
                     if (sensor_config_.multi_tof_right.use) {
-                        std::string topic_name = sensor_config_.multi_tof_right.topic + std::to_string(i);
+                        std::string topic_name = sensor_config_.multi_tof_right.topic_idx + std::to_string(i);
                         pointcloud_pubs_[topic_name]->publish(pc_4x4_tof_right_msg_map_[i]);
                     }
                 }
+            #else
+                for (int i = 0; i < 4; ++i) {
+                    if (sensor_config_.multi_tof_left.use) {
+                        std::string topic_name = sensor_config_.multi_tof_left.topic_row + std::to_string(i+1);
+                        pointcloud_pubs_[topic_name]->publish(pc_4x4_tof_left_msg_map_[i]);
+                    }
+                    if (sensor_config_.multi_tof_right.use) {
+                        std::string topic_name = sensor_config_.multi_tof_right.topic_row + std::to_string(i+1);
+                        pointcloud_pubs_[topic_name]->publish(pc_4x4_tof_right_msg_map_[i]);
+                    }
+                }
+            #endif
             }
             publish_cnt_row_tof_ = 0;
         }
@@ -619,9 +663,17 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
                     i++;
                 }
             } else {
+                #if IS_4X4_INDEX
                 for (int i=0; i<16; i++) {
                     pc_4x4_tof_left_msg_map_[i] = pc_msgs[i];
                 }
+                #else
+                for (int i=0; i<4; ++i) {
+                    int start_idx = i * 4;
+                    std::vector<sensor_msgs::msg::PointCloud2> slice(pc_msgs.begin() + start_idx, pc_msgs.begin() + start_idx + 4);
+                    pc_4x4_tof_left_msg_map_[i] = pointcloud_generator_.mergePointCloud2Vector(slice, target_frame_);
+                }
+                #endif
             }
         } else if (side == TOF_SIDE::RIGHT) {
             if (use_tof_8x8_) {
@@ -631,9 +683,17 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
                     i++;
                 }
             } else {
+                #if IS_4X4_INDEX
                 for (int i=0; i<16; i++) {
                     pc_4x4_tof_right_msg_map_[i] = pc_msgs[i];
                 }
+                #else
+                for (int i=0; i<4; ++i) {
+                    int start_idx = i * 4;
+                    std::vector<sensor_msgs::msg::PointCloud2> slice(pc_msgs.begin() + start_idx, pc_msgs.begin() + start_idx + 4);
+                    pc_4x4_tof_right_msg_map_[i] = pointcloud_generator_.mergePointCloud2Vector(slice, target_frame_);
+                }
+                #endif
             }
         } else { // TOF_SIDE::BOTH
             if (use_tof_8x8_) {
@@ -650,12 +710,25 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
                 }
                 if (sensor_config_.multi_tof.use) pc_tof_multi_msg = pointcloud_generator_.mergePointCloud2Vector(pc_msgs, target_frame_);
             } else {
+                #if IS_4X4_INDEX
                 for (int i=0; i<16; i++) {
                     pc_4x4_tof_left_msg_map_[i] = pc_msgs[i];
                 }
                 for (int i=0; i<16; i++) {
                     pc_4x4_tof_right_msg_map_[i] = pc_msgs[16+i];
                 }
+                #else
+                for (int i=0; i<4; ++i) {
+                    int start_idx = i * 4;
+                    std::vector<sensor_msgs::msg::PointCloud2> slice(pc_msgs.begin() + start_idx, pc_msgs.begin() + start_idx + 4);
+                    pc_4x4_tof_left_msg_map_[i] = pointcloud_generator_.mergePointCloud2Vector(slice, target_frame_);
+                }
+                for (int i=0; i<4; ++i) {
+                    int start_idx = 16 + i * 4;
+                    std::vector<sensor_msgs::msg::PointCloud2> slice(pc_msgs.begin() + start_idx, pc_msgs.begin() + start_idx + 4);
+                    pc_4x4_tof_right_msg_map_[i] = pointcloud_generator_.mergePointCloud2Vector(slice, target_frame_);
+                }
+                #endif
                 if (sensor_config_.multi_tof.use) pc_tof_multi_msg = pointcloud_generator_.mergePointCloud2Vector(pc_msgs, target_frame_);
             }
         }
