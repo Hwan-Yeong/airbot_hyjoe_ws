@@ -14,8 +14,8 @@ airbot_sensor_to_pointcloud:
       tof_multi:
         use: true
         topic: "tof/multi"
-        publish_rate_ms: 50
-        enable_8x8: true
+        publish_rate_ms: 10
+        enable_8x8: true # 8x8 인덱스 사용 여부
         filter:
           moving_average:
             use: false
