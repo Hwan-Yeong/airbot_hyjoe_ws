@@ -87,6 +87,7 @@ public:
     using InputType = std::nullptr_t;
     bool checkError(const InputType& input) override;
 private:
+    bool error_state;
     float total_temp;
     int valid_reads ;
     double avg_temp;

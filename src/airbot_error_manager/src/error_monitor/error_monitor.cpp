@@ -178,6 +178,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                         "elapsed time since release check started: %.3f\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        release_time_diff,
                         input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
                         input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
                     );
@@ -294,8 +295,12 @@ void FallDownErrorMonitor::get_rpy_from_quaternion(const geometry_msgs::msg::Qua
 bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 {
     if (input != nullptr) {
-        return false;
+        error_state = false;
+        return error_state;
     }
+
+    error_state = false;
+
     // AP 보드 온도 에러 판단 (Board temperature error check)
     for (const auto& file_path : temp_files) {
         std::ifstream file(file_path);
@@ -321,7 +326,7 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
                     "[BoardOverheatErrorMonitor] Warning: High temperature detected!,File: %s, Temperature: %.2f°C",
                     file_path.c_str(), temp_value
                 );
-                return true; // Return immediately if any temperature exceeds 70°C
+                error_state = true; // Return immediately if any temperature exceeds 70°C
             }
         }
         catch (const std::invalid_argument& e) {
@@ -332,7 +337,7 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
         }
     }
 
-    return false; // No high temperature detected
+    return error_state; // No high temperature detected
 }
 
 bool ChargingErrorMonitor::checkError(const InputType &input)
