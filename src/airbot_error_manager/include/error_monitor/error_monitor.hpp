@@ -36,18 +36,30 @@ protected:
     rclcpp::Node::SharedPtr node_ptr_;
 };
 
-class LowBatteryErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::RobotState>>
+class LowBatteryErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>>
 {
 public:
-    using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::RobotState>;
+    using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>;
     bool checkError(const InputType& input) override;
+    bool station_flag = false;
+    bool error_state = false;
+    double current_time = 0.0;
+    double release_time_diff = 0.0;
+    double prev_time = 0.0;
+    bool prev_state = false;
+    bool init_setting = false;
+    bool is_first_logging = true;
 };
 
-class BatteryDischargingErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::RobotState>>
+class BatteryDischargingErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>>
 {
 public:
-    using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::RobotState>;
+    using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>;
     bool checkError(const InputType& input) override;
+    bool error_state = false;
+    bool charge_flag = false;
+    double release_time_diff = 0.0;
+    double release_start_time = 0.0;
 };
 
 class FallDownErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>>

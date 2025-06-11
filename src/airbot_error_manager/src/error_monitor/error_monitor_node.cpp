@@ -3,6 +3,10 @@
 ErrorMonitorNode::ErrorMonitorNode()
     : Node("airbot_error_monitor")
 {
+    rclcpp::QoS qos_state_profile = rclcpp::QoS(5)
+                            .reliable()
+                            .durability_volatile();
+
     initVariables();
     setParams();
 
@@ -20,7 +24,7 @@ ErrorMonitorNode::ErrorMonitorNode()
         "/station_data", 10, std::bind(&ErrorMonitorNode::stationDataCallback, this, std::placeholders::_1)
     );
     robot_state_sub_ = this->create_subscription<robot_custom_msgs::msg::RobotState>(
-        "/state_datas", 10, std::bind(&ErrorMonitorNode::robotStateCallback, this, std::placeholders::_1)
+        "/state_datas", qos_state_profile, std::bind(&ErrorMonitorNode::robotStateCallback, this, std::placeholders::_1)
     );
     odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
         "/odom", 10, std::bind(&ErrorMonitorNode::odomCallback, this, std::placeholders::_1)
@@ -39,10 +43,12 @@ ErrorMonitorNode::ErrorMonitorNode()
     timer_ = this->create_wall_timer(
         10ms,
         std::bind(&ErrorMonitorNode::errorMonitor, this));
+    RCLCPP_INFO(this->get_logger(), "node initialized");
 }
 
 ErrorMonitorNode::~ErrorMonitorNode()
 {
+    RCLCPP_INFO(this->get_logger(), "node terminated");
 }
 
 void ErrorMonitorNode::init()
@@ -148,7 +154,7 @@ void ErrorMonitorNode::errorMonitor()
     // low battery monitor
     if (update_battery_status_low_battery && update_robot_state_low_battery
         && (publish_cnt_low_battery_error_ >= publish_cnt_low_battery_error_rate_)) {
-        bool low_battery_error = this->runMonitor<LowBatteryErrorMonitor>(std::make_pair(battery_data, robot_state));
+        bool low_battery_error = this->runMonitor<LowBatteryErrorMonitor>(std::make_pair(battery_data, station_data));
         if (low_battery_error) {
             // RCLCPP_INFO(this->get_logger(), "low_battery_error : %s", low_battery_error ? "true" : "false");
             error_msg.data = true;
@@ -179,7 +185,7 @@ void ErrorMonitorNode::errorMonitor()
     // battery discharging monitor
     if (update_battery_status_battery_discharging && update_robot_state_battery_discharging
         && (publish_cnt_battery_discharge_error_ >= publish_cnt_battery_discharge_error_rate_)) {
-        bool battery_discharge_error = this->runMonitor<BatteryDischargingErrorMonitor>(std::make_pair(battery_data, robot_state));
+        bool battery_discharge_error = this->runMonitor<BatteryDischargingErrorMonitor>(std::make_pair(battery_data, station_data));
         if (battery_discharge_error) {
             // RCLCPP_INFO(this->get_logger(), "battery_discharge_error : %s", battery_discharge_error ? "true" : "false");
             error_msg.data = true;

@@ -5,70 +5,90 @@
 
 bool LowBatteryErrorMonitor::checkError(const InputType& input)
 {
-    if (input.second.state == 4 || input.second.state == 5) { // 4: RETURN_CHARGER, 5: DOCKING
-        return false;
-    }
-
-    // 베터리가 10프로 이상 15프로 이하 동시에 30초 이상일 경우
     static rclcpp::Clock clock(RCL_STEADY_TIME);
-    bool error_state = false;
-    double current_time, time_diff;
-    static double prev_time = 0;
-    static bool prev_state = false;
-    static bool init_setting=false;
-    static bool is_first_logging = true;
-
     current_time = clock.now().seconds();
-    if (!init_setting) { // 이전 시간에 대해서 초기시간 설정
-        prev_time = current_time;
-        init_setting = true;
-    }
-    time_diff = current_time - prev_time;
 
-    if (input.first.battery_percent <= 15 && input.first.battery_percent > 10) {
-        if (time_diff >= 30) {
-            if (!prev_state) {
-                // [250407] hyjoe : low battery 에러 발생시 모니터 체크 시간(sec), 배터리 상태 1번만 로깅
-                RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[LowBatteryErrorMonitor] elapsed time since error check started: %.3f\n"
-                    "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                    "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                    time_diff,
-                    input.first.battery_manufacturer,
-                    input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                    input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
-                );
-            }
-            error_state = true;
-        } else {
-            if (is_first_logging) {
-                // [250407] hyjoe : low battery 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
-                RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[LowBatteryErrorMonitor] start to low battery monitor\n"
-                    "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                    "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                    input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                    input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
-                );
-                is_first_logging = false;
-            }
-            error_state = false;
+    //check off station
+    if( input.second.docking_status & 0x10 ){
+        if( !station_flag ){
+            RCLCPP_INFO(node_ptr_->get_logger(), "[LowBatteryErrorMonitor]CHECK AMR ON STATION ==> dockingstatus[%02x] ",input.second.docking_status);
         }
-    } else {
-        if (prev_state) {
-            // [250407] hyjoe : low battery 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
-            RCLCPP_INFO(node_ptr_->get_logger(),
-                "[LowBatteryErrorMonitor] Low Battery error released\n"
-                "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
-            );
+        station_flag = true;
+    } else{
+        if( station_flag ){
+            RCLCPP_INFO(node_ptr_->get_logger(), "[LowBatteryErrorMonitor]CHECK AMR OFF STATION ==> dockingstatus[%02x] ",input.second.docking_status);
         }
-        prev_time = current_time;
-        is_first_logging = true;
-        error_state = false;      // 베터리가 10프로 이하 15프로 이상일 경우
+        station_flag = false;
     }
+
+    //check error
+    // 조건 : OFF STATION 상태, 배터리 잔여 15%이하
+    if( !error_state ){ //Error 가 아닐 경우
+        if( station_flag == false ){ //OFF STATION일 경우
+            if (input.first.battery_percent <= 15 && input.first.battery_percent > 10) {
+                if (!prev_state) {
+                        // [250407] hyjoe : low battery 에러 발생시 모니터 체크 시간(sec), 배터리 상태 1번만 로깅
+                        RCLCPP_INFO(node_ptr_->get_logger(),
+                        "[LowBatteryErrorMonitor] OCCUR LOW BATTERY ERROR!!!\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        
+                        input.first.battery_manufacturer,
+                        input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                    );
+                }
+                error_state = true;
+            }
+        }
+    } else{ //check release error
+        // 조건 :  배터리 잔여 20%초과 30초 유지
+        if(input.first.battery_percent > 20 ){
+            //check time
+            if (!init_setting) { // release 체크 시간에 대해서 초기시간 설정
+                prev_time = current_time;
+                init_setting = true;
+            }
+            release_time_diff = current_time - prev_time;
+            if( release_time_diff >= 30){
+                if (prev_state) {
+                    // [250407] hyjoe : low battery 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
+                    RCLCPP_INFO(node_ptr_->get_logger(),
+                        "[LowBatteryErrorMonitor] [RELEASED] Low Battery error \n"
+                        "elapsed time since release check started: %.3f\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        release_time_diff,
+                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                    );
+                }
+                prev_time = current_time;
+                is_first_logging = true;
+                error_state = false;
+                init_setting = false;
+            } 
+            else {
+                if (is_first_logging) {
+                    // [250407] hyjoe : low battery 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
+                    RCLCPP_INFO(node_ptr_->get_logger(),
+                        "[LowBatteryErrorMonitor] [START RELEASE] low battery monitor\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                    );
+                    is_first_logging = false;
+                }
+            }
+        } else{
+            //time reset
+            prev_time = current_time;
+            is_first_logging = true;
+            init_setting = false;
+        }
+    }
+    
     prev_state = error_state;
 
     return error_state;
@@ -76,68 +96,116 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
 
 bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
 {
-    if (input.second.state == 4 || input.second.state == 5) { // 4: RETURN_CHARGER, 5: DOCKING
-        return false;
-    }
 
     // 베터리가 10프로 이하일 경우, 동시에 30초 이상일 경우
     static rclcpp::Clock clock(RCL_STEADY_TIME);
-    bool error_state = false;
     double current_time, time_diff;
     static double prev_time = 0;
     static bool prev_state = false;
     static bool init_setting = false;
     static bool is_first_logging = true;
 
-    current_time = clock.now().seconds();
-    if (!init_setting) { // 이전 시간에 대해서 초기시간 설정
-        prev_time = current_time;
-        init_setting = true;
+    //발생 조건1: 충전중이 아닐때,
+    if( input.second.docking_status & 0x70 ){
+        if( !charge_flag ){
+            RCLCPP_INFO(node_ptr_->get_logger(), "[DischargingErrorMonitor]CHECK AMR CHARGING ==> dockingstatus[%02x] ",input.second.docking_status);
+        }
+        charge_flag = true;
+    } else{
+        if( charge_flag ){
+            RCLCPP_INFO(node_ptr_->get_logger(), "[DischargingErrorMonitor]CHECK AMR DISCHARGING==> dockingstatus[%02x] ",input.second.docking_status);
+        }
+        charge_flag = false;
     }
-    time_diff = current_time - prev_time;
+    
+    current_time = clock.now().seconds();
+    
+    if( !error_state ){ //에러가 아닐떄.
+        if( !charge_flag && input.first.battery_percent <= 10) {// 충전 중이 아닐때.
+            
+            if (!init_setting) { // 이전 시간에 대해서 초기시간 설정
+                prev_time = current_time;
+                init_setting = true;
+            }
+            time_diff = current_time - prev_time;
 
-    if (input.first.battery_percent <= 10) {
-        if (time_diff >= 30) {
-            if (!prev_state) {
-                // [250407] hyjoe : 배터리 방전 에러 발생시 모니터 체크 시간(sec), 배터리 충전량 상태 1번만 로깅
-                RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[BatteryDischargingErrorMonitor] elapsed time since error check started: %.3f\n"
-                    "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                    "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                    time_diff,
-                    input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                    input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
-                );
+            if (time_diff >= 10) {
+                if (!prev_state) {
+                    RCLCPP_INFO(node_ptr_->get_logger(),
+                        "[BatteryDischargingErrorMonitor] elapsed time since error check started: %.3f\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        time_diff,
+                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                    );
+                }
+                error_state = true;
+            } else {
+                if (is_first_logging) {
+                    RCLCPP_INFO(node_ptr_->get_logger(),
+                        "[BatteryDischargingErrorMonitor] start to battery discharging monitor\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                    );
+                    is_first_logging = false;
+                }
+                error_state = false;
             }
-            error_state = true;
-        } else {
-            if (is_first_logging) {
-                // [250407] hyjoe : 배터리 방전 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 충전량 상태 로깅
-                RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[BatteryDischargingErrorMonitor] start to battery discharging monitor\n"
-                    "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                    "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                    input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                    input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
-                );
-                is_first_logging = false;
+        } else{
+            if( init_setting ){
+                init_setting = false;
+                prev_time = current_time;
+                is_first_logging = true;
             }
-            error_state = false;
         }
-    } else { // 베터리 10프로 이상
-        if (prev_state) {
-            // [250407] hyjoe : 배터리 방전 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
-            RCLCPP_INFO(node_ptr_->get_logger(),
-                "[BatteryDischargingErrorMonitor] Battery Discharging error released\n"
-                "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
-            );
+    } else { // 조건: 베터리 15프로 초과 & 30초 유지
+        if(input.first.battery_percent > 15 ){
+            //check time
+            if (!init_setting) { // release 체크 시간에 대해서 초기시간 설정
+                release_start_time = current_time;
+                init_setting = true;
+            }
+            release_time_diff = current_time - release_start_time;
+
+            if( release_time_diff >= 30){
+                if (prev_state) {
+                    // [250407] hyjoe : battery discharging 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
+                    RCLCPP_INFO(node_ptr_->get_logger(),
+                        "[BatteryDischargingErrorMonitor] [RELEASED] battery discharging error \n"
+                        "elapsed time since release check started: %.3f\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                    );
+                }
+                release_start_time = current_time;
+                is_first_logging = true;
+                error_state = false;
+                init_setting = false;
+            } 
+            else {
+                if (is_first_logging) {
+                    // [250407] hyjoe : battery discharging 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
+                    RCLCPP_INFO(node_ptr_->get_logger(),
+                        "[BatteryDischargingErrorMonitor] [START RELEASE] battery discharging monitor\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                    );
+                    is_first_logging = false;
+                }
+            }
+        } else{
+            //time reset
+            release_start_time = current_time;
+            is_first_logging = true;
+            init_setting = false;
         }
-        prev_time = current_time;
-        is_first_logging = true;
-        error_state = false;
     }
     prev_state = error_state;
 
@@ -395,6 +463,7 @@ bool LiftErrorMonitor::checkError(const InputType &input)
         }
         errorCount = 0;
         errorState = false;
+        irLiftFlag = false;
     } else if (count >= 4) { // ir 센서 true개수 4개 이상이면 ir 들림 의심
         // [250407] hyjoe : 들림 에러 발생 의심시 IR센서 상태 로깅
         if (!irLiftFlag) {

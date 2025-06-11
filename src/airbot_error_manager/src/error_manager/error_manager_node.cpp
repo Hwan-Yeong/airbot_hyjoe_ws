@@ -39,6 +39,9 @@ ErrorManagerNode::ErrorManagerNode()
         std::string fallback_path = "/home/airbot/airbot_ws/install/airbot_error_manager/share/airbot_error_manager/config/" + error_list;
         this->config = YAML::LoadFile(fallback_path)["airbot_error_manager"]["error_list"];
     }
+    rclcpp::QoS qos_state_profile = rclcpp::QoS(5)
+                            .reliable()
+                            .durability_volatile();
 
     // 에러 발생 후 에러 리스트에서 관리하지 않을 에러 등록
     erase_after_pub_error_codes_.insert("S05"); // 이동불가 에러
@@ -48,16 +51,18 @@ ErrorManagerNode::ErrorManagerNode()
 
     error_list_pub_ = this->create_publisher<robot_custom_msgs::msg::ErrorListArray>("/error_list", 10);
     robot_state_sub_ = this->create_subscription<robot_custom_msgs::msg::RobotState>(
-        "/state_datas", 10, std::bind(&ErrorManagerNode::robotStateCallback, this, std::placeholders::_1)
+        "/state_datas", qos_state_profile, std::bind(&ErrorManagerNode::robotStateCallback, this, std::placeholders::_1)
     );
 
     pub_timer_ = this->create_wall_timer(
         publish_rate_ms,
         std::bind(&ErrorManagerNode::publishErrorList, this));
+    RCLCPP_INFO(this->get_logger(), "node initialized");
 }
 
 ErrorManagerNode::~ErrorManagerNode()
 {
+    RCLCPP_INFO(this->get_logger(), "node terminated");
 }
 
 void ErrorManagerNode::init()
