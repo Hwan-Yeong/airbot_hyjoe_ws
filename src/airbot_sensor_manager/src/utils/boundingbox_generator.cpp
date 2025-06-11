@@ -56,6 +56,10 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
                 auto bbox = vision_msgs::msg::BoundingBox2D();
 
                 tPoint point_on_sensor_frame, point_on_robot_frame;
+                /*
+                    객체의 너비(가로폭)가 30cm 이하인 경우, 높이를 너비와 동일한 -> 정사각형 객체로 가공
+                    객체의 너비(가로폭)가 30cm 이상인 경우, 높이를 30cm로 고정
+                */
                 double height = std::min(static_cast<double>(obj.width), 0.3);
 
                 if (direction) {
@@ -70,7 +74,7 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
                 point_on_robot_frame.x = point_on_sensor_frame.x + sensor_frame_translation_.x;
                 point_on_robot_frame.y = point_on_sensor_frame.y + sensor_frame_translation_.y;
                 // point_on_robot_frame.z = point_on_sensor_frame.z + sensor_frame_translation_.z;
-                if (target_frame_ == "map") {    
+                if (target_frame_ == "map") {
                     bbox.center.position.x = point_on_robot_frame.x*robot_cos_ - point_on_robot_frame.y*robot_sin_ + robot_pose_.position.x;
                     bbox.center.position.y = point_on_robot_frame.x*robot_sin_ + point_on_robot_frame.y*robot_cos_ + robot_pose_.position.y;
                 } else if (target_frame_ == "base_link") {
@@ -81,7 +85,16 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
                 }
                 bbox.center.theta = 0.0;
                 bbox.size_x = height;
-                bbox.size_y = obj.width;
+                /*
+                    pole (의자 다리) 객체의 경우,
+                    객체의 너비(가로폭)가 50cm 이하인 경우, 너비를 50cm로 고정
+                    객체의 너비(가로폭)가 50cm 이상인 경우, 인식된 너비 그대로 사용
+                */
+                if (obj.id == 12) { // pole
+                    bbox.size_y = obj.width < 0.5 ? 0.5 : obj.width;
+                } else {
+                    bbox.size_y = obj.width;
+                }
                 bbox_array.boxes.push_back(bbox);
             }
         } else {
