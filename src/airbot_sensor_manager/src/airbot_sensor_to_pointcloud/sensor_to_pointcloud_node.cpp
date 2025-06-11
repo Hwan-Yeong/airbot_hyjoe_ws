@@ -110,14 +110,34 @@ SensorToPointcloud::SensorToPointcloud()
         "cmd_sensor_manager", 10, std::bind(&SensorToPointcloud::activeCmdCallback, this, std::placeholders::_1));
 
     // Msg Subscribers
+    rclcpp::QoS qos_profile_tof = rclcpp::QoS(2) // tof sub (10ms) / pc_tof pub (10ms)
+                                .best_effort()   // tof publisher의 best_effort 설정 필요
+                                .durability_volatile()
+                                .keep_last(2);
     tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
-        "tof_data", 10, std::bind(&SensorToPointcloud::tofMsgUpdate, this, std::placeholders::_1));
+        "tof_data", qos_profile_tof, std::bind(&SensorToPointcloud::tofMsgUpdate, this, std::placeholders::_1)
+    );
+    rclcpp::QoS qos_profile_camera = rclcpp::QoS(3) // camera sub (50ms) / pc_camera pub (100ms)
+                                .reliable()
+                                .durability_volatile()
+                                .keep_last(3);
     camera_sub_ = this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
-        "camera_data", 10, std::bind(&SensorToPointcloud::cameraMsgUpdate, this, std::placeholders::_1));
+        "camera_data", qos_profile_camera, std::bind(&SensorToPointcloud::cameraMsgUpdate, this, std::placeholders::_1)
+    );
+    rclcpp::QoS qos_profile_cliff = rclcpp::QoS(2) // cliff sub (10ms) / pc_cliff pub (10ms)
+                                .reliable()
+                                .durability_volatile()
+                                .keep_last(2);
     cliff_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
-        "bottom_ir_data", 10, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1));
+        "bottom_ir_data", qos_profile_cliff, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1)
+    );
+    rclcpp::QoS qos_profile_collision = rclcpp::QoS(2) // cliff sub (10ms) / pc_cliff pub (10ms)
+                                .reliable()
+                                .durability_volatile()
+                                .keep_last(2);
     collision_sub_ = this->create_subscription<robot_custom_msgs::msg::AbnormalEventData>(
-        "collision_detected", 10, std::bind(&SensorToPointcloud::collisionMsgUpdate, this, std::placeholders::_1));
+        "collision_detected", qos_profile_collision, std::bind(&SensorToPointcloud::collisionMsgUpdate, this, std::placeholders::_1)
+    );
 
     // Monitor Timer
     poincloud_publish_timer_ = this->create_wall_timer(
