@@ -104,15 +104,14 @@ class CliffDetectionErrorSimulation(Node):
     def pubImuData(self):
         self.imu_data.header.stamp = self.get_clock().now().to_msg()
         self.imu_data.header.frame_id = 'imu_link'
-        # q = quaternion_from_euler(roll, pitch, yaw)  # rad 단위
-        # self.imu_data.orientation.x = q[0]
-        # self.imu_data.orientation.y = q[1]
-        # self.imu_data.orientation.z = q[2]
-        # self.imu_data.orientation.w = q[3]
         self.imu_data.orientation.x = 0.05234
         self.imu_data.orientation.y = 0.00000
         self.imu_data.orientation.z = 0.00000
         self.imu_data.orientation.w = 0.99863
+        # self.imu_data.orientation.x = 0.00
+        # self.imu_data.orientation.y = 0.00
+        # self.imu_data.orientation.z = 0.00
+        # self.imu_data.orientation.w = 0.00
 
         self.imu_publisher.publish(self.imu_data)
 

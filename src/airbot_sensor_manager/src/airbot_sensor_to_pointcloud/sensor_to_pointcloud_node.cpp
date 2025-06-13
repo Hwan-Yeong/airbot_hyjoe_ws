@@ -850,14 +850,29 @@ void SensorToPointcloud::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
 
 bool SensorToPointcloud::isDetectRamp()
 {
-    bool ret;
+    bool ret = false;
+    static int cnt = 0;
+    static bool ramp_detected = false;
 
     double angle_th = DEG2RAD(3);
 
-    if (roll_ >= angle_th || pitch_ >= angle_th) {
+    if (abs(roll_) >= angle_th || abs(pitch_) >= angle_th) {
+        ramp_detected = true;
+        cnt = 0;
         ret = true;
     } else {
-        ret = false;
+        if (ramp_detected) {
+            cnt++;
+            if (cnt > 20) { // 경사로 감지 해제 후 1초 뒤 객체인식 재개 (camera_data 토픽 주기: 50ms)
+                ramp_detected = false;
+                cnt = 0;
+                ret = false;
+            } else {
+                ret = true;
+            }
+        } else {
+            ret = false;
+        }
     }
 
     return ret;
