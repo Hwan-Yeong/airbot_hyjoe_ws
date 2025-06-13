@@ -43,7 +43,7 @@ ErrorManagerNode::ErrorManagerNode()
                             .reliable()
                             .durability_volatile();
 
-    // 에러 발생 후 에러 리스트에서 관리하지 않을 에러 등록
+    // 에러 발생 후 에러 리스트에서 관리하지 않을 에러 등록(SOC에 에러해제 보내지 않음.)
     erase_after_pub_error_codes_.insert("S05"); // 이동불가 에러
     erase_after_pub_error_codes_.insert("S08"); // 도킹불가 에러 (from state_manager)
     erase_after_pub_error_codes_.insert("E04"); // 좌측구동모터 구속 에러 (from mcu)
@@ -143,6 +143,8 @@ void ErrorManagerNode::publishErrorList()
         isReleasedAllError = true;
         return;
     }
+
+    LidarErrorRelease();
 
     if (cur_robot_state == 9) {
         isReleasedAllError = false;
@@ -261,6 +263,46 @@ void ErrorManagerNode::allErrorReleased()
         error.error.count = 1;
     }
 }
+
+void ErrorManagerNode::LidarErrorRelease(){
+
+    static rclcpp::Clock clock(RCL_STEADY_TIME);
+    static std::map<std::string, double> lidar_error_occured_times;
+
+    if (error_list_.empty()) {
+        return;
+    }
+
+    for (auto& error : error_list_)
+    {
+        if (error.error.error_code.find("F13") != std::string::npos
+         || error.error.error_code.find("F14") != std::string::npos) {
+            if (error.error.error_occurred) {
+                // 에러가 활성 상태인 경우
+                if (lidar_error_occured_times.find(error.error.error_code) == lidar_error_occured_times.end()) {
+                    // 에러코드와 타임 추가 (타이머 시작)
+                    lidar_error_occured_times[error.error.error_code] = clock.now().seconds();
+                    RCLCPP_INFO(this->get_logger(), "Error %s detected. Starting 5s auto release timer.", error.error.error_code.c_str());
+                } else {
+                    // 맵에 있다면 시간 확인
+                    double trigger_time = lidar_error_occured_times[error.error.error_code];
+                    if ((clock.now().seconds() - trigger_time) >= 5.0) {
+                        RCLCPP_INFO(this->get_logger(), "auto release error %s after 5 seconds.", error.error.error_code.c_str());
+                        error.error.error_occurred = false;
+                        error.should_publish = true;
+                        error.error.count = 1; // 해제 상태를 퍼블리시하기 위해 카운트 리셋
+                        lidar_error_occured_times.erase(error.error.error_code);
+                    }
+                }
+            } else {
+                if (lidar_error_occured_times.count(error.error.error_code)) {
+                    lidar_error_occured_times.erase(error.error.error_code);
+                }
+            }
+        }
+    }
+}
+
 
 void ErrorManagerNode::printErrorList(){
     if (error_list_.empty()) {

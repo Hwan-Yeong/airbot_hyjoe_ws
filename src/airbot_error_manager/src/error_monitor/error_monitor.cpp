@@ -353,12 +353,17 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
         4. chargeDiff의 크기가 2% 이하가 아니면 에러 해제. (에러 발생/해제는 10분마다 판단해서 결과를 알려준다)
     */
 
+    auto battery = std::get<0>(input);
+    auto station = std::get<1>(input);
+    auto robot_state = std::get<2>(input);
+
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     double currentTime = clock.now().seconds();
     // RCLCPP_INFO(node_ptr_->get_logger(), "cur time: %.3f", currentTime);
-    uint8_t currentChargePercentage = input.first.battery_percent;
+    uint8_t currentChargePercentage = battery.battery_percent;
 
-    bool isCharging = input.second.docking_status & 0X30; // charger found || start charging
+    bool isCharging = station.docking_status & 0X30; // charger found || start charging
+
 
     // 배터리 정보 로깅용
     if (currentChargePercentage != prevChargePercentage) {
@@ -368,20 +373,28 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
             "[ChargingErrorMonitor] Docking status: 0x%02X\n"
             "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
             "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-            input.second.docking_status,
-            input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-            input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+            station.docking_status,
+            battery.battery_manufacturer, battery.remaining_capacity, static_cast<int>(battery.battery_percent), battery.battery_current, battery.battery_voltage, battery.battery_temperature1, battery.battery_temperature2,
+            battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5
         );
         prevChargePercentage = currentChargePercentage;
     }
 
-    if (!isCharging) { // charger나 charging 상태가 모두 아니면 무조건 에러 해제.
+    if (robot_state.state == 4 || robot_state.state == 5) { // 스테이션 복귀 명령시 해제 사양( 4: RETURN_CHARGER, 5: DOCKING )
         lastCheckTime = currentTime;
         initialCharge = currentChargePercentage;
         errorState = false;
         isFirstCheck = true;
         return false;
     }
+    
+    // if (!isCharging) { // charger나 charging 상태가 모두 아니면 무조건 에러 해제.
+    //     lastCheckTime = currentTime;
+    //     initialCharge = currentChargePercentage;
+    //     errorState = false;
+    //     isFirstCheck = true;
+    //     return false;
+    // }
 
     // [250411] KKS : 충전에러 지속 발생으로 60프로 이하일 때 시작으로 변경 //TBD: 충전 테이블 확인 후 재설정 예정
     // [250329] KKS : 80프로 이하일 때 시작으로 변경
@@ -396,9 +409,9 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
                 "[ChargingErrorMonitor] Docking status: 0x%02X\n"
                 "[ChargingErrorMonitor] Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                 "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                input.second.docking_status,
-                input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                station.docking_status,
+                battery.battery_manufacturer, battery.remaining_capacity, static_cast<int>(battery.battery_percent), battery.battery_current, battery.battery_voltage, battery.battery_temperature1, battery.battery_temperature2,
+                battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5
             );
         }
         double timediff = currentTime - lastCheckTime;
@@ -413,9 +426,9 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
                     "[ChargingErrorMonitor] Docking status: 0x%02X\n"
                     "Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                     "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                    input.second.docking_status,
-                    input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                    input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                    station.docking_status,
+                    battery.battery_manufacturer, battery.remaining_capacity, static_cast<int>(battery.battery_percent), battery.battery_current, battery.battery_voltage, battery.battery_temperature1, battery.battery_temperature2,
+                    battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5
                 );
                 // [250407] hyjoe : 충전 에러 발생 시 에러 체크 시작으로부터 경과시간 로그 출력
                 RCLCPP_INFO(node_ptr_->get_logger(),

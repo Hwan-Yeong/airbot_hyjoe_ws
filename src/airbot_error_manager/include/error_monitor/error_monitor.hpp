@@ -87,7 +87,7 @@ public:
     using InputType = std::nullptr_t;
     bool checkError(const InputType& input) override;
 private:
-    bool error_state;
+    bool error_state = false;
     float total_temp;
     int valid_reads ;
     double avg_temp;
@@ -102,10 +102,10 @@ private:
     };
 };
 
-class ChargingErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>>
+class ChargingErrorMonitor : public BaseErrorMonitor<std::tuple<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData, robot_custom_msgs::msg::RobotState>>
 {
 public:
-    using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>;
+    using InputType = std::tuple<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData, robot_custom_msgs::msg::RobotState>;
     bool checkError(const InputType& input) override;
 private:
     uint8_t initialCharge = 0;

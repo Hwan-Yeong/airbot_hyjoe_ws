@@ -201,7 +201,7 @@ void ErrorMonitorNode::errorMonitor()
     // charging monitor
     if (update_station_data_charging && update_battery_status_charging
         && (publish_cnt_charging_error_ >= publish_cnt_charging_error_rate_)) {
-        bool charging_error = this->runMonitor<ChargingErrorMonitor>(std::make_pair(battery_data, station_data));
+        bool charging_error = this->runMonitor<ChargingErrorMonitor>(std::make_tuple(battery_data, station_data, robot_state));
         if (charging_error) {
             //RCLCPP_INFO(this->get_logger(), "charging_error : %s", charging_error ? "true" : "false");
             error_msg.data = true;

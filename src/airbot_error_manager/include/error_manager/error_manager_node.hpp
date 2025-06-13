@@ -51,6 +51,7 @@ private:
     void releaseErrorLists(std::string code);
     void allErrorReleased();
     void printErrorList();
+    void LidarErrorRelease();
 
     YAML::Node config{};
     std::vector<tErrorList> error_list_;

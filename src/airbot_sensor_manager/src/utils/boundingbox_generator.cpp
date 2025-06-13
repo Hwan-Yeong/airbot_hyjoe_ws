@@ -90,11 +90,12 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
                     객체의 너비(가로폭)가 50cm 이하인 경우, 너비를 50cm로 고정
                     객체의 너비(가로폭)가 50cm 이상인 경우, 인식된 너비 그대로 사용
                 */
-                if (obj.id == 12) { // pole
-                    bbox.size_y = obj.width < 0.5 ? 0.5 : obj.width;
-                } else {
-                    bbox.size_y = obj.width;
-                }
+                // if (obj.id == 12) { // pole
+                //     bbox.size_y = obj.width < 0.5 ? 0.5 : obj.width;
+                // } else {
+                //     bbox.size_y = obj.width;
+                // }
+                bbox.size_y = obj.width;
                 bbox_array.boxes.push_back(bbox);
             }
         } else {
