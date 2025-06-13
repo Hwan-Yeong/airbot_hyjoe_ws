@@ -118,6 +118,8 @@ SensorToPointcloud::SensorToPointcloud()
         "bottom_ir_data", 10, std::bind(&SensorToPointcloud::cliffMsgUpdate, this, std::placeholders::_1));
     collision_sub_ = this->create_subscription<robot_custom_msgs::msg::AbnormalEventData>(
         "collision_detected", 10, std::bind(&SensorToPointcloud::collisionMsgUpdate, this, std::placeholders::_1));
+    imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
+        "/imu_data", 10, std::bind(&SensorToPointcloud::imuCallback, this, std::placeholders::_1));
 
     // Monitor Timer
     poincloud_publish_timer_ = this->create_wall_timer(
@@ -747,6 +749,36 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
     wasActiveSensorToPointcloud_camera = isActiveSensorToPointcloud;
     if (!isActiveSensorToPointcloud) return;
 
+    static std::unordered_set<int> prev_logged_ids;
+
+    if (isDetectRamp()) {
+        if (msg->num > 0) {
+            std::unordered_set<int> current_ids;
+
+            for (int i = 0; i < msg->num; i++) {
+                current_ids.insert(msg->data_array[i].id);
+            }
+
+            if (current_ids != prev_logged_ids) {
+                std::stringstream ss;
+                ss << "[Camera_Msg_Update] Slope Detected! (Roll: " << RAD2DEG(roll_) << ", Pitch: " << RAD2DEG(pitch_) << ")  Filtered Object ID: ";
+
+                int count = 0;
+                for (int id : current_ids) {
+                    if (count++ > 0) ss << ", ";
+                    ss << id;
+                }
+
+                RCLCPP_INFO(this->get_logger(), "%s", ss.str().c_str());
+                prev_logged_ids = current_ids;
+            }
+        }
+
+        return;
+    } else {
+        prev_logged_ids.clear();
+    }
+
     if (target_frame_ == "map" || sensor_config_.camera.use) {
         tPose pose;
         pose.position.x = msg->robot_x;
@@ -808,4 +840,25 @@ void SensorToPointcloud::collisionMsgUpdate(const robot_custom_msgs::msg::Abnorm
     if (sensor_config_.collision.use && msg->event_trigger) pc_collision_msg = point_cloud_collosion_.updateCollisionPointCloudMsg(msg);
 
     isCollisionUpdating = true;
+}
+
+void SensorToPointcloud::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
+{
+    tf2::Quaternion quaternion(msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w);
+    tf2::Matrix3x3(quaternion).getRPY(roll_, pitch_, yaw_);
+}
+
+bool SensorToPointcloud::isDetectRamp()
+{
+    bool ret;
+
+    double angle_th = DEG2RAD(3);
+
+    if (roll_ >= angle_th || pitch_ >= angle_th) {
+        ret = true;
+    } else {
+        ret = false;
+    }
+
+    return ret;
 }

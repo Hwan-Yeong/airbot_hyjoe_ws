@@ -1,8 +1,11 @@
 import rclpy
 from rclpy.node import Node
 import numpy as np
+import math
 from nav_msgs.msg import Odometry
 from robot_custom_msgs.msg import RobotState, BottomIrData, CameraData, CameraDataArray
+from sensor_msgs.msg import Imu
+from geometry_msgs.msg import Quaternion
 
 class CliffDetectionErrorSimulation(Node):
     def __init__(self):
@@ -27,11 +30,17 @@ class CliffDetectionErrorSimulation(Node):
             'camera_data',
             10
         )
+        self.imu_publisher = self.create_publisher(
+            Imu,
+            'imu_data',
+            10
+        )
         self.timer = self.create_timer(0.01, self.timer_callback)
         self.robot_state = RobotState()
         self.bottom_ir_data = BottomIrData()
         self.odom_data = Odometry()
         self.camera_data_array = CameraDataArray()
+        self.imu_data = Imu()
         self.odom_data.header.stamp = self.get_clock().now().to_msg()
         self.odom_data.header.frame_id = 'odom'
         self.odom_data.child_frame_id = 'base_link'
@@ -60,24 +69,52 @@ class CliffDetectionErrorSimulation(Node):
 
     def pubCameraData(self):
         self.camera_data_array.timestamp = self.get_clock().now().to_msg()
-        self.camera_data_array.num = 1
+        self.camera_data_array.num = 2
         self.camera_data_array.robot_x = 0.0
         self.camera_data_array.robot_y = 0.0
         self.camera_data_array.robot_angle = 0.0
 
-        camera_data = CameraData()
-        camera_data.id = 12
-        camera_data.score = 50
-        camera_data.x = 0.0
-        camera_data.y = 0.0
-        camera_data.theta = np.deg2rad(30)
-        camera_data.width = 1.0
-        camera_data.height = 0.8
-        camera_data.distance = 1.0
+        camera_data_1 = CameraData()
+        camera_data_1.id = 12
+        camera_data_1.score = 50
+        camera_data_1.x = 0.0
+        camera_data_1.y = 0.0
+        camera_data_1.theta = np.deg2rad(30)
+        camera_data_1.width = 1.0
+        camera_data_1.height = 0.8
+        camera_data_1.distance = 1.0
 
-        self.camera_data_array.data_array = [camera_data]
+        camera_data_2 = CameraData()
+        camera_data_2.id = 5
+        camera_data_2.score = 50
+        camera_data_2.x = 0.0
+        camera_data_2.y = 0.0
+        camera_data_2.theta = -np.deg2rad(30)
+        camera_data_2.width = 1.0
+        camera_data_2.height = 0.8
+        camera_data_2.distance = 1.0
+
+        self.camera_data_array.data_array = [camera_data_1, camera_data_2]
+        # self.camera_data_array.data_array = []
         self.camera_publisher.publish(self.camera_data_array)
 
+    def deg2rad(deg):
+        return deg * math.pi / 180.0
+
+    def pubImuData(self):
+        self.imu_data.header.stamp = self.get_clock().now().to_msg()
+        self.imu_data.header.frame_id = 'imu_link'
+        # q = quaternion_from_euler(roll, pitch, yaw)  # rad 단위
+        # self.imu_data.orientation.x = q[0]
+        # self.imu_data.orientation.y = q[1]
+        # self.imu_data.orientation.z = q[2]
+        # self.imu_data.orientation.w = q[3]
+        self.imu_data.orientation.x = 0.05234
+        self.imu_data.orientation.y = 0.00000
+        self.imu_data.orientation.z = 0.00000
+        self.imu_data.orientation.w = 0.99863
+
+        self.imu_publisher.publish(self.imu_data)
 
     def pubBottomIrData(self):
         self.bottom_ir_data.timestamp = self.get_clock().now().to_msg()
@@ -127,6 +164,7 @@ class CliffDetectionErrorSimulation(Node):
         self.pubBottomIrData()
         self.pubOdomData()
         self.pubCameraData()
+        self.pubImuData()
 
 def main(args=None):
     rclpy.init(args=args)

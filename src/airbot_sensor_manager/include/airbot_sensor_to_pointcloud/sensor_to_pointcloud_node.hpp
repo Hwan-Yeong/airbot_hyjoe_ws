@@ -5,6 +5,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "yaml-cpp/yaml.h"
 #include "std_msgs/msg/bool.hpp"
+#include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
@@ -63,6 +64,7 @@ private:
     rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr cliff_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::AbnormalEventData>::SharedPtr collision_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
 
     std::unordered_map<std::string, PC2PublisherPtr> pointcloud_pubs_;
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr bbox_array_camera_pub_;
@@ -111,6 +113,10 @@ private:
     bool isCliffUpdating;
     bool isCollisionUpdating;
 
+    double roll_;
+    double pitch_;
+    double yaw_;
+
     void initVariables();
     void initSensorConfig(const YAML::Node& config);
     void initPublisher(const YAML::Node& config);
@@ -137,6 +143,9 @@ private:
     void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
     void cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
     void collisionMsgUpdate(const robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg);
+    void imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
+
+    bool isDetectRamp();
 };
 
 #endif // SENSOR_TO_POINTCLOUD
