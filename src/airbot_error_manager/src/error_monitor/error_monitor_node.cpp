@@ -172,12 +172,12 @@ void ErrorMonitorNode::errorMonitor()
         bool board_overheat_error = this->runMonitor<BoardOverheatErrorMonitor>(std::nullptr_t());
         if (board_overheat_error) {
             // RCLCPP_INFO(this->get_logger(), "board_overheat_error : %s", board_overheat_error ? "true" : "false");
-            error_msg.data = true;
-            board_overheat_error_pub_->publish(error_msg);
+            // error_msg.data = true;
+            // board_overheat_error_pub_->publish(error_msg);
         } else {
             // icbaek, 2025.03.19 : false 여도 publish하지 않게 하였음.
-            error_msg.data = false;
-            board_overheat_error_pub_->publish(error_msg);
+            // error_msg.data = false;
+            // board_overheat_error_pub_->publish(error_msg);
         }
         publish_cnt_board_overheat_error_ = 0;
     }

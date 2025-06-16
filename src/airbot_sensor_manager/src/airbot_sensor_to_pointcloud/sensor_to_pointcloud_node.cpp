@@ -166,6 +166,9 @@ void SensorToPointcloud::initVariables()
     publish_cnt_camera_ = 0;
     publish_cnt_cliff_ = 0;
     publish_cnt_collision_ = 0;
+
+    ramp_cnt_ = 0;
+    ramp_detected_ = false;
 }
 
 void SensorToPointcloud::initSensorConfig(const YAML::Node& config)
@@ -747,9 +750,12 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
         RCLCPP_INFO(this->get_logger(), "Camera PointCloud Msg Clear");
     }
     wasActiveSensorToPointcloud_camera = isActiveSensorToPointcloud;
-    if (!isActiveSensorToPointcloud) return;
-
-    static std::unordered_set<int> prev_logged_ids;
+    if (!isActiveSensorToPointcloud) {
+        ramp_cnt_ = 0;
+        ramp_detected_ = false;
+        prev_camera_logged_ids.clear();
+        return;
+    }
 
     if (isDetectRamp()) {
         if (msg->num > 0) {
@@ -759,7 +765,7 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
                 current_ids.insert(msg->data_array[i].id);
             }
 
-            if (current_ids != prev_logged_ids) {
+            if (current_ids != prev_camera_logged_ids) {
                 std::stringstream ss;
                 ss << "[Camera_Msg_Update] Slope Detected! (Roll: " << RAD2DEG(roll_) << ", Pitch: " << RAD2DEG(pitch_) << ")  Filtered Object ID: ";
 
@@ -770,13 +776,13 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
                 }
 
                 RCLCPP_INFO(this->get_logger(), "%s", ss.str().c_str());
-                prev_logged_ids = current_ids;
+                prev_camera_logged_ids = current_ids;
             }
         }
 
         return;
     } else {
-        prev_logged_ids.clear();
+        prev_camera_logged_ids.clear();
     }
 
     if (target_frame_ == "map" || sensor_config_.camera.use) {
@@ -851,21 +857,18 @@ void SensorToPointcloud::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
 bool SensorToPointcloud::isDetectRamp()
 {
     bool ret = false;
-    static int cnt = 0;
-    static bool ramp_detected = false;
-
     double angle_th = DEG2RAD(3);
 
     if (abs(roll_) >= angle_th || abs(pitch_) >= angle_th) {
-        ramp_detected = true;
-        cnt = 0;
+        ramp_detected_ = true;
+        ramp_cnt_ = 0;
         ret = true;
     } else {
-        if (ramp_detected) {
-            cnt++;
-            if (cnt > 20) { // 경사로 감지 해제 후 1초 뒤 객체인식 재개 (camera_data 토픽 주기: 50ms)
-                ramp_detected = false;
-                cnt = 0;
+        if (ramp_detected_) {
+            ramp_cnt_++;
+            if (ramp_cnt_ > 20) { // 경사로 감지 해제 후 1초 뒤 객체인식 재개 (camera_data 토픽 주기: 50ms)
+                ramp_detected_ = false;
+                ramp_cnt_ = 0;
                 ret = false;
             } else {
                 ret = true;

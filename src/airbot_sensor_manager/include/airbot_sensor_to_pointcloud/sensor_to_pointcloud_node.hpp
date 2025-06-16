@@ -116,6 +116,9 @@ private:
     double roll_;
     double pitch_;
     double yaw_;
+    int ramp_cnt_;
+    bool ramp_detected_;
+    std::unordered_set<int> prev_camera_logged_ids;
 
     void initVariables();
     void initSensorConfig(const YAML::Node& config);
