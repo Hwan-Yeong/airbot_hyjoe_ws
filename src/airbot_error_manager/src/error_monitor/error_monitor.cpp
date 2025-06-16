@@ -299,6 +299,11 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
         return error_state;
     }
 
+    constexpr double OVERHEAT_TEMP_C = 70.0;
+    constexpr double OVERHEAT_DURATION_S = 30.0;
+
+    static rclcpp::Clock clock(RCL_STEADY_TIME);
+    static std::unordered_map<std::string, double> overheat_occured_times_;
     error_state = false;
 
     // AP 보드 온도 에러 판단 (Board temperature error check)
@@ -320,13 +325,24 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
             float temp_value = std::stof(line) / 1000.0; // Convert from millidegrees to degrees
 
             // Check for high temperature warning
-            if (temp_value > 70.0) {
+            if (temp_value > OVERHEAT_TEMP_C) {
                 // [250407] hyjoe : 보드 과열 에러 발생 시 파일 위치, 보드 온도 로깅 (계속)
                 RCLCPP_INFO(node_ptr_->get_logger(),
                     "[BoardOverheatErrorMonitor] Warning: High temperature detected!,File: %s, Temperature: %.2f°C",
                     file_path.c_str(), temp_value
                 );
-                error_state = true; // Return immediately if any temperature exceeds 70°C
+
+                auto now_sec = clock.now().seconds();
+                auto it = overheat_occured_times_.find(file_path);
+                if (it == overheat_occured_times_.end()) {
+                    overheat_occured_times_[file_path] = now_sec;
+                } else if (now_sec - it->second >= OVERHEAT_DURATION_S) {
+                    error_state = true;
+                }
+            } else {
+                if (overheat_occured_times_.find(file_path) != overheat_occured_times_.end()) {
+                    overheat_occured_times_.erase(file_path);
+                }
             }
         }
         catch (const std::invalid_argument& e) {
@@ -337,7 +353,7 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
         }
     }
 
-    return error_state; // No high temperature detected
+    return error_state;
 }
 
 bool ChargingErrorMonitor::checkError(const InputType &input)
