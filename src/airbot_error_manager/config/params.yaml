@@ -10,11 +10,55 @@ airbot_error_manager:
 
 airbot_error_monitor:
   ros__parameters:
-    publish_rate:
-      low_battery_rate_ms: 1000
-      fall_down_rate_ms: 1000
-      board_overheat_rate_ms: 1000
-      battery_discharge_rate_ms: 1000
-      charging_rate_ms: 1000
-      lift_error_rate_ms: 10
-      cliff_detection_error_rate_ms: 10
+    low_battery_error:
+      monitoring_rate_ms: 1000
+      occure:
+        battery_percentage_min: 11
+        battery_percentage_max: 15
+      release:
+        battery_percentage_th: 21
+        duration_sec: 30.0
+
+    discharging_error:
+      monitoring_rate_ms: 1000
+      occure:
+        battery_percentage_min: 0
+        battery_percentage_max: 10
+        duration_sec: 10.0
+      release:
+        battery_percentage_th: 16
+        duration_sec: 30.0
+
+    board_overheat_error:
+      monitoring_rate_ms: 1000
+      occure:
+        temperature_th_c: 70
+        duration_sec: 30.0
+
+    charging_error:
+      monitoring_rate_ms: 1000
+      occure:
+        battery_percentage_th: 60
+        duration_sec: 1200.0
+
+    fall_down_error:
+      monitoring_rate_ms: 1000
+      occure:
+        drop_ir_adc_th: 900
+        drop_ir_cnt_min: 3
+        imu_roll_th_deg: 60
+        imu_pitch_th_deg: 60
+
+    lift_error:
+      monitoring_rate_ms: 10
+      occure:
+        drop_ir_adc_th: 900
+        drop_ir_cnt_min: 4
+        imu_z_acc_low_th: 9.2
+        imu_z_acc_hight_th: 10.5
+
+    cliff_error:
+      monitoring_rate_ms: 10
+      occure:
+        duration_sec: 3.0 # 사용 X
+        accum_dist_th_m: 0.3

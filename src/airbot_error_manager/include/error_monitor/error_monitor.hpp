@@ -29,6 +29,16 @@ public:
      */
     virtual bool checkError(const T& input) = 0;
 
+    /**
+     * @brief loadParams 메소드
+     * 에러 모니터에서 사용되는 에러 판단 조건 파라미터를 불러옵니다.
+     */
+    virtual void loadParams(const std::string& ns) = 0;
+
+    /**
+     * @brief setNode 메소드
+     * 외부에서 넘겨받은 Node 객체의 포인터를 저장합니다.
+     */
     void setNode(const rclcpp::Node::SharedPtr& node) {
         node_ptr_ = node;
     }
@@ -40,7 +50,32 @@ class LowBatteryErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_ms
 {
 public:
     using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>;
+
+    struct tParams {
+        int occure_percentage_min;
+        int occure_percentage_max;
+        int release_percentage_th;
+        double release_duration_sec;
+    } params;
+
+    static std::string paramNamespace() { return "low_battery_error"; }
+
     bool checkError(const InputType& input) override;
+
+    void loadParams(const std::string& ns) override {
+        if (!node_ptr_) return;
+
+        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_min", 0);
+        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_max", 0);
+        node_ptr_->declare_parameter<int>(ns + ".release.battery_percentage_th", 0);
+        node_ptr_->declare_parameter<double>(ns + ".release.duration_sec", 0.0);
+
+        node_ptr_->get_parameter(ns + ".occure.battery_percentage_min", params.occure_percentage_min);
+        node_ptr_->get_parameter(ns + ".occure.battery_percentage_max", params.occure_percentage_max);
+        node_ptr_->get_parameter(ns + ".release.battery_percentage_th", params.release_percentage_th);
+        node_ptr_->get_parameter(ns + ".release.duration_sec", params.release_duration_sec);
+    }
+
     bool station_flag = false;
     bool error_state = false;
     double current_time = 0.0;
@@ -55,7 +90,35 @@ class BatteryDischargingErrorMonitor : public BaseErrorMonitor<std::pair<robot_c
 {
 public:
     using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>;
+
+    struct tParams {
+        int occure_percentage_min;
+        int occure_percentage_max;
+        double occure_duration_sec;
+        int release_percentage_th;
+        double release_duration_sec;
+    } params;
+
+    static std::string paramNamespace() { return "discharging_error"; }
+
     bool checkError(const InputType& input) override;
+
+    void loadParams(const std::string& ns) override {
+        if (!node_ptr_) return;
+
+        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_min", 0);
+        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_max", 0);
+        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 0.0);
+        node_ptr_->declare_parameter<int>(ns + ".release.battery_percentage_th", 0);
+        node_ptr_->declare_parameter<double>(ns + ".release.duration_sec", 0.0);
+
+        node_ptr_->get_parameter(ns + ".occure.battery_percentage_min", params.occure_percentage_min);
+        node_ptr_->get_parameter(ns + ".occure.battery_percentage_max", params.occure_percentage_max);
+        node_ptr_->get_parameter(ns + ".occure.duration_sec", params.occure_duration_sec);
+        node_ptr_->get_parameter(ns + ".release.battery_percentage_th", params.release_percentage_th);
+        node_ptr_->get_parameter(ns + ".release.duration_sec", params.release_duration_sec);
+    }
+
     bool error_state = false;
     bool charge_flag = false;
     double release_time_diff = 0.0;
@@ -66,7 +129,32 @@ class FallDownErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs
 {
 public:
     using InputType = std::pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>;
+
+    struct tParams {
+        int drop_ir_adc_th;
+        int drop_ir_cnt_min;
+        int imu_roll_th;
+        int imu_pitch_th;
+    } params;
+
+    static std::string paramNamespace() { return "fall_down_error"; }
+
     bool checkError(const InputType& input) override;
+
+    void loadParams(const std::string& ns) override {
+        if (!node_ptr_) return;
+
+        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_adc_th", 0);
+        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_cnt_min", 0);
+        node_ptr_->declare_parameter<int>(ns + ".occure.imu_roll_th_deg", 0);
+        node_ptr_->declare_parameter<int>(ns + ".occure.imu_pitch_th_deg", 0);
+
+        node_ptr_->get_parameter(ns + ".occure.drop_ir_adc_th", params.drop_ir_adc_th);
+        node_ptr_->get_parameter(ns + ".occure.drop_ir_cnt_min", params.drop_ir_cnt_min);
+        node_ptr_->get_parameter(ns + ".occure.imu_roll_th_deg", params.imu_roll_th);
+        node_ptr_->get_parameter(ns + ".occure.imu_pitch_th_deg", params.imu_pitch_th);
+    }
+
 private:
     void get_rpy_from_quaternion(const geometry_msgs::msg::Quaternion& quaternion, double& roll, double& pitch, double& yaw);
 };
@@ -75,7 +163,32 @@ class LiftErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::ms
 {
 public:
     using InputType = std::pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>;
+
+    struct tParams {
+        int drop_ir_adc_th;
+        int drop_ir_cnt_min;
+        double imu_z_acc_low_th;
+        double imu_z_acc_hight_th;
+    } params;
+
+    static std::string paramNamespace() { return "lift_error"; }
+
     bool checkError(const InputType& input) override;
+
+    void loadParams(const std::string& ns) override {
+        if (!node_ptr_) return;
+
+        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_adc_th", 0);
+        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_cnt_min", 0);
+        node_ptr_->declare_parameter<double>(ns + ".occure.imu_z_acc_low_th", 0.0);
+        node_ptr_->declare_parameter<double>(ns + ".occure.imu_z_acc_hight_th", 0.0);
+
+        node_ptr_->get_parameter(ns + ".occure.drop_ir_adc_th", params.drop_ir_adc_th);
+        node_ptr_->get_parameter(ns + ".occure.drop_ir_cnt_min", params.drop_ir_cnt_min);
+        node_ptr_->get_parameter(ns + ".occure.imu_z_acc_low_th", params.imu_z_acc_low_th);
+        node_ptr_->get_parameter(ns + ".occure.imu_z_acc_hight_th", params.imu_z_acc_hight_th);
+    }
+
 private:
     unsigned int errorCount = 0;
     bool errorState = false;
@@ -85,7 +198,26 @@ class BoardOverheatErrorMonitor : public BaseErrorMonitor<std::nullptr_t>
 {
 public:
     using InputType = std::nullptr_t;
+
+    struct tParams {
+        int temperature_th;
+        double duration_sec;
+    } params;
+
+    static std::string paramNamespace() { return "board_overheat_error"; }
+
     bool checkError(const InputType& input) override;
+
+    void loadParams(const std::string& ns) override {
+        if (!node_ptr_) return;
+
+        node_ptr_->declare_parameter<int>(ns + ".occure.temperature_th_c", 0);
+        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 0.0);
+
+        node_ptr_->get_parameter(ns + ".occure.temperature_th_c", params.temperature_th);
+        node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
+    }
+
 private:
     bool error_state = false;
     float total_temp;
@@ -106,7 +238,26 @@ class ChargingErrorMonitor : public BaseErrorMonitor<std::tuple<robot_custom_msg
 {
 public:
     using InputType = std::tuple<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData, robot_custom_msgs::msg::RobotState>;
+
+    struct tParams {
+        int percentage_th;
+        double duration_sec;
+    } params;
+
+    static std::string paramNamespace() { return "charging_error"; }
+
     bool checkError(const InputType& input) override;
+
+    void loadParams(const std::string& ns) override {
+        if (!node_ptr_) return;
+
+        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_th", 0);
+        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 0.0);
+
+        node_ptr_->get_parameter(ns + ".occure.battery_percentage_th", params.percentage_th);
+        node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
+    }
+
 private:
     uint8_t initialCharge = 0;
     uint8_t prevChargePercentage = 0;
@@ -119,6 +270,24 @@ class CliffDetectionErrorMonitor : public BaseErrorMonitor<std::tuple<robot_cust
 {
 public:
     using InputType = std::tuple<robot_custom_msgs::msg::BottomIrData, nav_msgs::msg::Odometry, robot_custom_msgs::msg::RobotState>;
+
+    struct tParams {
+        double duration_sec;
+        double accum_dist_th;
+    } params;
+
+    static std::string paramNamespace() { return "cliff_error"; }
+
+    void loadParams(const std::string& ns) override {
+        if (!node_ptr_) return;
+
+        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 0.0);
+        node_ptr_->declare_parameter<double>(ns + ".occure.accum_dist_th_m", 0.0);
+
+        node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
+        node_ptr_->get_parameter(ns + ".occure.accum_dist_th_m", params.accum_dist_th);
+    }
+
     bool checkError(const InputType& input) override;
 };
 

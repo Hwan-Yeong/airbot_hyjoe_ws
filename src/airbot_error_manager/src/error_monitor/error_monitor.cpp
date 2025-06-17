@@ -1,21 +1,19 @@
 #include "error_monitor/error_monitor.hpp"
 
 
-#define CLIFF_IR_ADC_THRESHOLD 900
-
 bool LowBatteryErrorMonitor::checkError(const InputType& input)
 {
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     current_time = clock.now().seconds();
 
     //check off station
-    if( input.second.docking_status & 0x10 ){
-        if( !station_flag ){
+    if (input.second.docking_status & 0x10) {
+        if (!station_flag) {
             RCLCPP_INFO(node_ptr_->get_logger(), "[LowBatteryErrorMonitor]CHECK AMR ON STATION ==> dockingstatus[%02x] ",input.second.docking_status);
         }
         station_flag = true;
-    } else{
-        if( station_flag ){
+    } else {
+        if (station_flag) {
             RCLCPP_INFO(node_ptr_->get_logger(), "[LowBatteryErrorMonitor]CHECK AMR OFF STATION ==> dockingstatus[%02x] ",input.second.docking_status);
         }
         station_flag = false;
@@ -23,16 +21,15 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
 
     //check error
     // 조건 : OFF STATION 상태, 배터리 잔여 15%이하
-    if( !error_state ){ //Error 가 아닐 경우
-        if( station_flag == false ){ //OFF STATION일 경우
-            if (input.first.battery_percent <= 15 && input.first.battery_percent > 10) {
+    if (!error_state) { //Error 가 아닐 경우
+        if (station_flag == false) { //OFF STATION일 경우
+            if (input.first.battery_percent <= params.occure_percentage_max && input.first.battery_percent >= params.occure_percentage_min) { // [11,15] %
                 if (!prev_state) {
                         // [250407] hyjoe : low battery 에러 발생시 모니터 체크 시간(sec), 배터리 상태 1번만 로깅
                         RCLCPP_INFO(node_ptr_->get_logger(),
                         "[LowBatteryErrorMonitor] OCCUR LOW BATTERY ERROR!!!\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                        
                         input.first.battery_manufacturer,
                         input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
                         input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
@@ -41,16 +38,16 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
                 error_state = true;
             }
         }
-    } else{ //check release error
+    } else { //check release error
         // 조건 :  배터리 잔여 20%초과 30초 유지
-        if(input.first.battery_percent > 20 ){
+        if (input.first.battery_percent > params.release_percentage_th) { // 20 %
             //check time
             if (!init_setting) { // release 체크 시간에 대해서 초기시간 설정
                 prev_time = current_time;
                 init_setting = true;
             }
             release_time_diff = current_time - prev_time;
-            if( release_time_diff >= 30){
+            if (release_time_diff >= params.release_duration_sec) { // 30 sec
                 if (prev_state) {
                     // [250407] hyjoe : low battery 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
@@ -67,8 +64,7 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
                 is_first_logging = true;
                 error_state = false;
                 init_setting = false;
-            } 
-            else {
+            } else {
                 if (is_first_logging) {
                     // [250407] hyjoe : low battery 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
@@ -88,7 +84,7 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
             init_setting = false;
         }
     }
-    
+
     prev_state = error_state;
 
     return error_state;
@@ -96,7 +92,6 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
 
 bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
 {
-
     // 베터리가 10프로 이하일 경우, 동시에 30초 이상일 경우
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     double current_time, time_diff;
@@ -106,30 +101,30 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
     static bool is_first_logging = true;
 
     //발생 조건1: 충전중이 아닐때,
-    if( input.second.docking_status & 0x70 ){
-        if( !charge_flag ){
+    if (input.second.docking_status & 0x70) {
+        if (!charge_flag) {
             RCLCPP_INFO(node_ptr_->get_logger(), "[DischargingErrorMonitor]CHECK AMR CHARGING ==> dockingstatus[%02x] ",input.second.docking_status);
         }
         charge_flag = true;
-    } else{
-        if( charge_flag ){
+    } else {
+        if (charge_flag) {
             RCLCPP_INFO(node_ptr_->get_logger(), "[DischargingErrorMonitor]CHECK AMR DISCHARGING==> dockingstatus[%02x] ",input.second.docking_status);
         }
         charge_flag = false;
     }
-    
+
     current_time = clock.now().seconds();
-    
-    if( !error_state ){ //에러가 아닐떄.
-        if( !charge_flag && input.first.battery_percent <= 10) {// 충전 중이 아닐때.
-            
+
+    if (!error_state) {
+        if (!charge_flag && input.first.battery_percent <= params.occure_percentage_max) {// [0,10] %
+
             if (!init_setting) { // 이전 시간에 대해서 초기시간 설정
                 prev_time = current_time;
                 init_setting = true;
             }
             time_diff = current_time - prev_time;
 
-            if (time_diff >= 10) {
+            if (time_diff >= params.occure_duration_sec) { // 10 sec
                 if (!prev_state) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[BatteryDischargingErrorMonitor] elapsed time since error check started: %.3f\n"
@@ -154,15 +149,15 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                 }
                 error_state = false;
             }
-        } else{
-            if( init_setting ){
+        } else {
+            if (init_setting) {
                 init_setting = false;
                 prev_time = current_time;
                 is_first_logging = true;
             }
         }
     } else { // 조건: 베터리 15프로 초과 & 30초 유지
-        if(input.first.battery_percent > 15 ){
+        if (input.first.battery_percent >= params.release_percentage_th) {
             //check time
             if (!init_setting) { // release 체크 시간에 대해서 초기시간 설정
                 release_start_time = current_time;
@@ -170,7 +165,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
             }
             release_time_diff = current_time - release_start_time;
 
-            if( release_time_diff >= 30){
+            if (release_time_diff >= params.release_duration_sec) { //30
                 if (prev_state) {
                     // [250407] hyjoe : battery discharging 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
@@ -187,8 +182,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                 is_first_logging = true;
                 error_state = false;
                 init_setting = false;
-            } 
-            else {
+            } else {
                 if (is_first_logging) {
                     // [250407] hyjoe : battery discharging 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
@@ -201,7 +195,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                     is_first_logging = false;
                 }
             }
-        } else{
+        } else {
             //time reset
             release_start_time = current_time;
             is_first_logging = true;
@@ -224,26 +218,26 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
     // 값이 방향에 따라서 일정하게 변하지 않기 때문에
     // 방향을 나누어서 값 변화에 대해서 전도 현상값의 범위를 조정해야 함
     // front - front_L - back_L - back - back_R - front_R
-    if (input.first.adc_ff < CLIFF_IR_ADC_THRESHOLD) {
+    if (input.first.adc_ff < params.drop_ir_adc_th) {
         count++;
     }
-    if (input.first.adc_fl < CLIFF_IR_ADC_THRESHOLD) {
+    if (input.first.adc_fl < params.drop_ir_adc_th) {
         count++;
     }
-    if (input.first.adc_fr < CLIFF_IR_ADC_THRESHOLD) {
+    if (input.first.adc_fr < params.drop_ir_adc_th) {
         count++;
     }
-    if (input.first.adc_bb < CLIFF_IR_ADC_THRESHOLD) {
+    if (input.first.adc_bb < params.drop_ir_adc_th) {
         count++;
     }
-    if (input.first.adc_bl < CLIFF_IR_ADC_THRESHOLD) {
+    if (input.first.adc_bl < params.drop_ir_adc_th) {
         count++;
     }
-    if (input.first.adc_br < CLIFF_IR_ADC_THRESHOLD) {
+    if (input.first.adc_br < params.drop_ir_adc_th) {
         count++;
     }
 
-    if (count >= 3) {
+    if (count >= params.drop_ir_cnt_min) { // 3
         bottomdata_range = true;
     } else {
         bottomdata_range = false;
@@ -258,7 +252,7 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
     deg_pitch = pitch * 180.0 / M_PI;
     deg_roll = roll * 180.0 / M_PI;
 
-    if (abs(deg_pitch) >= 60 || abs(deg_roll) >= 60) {
+    if (abs(deg_pitch) >= params.imu_pitch_th || abs(deg_roll) >= params.imu_roll_th) { // 60 deg, 60 deg
         imu_range = true;
     }
 
@@ -299,9 +293,6 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
         return error_state;
     }
 
-    constexpr double OVERHEAT_TEMP_C = 70.0;
-    constexpr double OVERHEAT_DURATION_S = 30.0;
-
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     static std::unordered_map<std::string, double> overheat_occured_times_;
     static std::unordered_map<std::string, bool> overheat_logged_;
@@ -326,7 +317,7 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
             float temp_value = std::stof(line) / 1000.0; // Convert from millidegrees to degrees
 
             // Check for high temperature warning
-            if (temp_value > OVERHEAT_TEMP_C) {
+            if (temp_value > params.temperature_th) { // 70 celsius
                 // [250407] hyjoe : 보드 과열 에러 발생 시 파일 위치, 보드 온도 로깅 (계속)
                 RCLCPP_INFO(node_ptr_->get_logger(),
                     "[BoardOverheatErrorMonitor] Warning: High temperature detected!,File: %s, Temperature: %.2f°C",
@@ -338,7 +329,7 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
                 if (it == overheat_occured_times_.end()) {
                     overheat_occured_times_[file_path] = now_sec;
                     overheat_logged_[file_path] = false;
-                } else if (now_sec - it->second >= OVERHEAT_DURATION_S) {
+                } else if (now_sec - it->second >= params.duration_sec) { // 30 sec
                     if (!overheat_logged_[file_path]) {
                         RCLCPP_INFO(node_ptr_->get_logger(),
                             "[BoardOverheatErrorMonitor] Error: High temperature detected Over 30sec!,File: %s, Temperature: %.2f°C",
@@ -413,20 +404,12 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
         isFirstCheck = true;
         return false;
     }
-    
-    // if (!isCharging) { // charger나 charging 상태가 모두 아니면 무조건 에러 해제.
-    //     lastCheckTime = currentTime;
-    //     initialCharge = currentChargePercentage;
-    //     errorState = false;
-    //     isFirstCheck = true;
-    //     return false;
-    // }
 
     // [250411] KKS : 충전에러 지속 발생으로 60프로 이하일 때 시작으로 변경 //TBD: 충전 테이블 확인 후 재설정 예정
     // [250329] KKS : 80프로 이하일 때 시작으로 변경
-    
-    if ( !errorState && isCharging ){
-        if ( currentChargePercentage <= 60) {
+
+    if (!errorState && isCharging) {
+        if (currentChargePercentage <= params.percentage_th) { // 60%
             if (isFirstCheck) { // 측정 주기 타이머 시작
                 lastCheckTime = currentTime;
                 initialCharge = currentChargePercentage;
@@ -444,7 +427,7 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
             }
             double timediff = currentTime - lastCheckTime;
             // RCLCPP_INFO(node_ptr_->get_logger(), "time diff: %.3f", timediff);
-            if (timediff >= 1200) { // [250329] KKS : 20분 변경 // 10분 경과 시 평가
+            if (timediff >= params.duration_sec) { // 1200 sec
                 int chargeDiff = static_cast<int>(currentChargePercentage) - static_cast<int>(initialCharge);
                 if (chargeDiff <= 2) { // 현재 충전량이 2퍼센트 이하인 경우
                     errorState = true;
@@ -503,8 +486,8 @@ bool LiftErrorMonitor::checkError(const InputType &input)
     static bool irLiftFlag = false;
     static bool imuLiftFlag = false;
 
-    count = (input.first.adc_ff < CLIFF_IR_ADC_THRESHOLD) + (input.first.adc_fl < CLIFF_IR_ADC_THRESHOLD) + (input.first.adc_fr < CLIFF_IR_ADC_THRESHOLD) +
-            (input.first.adc_bb < CLIFF_IR_ADC_THRESHOLD) + (input.first.adc_bl < CLIFF_IR_ADC_THRESHOLD) + (input.first.adc_br < CLIFF_IR_ADC_THRESHOLD);
+    count = (input.first.adc_ff < params.drop_ir_adc_th) + (input.first.adc_fl < params.drop_ir_adc_th) + (input.first.adc_fr < params.drop_ir_adc_th) +
+            (input.first.adc_bb < params.drop_ir_adc_th) + (input.first.adc_bl < params.drop_ir_adc_th) + (input.first.adc_br < params.drop_ir_adc_th);
 
     if (count == 0) { // 모든 IR 센서가 false일 경우 에러 해제.
         if (errorState) {
@@ -515,7 +498,7 @@ bool LiftErrorMonitor::checkError(const InputType &input)
         errorCount = 0;
         errorState = false;
         irLiftFlag = false;
-    } else if (count >= 4) { // ir 센서 true개수 4개 이상이면 ir 들림 의심
+    } else if (count >= params.drop_ir_cnt_min) { // ir 센서 true개수 4개 이상이면 ir 들림 의심
         // [250407] hyjoe : 들림 에러 발생 의심시 IR센서 상태 로깅
         if (!irLiftFlag) {
             RCLCPP_INFO(node_ptr_->get_logger(),
@@ -532,7 +515,7 @@ bool LiftErrorMonitor::checkError(const InputType &input)
 
     //250521 KKS : 낙하가 감지되지 않을 경우 z축 검사하지 않음
     // acc_z가 10.5이상이고 acc_z가 9.2이하이면 imu 들림 의심 (기준값 수정 필요할 수도 있음)
-    if (irLiftFlag && (acc_z <= 9.2 || acc_z >= 10.5)) {
+    if (irLiftFlag && (acc_z <= params.imu_z_acc_low_th || acc_z >= params.imu_z_acc_hight_th)) { // 9.2 이하, 10.5 이상
         // [250407] hyjoe : 들림 에러 발생 의심시 imu z축 가속도값 로깅 (승월이나 전도시에도 해당 로그 나올 수 있지만, 추후 정확한 상태 진단을 위해 일단 로깅)
         if (!imuLiftFlag) {
             RCLCPP_INFO(node_ptr_->get_logger(),
@@ -636,7 +619,7 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
             prePositionXArray[i] = curPositionX;
             prePositionYArray[i] = curPositionY;
 
-            if (/*timeDiff >= 3.0 || */accumDist[i] >= 0.3) { // 낙하센서 3초 지속 감지 or 낙하센서 감지된 상태에서 30cm 이동
+            if (/*timeDiff >= params.duration_sec || */accumDist[i] >= params.accum_dist_th) { // 낙하센서 3초 지속 감지 or 낙하센서 감지된 상태에서 30cm 이동
                 if (preErrorState[i] == false) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[CliffDetectionErrorMonitor] Cliff IR #[%d] : %s, timediff: %.3f sec, Accumulated Distance: %.3f m",

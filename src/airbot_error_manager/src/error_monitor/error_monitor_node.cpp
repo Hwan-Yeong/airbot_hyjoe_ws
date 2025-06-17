@@ -95,21 +95,21 @@ void ErrorMonitorNode::initVariables()
 
 void ErrorMonitorNode::setParams()
 {
-    this->declare_parameter<int>("publish_rate.low_battery_rate_ms", 1000);
-    this->declare_parameter<int>("publish_rate.fall_down_rate_ms", 1000);
-    this->declare_parameter<int>("publish_rate.board_overheat_rate_ms", 1000);
-    this->declare_parameter<int>("publish_rate.battery_discharge_rate_ms", 1000);
-    this->declare_parameter<int>("publish_rate.charging_rate_ms", 1000);
-    this->declare_parameter<int>("publish_rate.lift_error_rate_ms", 10);
-    this->declare_parameter<int>("publish_rate.cliff_detection_error_rate_ms", 10);
+    this->declare_parameter<int>("low_battery_error.monitoring_rate_ms", 1000);
+    this->declare_parameter<int>("discharging_error.monitoring_rate_ms", 1000);
+    this->declare_parameter<int>("board_overheat_error.monitoring_rate_ms", 1000);
+    this->declare_parameter<int>("charging_error.monitoring_rate_ms", 1000);
+    this->declare_parameter<int>("fall_down_error.monitoring_rate_ms", 1000);
+    this->declare_parameter<int>("lift_error.monitoring_rate_ms", 10);
+    this->declare_parameter<int>("cliff_error.monitoring_rate_ms", 10);
 
-    this->get_parameter("publish_rate.low_battery_rate_ms", publish_cnt_low_battery_error_rate_);
-    this->get_parameter("publish_rate.fall_down_rate_ms", publish_cnt_fall_down_error_rate_);
-    this->get_parameter("publish_rate.board_overheat_rate_ms", publish_cnt_board_overheat_error_rate_);
-    this->get_parameter("publish_rate.battery_discharge_rate_ms", publish_cnt_battery_discharge_error_rate_);
-    this->get_parameter("publish_rate.charging_rate_ms", publish_cnt_charging_error_rate_);
-    this->get_parameter("publish_rate.lift_error_rate_ms", publish_cnt_lift_error_rate_);
-    this->get_parameter("publish_rate.cliff_detection_error_rate_ms", publish_cnt_cliff_detection_error_rate_);
+    this->get_parameter("low_battery_error.monitoring_rate_ms", publish_cnt_low_battery_error_rate_);
+    this->get_parameter("discharging_error.monitoring_rate_ms", publish_cnt_battery_discharge_error_rate_);
+    this->get_parameter("board_overheat_error.monitoring_rate_ms", publish_cnt_board_overheat_error_rate_);
+    this->get_parameter("charging_error.monitoring_rate_ms", publish_cnt_charging_error_rate_);
+    this->get_parameter("fall_down_error.monitoring_rate_ms", publish_cnt_fall_down_error_rate_);
+    this->get_parameter("lift_error.monitoring_rate_ms", publish_cnt_lift_error_rate_);
+    this->get_parameter("cliff_error.monitoring_rate_ms", publish_cnt_cliff_detection_error_rate_);
 
     RCLCPP_INFO(this->get_logger(), "=================== ERROR MONITOR PARAMETER ===================");
     RCLCPP_INFO(this->get_logger(), "Low Battery Rate: %d ms", publish_cnt_low_battery_error_rate_);
@@ -299,6 +299,6 @@ void ErrorMonitorNode::robotStateCallback(const robot_custom_msgs::msg::RobotSta
 
 void ErrorMonitorNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg)
 {
-     odom_data = *msg;
+    odom_data = *msg;
     update_odom_data_cliff_detection = true;
 }
