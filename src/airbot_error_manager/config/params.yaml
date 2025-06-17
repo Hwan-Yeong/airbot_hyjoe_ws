@@ -13,10 +13,10 @@ airbot_error_monitor:
     low_battery_error:
       monitoring_rate_ms: 1000
       occure:
-        battery_percentage_min: 11
+        battery_percentage_min: 10
         battery_percentage_max: 15
       release:
-        battery_percentage_th: 21
+        battery_percentage_th: 20
         duration_sec: 30.0
 
     discharging_error:
@@ -26,7 +26,7 @@ airbot_error_monitor:
         battery_percentage_max: 10
         duration_sec: 10.0
       release:
-        battery_percentage_th: 16
+        battery_percentage_th: 15
         duration_sec: 30.0
 
     board_overheat_error:

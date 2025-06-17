@@ -7,13 +7,13 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
     current_time = clock.now().seconds();
 
     //check off station
-    if (input.second.docking_status & 0x10) {
-        if (!station_flag) {
+    if( input.second.docking_status & 0x10 ){
+        if( !station_flag ){
             RCLCPP_INFO(node_ptr_->get_logger(), "[LowBatteryErrorMonitor]CHECK AMR ON STATION ==> dockingstatus[%02x] ",input.second.docking_status);
         }
         station_flag = true;
-    } else {
-        if (station_flag) {
+    } else{
+        if( station_flag ){
             RCLCPP_INFO(node_ptr_->get_logger(), "[LowBatteryErrorMonitor]CHECK AMR OFF STATION ==> dockingstatus[%02x] ",input.second.docking_status);
         }
         station_flag = false;
@@ -21,15 +21,16 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
 
     //check error
     // 조건 : OFF STATION 상태, 배터리 잔여 15%이하
-    if (!error_state) { //Error 가 아닐 경우
-        if (station_flag == false) { //OFF STATION일 경우
-            if (input.first.battery_percent <= params.occure_percentage_max && input.first.battery_percent >= params.occure_percentage_min) { // [11,15] %
+    if( !error_state ){ //Error 가 아닐 경우
+        if( station_flag == false ){ //OFF STATION일 경우
+            if (input.first.battery_percent <= params.occure_percentage_max && input.first.battery_percent > params.occure_percentage_min) { // (10,15] %
                 if (!prev_state) {
                         // [250407] hyjoe : low battery 에러 발생시 모니터 체크 시간(sec), 배터리 상태 1번만 로깅
                         RCLCPP_INFO(node_ptr_->get_logger(),
                         "[LowBatteryErrorMonitor] OCCUR LOW BATTERY ERROR!!!\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        
                         input.first.battery_manufacturer,
                         input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
                         input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
@@ -38,16 +39,16 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
                 error_state = true;
             }
         }
-    } else { //check release error
+    } else{ //check release error
         // 조건 :  배터리 잔여 20%초과 30초 유지
-        if (input.first.battery_percent > params.release_percentage_th) { // 20 %
+        if(input.first.battery_percent > params.release_percentage_th ){ // 20 %
             //check time
             if (!init_setting) { // release 체크 시간에 대해서 초기시간 설정
                 prev_time = current_time;
                 init_setting = true;
             }
             release_time_diff = current_time - prev_time;
-            if (release_time_diff >= params.release_duration_sec) { // 30 sec
+            if( release_time_diff >= params.release_duration_sec){ // 30 sec
                 if (prev_state) {
                     // [250407] hyjoe : low battery 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
@@ -64,7 +65,8 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
                 is_first_logging = true;
                 error_state = false;
                 init_setting = false;
-            } else {
+            } 
+            else {
                 if (is_first_logging) {
                     // [250407] hyjoe : low battery 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
@@ -84,7 +86,7 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
             init_setting = false;
         }
     }
-
+    
     prev_state = error_state;
 
     return error_state;
@@ -92,6 +94,7 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
 
 bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
 {
+
     // 베터리가 10프로 이하일 경우, 동시에 30초 이상일 경우
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     double current_time, time_diff;
@@ -101,23 +104,23 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
     static bool is_first_logging = true;
 
     //발생 조건1: 충전중이 아닐때,
-    if (input.second.docking_status & 0x70) {
-        if (!charge_flag) {
+    if( input.second.docking_status & 0x70 ){
+        if( !charge_flag ){
             RCLCPP_INFO(node_ptr_->get_logger(), "[DischargingErrorMonitor]CHECK AMR CHARGING ==> dockingstatus[%02x] ",input.second.docking_status);
         }
         charge_flag = true;
-    } else {
-        if (charge_flag) {
+    } else{
+        if( charge_flag ){
             RCLCPP_INFO(node_ptr_->get_logger(), "[DischargingErrorMonitor]CHECK AMR DISCHARGING==> dockingstatus[%02x] ",input.second.docking_status);
         }
         charge_flag = false;
     }
-
+    
     current_time = clock.now().seconds();
-
-    if (!error_state) {
-        if (!charge_flag && input.first.battery_percent <= params.occure_percentage_max) {// [0,10] %
-
+    
+    if( !error_state ){ //에러가 아닐떄.
+        if( !charge_flag && input.first.battery_percent <= params.occure_percentage_max) {// 10 %
+            
             if (!init_setting) { // 이전 시간에 대해서 초기시간 설정
                 prev_time = current_time;
                 init_setting = true;
@@ -149,15 +152,15 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                 }
                 error_state = false;
             }
-        } else {
-            if (init_setting) {
+        } else{
+            if( init_setting ){
                 init_setting = false;
                 prev_time = current_time;
                 is_first_logging = true;
             }
         }
     } else { // 조건: 베터리 15프로 초과 & 30초 유지
-        if (input.first.battery_percent >= params.release_percentage_th) {
+        if(input.first.battery_percent > params.release_percentage_th ){ // 15 %
             //check time
             if (!init_setting) { // release 체크 시간에 대해서 초기시간 설정
                 release_start_time = current_time;
@@ -165,7 +168,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
             }
             release_time_diff = current_time - release_start_time;
 
-            if (release_time_diff >= params.release_duration_sec) { //30
+            if( release_time_diff >= params.release_duration_sec){ // 30 sec
                 if (prev_state) {
                     // [250407] hyjoe : battery discharging 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
@@ -182,7 +185,8 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                 is_first_logging = true;
                 error_state = false;
                 init_setting = false;
-            } else {
+            } 
+            else {
                 if (is_first_logging) {
                     // [250407] hyjoe : battery discharging 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
@@ -195,7 +199,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                     is_first_logging = false;
                 }
             }
-        } else {
+        } else{
             //time reset
             release_start_time = current_time;
             is_first_logging = true;
@@ -407,9 +411,9 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
 
     // [250411] KKS : 충전에러 지속 발생으로 60프로 이하일 때 시작으로 변경 //TBD: 충전 테이블 확인 후 재설정 예정
     // [250329] KKS : 80프로 이하일 때 시작으로 변경
-
-    if (!errorState && isCharging) {
-        if (currentChargePercentage <= params.percentage_th) { // 60%
+    
+    if ( !errorState && isCharging ){
+        if ( currentChargePercentage <= params.percentage_th) { // 60 %
             if (isFirstCheck) { // 측정 주기 타이머 시작
                 lastCheckTime = currentTime;
                 initialCharge = currentChargePercentage;
@@ -427,7 +431,7 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
             }
             double timediff = currentTime - lastCheckTime;
             // RCLCPP_INFO(node_ptr_->get_logger(), "time diff: %.3f", timediff);
-            if (timediff >= params.duration_sec) { // 1200 sec
+            if (timediff >= params.duration_sec) { // 1200 sec // [250329] KKS : 20분 변경 // 10분 경과 시 평가
                 int chargeDiff = static_cast<int>(currentChargePercentage) - static_cast<int>(initialCharge);
                 if (chargeDiff <= 2) { // 현재 충전량이 2퍼센트 이하인 경우
                     errorState = true;

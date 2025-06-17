@@ -278,6 +278,8 @@ public:
 
     static std::string paramNamespace() { return "cliff_error"; }
 
+    bool checkError(const InputType& input) override;
+
     void loadParams(const std::string& ns) override {
         if (!node_ptr_) return;
 
@@ -287,8 +289,6 @@ public:
         node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
         node_ptr_->get_parameter(ns + ".occure.accum_dist_th_m", params.accum_dist_th);
     }
-
-    bool checkError(const InputType& input) override;
 };
 
 
