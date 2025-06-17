@@ -304,6 +304,7 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     static std::unordered_map<std::string, double> overheat_occured_times_;
+    static std::unordered_map<std::string, bool> overheat_logged_;
     error_state = false;
 
     // AP 보드 온도 에러 판단 (Board temperature error check)
@@ -336,12 +337,21 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
                 auto it = overheat_occured_times_.find(file_path);
                 if (it == overheat_occured_times_.end()) {
                     overheat_occured_times_[file_path] = now_sec;
+                    overheat_logged_[file_path] = false;
                 } else if (now_sec - it->second >= OVERHEAT_DURATION_S) {
+                    if (!overheat_logged_[file_path]) {
+                        RCLCPP_INFO(node_ptr_->get_logger(),
+                            "[BoardOverheatErrorMonitor] Error: High temperature detected Over 30sec!,File: %s, Temperature: %.2f°C",
+                            file_path.c_str(), temp_value
+                        );
+                        overheat_logged_[file_path] = true;
+                    }
                     error_state = true;
                 }
             } else {
                 if (overheat_occured_times_.find(file_path) != overheat_occured_times_.end()) {
                     overheat_occured_times_.erase(file_path);
+                    overheat_logged_.erase(file_path);
                 }
             }
         }
@@ -414,52 +424,59 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
 
     // [250411] KKS : 충전에러 지속 발생으로 60프로 이하일 때 시작으로 변경 //TBD: 충전 테이블 확인 후 재설정 예정
     // [250329] KKS : 80프로 이하일 때 시작으로 변경
-    if (currentChargePercentage <= 60) {
-        if (isFirstCheck) { // 측정 주기 타이머 시작
-            lastCheckTime = currentTime;
-            initialCharge = currentChargePercentage;
-            isFirstCheck = false;
-            // [250407] hyjoe : 충전 에러 체크 시작할 때 배터리 상태 로그 출력
-            RCLCPP_INFO(
-                node_ptr_->get_logger(),
-                "[ChargingErrorMonitor] Docking status: 0x%02X\n"
-                "[ChargingErrorMonitor] Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
-                station.docking_status,
-                battery.battery_manufacturer, battery.remaining_capacity, static_cast<int>(battery.battery_percent), battery.battery_current, battery.battery_voltage, battery.battery_temperature1, battery.battery_temperature2,
-                battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5
-            );
-        }
-        double timediff = currentTime - lastCheckTime;
-        // RCLCPP_INFO(node_ptr_->get_logger(), "time diff: %.3f", timediff);
-        if (timediff >= 1200) { // [250329] KKS : 20분 변경 // 10분 경과 시 평가
-            int chargeDiff = static_cast<int>(currentChargePercentage) - static_cast<int>(initialCharge);
-            if (chargeDiff <= 2) { // 현재 충전량이 2퍼센트 이하인 경우
-                errorState = true;
-                // [250407] hyjoe : 충전 에러 발생 시 충전단자 상태, 배터리량 로그 출력
+    
+    if ( !errorState && isCharging ){
+        if ( currentChargePercentage <= 60) {
+            if (isFirstCheck) { // 측정 주기 타이머 시작
+                lastCheckTime = currentTime;
+                initialCharge = currentChargePercentage;
+                isFirstCheck = false;
+                // [250407] hyjoe : 충전 에러 체크 시작할 때 배터리 상태 로그 출력
                 RCLCPP_INFO(
                     node_ptr_->get_logger(),
                     "[ChargingErrorMonitor] Docking status: 0x%02X\n"
-                    "Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                    "[ChargingErrorMonitor] Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                     "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
                     station.docking_status,
                     battery.battery_manufacturer, battery.remaining_capacity, static_cast<int>(battery.battery_percent), battery.battery_current, battery.battery_voltage, battery.battery_temperature1, battery.battery_temperature2,
                     battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5
                 );
-                // [250407] hyjoe : 충전 에러 발생 시 에러 체크 시작으로부터 경과시간 로그 출력
-                RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[ChargingErrorMonitor] elapsed time since error check started: %.3f sec, chargeDiff: %d %%",
-                    timediff, chargeDiff
-                );
-            } else {
-                errorState = false;
             }
+            double timediff = currentTime - lastCheckTime;
+            // RCLCPP_INFO(node_ptr_->get_logger(), "time diff: %.3f", timediff);
+            if (timediff >= 1200) { // [250329] KKS : 20분 변경 // 10분 경과 시 평가
+                int chargeDiff = static_cast<int>(currentChargePercentage) - static_cast<int>(initialCharge);
+                if (chargeDiff <= 2) { // 현재 충전량이 2퍼센트 이하인 경우
+                    errorState = true;
+                    // [250407] hyjoe : 충전 에러 발생 시 충전단자 상태, 배터리량 로그 출력
+                    RCLCPP_INFO(
+                        node_ptr_->get_logger(),
+                        "[ChargingErrorMonitor] Docking status: 0x%02X\n"
+                        "Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        station.docking_status,
+                        battery.battery_manufacturer, battery.remaining_capacity, static_cast<int>(battery.battery_percent), battery.battery_current, battery.battery_voltage, battery.battery_temperature1, battery.battery_temperature2,
+                        battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5
+                    );
+                    // [250407] hyjoe : 충전 에러 발생 시 에러 체크 시작으로부터 경과시간 로그 출력
+                    RCLCPP_INFO(node_ptr_->get_logger(),
+                        "[ChargingErrorMonitor] elapsed time since error check started: %.3f sec, chargeDiff: %d %%",
+                        timediff, chargeDiff
+                    );
+                } else {
+                    errorState = false;
+                }
+                isFirstCheck = true;
+            } else {
+                // 아무 처리도 하지 않음으로서 이전 errorState를 유지하도록 한다.
+            }
+        } else { // 충전중인데 배터리 90% 이하가 아니면 그냥 에러 해제.
+            errorState = false;
             isFirstCheck = true;
-        } else {
-            // 아무 처리도 하지 않음으로서 이전 errorState를 유지하도록 한다.
         }
-    } else { // 충전중인데 배터리 90% 이하가 아니면 그냥 에러 해제.
-        errorState = false;
+    } else{
+        lastCheckTime = currentTime;
+        initialCharge = currentChargePercentage;
         isFirstCheck = true;
     }
     prevChargePercentage = currentChargePercentage;
