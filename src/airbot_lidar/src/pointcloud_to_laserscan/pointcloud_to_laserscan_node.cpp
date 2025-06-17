@@ -99,12 +99,14 @@ PointCloudToLaserScanNode::PointCloudToLaserScanNode()
 
   subscription_listener_thread_ = std::thread(
     std::bind(&PointCloudToLaserScanNode::subscriptionListenerThreadLoop, this));
+  RCLCPP_INFO(this->get_logger(), "node initialized");
 }
 
 PointCloudToLaserScanNode::~PointCloudToLaserScanNode()
 {
   alive_.store(false);
   subscription_listener_thread_.join();
+  RCLCPP_INFO(this->get_logger(), "node terminated");
 }
 
 void PointCloudToLaserScanNode::subscriptionListenerThreadLoop()

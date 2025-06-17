@@ -12,10 +12,12 @@ scanMerger::scanMerger() : Node("airbot_scan_merger")
     sync_->registerCallback(std::bind(&scanMerger::synchronized_callback, this, std::placeholders::_1, std::placeholders::_2));
 
     point_cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(cloudTopic_, rclcpp::SensorDataQoS().best_effort());
+    RCLCPP_INFO(this->get_logger(), "node initialized");
 }
 
 scanMerger::~scanMerger()
 {
+    RCLCPP_INFO(this->get_logger(), "node terminated");
 }
 
 void scanMerger::initialize_params()
