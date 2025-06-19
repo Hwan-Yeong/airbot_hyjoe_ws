@@ -42,6 +42,7 @@ add_definitions(${PCL_DEFINITIONS})
 
 ####### airbot_lidar #######
 add_executable(airbot_lidar
+  src/lidar/main.cpp
   src/lidar/node_lidar_ros.cpp
   sdk/calibration.cpp
   sdk/lidar_data_processing.cpp

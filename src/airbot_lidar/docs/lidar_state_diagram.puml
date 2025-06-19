@@ -1,42 +1,43 @@
 @startuml
 
-state State1 as "**커맨드O 동작X**\n---\ncmd = True\nrun = False\nerror = False" #LightBlue
-state State2 as "**커맨드O 동작O**\n---\ncmd = True\nrun = True\nerror = False" #LightBlue
-state State3 as "**커맨드X 동작O**\n---\ncmd = False\nrun = True\nerror = False" #LightBlue
-state State4 as "**커맨드X 동작X**\n---\ncmd = False\nrun = False\nerror = False" #LightBlue
+state WAITING_TO_START as "**WAITING_TO_START**\n---\ncmd = True\nrun = False\nerror = False" #LightBlue
+state RUNNING as "**RUNNING**\n---\ncmd = True\nrun = True\nerror = False" #LightBlue
+state WAITING_TO_STOP as "**WAITING_TO_STOP**\n---\ncmd = False\nrun = True\nerror = False" #LightBlue
+state IDLE as "**IDLE**\n---\ncmd = False\nrun = False\nerror = False" #LightBlue
 
-state ErrorState1 as "**커맨드O 에러O**\n---\ncmd = True\nrun = False\nerror = True" #Salmon
-state ErrorState2 as "**커맨드X 에러O**\n---\ncmd = False\nrun = False\nerror = True" #Salmon
+state ERROR_WHILE_RUNNING as "**ERROR_WHILE_RUNNING**\n---\ncmd = True\nrun = False\nerror = True" #Salmon
+state ERROR_WHILE_STOPPING as "**ERROR_WHILE_STOPPING**\n---\ncmd = False\nrun = False\nerror = True" #Salmon
 
 state Retry1 as "**Retry**"
 state Retry2 as "**Retry**"
 
 
-[*] --> State1
+[*] --> WAITING_TO_START
 
-State1 --> State2 : **Start: Success**
-State1 --> ErrorState1 : **Start: Fail**
-State1 -[#blue,dashed]-> State4 : **🚨 lidar_cmd: false**
+WAITING_TO_START --> RUNNING : **Start: Success**
+WAITING_TO_START -up-> ERROR_WHILE_RUNNING : **Start: Fail**
+WAITING_TO_START -[#blue,dashed]-> IDLE : **🚨 lidar_cmd: false**
 
-State2 --> State2 : **data_handling**\n**publishing /scan**
-State2 --> ErrorState1 : **Error Occured**
-State2 -[#blue,dashed]-> State3 : **🚨 lidar_cmd: false**
+RUNNING --> RUNNING : **data_handling**\n**publishing /scan**
+RUNNING -[#red]-> ERROR_WHILE_RUNNING : **Error Occured**
+RUNNING -[#blue,dashed]-> WAITING_TO_STOP : **🚨 lidar_cmd: false**
 
-ErrorState1 --> Retry1
-ErrorState1 -[#blue,dashed]-> ErrorState2 : **🚨 lidar_cmd: false**
-ErrorState2 --> Retry2
-ErrorState2 -[#green,dashed]-> ErrorState1 : **🚨 lidar_cmd: true**
+ERROR_WHILE_RUNNING --> Retry1
+ERROR_WHILE_RUNNING -[#blue,dashed]-> ERROR_WHILE_STOPPING : **🚨 lidar_cmd: false**
+ERROR_WHILE_STOPPING --> Retry2
+ERROR_WHILE_STOPPING -[#green,dashed]-> ERROR_WHILE_RUNNING : **🚨 lidar_cmd: true**
 
 Retry1 --> Retry1 : **ReStart: Fail**
-Retry1 --> State2 : **ReStart: Success**
+Retry1 --> RUNNING : **ReStart: Success**
 
 Retry2 --> Retry2 : **ReStart: Fail**
-Retry2 --> State3 : **ReStart: Success**
+Retry2 --> WAITING_TO_STOP : **ReStart: Success**
 
-State3 --> State4 : **Stop: Success**
-State3 --> State3 : **Stop: Fail**
-State3 -[#green,dashed]-> State2 : **🚨 lidar_cmd: true**
+WAITING_TO_STOP --> IDLE : **Stop: Success**
+WAITING_TO_STOP --> WAITING_TO_STOP : **Stop: Fail**
+WAITING_TO_STOP -[#green,dashed]-> RUNNING : **🚨 lidar_cmd: true**
 
-State4 -[#green,dashed]-> State1 : **🚨 lidar_cmd: true**
+IDLE -[#green,dashed]-> WAITING_TO_START : **🚨 lidar_cmd: true**
+' IDLE -[#red]-> ERROR_WHILE_STOPPING: **Error Occured**
 
 @enduml
