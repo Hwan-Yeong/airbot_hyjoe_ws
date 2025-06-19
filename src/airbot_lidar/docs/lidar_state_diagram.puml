@@ -1,0 +1,42 @@
+@startuml
+
+state State1 as "**커맨드O 동작X**\n---\ncmd = True\nrun = False\nerror = False" #LightBlue
+state State2 as "**커맨드O 동작O**\n---\ncmd = True\nrun = True\nerror = False" #LightBlue
+state State3 as "**커맨드X 동작O**\n---\ncmd = False\nrun = True\nerror = False" #LightBlue
+state State4 as "**커맨드X 동작X**\n---\ncmd = False\nrun = False\nerror = False" #LightBlue
+
+state ErrorState1 as "**커맨드O 에러O**\n---\ncmd = True\nrun = False\nerror = True" #Salmon
+state ErrorState2 as "**커맨드X 에러O**\n---\ncmd = False\nrun = False\nerror = True" #Salmon
+
+state Retry1 as "**Retry**"
+state Retry2 as "**Retry**"
+
+
+[*] --> State1
+
+State1 --> State2 : **Start: Success**
+State1 --> ErrorState1 : **Start: Fail**
+State1 -[#blue,dashed]-> State4 : **🚨 lidar_cmd: false**
+
+State2 --> State2 : **data_handling**\n**publishing /scan**
+State2 --> ErrorState1 : **Error Occured**
+State2 -[#blue,dashed]-> State3 : **🚨 lidar_cmd: false**
+
+ErrorState1 --> Retry1
+ErrorState1 -[#blue,dashed]-> ErrorState2 : **🚨 lidar_cmd: false**
+ErrorState2 --> Retry2
+ErrorState2 -[#green,dashed]-> ErrorState1 : **🚨 lidar_cmd: true**
+
+Retry1 --> Retry1 : **ReStart: Fail**
+Retry1 --> State2 : **ReStart: Success**
+
+Retry2 --> Retry2 : **ReStart: Fail**
+Retry2 --> State3 : **ReStart: Success**
+
+State3 --> State4 : **Stop: Success**
+State3 --> State3 : **Stop: Fail**
+State3 -[#green,dashed]-> State2 : **🚨 lidar_cmd: true**
+
+State4 -[#green,dashed]-> State1 : **🚨 lidar_cmd: true**
+
+@enduml

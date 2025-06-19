@@ -252,7 +252,7 @@ bool data_handling(LaserScan &outscan)
 {
 
 	//node_lidar.lidar_time.tim_scan_start = getTime();	
-	if(grabScanData(2000)==RESULT_OK)
+	if(grabScanData(3000)==RESULT_OK) // 2000
 	{
 		send_lidar_data(outscan);
 		return true;
