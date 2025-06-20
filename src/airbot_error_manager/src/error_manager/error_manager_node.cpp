@@ -144,7 +144,7 @@ void ErrorManagerNode::publishErrorList()
         return;
     }
 
-    LidarErrorRelease();
+    // LidarErrorRelease();
 
     if (cur_robot_state == 9) {
         isReleasedAllError = false;
@@ -264,6 +264,7 @@ void ErrorManagerNode::allErrorReleased()
     }
 }
 
+/*
 void ErrorManagerNode::LidarErrorRelease(){
 
     static rclcpp::Clock clock(RCL_STEADY_TIME);
@@ -302,7 +303,7 @@ void ErrorManagerNode::LidarErrorRelease(){
         }
     }
 }
-
+*/
 
 void ErrorManagerNode::printErrorList(){
     if (error_list_.empty()) {

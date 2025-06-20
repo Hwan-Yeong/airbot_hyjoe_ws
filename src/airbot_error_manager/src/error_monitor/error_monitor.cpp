@@ -1,6 +1,5 @@
 #include "error_monitor/error_monitor.hpp"
 
-
 bool LowBatteryErrorMonitor::checkError(const InputType& input)
 {
     static rclcpp::Clock clock(RCL_STEADY_TIME);
@@ -637,4 +636,38 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
     }
 
     return errorState;
+}
+
+// 1D TOF ECYOON
+bool TofErrorMonitor::checkError(const InputType& input) {
+
+    static bool is_first_detect = false;
+    static std::chrono::steady_clock::time_point check_oned_startTime = std::chrono::steady_clock::now();
+    static bool isError = false;
+
+    double tof_data = input.top;
+
+    if (tof_data >= params.one_d_min_dist_m && tof_data <= params.one_d_max_dist_m) {
+        if (!is_first_detect) {
+            check_oned_startTime = std::chrono::steady_clock::now();
+            RCLCPP_INFO(node_ptr_->get_logger(), "[1D_TofErrorMonitor] check start dist=%.2f", tof_data);
+            is_first_detect = true;
+        }
+
+        // 에러 상태가 60초 이상 유지된 경우
+        if (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - check_oned_startTime).count() >= params.duration_sec) {
+            if (!isError) {
+                RCLCPP_INFO(node_ptr_->get_logger(), "[1D_TofErrorMonitor] Error occurred");
+            }
+            isError = true;
+        }
+    } else {
+        is_first_detect = false;
+        if (isError) {
+            RCLCPP_INFO(node_ptr_->get_logger(), "[1D_TofErrorMonitor] Error resolved");
+        }
+        isError = false;
+    }
+
+    return isError;
 }

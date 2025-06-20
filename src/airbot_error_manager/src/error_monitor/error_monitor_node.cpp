@@ -3,9 +3,7 @@
 ErrorMonitorNode::ErrorMonitorNode()
     : Node("airbot_error_monitor")
 {
-    rclcpp::QoS qos_state_profile = rclcpp::QoS(5)
-                            .reliable()
-                            .durability_volatile();
+    rclcpp::QoS qos_state_profile = rclcpp::QoS(5).reliable().durability_volatile();
 
     initVariables();
     setParams();
@@ -29,6 +27,9 @@ ErrorMonitorNode::ErrorMonitorNode()
     odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
         "/odom", 10, std::bind(&ErrorMonitorNode::odomCallback, this, std::placeholders::_1)
     );
+    tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
+        "/tof_data", 10, std::bind(&ErrorMonitorNode::tofCallback, this, std::placeholders::_1)
+    );
 
     // Publisher
     fall_down_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/fall_down", 20);
@@ -38,6 +39,7 @@ ErrorMonitorNode::ErrorMonitorNode()
     charging_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/e_code/charging", 10);
     lift_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/lifted", 10);
     cliff_detection_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/cliff_detected", 10);
+    one_d_tof_detection_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/top_tof_obstacle_error", 10);
 
     // Timer
     timer_ = this->create_wall_timer(
@@ -60,6 +62,7 @@ void ErrorMonitorNode::init()
     addMonitor<ChargingErrorMonitor>(std::make_shared<ChargingErrorMonitor>());
     addMonitor<LiftErrorMonitor>(std::make_shared<LiftErrorMonitor>());
     addMonitor<CliffDetectionErrorMonitor>(std::make_shared<CliffDetectionErrorMonitor>());
+    addMonitor<TofErrorMonitor>(std::make_shared<TofErrorMonitor>());
 }
 
 void ErrorMonitorNode::initVariables()
@@ -77,6 +80,7 @@ void ErrorMonitorNode::initVariables()
     update_robot_state_battery_discharging = false;
     update_robot_state_cliff_detection = false;
     update_odom_data_cliff_detection = false;
+    update_tof_one_d_detection = false;
 
     publish_cnt_low_battery_error_ = 0;
     publish_cnt_fall_down_error_ = 0;
@@ -85,12 +89,14 @@ void ErrorMonitorNode::initVariables()
     publish_cnt_charging_error_ = 0;
     publish_cnt_lift_error_ = 0;
     publish_cnt_cliff_detection_error_ = 0;
+    publish_cnt_tof_detection_error_ = 0;
 
     bottom_ir_data = robot_custom_msgs::msg::BottomIrData();
     imu_data = sensor_msgs::msg::Imu();
     battery_data = robot_custom_msgs::msg::BatteryStatus();
     station_data = robot_custom_msgs::msg::StationData();
     odom_data = nav_msgs::msg::Odometry();
+    tof_data = robot_custom_msgs::msg::TofData();
 }
 
 void ErrorMonitorNode::setParams()
@@ -102,6 +108,7 @@ void ErrorMonitorNode::setParams()
     this->declare_parameter<int>("fall_down_error.monitoring_rate_ms", 1000);
     this->declare_parameter<int>("lift_error.monitoring_rate_ms", 10);
     this->declare_parameter<int>("cliff_error.monitoring_rate_ms", 10);
+    this->declare_parameter<int>("tof_sensor.monitoring_rate_ms", 50);
 
     this->get_parameter("low_battery_error.monitoring_rate_ms", publish_cnt_low_battery_error_rate_);
     this->get_parameter("discharging_error.monitoring_rate_ms", publish_cnt_battery_discharge_error_rate_);
@@ -110,6 +117,7 @@ void ErrorMonitorNode::setParams()
     this->get_parameter("fall_down_error.monitoring_rate_ms", publish_cnt_fall_down_error_rate_);
     this->get_parameter("lift_error.monitoring_rate_ms", publish_cnt_lift_error_rate_);
     this->get_parameter("cliff_error.monitoring_rate_ms", publish_cnt_cliff_detection_error_rate_);
+    this->get_parameter("tof_sensor.monitoring_rate_ms", publish_cnt_tof_detection_error_rate_);
 
     RCLCPP_INFO(this->get_logger(), "=================== ERROR MONITOR PARAMETER ===================");
     RCLCPP_INFO(this->get_logger(), "Low Battery Rate: %d ms", publish_cnt_low_battery_error_rate_);
@@ -133,6 +141,7 @@ void ErrorMonitorNode::errorMonitor()
     publish_cnt_charging_error_ += 10;
     publish_cnt_lift_error_ += 10;
     publish_cnt_cliff_detection_error_ += 10;
+    publish_cnt_tof_detection_error_ += 10;
 
     // fall down monitor
     if (update_bottom_ir_data_fall_down && update_imu_fall_down
@@ -250,6 +259,21 @@ void ErrorMonitorNode::errorMonitor()
         update_robot_state_cliff_detection = false;
     }
 
+    // 1D ToF Error Monitor
+    if (update_tof_one_d_detection && (publish_cnt_tof_detection_error_ >= publish_cnt_tof_detection_error_rate_))
+    {
+        bool tof_sensor_error = this->runMonitor<TofErrorMonitor>(tof_data);
+        if (tof_sensor_error) {            
+            error_msg.data = true;
+            one_d_tof_detection_error_pub_->publish(error_msg);
+        } else {
+            error_msg.data = false;
+            one_d_tof_detection_error_pub_->publish(error_msg);
+        }
+        publish_cnt_tof_detection_error_ = 0;
+        update_tof_one_d_detection = false;
+    }
+
     // publish_cnt_* 변수 오버플로우 방지
     if (publish_cnt_low_battery_error_ >= 100000) publish_cnt_low_battery_error_ = 0;
     if (publish_cnt_fall_down_error_ >= 100000) publish_cnt_fall_down_error_ = 0;
@@ -258,6 +282,7 @@ void ErrorMonitorNode::errorMonitor()
     if (publish_cnt_charging_error_ >= 100000) publish_cnt_charging_error_ = 0;
     if (publish_cnt_lift_error_ >= 100000) publish_cnt_lift_error_ = 0;
     if (publish_cnt_cliff_detection_error_ >= 100000) publish_cnt_cliff_detection_error_ = 0;
+    if (publish_cnt_tof_detection_error_ >= 100000) publish_cnt_tof_detection_error_ = 0;
 }
 
 void ErrorMonitorNode::batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg)
@@ -301,4 +326,10 @@ void ErrorMonitorNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg
 {
     odom_data = *msg;
     update_odom_data_cliff_detection = true;
+}
+
+void ErrorMonitorNode::tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg)
+{
+    tof_data = *msg;
+    update_tof_one_d_detection = true;
 }

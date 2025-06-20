@@ -32,7 +32,7 @@ airbot_error_monitor:
     board_overheat_error:
       monitoring_rate_ms: 1000
       occure:
-        temperature_th_c: 70
+        temperature_th_c: 70.0
         duration_sec: 30.0
 
     charging_error:
@@ -46,8 +46,8 @@ airbot_error_monitor:
       occure:
         drop_ir_adc_th: 900
         drop_ir_cnt_min: 3
-        imu_roll_th_deg: 60
-        imu_pitch_th_deg: 60
+        imu_roll_th_deg: 60.0
+        imu_pitch_th_deg: 60.0
 
     lift_error:
       monitoring_rate_ms: 10
@@ -62,3 +62,10 @@ airbot_error_monitor:
       occure:
         duration_sec: 3.0 # 사용 X
         accum_dist_th_m: 0.3
+
+    tof_error:
+      monitoring_rate_ms: 50
+      occure:
+        duration_sec: 60.0
+        one_d_min_dist_m: 0.03
+        one_d_max_dist_m: 0.15

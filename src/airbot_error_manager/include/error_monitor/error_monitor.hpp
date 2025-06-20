@@ -10,6 +10,7 @@
 #include "robot_custom_msgs/msg/battery_status.hpp"
 #include "robot_custom_msgs/msg/station_data.hpp"
 #include "robot_custom_msgs/msg/robot_state.hpp"
+#include "robot_custom_msgs/msg/tof_data.hpp"
 #include "error_monitor/error_monitor_node.hpp"
 
 /**
@@ -65,10 +66,10 @@ public:
     void loadParams(const std::string& ns) override {
         if (!node_ptr_) return;
 
-        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_min", 0);
-        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_max", 0);
-        node_ptr_->declare_parameter<int>(ns + ".release.battery_percentage_th", 0);
-        node_ptr_->declare_parameter<double>(ns + ".release.duration_sec", 0.0);
+        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_min", 10);
+        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_max", 15);
+        node_ptr_->declare_parameter<int>(ns + ".release.battery_percentage_th", 20);
+        node_ptr_->declare_parameter<double>(ns + ".release.duration_sec", 30.0);
 
         node_ptr_->get_parameter(ns + ".occure.battery_percentage_min", params.occure_percentage_min);
         node_ptr_->get_parameter(ns + ".occure.battery_percentage_max", params.occure_percentage_max);
@@ -107,10 +108,10 @@ public:
         if (!node_ptr_) return;
 
         node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_min", 0);
-        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_max", 0);
-        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 0.0);
-        node_ptr_->declare_parameter<int>(ns + ".release.battery_percentage_th", 0);
-        node_ptr_->declare_parameter<double>(ns + ".release.duration_sec", 0.0);
+        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_max", 10);
+        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 10.0);
+        node_ptr_->declare_parameter<int>(ns + ".release.battery_percentage_th", 15);
+        node_ptr_->declare_parameter<double>(ns + ".release.duration_sec", 30.0);
 
         node_ptr_->get_parameter(ns + ".occure.battery_percentage_min", params.occure_percentage_min);
         node_ptr_->get_parameter(ns + ".occure.battery_percentage_max", params.occure_percentage_max);
@@ -133,8 +134,8 @@ public:
     struct tParams {
         int drop_ir_adc_th;
         int drop_ir_cnt_min;
-        int imu_roll_th;
-        int imu_pitch_th;
+        double imu_roll_th;
+        double imu_pitch_th;
     } params;
 
     static std::string paramNamespace() { return "fall_down_error"; }
@@ -144,10 +145,10 @@ public:
     void loadParams(const std::string& ns) override {
         if (!node_ptr_) return;
 
-        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_adc_th", 0);
-        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_cnt_min", 0);
-        node_ptr_->declare_parameter<int>(ns + ".occure.imu_roll_th_deg", 0);
-        node_ptr_->declare_parameter<int>(ns + ".occure.imu_pitch_th_deg", 0);
+        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_adc_th", 900);
+        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_cnt_min", 3);
+        node_ptr_->declare_parameter<double>(ns + ".occure.imu_roll_th_deg", 60.0);
+        node_ptr_->declare_parameter<double>(ns + ".occure.imu_pitch_th_deg", 60.0);
 
         node_ptr_->get_parameter(ns + ".occure.drop_ir_adc_th", params.drop_ir_adc_th);
         node_ptr_->get_parameter(ns + ".occure.drop_ir_cnt_min", params.drop_ir_cnt_min);
@@ -178,10 +179,10 @@ public:
     void loadParams(const std::string& ns) override {
         if (!node_ptr_) return;
 
-        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_adc_th", 0);
-        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_cnt_min", 0);
-        node_ptr_->declare_parameter<double>(ns + ".occure.imu_z_acc_low_th", 0.0);
-        node_ptr_->declare_parameter<double>(ns + ".occure.imu_z_acc_hight_th", 0.0);
+        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_adc_th", 900);
+        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_cnt_min", 4);
+        node_ptr_->declare_parameter<double>(ns + ".occure.imu_z_acc_low_th", 9.2);
+        node_ptr_->declare_parameter<double>(ns + ".occure.imu_z_acc_hight_th", 10.5);
 
         node_ptr_->get_parameter(ns + ".occure.drop_ir_adc_th", params.drop_ir_adc_th);
         node_ptr_->get_parameter(ns + ".occure.drop_ir_cnt_min", params.drop_ir_cnt_min);
@@ -200,7 +201,7 @@ public:
     using InputType = std::nullptr_t;
 
     struct tParams {
-        int temperature_th;
+        double temperature_th;
         double duration_sec;
     } params;
 
@@ -211,8 +212,8 @@ public:
     void loadParams(const std::string& ns) override {
         if (!node_ptr_) return;
 
-        node_ptr_->declare_parameter<int>(ns + ".occure.temperature_th_c", 0);
-        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 0.0);
+        node_ptr_->declare_parameter<double>(ns + ".occure.temperature_th_c", 70.0);
+        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 30.0);
 
         node_ptr_->get_parameter(ns + ".occure.temperature_th_c", params.temperature_th);
         node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
@@ -251,8 +252,8 @@ public:
     void loadParams(const std::string& ns) override {
         if (!node_ptr_) return;
 
-        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_th", 0);
-        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 0.0);
+        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_th", 60);
+        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 1200.0);
 
         node_ptr_->get_parameter(ns + ".occure.battery_percentage_th", params.percentage_th);
         node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
@@ -283,13 +284,40 @@ public:
     void loadParams(const std::string& ns) override {
         if (!node_ptr_) return;
 
-        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 0.0);
-        node_ptr_->declare_parameter<double>(ns + ".occure.accum_dist_th_m", 0.0);
+        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 3.0);
+        node_ptr_->declare_parameter<double>(ns + ".occure.accum_dist_th_m", 0.3);
 
         node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
         node_ptr_->get_parameter(ns + ".occure.accum_dist_th_m", params.accum_dist_th);
     }
 };
 
+class TofErrorMonitor : public BaseErrorMonitor<robot_custom_msgs::msg::TofData>
+{
+public:
+    using InputType = robot_custom_msgs::msg::TofData;
+
+    struct tParams {
+        double duration_sec;
+        double one_d_min_dist_m;
+        double one_d_max_dist_m;
+    } params;
+
+    static std::string paramNamespace() { return "tof_error"; }
+
+    bool checkError(const InputType& input) override;
+
+    void loadParams(const std::string& ns) override {
+        if (!node_ptr_) return;
+
+        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 60.0);
+        node_ptr_->declare_parameter<double>(ns + ".occure.one_d_min_dist_m", 0.03);
+        node_ptr_->declare_parameter<double>(ns + ".occure.one_d_max_dist_m", 0.15);
+
+        node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
+        node_ptr_->get_parameter(ns + ".occure.one_d_min_dist_m", params.one_d_min_dist_m);
+        node_ptr_->get_parameter(ns + ".occure.one_d_max_dist_m", params.one_d_max_dist_m);
+    }
+};
 
 #endif // __ERROR_MONITOR_HPP__
