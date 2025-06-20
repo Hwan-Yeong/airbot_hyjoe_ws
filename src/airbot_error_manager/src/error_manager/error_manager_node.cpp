@@ -115,7 +115,7 @@ void ErrorManagerNode::errorCallback(const std::string& error_code, std_msgs::ms
     if (msg->data) {
         updateErrorLists(error_code);
     } else {
-        releaseErrorLists(error_code);
+        pending_releases_.push_back(error_code);
     }
 }
 
@@ -187,6 +187,11 @@ void ErrorManagerNode::publishErrorList()
     if (!error_msg_array.data_array.empty()) {
         error_list_pub_->publish(error_msg_array);
     }
+
+    for (const auto &code : pending_releases_) {
+        releaseErrorLists(code);
+    }
+    pending_releases_.clear();
 
     prev_robot_state = robot_state_;
 }
