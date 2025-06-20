@@ -3,7 +3,7 @@ from rclpy.node import Node
 import numpy as np
 import math
 from nav_msgs.msg import Odometry
-from robot_custom_msgs.msg import RobotState, BottomIrData, CameraData, CameraDataArray
+from robot_custom_msgs.msg import RobotState, BottomIrData, CameraData, CameraDataArray, TofData
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import Quaternion
 
@@ -35,12 +35,18 @@ class CliffDetectionErrorSimulation(Node):
             'imu_data',
             10
         )
+        self.tof_publisher = self.create_publisher(
+            TofData,
+            'tof_data',
+            10
+        )
         self.timer = self.create_timer(0.01, self.timer_callback)
         self.robot_state = RobotState()
         self.bottom_ir_data = BottomIrData()
         self.odom_data = Odometry()
         self.camera_data_array = CameraDataArray()
         self.imu_data = Imu()
+        self.tof_data = TofData()
         self.odom_data.header.stamp = self.get_clock().now().to_msg()
         self.odom_data.header.frame_id = 'odom'
         self.odom_data.child_frame_id = 'base_link'
@@ -151,6 +157,11 @@ class CliffDetectionErrorSimulation(Node):
         self.odom_publisher.publish(self.odom_data)
         self.pre_odom_data = self.odom_data
 
+    def pubToFData(self):
+        self.tof_data.timestamp = self.get_clock().now().to_msg()
+        self.tof_data.top = 0.05
+        self.tof_publisher.publish(self.tof_data)
+
     def timer_callback(self):
         currrent_time = self.get_clock().now()
         elapsed_time = (currrent_time - self.start_time).nanoseconds / 1e9
@@ -164,6 +175,7 @@ class CliffDetectionErrorSimulation(Node):
         self.pubOdomData()
         self.pubCameraData()
         self.pubImuData()
+        self.pubToFData()
 
 def main(args=None):
     rclpy.init(args=args)

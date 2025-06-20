@@ -642,23 +642,33 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
 bool TofErrorMonitor::checkError(const InputType& input) {
 
     static bool is_first_detect = false;
-    static std::chrono::steady_clock::time_point check_oned_startTime = std::chrono::steady_clock::now();
+    static rclcpp::Clock clock(RCL_STEADY_TIME);
+    static double check_oned_startTime;
     static bool isError = false;
+    static double next_check_sec = 10;
 
     double tof_data = input.top;
 
     if (tof_data >= params.one_d_min_dist_m && tof_data <= params.one_d_max_dist_m) {
         if (!is_first_detect) {
-            check_oned_startTime = std::chrono::steady_clock::now();
+            check_oned_startTime = clock.now().seconds();
             RCLCPP_INFO(node_ptr_->get_logger(), "[1D_TofErrorMonitor] check start dist=%.2f", tof_data);
             is_first_detect = true;
+            next_check_sec = 10;
+        }
+
+        double time_diff = clock.now().seconds() - check_oned_startTime;
+        if ((time_diff >= next_check_sec) && !isError) { // 10초 단위로 로깅
+            RCLCPP_INFO(node_ptr_->get_logger(), "[1D_TofErrorMonitor] Error Checking for %.2fsec", time_diff);
+            next_check_sec += 10;
         }
 
         // 에러 상태가 60초 이상 유지된 경우
-        if (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - check_oned_startTime).count() >= params.duration_sec) {
+        if (time_diff >= params.duration_sec) {
             if (!isError) {
                 RCLCPP_INFO(node_ptr_->get_logger(), "[1D_TofErrorMonitor] Error occurred");
             }
+            next_check_sec = 10;
             isError = true;
         }
     } else {
