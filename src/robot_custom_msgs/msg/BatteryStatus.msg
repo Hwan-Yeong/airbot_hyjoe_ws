@@ -13,6 +13,9 @@ uint8 battery_temperature1
 uint8 battery_temperature2
 int16 design_capacity
 int16 number_of_cycles
-uint8  charge_status
+uint8 charge_status
 uint8 charging_mode
 uint8 shipping_mode
+uint8 precharge_state
+uint8 charge_mode 
+uint8 fet_state

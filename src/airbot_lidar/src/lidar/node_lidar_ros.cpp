@@ -77,6 +77,7 @@ int main(int argc, char **argv)
 
 
 	static int start_cnt = 0;
+	static int lidar_run_cnt = 0;
     // 별도 스레드에서 데이터 처리(publish 부분)
 	std::thread lidar_thread([&]() {
 		node_start();
@@ -94,7 +95,17 @@ int main(int argc, char **argv)
 					node_lidar.lidar_status.lidar_ready = true;
 					node_lidar.serial_port->write_data(start_lidar,4);
 
-					bLidarRun = data_handling(scan); // timeout 3sec
+					bool is_lidar_run = data_handling(scan); // timeout 3sec
+
+					if (is_lidar_run) {
+						if (lidar_run_cnt > 10) {
+							bLidarRun = true;
+							lidar_run_cnt = 0;
+						}
+						lidar_run_cnt++;
+					} else {
+						lidar_run_cnt = 0;
+					}
 
 					if (bLidarRun)
 					{
@@ -160,7 +171,7 @@ int main(int argc, char **argv)
 					scan_msg->angle_increment = scan.config.angle_increment;
 					scan_msg->scan_time = scan.config.scan_time;
 					scan_msg->time_increment = scan.config.time_increment;
-					scan_msg->range_min = 0.10;
+					scan_msg->range_min = scan.config.min_range;
 					scan_msg->range_max = scan.config.max_range;
 
 					std::vector<float> filtered_ranges;
@@ -238,7 +249,17 @@ int main(int argc, char **argv)
 					node_lidar.lidar_status.lidar_ready = true;
 					node_lidar.serial_port->write_data(start_lidar,4);
 
-					bLidarRun = data_handling(scan); // timeout 3sec
+					bool is_lidar_run = data_handling(scan); // timeout 3sec
+
+					if (is_lidar_run) {
+						if (lidar_run_cnt > 10) {
+							bLidarRun = true;
+							lidar_run_cnt = 0;
+						}
+						lidar_run_cnt++;
+					} else {
+						lidar_run_cnt = 0;
+					}
 
 					if (bLidarRun)
 					{
@@ -248,6 +269,8 @@ int main(int argc, char **argv)
 						scan_error_pub->publish(*error_msg);
 					}
 				}
+				start_cnt = 0;
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			}
 		}
 

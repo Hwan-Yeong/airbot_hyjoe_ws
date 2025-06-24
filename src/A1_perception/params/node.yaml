@@ -1,3 +1,6 @@
+# 이 코드는 이전에 사용한 파라미터임
+# Disabled from 2025.06.05
+
 A1_perception:
   node:
     period_ms: 10

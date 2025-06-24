@@ -283,7 +283,7 @@ void send_lidar_data(LaserScan &outscan)
 		outscan.config.angle_increment = (2.0*M_PI/count);
 		outscan.config.min_angle = 0;
 		outscan.config.max_angle = 2*M_PI;
-		outscan.config.min_range = 0.10;
+		outscan.config.min_range = 0.03; // 0.10
 		outscan.config.max_range = 10.0; //测量的最远距离是10m
 		outscan.config.scan_time =  static_cast<float>(scan_time * 1.0 / 1e9);
     	outscan.config.time_increment = outscan.config.scan_time / (double)(count - 1);

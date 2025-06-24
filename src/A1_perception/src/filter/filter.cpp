@@ -240,12 +240,26 @@ LayerVector DensityFilter::updateImpl(LayerVector layer_vector)
 RoIFilter::RoIFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config) : BaseFilter(node_ptr_)
 {
     this->use_inside = getYamlValue<bool>(__FUNCTION__, config, "use_inside", true);
+    this->use_when_climb = getYamlValue<bool>(__FUNCTION__, config, "use_when_climb", true);
+    this->delete_out_of_range = getYamlValue<bool>(__FUNCTION__, config, "delete_out_of_range", true);
 }
 
 LayerVector RoIFilter::updateImpl(LayerVector layer_vector)
 {
+    auto node = this->node_ptr;
+    // 2025.06.02, 강성준, 승월시 장애물 검출 여부 파라미터 추가
+    if (node->isClimb() && this->use_when_climb == false)
+    {
+        for (auto& layer : layer_vector)
+        {
+            if (layer.isDeletable)
+                layer.cloud.clear();
+        }
+        return layer_vector;
+    }
+
     // coordinate transform
-    auto position = this->node_ptr->getPosition();
+    auto position = node->getPosition();
     geometry_msgs::msg::Transform transform_msg;
     tf2::toMsg(position.getTransform().inverse(), transform_msg);
     Eigen::Affine3f inverse_transform = tf2::transformToEigen(transform_msg).cast<float>();
@@ -253,11 +267,16 @@ LayerVector RoIFilter::updateImpl(LayerVector layer_vector)
     // roi filter
     for (auto& layer : layer_vector)
     {
+        if (layer.isDeletable == false)
+        {
+            continue;
+        }
         auto layer_base_link = layer;
         pcl::transformPointCloud(layer.cloud, layer_base_link.cloud, inverse_transform);
 
         auto it = layer.cloud.begin();
         auto jt = layer_base_link.cloud.begin();
+        bool isDeletable = true;
         for (; it != layer.cloud.end();)
         {
             pcl::PointXY point{jt->x, jt->y};
@@ -270,7 +289,12 @@ LayerVector RoIFilter::updateImpl(LayerVector layer_vector)
             {
                 ++it;
                 ++jt;
+                isDeletable = false;
             }
+        }
+        if (this->delete_out_of_range == false)
+        {
+            layer.isDeletable = isDeletable;
         }
     }
     return layer_vector;
@@ -321,8 +345,9 @@ DropOffFilter::DropOffFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YA
     this->line_length = getYamlValue<float>(__FUNCTION__, config, "line_length", 0.05);
     this->resolution = getYamlValue<float>(__FUNCTION__, config, "resolution", 0.05);
 
-    this->compare_dist_diff_max = getYamlValue<float>(__FUNCTION__, config, "compare_dist_diff_max", 0.5);
-    this->inputs = getYamlValue<std::vector<std::string>>(__FUNCTION__, config, "inputs", std::vector<std::string>{});
+    // this->compare_dist_diff_max = getYamlValue<float>(__FUNCTION__, config, "compare_dist_diff_max", 0.5);
+    // this->inputs = getYamlValue<std::vector<std::string>>(__FUNCTION__, config, "inputs",
+    // std::vector<std::string>{});
 }
 
 LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
@@ -380,28 +405,28 @@ LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
                 continue;
             }
 
-            float max_diff_ = 0;
-            float min_diff_ = 1.0;
-            bool diff_check = false;
-            for (const auto& tgt_point : target_layer.cloud)
-            {
-                float dist_diff = pcl::euclideanDistance(point_global, tgt_point);
-                max_diff_ = std::max(max_diff_, dist_diff);
-                min_diff_ = std::min(min_diff_, dist_diff);
-                // if (dist_diff > this->row3_dist_diff_min && dist_diff < this->row3_dist_diff_max)
-                if (dist_diff < this->compare_dist_diff_max)
-                {
-                    // RCLCPP_INFO(node->get_logger(), "pass ! 3row dist diff %f", dist_diff);
-                    diff_check = true;
-                    break;
-                }
-            }
-            if (diff_check)
-            {
-                it = layer.cloud.erase(it);
-                jt = layer_base_link.cloud.erase(jt);
-                continue;
-            }
+            // float max_diff_ = 0;
+            // float min_diff_ = 1.0;
+            // bool diff_check = false;
+            // for (const auto& tgt_point : target_layer.cloud)
+            // {
+            //     float dist_diff = pcl::euclideanDistance(point_global, tgt_point);
+            //     max_diff_ = std::max(max_diff_, dist_diff);
+            //     min_diff_ = std::min(min_diff_, dist_diff);
+            //     // if (dist_diff > this->row3_dist_diff_min && dist_diff < this->row3_dist_diff_max)
+            //     if (dist_diff < this->compare_dist_diff_max)
+            //     {
+            //         // RCLCPP_INFO(node->get_logger(), "pass ! 3row dist diff %f", dist_diff);
+            //         diff_check = true;
+            //         break;
+            //     }
+            // }
+            // if (diff_check)
+            // {
+            //     it = layer.cloud.erase(it);
+            //     jt = layer_base_link.cloud.erase(jt);
+            //     continue;
+            // }
 
             std::string key = std::to_string(point_global.x).substr(0, std::to_string(point_global.x).find(".") + 3) +
                               "," +
@@ -679,11 +704,7 @@ LowObstacleFilter::LowObstacleFilter(std::shared_ptr<PerceptionNode> node_ptr_, 
     this->input = getYamlValue<std::string>(__FUNCTION__, config, "input", "");
     this->dist_max = getYamlValue<float>(__FUNCTION__, config, "dist_max", 0.7);
     this->dist_min = getYamlValue<float>(__FUNCTION__, config, "dist_min", 0.0);
-    this->dist_diff = getYamlValue<float>(__FUNCTION__, config, "dist_diff", 0.035);
-
-    // RCLCPP_INFO(
-    //     this->getNodePtr()->get_logger(), "Low obstacle dist_max-> %f, dist_min-> %f", this->dist_max,
-    //     this->dist_min);
+    this->dist_diff_threshold = getYamlValue<float>(__FUNCTION__, config, "dist_diff", 0.035);
 }
 
 LayerVector LowObstacleFilter::updateImpl(LayerVector layer_vector)
@@ -701,8 +722,8 @@ LayerVector LowObstacleFilter::updateImpl(LayerVector layer_vector)
     }
 
     auto position = node->getPosition();
-    geometry_msgs::msg::Transform transform_msg;
-    tf2::toMsg(position.getTransform().inverse(), transform_msg);
+    // geometry_msgs::msg::Transform transform_msg;
+    // tf2::toMsg(position.getTransform().inverse(), transform_msg);
     // Eigen::Affine3f inverse_transform = tf2::transformToEigen(transform_msg).cast<float>();
 
     auto target_layer = node->getSensorLayer(this->input);
@@ -714,10 +735,10 @@ LayerVector LowObstacleFilter::updateImpl(LayerVector layer_vector)
         }
         if (layer.cloud.size() > 0 && target_layer.cloud.size() > 0)
         {
-            float dist = pcl::euclideanDistance(layer.cloud[0], target_layer.cloud[0]);
+            float dist_diff = pcl::euclideanDistance(layer.cloud[0], target_layer.cloud[0]);
 
             // RCLCPP_INFO(node->get_logger(), "dist_diff: %f", dist_diff);
-            if (dist <=this->dist_diff)
+            if (dist_diff <= this->dist_diff_threshold)
             {
                 layer.isDeletable = false;
                 if (logIntervalPassed())
@@ -729,7 +750,7 @@ LayerVector LowObstacleFilter::updateImpl(LayerVector layer_vector)
                         position.y,
                         layer.cloud[0].x,
                         layer.cloud[0].y,
-                        dist);
+                        dist_diff);
                 }
             }
             else

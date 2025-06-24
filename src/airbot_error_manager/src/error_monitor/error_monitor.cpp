@@ -297,8 +297,6 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
     }
 
     static rclcpp::Clock clock(RCL_STEADY_TIME);
-    static std::unordered_map<std::string, double> overheat_occured_times_;
-    static std::unordered_map<std::string, bool> overheat_logged_;
     error_state = false;
 
     // AP 보드 온도 에러 판단 (Board temperature error check)
@@ -322,10 +320,11 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
             // Check for high temperature warning
             if (temp_value > params.temperature_th) { // 70 celsius
                 // [250407] hyjoe : 보드 과열 에러 발생 시 파일 위치, 보드 온도 로깅 (계속)
-                RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[BoardOverheatErrorMonitor] Warning: High temperature detected!,File: %s, Temperature: %.2f°C",
-                    file_path.c_str(), temp_value
-                );
+                warning_files_[file_path] = temp_value;
+                // RCLCPP_INFO(node_ptr_->get_logger(),
+                //     "[BoardOverheatErrorMonitor] Warning: High temperature detected!,File: %s, Temperature: %.2f°C",
+                //     file_path.c_str(), temp_value
+                // );
 
                 auto now_sec = clock.now().seconds();
                 auto it = overheat_occured_times_.find(file_path);
@@ -334,10 +333,11 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
                     overheat_logged_[file_path] = false;
                 } else if (now_sec - it->second >= params.duration_sec) { // 30 sec
                     if (!overheat_logged_[file_path]) {
-                        RCLCPP_INFO(node_ptr_->get_logger(),
-                            "[BoardOverheatErrorMonitor] Error: High temperature detected Over 30sec!,File: %s, Temperature: %.2f°C",
-                            file_path.c_str(), temp_value
-                        );
+                        error_files_[file_path] = temp_value;
+                        // RCLCPP_INFO(node_ptr_->get_logger(),
+                        //     "[BoardOverheatErrorMonitor] Error: High temperature detected Over 30sec!,File: %s, Temperature: %.2f°C",
+                        //     file_path.c_str(), temp_value
+                        // );
                         overheat_logged_[file_path] = true;
                     }
                     error_state = true;
@@ -346,6 +346,8 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
                 if (overheat_occured_times_.find(file_path) != overheat_occured_times_.end()) {
                     overheat_occured_times_.erase(file_path);
                     overheat_logged_.erase(file_path);
+                    warning_files_.erase(file_path);
+                    error_files_.erase(file_path);
                 }
             }
         }
@@ -355,6 +357,36 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
                 file_path.c_str(), e.what()
             );
         }
+    }
+
+    // [250624] hyjoe : 보드 과열 워닝/에러 발생 시 파일명, 온도 한줄로 로깅되도록 수정.
+    if (!warning_files_.empty()) {
+        std::ostringstream oss;
+        for (const auto& [file_path, temp] : warning_files_) { // thermal_zoneX 부분만 추출
+            size_t last_slash = file_path.rfind('/');
+            size_t prev_slash = file_path.rfind('/', last_slash - 1);
+            std::string zone = file_path.substr(prev_slash + 1, last_slash - prev_slash - 1);
+            double duration = clock.now().seconds() - overheat_occured_times_[file_path];
+            oss << "[" << zone << ", " << temp << "°C, over " << std::fixed << std::setprecision(2) << duration << "sec]";
+        }
+        RCLCPP_INFO(node_ptr_->get_logger(),
+            "[BoardOverheatErrorMonitor] Warning: High temperature detected! %s",
+            oss.str().c_str()
+        );
+    }
+    if (!error_files_.empty()) {
+        std::ostringstream oss;
+        for (const auto& [file_path, temp] : error_files_) { // thermal_zoneX 부분만 추출
+            size_t last_slash = file_path.rfind('/');
+            size_t prev_slash = file_path.rfind('/', last_slash - 1);
+            std::string zone = file_path.substr(prev_slash + 1, last_slash - prev_slash - 1);
+            double duration = clock.now().seconds() - overheat_occured_times_[file_path];
+            oss << "[" << zone << ", " << temp << "°C, over " << std::fixed << std::setprecision(2) << duration << "sec]";
+        }
+        RCLCPP_INFO(node_ptr_->get_logger(),
+            "[BoardOverheatErrorMonitor] Error: High temperature detected Over %.0f sec! %s",
+            params.duration_sec, oss.str().c_str()
+        );
     }
 
     return error_state;

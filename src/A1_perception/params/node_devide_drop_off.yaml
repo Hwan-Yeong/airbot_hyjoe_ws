@@ -7,57 +7,66 @@ A1_perception:
       disable_climbing_threshold: -1.15
       timeout_ms: 1800
     inputs:
-      robot_position:
+      # "필수" [From nav2]
+      robot_position:           
         topic: "/amcl_pose"
         type: "PoseWithCovarianceStamped"
-      multi_tof_left_row1:
-        topic: "/sensor_to_pointcloud/tof/multi/left/row_1"
-        type: "PointCloud2"
-      multi_tof_left_row2:
-        topic: "/sensor_to_pointcloud/tof/multi/left/row_2"
-        type: "PointCloud2"
-      multi_tof_left_row4:
-        topic: "/sensor_to_pointcloud/tof/multi/left/row_4"
-        type: "PointCloud2"
-      multi_tof_right_row1:
-        topic: "/sensor_to_pointcloud/tof/multi/right/row_1"
-        type: "PointCloud2"
-      multi_tof_right_row2:
-        topic: "/sensor_to_pointcloud/tof/multi/right/row_2"
-        type: "PointCloud2"
-      multi_tof_right_row4:
-        topic: "/sensor_to_pointcloud/tof/multi/right/row_4"
+
+      # "필수" [From everybot(mcu)]
+      imu:
+        topic: "/imu_data"
+        type: "sensor_msgs/msg/Imu"
+
+      # "필수" [From everybot(lidar)]
+      lidar_pc_baselink: 
+        topic: "/scan_merged_pointcloud"
         type: "PointCloud2"
 
-      multi_tof_4_left:
+    #[From everybot(sensor_manager)]
+    multi_tof_inputs:
+      left: [
+        1, 4, 7, 17,
+        20, 23, 28, 31,
+        44, 47, 49, 52,
+        55, 57, 60, 63
+      ]
+      right: [
+        0, 3, 6, 16,
+        19, 22, 24, 27,
+        40, 43, 48, 51,
+        54, 56, 59, 62
+      ]
+
+######## drop off ########
+
+      multi_tof_left_drop_off:
         inputs:
-        - "multi_tof_left_row4"
+        - "multi_tof_left_idx_57"
+        - "multi_tof_left_idx_60"
+        - "multi_tof_left_idx_63"
         filter:
           compose:
             filters:
-              dist_check:
+              lidar_dist_check:
                 min_range: 0.0
-                max_range: 0.15
-                inputs:
-                - multi_tof_left_row1
-                - multi_tof_left_row2
+                max_range: 0.3
               drop_off:
-                min_range: 0.5
+                min_range: 0.59
                 line_length: 0.05
                 resolution: 0.05
-      multi_tof_4_right:
+
+      multi_tof_right_drop_off:
         inputs:
-        - "multi_tof_right_row4"
+        - "multi_tof_right_idx_56"
+        - "multi_tof_right_idx_59"
+        - "multi_tof_right_idx_62"
         filter:
           compose:
             filters:
-              dist_check:
+              lidar_dist_check:
                 min_range: 0.0
-                max_range: 0.15
-                inputs:
-                - multi_tof_right_row1
-                - multi_tof_right_row2
+                max_range: 0.3
               drop_off:
-                min_range: 0.5
+                min_range: 0.59
                 line_length: 0.05
                 resolution: 0.05

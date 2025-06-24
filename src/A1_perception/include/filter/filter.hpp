@@ -163,7 +163,8 @@ class RoIFilter : public BaseFilter
    protected:
     virtual bool isInside(pcl::PointXY point) = 0;
     bool use_inside{true};
-    bool publish_stop{true};
+    bool use_when_climb{true};
+    bool delete_out_of_range{true};
 
    private:
     LayerVector updateImpl(LayerVector layer_vector) override;
@@ -380,7 +381,7 @@ class LowObstacleFilter : public BaseFilter
     std::string input{};
     float dist_max{};
     float dist_min{};
-    float dist_diff{};
+    float dist_diff_threshold{};
 };
 
 /**

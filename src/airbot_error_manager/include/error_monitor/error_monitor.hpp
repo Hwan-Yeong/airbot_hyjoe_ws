@@ -224,6 +224,10 @@ private:
     float total_temp;
     int valid_reads ;
     double avg_temp;
+    std::unordered_map<std::string, double> warning_files_;
+    std::unordered_map<std::string, double> error_files_;
+    std::unordered_map<std::string, double> overheat_occured_times_;
+    std::unordered_map<std::string, bool> overheat_logged_;
     std::vector<std::string> temp_files = {
         "/sys/class/thermal/thermal_zone0/temp",
         "/sys/class/thermal/thermal_zone1/temp",

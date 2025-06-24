@@ -24,6 +24,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TofData.msg"
   "msg/ImuCalibration.msg"
   "msg/CameraData.msg"
+  "msg/AiTemperature.msg"
   "msg/CameraDataArray.msg"
   "msg/StationData.msg"
   "msg/ErrorList.msg"

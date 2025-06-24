@@ -22,14 +22,15 @@ A1_perception:
           compose:
             filters:
               timeout:
-                timeout_milliseconds: 10000
+                timeout_milliseconds: 60000
               sector_roi:
                 use_inside: true
-                min_range: 0.0
-                max_range: 1.0
-                min_angle: -150
-                max_angle: 150
+                delete_out_of_range: true
+                use_when_climb: true
+                min_range: 0.3
+                max_range: 5.0
+                min_angle: -180
+                max_angle: 180
               density:
                 max_count: 3
-                radius: 0.1
-      
+                radius: 0.2   

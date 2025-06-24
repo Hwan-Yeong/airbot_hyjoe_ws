@@ -130,7 +130,7 @@ void scanMerger::update_point_cloud_rgb()
     process_laser(laser2_, laser2XOff_, laser2YOff_, laser2ZOff_, laser2Alpha_, 
                 laser2AngleMin_, laser2AngleMax_, flip2_);
     
-    removePointsWithinRadius(cloud_, 0.2); //radius 0.19
+    removePointsWithinRadius(cloud_, 0.18); //radius 0.19
     auto pc2_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
     pcl::toROSMsg(cloud_, *pc2_msg);
     pc2_msg->header.frame_id = cloudFrameId_;

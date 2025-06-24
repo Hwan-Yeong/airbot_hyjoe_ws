@@ -112,9 +112,8 @@ void laserScanCallback(
 PerceptionNode::PerceptionNode() : Node("A1_perception")
 {
     // 파라미터 선언: params.yaml의 "ros__parameters" 아래에 node_params가 있으므로 기본값을 설정
-    std::string node_params{};
     this->declare_parameter("node_params", "node.yaml");
-    this->get_parameter("node_params", node_params);
+    this->loadConfig();
 
     int log_level{};
     this->declare_parameter("log_level", 10);
@@ -124,6 +123,12 @@ PerceptionNode::PerceptionNode() : Node("A1_perception")
     rcutils_logging_set_logger_level(this->get_logger().get_name(), static_cast<RCUTILS_LOG_SEVERITY>(log_level));
 
     RCLCPP_INFO(this->get_logger(), "A1_perception has been started.");
+}
+
+void PerceptionNode::loadConfig(void)
+{
+    std::string node_params{};
+    this->get_parameter("node_params", node_params);
     try
     {
         std::string package_share_directory = ament_index_cpp::get_package_share_directory("A1_perception");
@@ -209,11 +214,46 @@ void PerceptionNode::initController()
             {
                 RCLCPP_INFO(this->get_logger(), "[Perception] OFF");
                 this->resetLayers();
+                if (this->timer)
+                    this->timer.reset();
             }
             else
             {
                 RCLCPP_INFO(this->get_logger(), "[Perception] ON");
+                if (this->timer)
+                    this->timer.reset();
+                auto timer_callback = std::bind(&PerceptionNode::timerCallback, this);
+                auto period = std::chrono::milliseconds(this->config["period_ms"].as<int>());
+                this->timer = this->create_wall_timer(period, timer_callback);
             }
+        });
+
+    this->controller_subscribers["perception_reload"] = this->create_subscription<std_msgs::msg::Empty>(
+        "/perception/config/reload",
+        qos_profile,
+        [this](const std_msgs::msg::Empty::SharedPtr msg)
+        {
+            this->perception_use = false;
+            this->resetLayers();
+            if (this->timer)
+                this->timer.reset();
+
+            this->subscribers.clear();
+            this->publishers.clear();
+
+            this->filters.clear();
+            this->drop_off_layer_map.clear();
+            this->sensor_layer_map.clear();
+            this->layers.clear();
+
+            this->loadConfig();
+
+            this->initSubscribers(this->config["inputs"]);
+            this->initMultiToFSubscribers(this->config["multi_tof_inputs"]);
+            this->initFilters(this->config["layers"]);
+            this->initPublishers(this->config["layers"]);
+
+            RCLCPP_INFO(this->get_logger(), "[Perception] Complete reload configuration.");
         });
 }
 
@@ -327,9 +367,10 @@ void PerceptionNode::init()
     auto pnode = std::static_pointer_cast<PerceptionNode>(this->shared_from_this());
     this->climb_checker = ClimbChecker(pnode, climb_condition);
 
-    auto timer_callback = std::bind(&PerceptionNode::timerCallback, this);
-    auto period = std::chrono::milliseconds(this->config["period_ms"].as<int>());
-    this->timer = this->create_wall_timer(period, timer_callback);
+    // auto timer_callback = std::bind(&PerceptionNode::timerCallback, this);
+    // auto period = std::chrono::milliseconds(this->config["period_ms"].as<int>());
+    // this->timer = this->create_wall_timer(period, timer_callback);
+    this->perception_use = false;
 }
 
 void PerceptionNode::initMultiToFSubscribers(const YAML::Node& config)

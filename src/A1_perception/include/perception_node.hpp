@@ -69,9 +69,10 @@ class PerceptionNode : public rclcpp::Node
     void setClimb(bool is_climb);
     bool isClimb();
 
-    bool perception_use{true};
+    bool perception_use{false};
 
    private:
+    void loadConfig(void);
     void initSubscribers(const YAML::Node& config);
     void initMultiToFSubscribers(const YAML::Node& config);
     void initPublishers(const YAML::Node& config);
