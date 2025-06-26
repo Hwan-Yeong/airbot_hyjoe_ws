@@ -134,7 +134,11 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(co
         }
         point_size_x = static_cast<int>(box.size_x/resolution) + 1;
         point_size_y = static_cast<int>(box.size_y/resolution) + 1;
-        total_points += point_size_x * point_size_y;
+        if (point_size_x == 1 && point_size_y == 1) {
+            total_points += 1;
+        } else {
+            total_points += 2*point_size_x + 2*(point_size_y-2);
+        }
     }
 
     msg.header = input_bbox_array.header;
@@ -173,21 +177,25 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(co
         const double size_x = box.size_x;
         const double size_y = box.size_y;
 
+        point_size_x = static_cast<int>(size_x / resolution) + 1;
+        point_size_y = static_cast<int>(size_y / resolution) + 1;
+
         for (int i = 0; i < point_size_x; ++i) {
             for (int j = 0; j < point_size_y; ++j) {
-                size_t current_offset = static_cast<size_t>(ptr - msg.data.data());
-                if (current_offset + msg.point_step > max_size) {
-                    // RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "# IGNORE! # Memory overflow detected! #");
-                    return msg;
-                }
+                if (i == 0 || i == point_size_x - 1 || j == 0 || j == point_size_y - 1) { // 테두리 조건: x축 가장자리 or y축 가장자리일 때만 point 생성
+                    size_t current_offset = static_cast<size_t>(ptr - msg.data.data());
+                    if (current_offset + msg.point_step > max_size) {
+                        return msg;
+                    }
 
-                float x = (center_x - size_x/2) + i*resolution;
-                float y = (center_y - size_y/2) + j*resolution;
-                float z = 0.0f;
-                memcpy(ptr, &x, sizeof(float));
-                memcpy(ptr + 4, &y, sizeof(float));
-                memcpy(ptr + 8, &z, sizeof(float));
-                ptr += msg.point_step;
+                    float x = (center_x - size_x/2) + i*resolution;
+                    float y = (center_y - size_y/2) + j*resolution;
+                    float z = 0.0f;
+                    memcpy(ptr, &x, sizeof(float));
+                    memcpy(ptr + 4, &y, sizeof(float));
+                    memcpy(ptr + 8, &z, sizeof(float));
+                    ptr += msg.point_step;
+                }
             }
         }
     }

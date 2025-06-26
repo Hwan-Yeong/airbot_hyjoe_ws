@@ -85,7 +85,7 @@ class CliffDetectionErrorSimulation(Node):
         camera_data_1.score = 50
         camera_data_1.x = 0.0
         camera_data_1.y = 0.0
-        camera_data_1.theta = np.deg2rad(30)
+        camera_data_1.theta = np.deg2rad(50)
         camera_data_1.width = 1.0
         camera_data_1.height = 0.8
         camera_data_1.distance = 1.0
@@ -96,8 +96,8 @@ class CliffDetectionErrorSimulation(Node):
         camera_data_2.x = 0.0
         camera_data_2.y = 0.0
         camera_data_2.theta = -np.deg2rad(30)
-        camera_data_2.width = 1.0
-        camera_data_2.height = 0.8
+        camera_data_2.width = 0.5
+        camera_data_2.height = 0.9
         camera_data_2.distance = 1.0
 
         self.camera_data_array.data_array = [camera_data_1, camera_data_2]
