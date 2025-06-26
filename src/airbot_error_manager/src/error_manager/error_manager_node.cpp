@@ -52,6 +52,7 @@ ErrorManagerNode::ErrorManagerNode()
     erase_after_pub_error_codes_.insert("E06"); // 후면 라이다 센서 오염 (from mcu)
     erase_after_pub_error_codes_.insert("E07"); // 스테이션 위치 확인 불가 (from state_manager)
     erase_after_pub_error_codes_.insert("E08"); // 충전불가 (from mcu)
+    erase_after_pub_error_codes_.insert("F09-2"); // 카메라 & AI 통신 불량(비복귀에러)
 
     error_list_pub_ = this->create_publisher<robot_custom_msgs::msg::ErrorListArray>("/error_list", 10);
     robot_state_sub_ = this->create_subscription<robot_custom_msgs::msg::RobotState>(

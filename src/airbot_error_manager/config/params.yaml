@@ -69,3 +69,16 @@ airbot_error_monitor:
         duration_sec: 60.0
         one_d_min_dist_m: 0.03
         one_d_max_dist_m: 0.15
+
+    ai_error:
+      monitoring_rate_ms: 1000
+      occure:
+        duration_sec: 30.0
+
+    battery_overheat_error:
+      monitoring_rate_ms: 1000
+      occure:
+        high_temp_th: 45
+      release:
+        low_temp_th: 43
+        duration_sec: 10.0

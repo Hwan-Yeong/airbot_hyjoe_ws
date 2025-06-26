@@ -11,6 +11,7 @@
 #include "robot_custom_msgs/msg/station_data.hpp"
 #include "robot_custom_msgs/msg/robot_state.hpp"
 #include "robot_custom_msgs/msg/tof_data.hpp"
+#include "std_msgs/msg/string.hpp"
 #include "error_monitor/error_monitor_node.hpp"
 
 /**
@@ -221,6 +222,7 @@ public:
 
 private:
     bool error_state = false;
+    //board_overheat
     float total_temp;
     int valid_reads ;
     double avg_temp;
@@ -322,6 +324,69 @@ public:
         node_ptr_->get_parameter(ns + ".occure.one_d_min_dist_m", params.one_d_min_dist_m);
         node_ptr_->get_parameter(ns + ".occure.one_d_max_dist_m", params.one_d_max_dist_m);
     }
+};
+
+class AICommunicationErrorMonitor : public BaseErrorMonitor<std_msgs::msg::String>
+{
+public:
+    using InputType = std_msgs::msg::String;
+    
+    struct tParams {
+        double duration_sec;
+    } params;
+
+    static std::string paramNamespace() { return "ai_error"; }
+
+    bool checkError(const InputType& input) override;
+
+    void loadParams(const std::string& ns) override {
+        if (!node_ptr_) return;
+
+        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 30.0);
+        node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
+    }
+    bool monitor_error = true;
+    bool errorState = false;
+    bool init_time = false;
+    double current_time = 0.0;
+    double prev_time = 0.0;
+    double time_diff = 0.0;
+};
+
+class BatteryOverheatErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>>
+{
+public:
+    using InputType = std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>;
+
+    struct tParams {
+        int occur_temperature_th;
+        int release_temperature_th;
+        double release_duration_sec;
+    } params;
+
+    static std::string paramNamespace() { return "battery_overheat_error"; }
+
+    bool checkError(const InputType& input) override;
+
+    void loadParams(const std::string& ns) override {
+        if (!node_ptr_) return;
+
+        node_ptr_->declare_parameter<int>(ns + ".occure.high_temp_th", 45);
+        node_ptr_->declare_parameter<int>(ns + ".release.low_temp_th", 43);
+        node_ptr_->declare_parameter<double>(ns + ".release.duration_sec", 10.0);
+
+        node_ptr_->get_parameter(ns + ".occure.high_temp_th", params.occur_temperature_th);
+        node_ptr_->get_parameter(ns + ".release.low_temp_th", params.release_temperature_th);
+        node_ptr_->get_parameter(ns + ".release.duration_sec", params.release_duration_sec);
+    }
+private:
+    bool station_flag = false;
+    bool error_state = false;
+    double current_time = 0.0;
+    double release_time_diff = 0.0;
+    double release_start_time = 0.0;
+    bool monitor_release = false;
+    bool is_first_logging = true;
 };
 
 #endif // __ERROR_MONITOR_HPP__

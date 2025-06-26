@@ -713,3 +713,74 @@ bool TofErrorMonitor::checkError(const InputType& input) {
 
     return isError;
 }
+
+bool AICommunicationErrorMonitor::checkError(const InputType& input) {
+    
+    static rclcpp::Clock clock(RCL_STEADY_TIME);
+    std::string ai_version = input.data;
+    current_time = clock.now().seconds();
+    if(!init_time){
+        prev_time = current_time;
+        init_time = true;
+    }
+    
+    if( monitor_error ){
+        time_diff = current_time - prev_time;
+        if(ai_version.empty()){
+            if(time_diff >= 30.0){ //ai 데이터 통신 불가 30초 경과 시, 에러발생. 및 모니터링 안함.
+                RCLCPP_INFO(node_ptr_->get_logger(), "[OCCUR] AI disconnect Error Timeout %f, AI version %s",time_diff,ai_version.c_str());
+                errorState = true;
+                monitor_error = false;
+            } else{
+                RCLCPP_INFO(node_ptr_->get_logger(), "AI disconnect check Time %f, AI version %s",time_diff,ai_version.c_str());
+            }
+        } else{ //데이터 통신 확인.
+            RCLCPP_INFO(node_ptr_->get_logger(), "AI communication Complete runTime %f, AI version %s",time_diff,ai_version.c_str());
+            monitor_error = false;
+        }
+    }
+    return errorState;
+}
+
+bool BatteryOverheatErrorMonitor::checkError(const InputType& input)
+{
+    static rclcpp::Clock clock(RCL_STEADY_TIME);
+    current_time = clock.now().seconds();
+
+    if(!error_state){ // 에러가 아닌경우.
+        if( input.first.battery_temperature1 > params.occur_temperature_th 
+            || input.first.battery_temperature2 > params.occur_temperature_th ){ //threshold 초과시 즉시 에러발생.
+            error_state = true;
+            monitor_release = true;
+            RCLCPP_INFO(node_ptr_->get_logger(),
+                        "[BatteryOverheatErrorMonitor] [OCCUR] Battery Overheat error \n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+            );
+        }
+    } else{ //에러발생 시, 해제 모니터링.
+        if( input.first.battery_temperature1 <= params.release_temperature_th 
+            && input.first.battery_temperature2 <= params.release_temperature_th ){ //release threshold 아래인 경우.
+            if( monitor_release ){ //모니터 시작 time set
+                release_start_time = current_time;
+                monitor_release = false;
+            }
+            release_time_diff = current_time - release_start_time;
+            if(release_time_diff >= params.release_duration_sec){ //release 시간 이상인 경우 에러 해제.
+                error_state = false;
+                RCLCPP_INFO(node_ptr_->get_logger(),
+                        "[BatteryOverheatErrorMonitor] [RELEASED] Battery Overheat error release\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                );
+            }
+        } else{
+            monitor_release = true;  
+        }
+    }
+    return error_state;
+}

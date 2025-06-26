@@ -31,16 +31,19 @@ ErrorMonitorNode::ErrorMonitorNode()
         "/tof_data", 10, std::bind(&ErrorMonitorNode::tofCallback, this, std::placeholders::_1)
     );
 
+    ai_version_sub = this->create_subscription<std_msgs::msg::String>(
+        "/ai_version", 10, std::bind(&ErrorMonitorNode::aiVerCallback, this, std::placeholders::_1));
+
     // Publisher
     fall_down_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/fall_down", 20);
     low_battery_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/low_battery", 10);
-    board_overheat_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/board_overheat", 10);
+    board_battery_overheat_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/board_battery_overheat", 10);
     battery_discharge_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/discharging_battery", 10);
     charging_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/e_code/charging", 10);
     lift_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/lifted", 10);
     cliff_detection_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/cliff_detected", 10);
     one_d_tof_detection_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/top_tof_obstacle_error", 10);
-
+    ai_communication_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/f_code/ai_connect", 10);
     // Timer
     timer_ = this->create_wall_timer(
         10ms,
@@ -63,6 +66,8 @@ void ErrorMonitorNode::init()
     addMonitor<LiftErrorMonitor>(std::make_shared<LiftErrorMonitor>());
     addMonitor<CliffDetectionErrorMonitor>(std::make_shared<CliffDetectionErrorMonitor>());
     addMonitor<TofErrorMonitor>(std::make_shared<TofErrorMonitor>());
+    addMonitor<AICommunicationErrorMonitor>(std::make_shared<AICommunicationErrorMonitor>());
+    addMonitor<BatteryOverheatErrorMonitor>(std::make_shared<BatteryOverheatErrorMonitor>());
 }
 
 void ErrorMonitorNode::initVariables()
@@ -81,6 +86,8 @@ void ErrorMonitorNode::initVariables()
     update_robot_state_cliff_detection = false;
     update_odom_data_cliff_detection = false;
     update_tof_one_d_detection = false;
+    update_ai_commnucation = false;
+    update_battery_overheat = false;
 
     publish_cnt_low_battery_error_ = 0;
     publish_cnt_fall_down_error_ = 0;
@@ -90,6 +97,8 @@ void ErrorMonitorNode::initVariables()
     publish_cnt_lift_error_ = 0;
     publish_cnt_cliff_detection_error_ = 0;
     publish_cnt_tof_detection_error_ = 0;
+    publish_cnt_ai_commnucation_error_ = 0;
+    publish_cnt_battery_overheat_error_ = 0;
 
     bottom_ir_data = robot_custom_msgs::msg::BottomIrData();
     imu_data = sensor_msgs::msg::Imu();
@@ -97,6 +106,7 @@ void ErrorMonitorNode::initVariables()
     station_data = robot_custom_msgs::msg::StationData();
     odom_data = nav_msgs::msg::Odometry();
     tof_data = robot_custom_msgs::msg::TofData();
+    ai_ver_data = std_msgs::msg::String();
 }
 
 void ErrorMonitorNode::setParams()
@@ -109,6 +119,8 @@ void ErrorMonitorNode::setParams()
     this->declare_parameter<int>("lift_error.monitoring_rate_ms", 10);
     this->declare_parameter<int>("cliff_error.monitoring_rate_ms", 10);
     this->declare_parameter<int>("tof_sensor.monitoring_rate_ms", 50);
+    this->declare_parameter<int>("ai_error.monitoring_rate_ms", 1000);
+    this->declare_parameter<int>("battery_overheat_error.monitoring_rate_ms", 1000);
 
     this->get_parameter("low_battery_error.monitoring_rate_ms", publish_cnt_low_battery_error_rate_);
     this->get_parameter("discharging_error.monitoring_rate_ms", publish_cnt_battery_discharge_error_rate_);
@@ -118,6 +130,8 @@ void ErrorMonitorNode::setParams()
     this->get_parameter("lift_error.monitoring_rate_ms", publish_cnt_lift_error_rate_);
     this->get_parameter("cliff_error.monitoring_rate_ms", publish_cnt_cliff_detection_error_rate_);
     this->get_parameter("tof_sensor.monitoring_rate_ms", publish_cnt_tof_detection_error_rate_);
+    this->get_parameter("ai_error.monitoring_rate_ms", publish_cnt_ai_commnucation_error_rate_);
+    this->get_parameter("battery_overheat_error.monitoring_rate_ms", publish_cnt_battery_overheat_error_rate_);
 
     RCLCPP_INFO(this->get_logger(), "=================== ERROR MONITOR PARAMETER ===================");
     RCLCPP_INFO(this->get_logger(), "Low Battery Rate: %d ms", publish_cnt_low_battery_error_rate_);
@@ -127,6 +141,8 @@ void ErrorMonitorNode::setParams()
     RCLCPP_INFO(this->get_logger(), "Charging Rate: %d ms", publish_cnt_charging_error_rate_);
     RCLCPP_INFO(this->get_logger(), "Lift Error Rate: %d ms", publish_cnt_lift_error_rate_);
     RCLCPP_INFO(this->get_logger(), "Cliff Detection Error Rate: %d ms", publish_cnt_cliff_detection_error_rate_);
+    RCLCPP_INFO(this->get_logger(), "AI Board Communication Error Rate: %d ms", publish_cnt_ai_commnucation_error_rate_);
+    RCLCPP_INFO(this->get_logger(), "Battery Overheat Error Rate: %d ms", publish_cnt_battery_overheat_error_rate_);
     RCLCPP_INFO(this->get_logger(), "===============================================================");
 }
 
@@ -142,6 +158,8 @@ void ErrorMonitorNode::errorMonitor()
     publish_cnt_lift_error_ += 10;
     publish_cnt_cliff_detection_error_ += 10;
     publish_cnt_tof_detection_error_ += 10;
+    publish_cnt_ai_commnucation_error_ +=10;
+    publish_cnt_battery_overheat_error_ +=10;
 
     // fall down monitor
     if (update_bottom_ir_data_fall_down && update_imu_fall_down
@@ -176,17 +194,18 @@ void ErrorMonitorNode::errorMonitor()
         update_battery_status_low_battery = false;
     }
 
-    // board overheat monitor
-    if (publish_cnt_board_overheat_error_ >= publish_cnt_board_overheat_error_rate_) {
+    // board & battery overheat monitor
+    if (update_battery_overheat && ( publish_cnt_board_overheat_error_ >= publish_cnt_board_overheat_error_rate_ )) {
         bool board_overheat_error = this->runMonitor<BoardOverheatErrorMonitor>(std::nullptr_t());
-        if (board_overheat_error) {
+        bool battery_overheat_error = this->runMonitor<BatteryOverheatErrorMonitor>(std::make_pair(battery_data, station_data));
+        if (board_overheat_error || battery_overheat_error) {
             // RCLCPP_INFO(this->get_logger(), "board_overheat_error : %s", board_overheat_error ? "true" : "false");
-            // error_msg.data = true;
-            // board_overheat_error_pub_->publish(error_msg);
+            error_msg.data = true;
+            board_battery_overheat_error_pub_->publish(error_msg);
         } else {
             // icbaek, 2025.03.19 : false 여도 publish하지 않게 하였음.
-            // error_msg.data = false;
-            // board_overheat_error_pub_->publish(error_msg);
+            error_msg.data = false;
+            board_battery_overheat_error_pub_->publish(error_msg);
         }
         publish_cnt_board_overheat_error_ = 0;
     }
@@ -274,6 +293,20 @@ void ErrorMonitorNode::errorMonitor()
         update_tof_one_d_detection = false;
     }
 
+    if (publish_cnt_ai_commnucation_error_ >= publish_cnt_ai_commnucation_error_rate_)
+    {
+        bool ai_communication_error = this->runMonitor<AICommunicationErrorMonitor>(ai_ver_data);
+        if (!update_ai_commnucation && ai_communication_error) {   //통신불가 & 에러확인.         
+            error_msg.data = true;
+            ai_communication_error_pub_->publish(error_msg);
+        } else {
+            // error_msg.data = false;
+            // ai_communication_error_pub_->publish(error_msg);
+        }
+        publish_cnt_ai_commnucation_error_ = 0;
+    }
+
+
     // publish_cnt_* 변수 오버플로우 방지
     if (publish_cnt_low_battery_error_ >= 100000) publish_cnt_low_battery_error_ = 0;
     if (publish_cnt_fall_down_error_ >= 100000) publish_cnt_fall_down_error_ = 0;
@@ -283,6 +316,8 @@ void ErrorMonitorNode::errorMonitor()
     if (publish_cnt_lift_error_ >= 100000) publish_cnt_lift_error_ = 0;
     if (publish_cnt_cliff_detection_error_ >= 100000) publish_cnt_cliff_detection_error_ = 0;
     if (publish_cnt_tof_detection_error_ >= 100000) publish_cnt_tof_detection_error_ = 0;
+    if (publish_cnt_ai_commnucation_error_ >= 100000) publish_cnt_ai_commnucation_error_ = 0;
+    if (publish_cnt_battery_overheat_error_ >= 100000) publish_cnt_battery_overheat_error_ = 0;
 }
 
 void ErrorMonitorNode::batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg)
@@ -291,6 +326,7 @@ void ErrorMonitorNode::batteryCallback(const robot_custom_msgs::msg::BatteryStat
     update_battery_status_low_battery = true;
     update_battery_status_battery_discharging = true;
     update_battery_status_charging = true;
+    update_battery_overheat = true;
 }
 
 void ErrorMonitorNode::bottomIrDataCallback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg)
@@ -332,4 +368,10 @@ void ErrorMonitorNode::tofCallback(const robot_custom_msgs::msg::TofData::Shared
 {
     tof_data = *msg;
     update_tof_one_d_detection = true;
+}
+
+void ErrorMonitorNode::aiVerCallback(const std_msgs::msg::String::SharedPtr msg)
+{
+    ai_ver_data = *msg;
+    update_ai_commnucation = true;
 }

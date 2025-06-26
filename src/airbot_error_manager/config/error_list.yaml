@@ -50,6 +50,10 @@ airbot_error_manager:
         sub_topic: "error/f_code/camera"
         error_code: "F09-2"
         description: "Camera communication failure"
+      f_09_3: # AI보드와 통신이 안될 경우 에러(F09-2)
+        sub_topic: "error/f_code/ai_connect"
+        error_code: "F09-2"
+        description: "AI board communication failure"
       f_11: # Right 구동모터 통신 불가 에러
         sub_topic: "error/f_code/right_motor"
         error_code: "F11"
@@ -123,10 +127,10 @@ airbot_error_manager:
         sub_topic: "error/s_code/top_tof_obstacle_error"
         error_code: "S09"
         description: "1D ToF sensor obstacle detect Error"
-      s_10_2: # SoC 보드의 과열에 의한 화재 및 파손 방지 시스템 보드 과열 에러
-        sub_topic: "error/s_code/board_overheat"
+      s_10_2: # SoC 보드의 과열에 의한 화재 및 파손 방지 시스템 보드 과열 에러 & 배터리 과열 에러
+        sub_topic: "error/s_code/board_battery_overheat"
         error_code: "S10-2"
-        description: "Board overheating."
+        description: "Board or Battery overheating."
       s_11: # 충전부 과열에 의한 화재 및 파손 방지 에러
         sub_topic: "error/s_code/station_overheat"
         error_code: "S11"

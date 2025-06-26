@@ -4,6 +4,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "nav_msgs/msg/odometry.hpp"
+#include "std_msgs/msg/string.hpp"
 #include "error_monitor/error_monitor.hpp"
 
 template<typename T>
@@ -52,6 +53,7 @@ private:
     void robotStateCallback(const robot_custom_msgs::msg::RobotState::SharedPtr msg);
     void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
     void tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg);
+    void aiVerCallback(const std_msgs::msg::String::SharedPtr msg);
 
     bool update_battery_status_low_battery, update_battery_status_battery_discharging, update_battery_status_charging,
         update_bottom_ir_data_fall_down, update_bottom_ir_data_lift, update_bottom_ir_data_cliff_detection,
@@ -59,17 +61,23 @@ private:
         update_station_data_charging,
         update_robot_state_low_battery, update_robot_state_battery_discharging, update_robot_state_cliff_detection,
         update_odom_data_cliff_detection,
-        update_tof_one_d_detection;
+        update_tof_one_d_detection,
+        update_ai_commnucation,
+        update_battery_overheat;
     int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_,
         publish_cnt_board_overheat_error_, publish_cnt_battery_discharge_error_,
         publish_cnt_charging_error_, publish_cnt_lift_error_,
         publish_cnt_cliff_detection_error_,
-        publish_cnt_tof_detection_error_;
+        publish_cnt_tof_detection_error_,
+        publish_cnt_ai_commnucation_error_,
+        publish_cnt_battery_overheat_error_;
     int publish_cnt_low_battery_error_rate_, publish_cnt_fall_down_error_rate_,
         publish_cnt_board_overheat_error_rate_, publish_cnt_battery_discharge_error_rate_,
         publish_cnt_charging_error_rate_, publish_cnt_lift_error_rate_,
         publish_cnt_cliff_detection_error_rate_,
-        publish_cnt_tof_detection_error_rate_;
+        publish_cnt_tof_detection_error_rate_,
+        publish_cnt_ai_commnucation_error_rate_,
+        publish_cnt_battery_overheat_error_rate_;
 
     robot_custom_msgs::msg::BatteryStatus battery_data;
     robot_custom_msgs::msg::BottomIrData bottom_ir_data;
@@ -78,6 +86,7 @@ private:
     robot_custom_msgs::msg::RobotState robot_state;
     nav_msgs::msg::Odometry odom_data;
     robot_custom_msgs::msg::TofData tof_data;
+    std_msgs::msg::String ai_ver_data;
 
     rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr bottom_ir_data_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
@@ -86,12 +95,13 @@ private:
     rclcpp::Subscription<robot_custom_msgs::msg::RobotState>::SharedPtr robot_state_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr ai_version_sub;
 
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
         low_battery_error_pub_, fall_down_error_pub_,
-        board_overheat_error_pub_, battery_discharge_error_pub_,
+        board_battery_overheat_error_pub_, battery_discharge_error_pub_,
         charging_error_pub_, lift_error_pub_, cliff_detection_error_pub_,
-        one_d_tof_detection_error_pub_;
+        one_d_tof_detection_error_pub_, ai_communication_error_pub_;
 
     std::unordered_map<std::type_index, std::shared_ptr<void>> monitors_;
 
