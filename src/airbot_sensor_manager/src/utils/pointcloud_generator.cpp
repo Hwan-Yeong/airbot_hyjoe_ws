@@ -177,8 +177,8 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(co
         const double size_x = box.size_x;
         const double size_y = box.size_y;
 
-        point_size_x = static_cast<int>(size_x / resolution) + 1;
-        point_size_y = static_cast<int>(size_y / resolution) + 1;
+        point_size_x = static_cast<int>(size_x/resolution) + 1;
+        point_size_y = static_cast<int>(size_y/resolution) + 1;
 
         for (int i = 0; i < point_size_x; ++i) {
             for (int j = 0; j < point_size_y; ++j) {
