@@ -74,7 +74,7 @@ airbot_error_monitor:
     ai_error:
       monitoring_rate_ms: 1000
       occure:
-        duration_cnt_sec: 31
+        duration_cnt_sec: 180
 
     battery_overheat_error:
       monitoring_rate_ms: 1000

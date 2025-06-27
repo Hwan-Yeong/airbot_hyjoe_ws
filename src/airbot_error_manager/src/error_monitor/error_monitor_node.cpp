@@ -307,6 +307,21 @@ void ErrorMonitorNode::errorMonitor()
             // ai_communication_error_pub_->publish(error_msg);
         }
         publish_cnt_ai_commnucation_error_ = 0;
+
+        // subscriber reset
+        if (update_ai_version || update_camera_data) {
+            ai_version_sub_.reset();
+            camera_sub_.reset();
+
+            if (!ai_version_sub_ && !ai_version_sub_removed_) {
+                RCLCPP_INFO(this->get_logger(), "[ai_version_sub_] Subscriber is successfully removed");
+                ai_version_sub_removed_ = true;
+            }
+            if (!camera_sub_ && !camera_sub_removed_) {
+                RCLCPP_INFO(this->get_logger(), "[camera_sub_] Subscriber is successfully removed");
+                camera_sub_removed_ = true;
+            }
+        }
     }
 
 

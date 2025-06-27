@@ -347,7 +347,7 @@ public:
     void loadParams(const std::string& ns) override {
         if (!node_ptr_) return;
 
-        node_ptr_->declare_parameter<int>(ns + ".occure.duration_cnt_sec", 31);
+        node_ptr_->declare_parameter<int>(ns + ".occure.duration_cnt_sec", 180);
 
         node_ptr_->get_parameter(ns + ".occure.duration_cnt_sec", params.duration_cnt);
     }

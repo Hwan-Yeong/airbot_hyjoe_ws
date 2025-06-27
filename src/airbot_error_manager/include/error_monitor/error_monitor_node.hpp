@@ -80,6 +80,9 @@ private:
         publish_cnt_ai_commnucation_error_rate_,
         publish_cnt_battery_overheat_error_rate_;
 
+    bool ai_version_sub_removed_ = false;
+    bool camera_sub_removed_ = false;
+
     robot_custom_msgs::msg::BatteryStatus battery_data;
     robot_custom_msgs::msg::BottomIrData bottom_ir_data;
     sensor_msgs::msg::Imu imu_data;

@@ -725,13 +725,13 @@ bool AICommunicationErrorMonitor::checkError(const InputType& input)
         monitorCnt++;
         if (monitorCnt >= params.duration_cnt) {
             if (!errorState) {
-                RCLCPP_INFO(node_ptr_->get_logger(), "[OCCUR] AI disconnect Error Timeout %d sec", monitorCnt);
+                RCLCPP_INFO(node_ptr_->get_logger(), "[AICommunicationErrorMonitor] AI disconnect Error Occured! Timeout %d sec", monitorCnt);
             }
             errorState = true;
             monitorCnt = 0;
         } else {
-            if (!(monitorCnt%10)) {
-                RCLCPP_INFO(node_ptr_->get_logger(), "AI still disconnected... during %d sec", monitorCnt);
+            if (!(monitorCnt%30)) {
+                RCLCPP_INFO(node_ptr_->get_logger(), "[AICommunicationErrorMonitor] AI still disconnected... during %d sec", monitorCnt);
             }
         }
     }
