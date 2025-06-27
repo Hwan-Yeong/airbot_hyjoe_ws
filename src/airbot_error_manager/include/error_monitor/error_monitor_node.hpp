@@ -59,26 +59,24 @@ private:
     bool update_battery_status_low_battery, update_battery_status_battery_discharging, update_battery_status_charging,
         update_bottom_ir_data_fall_down, update_bottom_ir_data_lift, update_bottom_ir_data_cliff_detection,
         update_imu_fall_down, update_imu_lift,
-        update_station_data_charging,
-        update_robot_state_low_battery, update_robot_state_battery_discharging, update_robot_state_cliff_detection,
+        update_station_data_charging, update_station_data_discharging,
+        update_station_data_low_battery, update_robot_state_cliff_detection,
         update_odom_data_cliff_detection,
         update_tof_one_d_detection,
         update_ai_version, update_camera_data,
-        update_battery_overheat;
+        update_battery_status_overheat;
     int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_,
         publish_cnt_board_overheat_error_, publish_cnt_battery_discharge_error_,
         publish_cnt_charging_error_, publish_cnt_lift_error_,
         publish_cnt_cliff_detection_error_,
         publish_cnt_tof_detection_error_,
-        publish_cnt_ai_commnucation_error_,
-        publish_cnt_battery_overheat_error_;
+        publish_cnt_ai_commnucation_error_;
     int publish_cnt_low_battery_error_rate_, publish_cnt_fall_down_error_rate_,
         publish_cnt_board_overheat_error_rate_, publish_cnt_battery_discharge_error_rate_,
         publish_cnt_charging_error_rate_, publish_cnt_lift_error_rate_,
         publish_cnt_cliff_detection_error_rate_,
         publish_cnt_tof_detection_error_rate_,
-        publish_cnt_ai_commnucation_error_rate_,
-        publish_cnt_battery_overheat_error_rate_;
+        publish_cnt_ai_commnucation_error_rate_;
 
     bool ai_version_sub_removed_ = false;
     bool camera_sub_removed_ = false;
