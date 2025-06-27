@@ -30,9 +30,12 @@ ErrorMonitorNode::ErrorMonitorNode()
     tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
         "/tof_data", 10, std::bind(&ErrorMonitorNode::tofCallback, this, std::placeholders::_1)
     );
-
-    ai_version_sub = this->create_subscription<std_msgs::msg::String>(
-        "/ai_version", 10, std::bind(&ErrorMonitorNode::aiVerCallback, this, std::placeholders::_1));
+    ai_version_sub_ = this->create_subscription<std_msgs::msg::String>(
+        "/ai_version", 10, std::bind(&ErrorMonitorNode::aiVerCallback, this, std::placeholders::_1)
+    );
+    camera_sub_ = this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
+        "camera_data", 10, std::bind(&ErrorMonitorNode::cameraCallback, this, std::placeholders::_1)
+    );
 
     // Publisher
     fall_down_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/fall_down", 20);
@@ -86,7 +89,8 @@ void ErrorMonitorNode::initVariables()
     update_robot_state_cliff_detection = false;
     update_odom_data_cliff_detection = false;
     update_tof_one_d_detection = false;
-    update_ai_commnucation = false;
+    update_ai_version = false;
+    update_camera_data = false;
     update_battery_overheat = false;
 
     publish_cnt_low_battery_error_ = 0;
@@ -106,7 +110,6 @@ void ErrorMonitorNode::initVariables()
     station_data = robot_custom_msgs::msg::StationData();
     odom_data = nav_msgs::msg::Odometry();
     tof_data = robot_custom_msgs::msg::TofData();
-    ai_ver_data = std_msgs::msg::String();
 }
 
 void ErrorMonitorNode::setParams()
@@ -200,12 +203,12 @@ void ErrorMonitorNode::errorMonitor()
         bool battery_overheat_error = this->runMonitor<BatteryOverheatErrorMonitor>(std::make_pair(battery_data, station_data));
         if (board_overheat_error || battery_overheat_error) {
             // RCLCPP_INFO(this->get_logger(), "board_overheat_error : %s", board_overheat_error ? "true" : "false");
-            error_msg.data = true;
-            board_battery_overheat_error_pub_->publish(error_msg);
+            //error_msg.data = true;
+            //board_battery_overheat_error_pub_->publish(error_msg);
         } else {
             // icbaek, 2025.03.19 : false 여도 publish하지 않게 하였음.
-            error_msg.data = false;
-            board_battery_overheat_error_pub_->publish(error_msg);
+            //error_msg.data = false;
+            //board_battery_overheat_error_pub_->publish(error_msg);
         }
         publish_cnt_board_overheat_error_ = 0;
     }
@@ -282,7 +285,7 @@ void ErrorMonitorNode::errorMonitor()
     if (update_tof_one_d_detection && (publish_cnt_tof_detection_error_ >= publish_cnt_tof_detection_error_rate_))
     {
         bool tof_sensor_error = this->runMonitor<TofErrorMonitor>(tof_data);
-        if (tof_sensor_error) {            
+        if (tof_sensor_error) {
             error_msg.data = true;
             one_d_tof_detection_error_pub_->publish(error_msg);
         } else {
@@ -295,8 +298,8 @@ void ErrorMonitorNode::errorMonitor()
 
     if (publish_cnt_ai_commnucation_error_ >= publish_cnt_ai_commnucation_error_rate_)
     {
-        bool ai_communication_error = this->runMonitor<AICommunicationErrorMonitor>(ai_ver_data);
-        if (!update_ai_commnucation && ai_communication_error) {   //통신불가 & 에러확인.         
+        bool ai_communication_error = this->runMonitor<AICommunicationErrorMonitor>(std::make_pair(update_ai_version, update_camera_data));
+        if (ai_communication_error) {
             error_msg.data = true;
             ai_communication_error_pub_->publish(error_msg);
         } else {
@@ -370,8 +373,12 @@ void ErrorMonitorNode::tofCallback(const robot_custom_msgs::msg::TofData::Shared
     update_tof_one_d_detection = true;
 }
 
-void ErrorMonitorNode::aiVerCallback(const std_msgs::msg::String::SharedPtr msg)
+void ErrorMonitorNode::aiVerCallback(const std_msgs::msg::String::SharedPtr)
 {
-    ai_ver_data = *msg;
-    update_ai_commnucation = true;
+    update_ai_version = true;
+}
+
+void ErrorMonitorNode::cameraCallback(const robot_custom_msgs::msg::CameraDataArray::SharedPtr)
+{
+    update_camera_data = true;
 }

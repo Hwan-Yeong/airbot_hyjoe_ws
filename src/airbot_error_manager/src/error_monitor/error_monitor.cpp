@@ -444,7 +444,7 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
     // [250329] KKS : 80프로 이하일 때 시작으로 변경
     
     if ( !errorState && isCharging ){
-        if ( currentChargePercentage <= params.percentage_th) { // 60 %
+        if (params.percentage_min_th <= currentChargePercentage && currentChargePercentage <= params.percentage_max_th) { // 1 ~ 60 %
             if (isFirstCheck) { // 측정 주기 타이머 시작
                 lastCheckTime = currentTime;
                 initialCharge = currentChargePercentage;
@@ -714,42 +714,39 @@ bool TofErrorMonitor::checkError(const InputType& input) {
     return isError;
 }
 
-bool AICommunicationErrorMonitor::checkError(const InputType& input) {
-    
-    static rclcpp::Clock clock(RCL_STEADY_TIME);
-    std::string ai_version = input.data;
-    current_time = clock.now().seconds();
-    if(!init_time){
-        prev_time = current_time;
-        init_time = true;
-    }
-    
-    if( monitor_error ){
-        time_diff = current_time - prev_time;
-        if(ai_version.empty()){
-            if(time_diff >= 30.0){ //ai 데이터 통신 불가 30초 경과 시, 에러발생. 및 모니터링 안함.
-                RCLCPP_INFO(node_ptr_->get_logger(), "[OCCUR] AI disconnect Error Timeout %f, AI version %s",time_diff,ai_version.c_str());
-                errorState = true;
-                monitor_error = false;
-            } else{
-                RCLCPP_INFO(node_ptr_->get_logger(), "AI disconnect check Time %f, AI version %s",time_diff,ai_version.c_str());
+bool AICommunicationErrorMonitor::checkError(const InputType& input)
+{
+    bool bVersionUpdate = input.first;
+    bool bCameraDataUpdate = input.second;
+
+    if (bVersionUpdate || bCameraDataUpdate) {
+        errorState = false;
+    } else {
+        monitorCnt++;
+        if (monitorCnt >= params.duration_cnt) {
+            if (!errorState) {
+                RCLCPP_INFO(node_ptr_->get_logger(), "[OCCUR] AI disconnect Error Timeout %d sec", monitorCnt);
             }
-        } else{ //데이터 통신 확인.
-            RCLCPP_INFO(node_ptr_->get_logger(), "AI communication Complete runTime %f, AI version %s",time_diff,ai_version.c_str());
-            monitor_error = false;
+            errorState = true;
+            monitorCnt = 0;
+        } else {
+            if (!(monitorCnt%10)) {
+                RCLCPP_INFO(node_ptr_->get_logger(), "AI still disconnected... during %d sec", monitorCnt);
+            }
         }
     }
+
     return errorState;
 }
 
 bool BatteryOverheatErrorMonitor::checkError(const InputType& input)
 {
     static rclcpp::Clock clock(RCL_STEADY_TIME);
-    current_time = clock.now().seconds();
+    // current_time = clock.now().seconds();
 
     if(!error_state){ // 에러가 아닌경우.
-        if( input.first.battery_temperature1 > params.occur_temperature_th 
-            || input.first.battery_temperature2 > params.occur_temperature_th ){ //threshold 초과시 즉시 에러발생.
+        if( input.first.battery_temperature1 >= params.occur_temperature_th 
+            || input.first.battery_temperature2 >= params.occur_temperature_th ){ //threshold 초과시 즉시 에러발생.
             error_state = true;
             monitor_release = true;
             RCLCPP_INFO(node_ptr_->get_logger(),
@@ -763,12 +760,12 @@ bool BatteryOverheatErrorMonitor::checkError(const InputType& input)
     } else{ //에러발생 시, 해제 모니터링.
         if( input.first.battery_temperature1 <= params.release_temperature_th 
             && input.first.battery_temperature2 <= params.release_temperature_th ){ //release threshold 아래인 경우.
-            if( monitor_release ){ //모니터 시작 time set
-                release_start_time = current_time;
+            if( monitor_release ){ //해제 조건 진입시 바로 에러 해제
+                // release_start_time = current_time;
                 monitor_release = false;
-            }
-            release_time_diff = current_time - release_start_time;
-            if(release_time_diff >= params.release_duration_sec){ //release 시간 이상인 경우 에러 해제.
+            // }
+            // release_time_diff = current_time - release_start_time;
+            // if(release_time_diff >= params.release_duration_sec){ //release 시간 이상인 경우 에러 해제.
                 error_state = false;
                 RCLCPP_INFO(node_ptr_->get_logger(),
                         "[BatteryOverheatErrorMonitor] [RELEASED] Battery Overheat error release\n"

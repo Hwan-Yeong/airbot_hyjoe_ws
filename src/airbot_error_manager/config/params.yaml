@@ -38,7 +38,8 @@ airbot_error_monitor:
     charging_error:
       monitoring_rate_ms: 1000
       occure:
-        battery_percentage_th: 60
+        battery_percentage_min_th: 1
+        battery_percentage_max_th: 60
         duration_sec: 1200.0
 
     fall_down_error:
@@ -73,12 +74,12 @@ airbot_error_monitor:
     ai_error:
       monitoring_rate_ms: 1000
       occure:
-        duration_sec: 30.0
+        duration_cnt_sec: 31
 
     battery_overheat_error:
       monitoring_rate_ms: 1000
       occure:
-        high_temp_th: 45
+        high_temp_th: 45 # Fan 구동 시작 온도
       release:
-        low_temp_th: 43
-        duration_sec: 10.0
+        low_temp_th: 40 # Fan 구동 멈춤 온도
+        duration_sec: 10.0 # 사용 X

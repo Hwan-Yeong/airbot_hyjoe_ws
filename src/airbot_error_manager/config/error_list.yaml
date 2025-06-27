@@ -127,7 +127,7 @@ airbot_error_manager:
         sub_topic: "error/s_code/top_tof_obstacle_error"
         error_code: "S09"
         description: "1D ToF sensor obstacle detect Error"
-      s_10_2: # SoC 보드의 과열에 의한 화재 및 파손 방지 시스템 보드 과열 에러 & 배터리 과열 에러
+      s_10_2: # SoC 보드의 과열에 의한 화재 및 파손 방지 시스템 보드 과열 에러 & 배터리 과열 경고
         sub_topic: "error/s_code/board_battery_overheat"
         error_code: "S10-2"
         description: "Board or Battery overheating."

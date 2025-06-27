@@ -11,6 +11,8 @@
 #include "robot_custom_msgs/msg/station_data.hpp"
 #include "robot_custom_msgs/msg/robot_state.hpp"
 #include "robot_custom_msgs/msg/tof_data.hpp"
+#include "robot_custom_msgs/msg/camera_data_array.hpp"
+#include "robot_custom_msgs/msg/camera_data.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "error_monitor/error_monitor_node.hpp"
 
@@ -78,7 +80,7 @@ public:
         node_ptr_->get_parameter(ns + ".release.duration_sec", params.release_duration_sec);
     }
 
-    bool station_flag = false;
+    bool station_flag = true;
     bool error_state = false;
     double current_time = 0.0;
     double release_time_diff = 0.0;
@@ -122,7 +124,7 @@ public:
     }
 
     bool error_state = false;
-    bool charge_flag = false;
+    bool charge_flag = true;
     double release_time_diff = 0.0;
     double release_start_time = 0.0;
 };
@@ -247,7 +249,8 @@ public:
     using InputType = std::tuple<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData, robot_custom_msgs::msg::RobotState>;
 
     struct tParams {
-        int percentage_th;
+        int percentage_min_th;
+        int percentage_max_th;
         double duration_sec;
     } params;
 
@@ -258,10 +261,12 @@ public:
     void loadParams(const std::string& ns) override {
         if (!node_ptr_) return;
 
-        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_th", 60);
+        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_min_th", 1);
+        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_max_th", 60);
         node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 1200.0);
 
-        node_ptr_->get_parameter(ns + ".occure.battery_percentage_th", params.percentage_th);
+        node_ptr_->get_parameter(ns + ".occure.battery_percentage_min_th", params.percentage_min_th);
+        node_ptr_->get_parameter(ns + ".occure.battery_percentage_max_th", params.percentage_max_th);
         node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
     }
 
@@ -326,13 +331,13 @@ public:
     }
 };
 
-class AICommunicationErrorMonitor : public BaseErrorMonitor<std_msgs::msg::String>
+class AICommunicationErrorMonitor : public BaseErrorMonitor<std::pair<bool, bool>>
 {
 public:
-    using InputType = std_msgs::msg::String;
-    
+    using InputType = std::pair<bool, bool>;
+
     struct tParams {
-        double duration_sec;
+        int duration_cnt;
     } params;
 
     static std::string paramNamespace() { return "ai_error"; }
@@ -342,15 +347,12 @@ public:
     void loadParams(const std::string& ns) override {
         if (!node_ptr_) return;
 
-        node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 30.0);
-        node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
+        node_ptr_->declare_parameter<int>(ns + ".occure.duration_cnt_sec", 31);
+
+        node_ptr_->get_parameter(ns + ".occure.duration_cnt_sec", params.duration_cnt);
     }
-    bool monitor_error = true;
     bool errorState = false;
-    bool init_time = false;
-    double current_time = 0.0;
-    double prev_time = 0.0;
-    double time_diff = 0.0;
+    int monitorCnt = 0;
 };
 
 class BatteryOverheatErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>>
@@ -372,7 +374,7 @@ public:
         if (!node_ptr_) return;
 
         node_ptr_->declare_parameter<int>(ns + ".occure.high_temp_th", 45);
-        node_ptr_->declare_parameter<int>(ns + ".release.low_temp_th", 43);
+        node_ptr_->declare_parameter<int>(ns + ".release.low_temp_th", 40);
         node_ptr_->declare_parameter<double>(ns + ".release.duration_sec", 10.0);
 
         node_ptr_->get_parameter(ns + ".occure.high_temp_th", params.occur_temperature_th);
@@ -380,11 +382,10 @@ public:
         node_ptr_->get_parameter(ns + ".release.duration_sec", params.release_duration_sec);
     }
 private:
-    bool station_flag = false;
     bool error_state = false;
-    double current_time = 0.0;
-    double release_time_diff = 0.0;
-    double release_start_time = 0.0;
+    // double current_time = 0.0;
+    // double release_time_diff = 0.0;
+    // double release_start_time = 0.0;
     bool monitor_release = false;
     bool is_first_logging = true;
 };
