@@ -1,0 +1,23 @@
+collision_detector:
+  ros__parameters:
+
+    input:
+      imu_topic: "/imu_data"
+      cmd_vel_topic: "/cmd_vel"
+      motor_status_topic: "/motor_status"
+
+    output:
+      collision: # Pitch must stay negative to detect collision
+        topic_name: "/collision_detected"
+        time_duration: 1.3
+        imu_pitch_acc_th_min: -0.3 # If velocity is low (cmd_vel_x < 0.2)
+        imu_pitch_acc_th_max: -0.6 # If velocity is higher
+        imu_pitch_th: -0.1 # [rad] (5.73deg)
+        motor_current_front_th: 6500.0
+        motor_current_back_th: 4000.0
+        motor_current_exceed_limit: 50 # Number of consecutive exceedances before collision detected
+
+      slope: # Pitch must stay low for slope detection
+        topic_name: "/slope_detected"
+        time_duration: 2.0
+        imu_pitch_th: 0.10472 # [rad] (6deg)
