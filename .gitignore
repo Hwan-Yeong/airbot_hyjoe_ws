@@ -16,6 +16,9 @@ msg/_*.py
 build_isolated/
 devel_isolated/
 test/
+csv/
+data/
+bag/
 
 # VS Code
 .vscode/
