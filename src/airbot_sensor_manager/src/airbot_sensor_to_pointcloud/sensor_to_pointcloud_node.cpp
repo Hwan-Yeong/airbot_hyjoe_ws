@@ -843,7 +843,13 @@ void SensorToPointcloud::collisionMsgUpdate(const robot_custom_msgs::msg::Abnorm
         point_cloud_collosion_.updateRobotPose(pose);
     }
 
-    if (sensor_config_.collision.use && msg->event_trigger) pc_collision_msg = point_cloud_collosion_.updateCollisionPointCloudMsg(msg);
+    if (sensor_config_.collision.use) {
+        if (msg->event_trigger) {
+            pc_collision_msg = point_cloud_collosion_.updateCollisionPointCloudMsg(msg);
+        } else {
+            pc_collision_msg = pointcloud_generator_.generatePointCloud2EmptyMessage(target_frame_);
+        }
+    }
 
     isCollisionUpdating = true;
 }

@@ -63,12 +63,12 @@ void AnomalyDetector::collisionMonitor()
 
 void AnomalyDetector::bottomIrCallback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg)
 {
+    // bottom_ir_ = *msg;
     // RCLCPP_INFO(this->get_logger(),
     //     "[Before] IR [ff: %d, fl: %d, fr: %d, bb: %d, bl: %d, br: %d]",
     //     msg->adc_ff, msg->adc_fl, msg->adc_fr, msg->adc_bb, msg->adc_bl, msg->adc_br
     // );
     bottom_ir_ = updateMovingAverageFilter(*msg);
-    // bottom_ir_ = *msg;
     // RCLCPP_INFO(this->get_logger(),
     //     "[After] IR [ff: %d, fl: %d, fr: %d, bb: %d, bl: %d, br: %d]",
     //     bottom_ir_.adc_ff, bottom_ir_.adc_fl, bottom_ir_.adc_fr, bottom_ir_.adc_bb, bottom_ir_.adc_bl, bottom_ir_.adc_br
@@ -167,8 +167,10 @@ double AnomalyDetector:: quaternion_to_euler(const geometry_msgs::msg::Quaternio
     return yaw; // Return yaw as theta
 }
 
+static int prev_collision_state = -1;;
 void AnomalyDetector::detectCollision(double ax, double ay, double pitch, robot_custom_msgs::msg::BottomIrData ir_data, double current_time, double accel_threshold)
 {
+    int collision_state = 0;
     constexpr double epsilon = 1e-6;  // Small threshold for floating-point comparison
 
     constexpr int drop_ir_th = 1500;
@@ -176,28 +178,31 @@ void AnomalyDetector::detectCollision(double ax, double ay, double pitch, robot_
     int detected_ir_cnt = (ir_data.adc_ff < drop_ir_th) + (ir_data.adc_fl < drop_ir_th) + (ir_data.adc_fr < drop_ir_th)
                         + (ir_data.adc_bb < drop_ir_th) + (ir_data.adc_bl < drop_ir_th) + (ir_data.adc_br < drop_ir_th);
 
-    if (cmd_vel_x_ > 0.0 || !bClimb_){
-        // if (!bClimb_) {
-            if ((abs(ax) >= 1.5 || abs(ay) >= 1.5)) {
-                // RCLCPP_INFO(this->get_logger(),
-                //     "[Suspected Collision Detection] IMU [ax: %.2f m/s2, ay: %.2f m/s2, Pitch: %.2f deg], IR [ff: %d, fl: %d, fr: %d, bb: %d, bl: %d, br: %d]",
-                //     ax, ay, pitch, ir_data.adc_ff, ir_data.adc_fl, ir_data.adc_fr, ir_data.adc_bb, ir_data.adc_bl, ir_data.adc_br
-                // );
-                if ((abs(pitch) > 0.07 || detected_ir_cnt >= 1)) {
+    if (cmd_vel_x_ > 0.0) {
+        if ((abs(ax) >= 1.5 || abs(ay) >= 1.5)) {
+            collision_state = 1; // 충돌
+            if (bClimb_ && detected_ir_cnt > 1) {
+                collision_state = 2; // 승월
+            }
+
+            if (prev_collision_state != collision_state) {
+                if (collision_state == 1) {
                     publishCollision(true);
-                    RCLCPP_INFO(this->get_logger(),
+                    RCLCPP_INFO(rclcpp::get_logger("detectCollision"),
                         "[Collision Detection] IMU [ax: %.2f m/s2, ay: %.2f m/s2, Pitch: %.2f deg], IR [ff: %d, fl: %d, fr: %d, bb: %d, bl: %d, br: %d]",
+                        ax, ay, pitch, ir_data.adc_ff, ir_data.adc_fl, ir_data.adc_fr, ir_data.adc_bb, ir_data.adc_bl, ir_data.adc_br
+                    );
+                } else if (collision_state == 2) {
+                    publishCollision(false);
+                    RCLCPP_INFO(rclcpp::get_logger("detectCollision"),
+                        "[Suspect to Climb] IMU [ax: %.2f m/s2, ay: %.2f m/s2, Pitch: %.2f deg], IR [ff: %d, fl: %d, fr: %d, bb: %d, bl: %d, br: %d]",
                         ax, ay, pitch, ir_data.adc_ff, ir_data.adc_fl, ir_data.adc_fr, ir_data.adc_bb, ir_data.adc_bl, ir_data.adc_br
                     );
                 }
             }
-        // } else {
-        //     RCLCPP_INFO(this->get_logger(),
-        //         "Climb Detected from A1_perception, Pitch(rad): %.3f",
-        //         pitch
-        //     );
-        // }
+        }
     }
+    prev_collision_state = collision_state;
 }
 
 void AnomalyDetector::detectSlope(double pitch, double roll, double current_time ){    //, double left_rpm) {
@@ -251,7 +256,6 @@ void AnomalyDetector::publishSlope(bool detected) {
     slope_msg.robot_y = robot_pose_y_;
     slope_msg.robot_angle = robot_pose_angle_;
     slope_pub_->publish(slope_msg);
-    RCLCPP_INFO(this->get_logger(), "Publish slope detected!");
 }
 
 void AnomalyDetector::getRPYFromQuaternion(const geometry_msgs::msg::Quaternion &q, double &roll, double &pitch, double &yaw) {
