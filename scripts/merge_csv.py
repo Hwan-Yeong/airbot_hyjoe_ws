@@ -4,7 +4,7 @@ import pandas as pd
 from glob import glob
 
 # ---------------------- 설정 (Config) ------------------------
-CSV_FOLDER_PATH = "/home/hyjoe/airbot_hyjoe_ws/csv/tof/0711/tof_101-220"  # CSV 파일들이 있는 폴더 경로
+CSV_FOLDER_PATH = "/home/hyjoe/airbot_hyjoe_ws/csv/tof/0711/tof"  # CSV 파일들이 있는 폴더 경로
 OUTPUT_CSV_PATH = "/home/hyjoe/airbot_hyjoe_ws/csv/tof/0711/merged_result.csv"  # 저장할 결과 CSV 파일 경로
 # -------------------------------------------------------------
 
