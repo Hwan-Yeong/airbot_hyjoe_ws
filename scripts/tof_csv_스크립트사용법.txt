@@ -1,0 +1,32 @@
+
+< ubuntu >
+
+
+@ csv 파일 저장할 디렉토리 환경 구성 및 스크립트 편집
+
+        예시)
+    mkdir /home/hyjoe/airbot_hyjoe_ws/csv/tof/open_4.1
+    
+        후 스크립트 23번째 줄에 output_dir 경로 지정
+
+
+
+@ 스크립트 사용법
+
+    python3 /{스크립트저장경로}/tof_csv.py <파일명> --duration <시간sec> --left_row <추출행> --right_row <추출행>
+
+
+
+@ 간편 사용법 (데이터 10초간 저장)
+
+    => 세팅
+        
+        nano ~/.bashrc
+        
+        alias tof_csv='function _tof_csv(){ python3 /{스크립트저장경로}/tof_csv.py "$1" --duration 10 ; }; _tof_csv'
+
+    => 사용 예시 (파일명 R1_L1)
+        
+        tof_csv R1_L1
+
+

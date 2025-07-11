@@ -20,7 +20,7 @@ class TofDataLogger(Node):
         self.right_indices = right_indices
         self.duration = duration
 
-        self.output_dir = "/home/hyjoe/airbot_hyjoe_ws/csv"
+        self.output_dir = "/home/hyjoe/airbot_hyjoe_ws/csv/tof/0711/"
         os.makedirs(self.output_dir, exist_ok=True)
         self.file_path = os.path.join(self.output_dir, f"{self.filename}.csv")
         self.sub = self.create_subscription(TofData, '/tof_data', self.callback, 10)
