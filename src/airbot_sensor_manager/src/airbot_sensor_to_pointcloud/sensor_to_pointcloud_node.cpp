@@ -264,9 +264,9 @@ void SensorToPointcloud::initPublisher(const YAML::Node& config)
     }
 
     //debug
-    tof_debug_pub_ = this->create_publisher<robot_custom_msgs::msg::TofData>(
-        "filtered_tof_data", 10
-    );
+    // tof_debug_pub_ = this->create_publisher<robot_custom_msgs::msg::TofData>(
+    //     "filtered_tof_data", 10
+    // );
     sensor_to_pointcloud_state_pub_ = this->create_publisher<std_msgs::msg::Bool>(
         "sensor_to_pointcloud_active", 10
     );
@@ -653,7 +653,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
     if (mtof_filter_.moving_average.use) filtered_msg = tof_ma_filter_.update(filtered_msg);
     if (mtof_filter_.low_pass.use) filtered_msg = tof_lp_filter_.update(filtered_msg);
     if (mtof_filter_.complementary.use) filtered_msg = tof_comp_filter_.update(filtered_msg);
-    tof_debug_pub_->publish(*filtered_msg);
+    // tof_debug_pub_->publish(*filtered_msg);
 
     if (sensor_config_.one_d_tof.use) pc_tof_1d_msg = point_cloud_tof_.updateTopTofPointCloudMsg(msg, sensor_config_.one_d_tof.pitch_angle_deg);
     if (sensor_config_.multi_tof.use || sensor_config_.multi_tof_left.use || sensor_config_.multi_tof_right.use) {

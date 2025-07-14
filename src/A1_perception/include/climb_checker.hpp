@@ -16,7 +16,7 @@ class ClimbChecker
     ClimbChecker(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config);
     ~ClimbChecker() = default;
 
-    void setClimb(bool is_climb);
+    // void setClimb(bool is_climb);
     bool isClimb(void);
 
     void climbCheck(void);
@@ -28,10 +28,18 @@ class ClimbChecker
     float climbing_pitch_alpha{};
     float enable_climbing_threshold{};
     float disable_climbing_threshold{};
+
+    float enable_down_climbing_threshold{};
+    float disable_down_climbing_threshold{};
+
     float estimated_bias{};
     int climbing_timeout;
-    rclcpp::Time climbing_time{};
+    // rclcpp::Time climbing_time{};
+    // rclcpp::Time down_climbing_time{};
+    std::chrono::steady_clock::time_point climbing_time;
+    std::chrono::steady_clock::time_point down_climbing_time;
     bool climb_flag{false};
+    bool down_climb_flag{false};
     std::shared_ptr<PerceptionNode> node_ptr{};
 };
 }  // namespace A1::perception

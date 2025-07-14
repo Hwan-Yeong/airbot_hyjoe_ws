@@ -197,7 +197,7 @@ private:
     unsigned int errorCount = 0;
     bool errorState = false;
 };
-
+/*
 class BoardOverheatErrorMonitor : public BaseErrorMonitor<std::nullptr_t>
 {
 public:
@@ -242,7 +242,7 @@ private:
         "/sys/class/thermal/thermal_zone6/temp"
     };
 };
-
+*/
 class ChargingErrorMonitor : public BaseErrorMonitor<std::tuple<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData, robot_custom_msgs::msg::RobotState>>
 {
 public:
@@ -354,7 +354,7 @@ public:
     bool errorState = false;
     int monitorCnt = 0;
 };
-
+/*
 class BatteryOverheatErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>>
 {
 public:
@@ -389,5 +389,5 @@ private:
     bool monitor_release = false;
     bool is_first_logging = true;
 };
-
+*/
 #endif // __ERROR_MONITOR_HPP__

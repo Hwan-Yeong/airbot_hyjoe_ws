@@ -66,10 +66,9 @@ class PerceptionNode : public rclcpp::Node
     std::unordered_map<std::string, Layer>& getDropOffLayerMap();
     std::unordered_map<std::string, std::any>& getPublishers();
 
-    void setClimb(bool is_climb);
     bool isClimb();
-
     bool perception_use{false};
+    bool current_state{false};
 
    private:
     void loadConfig(void);
@@ -77,6 +76,7 @@ class PerceptionNode : public rclcpp::Node
     void initMultiToFSubscribers(const YAML::Node& config);
     void initPublishers(const YAML::Node& config);
     void initFilters(const YAML::Node& config);
+    void pub_states();
     void initController();
     void timerCallback();
 
@@ -89,6 +89,7 @@ class PerceptionNode : public rclcpp::Node
     MotorStatus motor_status{};
 
     rclcpp::TimerBase::SharedPtr timer{};
+    std::chrono::steady_clock::time_point last_state_pub_time;
 
     std::unordered_map<std::string, std::any> controller_subscribers{};
     std::unordered_map<std::string, std::any> subscribers{};
@@ -99,6 +100,8 @@ class PerceptionNode : public rclcpp::Node
     std::unordered_map<std::string, Layer> sensor_layer_map{};
     std::unordered_map<std::string, LayerVector> layers{};
     ClimbChecker climb_checker;
+
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr state_pub;
 };
 }  // namespace A1::perception
 

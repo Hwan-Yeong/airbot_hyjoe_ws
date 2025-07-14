@@ -63,16 +63,15 @@ private:
         update_station_data_low_battery, update_robot_state_cliff_detection,
         update_odom_data_cliff_detection,
         update_tof_one_d_detection,
-        update_ai_version, update_camera_data,
-        update_battery_status_overheat;
+        update_ai_version, update_camera_data;
     int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_,
-        publish_cnt_board_overheat_error_, publish_cnt_battery_discharge_error_,
+        publish_cnt_battery_discharge_error_,
         publish_cnt_charging_error_, publish_cnt_lift_error_,
         publish_cnt_cliff_detection_error_,
         publish_cnt_tof_detection_error_,
         publish_cnt_ai_commnucation_error_;
     int publish_cnt_low_battery_error_rate_, publish_cnt_fall_down_error_rate_,
-        publish_cnt_board_overheat_error_rate_, publish_cnt_battery_discharge_error_rate_,
+        publish_cnt_battery_discharge_error_rate_,
         publish_cnt_charging_error_rate_, publish_cnt_lift_error_rate_,
         publish_cnt_cliff_detection_error_rate_,
         publish_cnt_tof_detection_error_rate_,
@@ -101,7 +100,7 @@ private:
 
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
         low_battery_error_pub_, fall_down_error_pub_,
-        board_battery_overheat_error_pub_, battery_discharge_error_pub_,
+        battery_discharge_error_pub_,
         charging_error_pub_, lift_error_pub_, cliff_detection_error_pub_,
         one_d_tof_detection_error_pub_, ai_communication_error_pub_;
 

@@ -31,14 +31,14 @@ void pointCloud2Callback(
         return;
     }
 
-    // AMCL Pose값 확인 후 필터링 진행
-    Position position = node->getPosition();
-    auto now = node->now();
-    rclcpp::Time position_time(position.timestamp, node->get_clock()->get_clock_type());
-    if (now - position_time > rclcpp::Duration(std::chrono::milliseconds(5000)))
-    {
-        return;
-    }
+    // // AMCL Pose값 확인 후 필터링 진행
+    // Position position = node->getPosition();
+    // auto now = node->now();
+    // rclcpp::Time position_time(position.timestamp, node->get_clock()->get_clock_type());
+    // if (now - position_time > rclcpp::Duration(std::chrono::milliseconds(60000)))
+    // {
+    //     return;
+    // }
 
     auto layer = Layer();
     layer.sensor_timestamp = msg->header.stamp;
@@ -114,6 +114,7 @@ PerceptionNode::PerceptionNode() : Node("A1_perception")
     // 파라미터 선언: params.yaml의 "ros__parameters" 아래에 node_params가 있으므로 기본값을 설정
     this->declare_parameter("node_params", "node.yaml");
     this->loadConfig();
+    this->last_state_pub_time = std::chrono::steady_clock::now();
 
     int log_level{};
     this->declare_parameter("log_level", 10);
@@ -210,21 +211,10 @@ void PerceptionNode::initController()
         [this](const std_msgs::msg::Bool::SharedPtr msg)
         {
             this->perception_use = msg->data;
+            RCLCPP_INFO(this->get_logger(), "[Perception] %s", this->perception_use ? "ON" : "OFF");
             if (!this->perception_use)
             {
-                RCLCPP_INFO(this->get_logger(), "[Perception] OFF");
                 this->resetLayers();
-                if (this->timer)
-                    this->timer.reset();
-            }
-            else
-            {
-                RCLCPP_INFO(this->get_logger(), "[Perception] ON");
-                if (this->timer)
-                    this->timer.reset();
-                auto timer_callback = std::bind(&PerceptionNode::timerCallback, this);
-                auto period = std::chrono::milliseconds(this->config["period_ms"].as<int>());
-                this->timer = this->create_wall_timer(period, timer_callback);
             }
         });
 
@@ -246,15 +236,12 @@ void PerceptionNode::initController()
             this->sensor_layer_map.clear();
             this->layers.clear();
 
-            this->loadConfig();
-
-            this->initSubscribers(this->config["inputs"]);
-            this->initMultiToFSubscribers(this->config["multi_tof_inputs"]);
-            this->initFilters(this->config["layers"]);
-            this->initPublishers(this->config["layers"]);
+            this->init();
 
             RCLCPP_INFO(this->get_logger(), "[Perception] Complete reload configuration.");
         });
+
+    this->state_pub = this->create_publisher<std_msgs::msg::Bool>("/perception/state", 1);
 }
 
 // 수정된 initSubscribers(): inputs는 시퀀스 내부에 mapping 형태로 정의되어 있음
@@ -367,9 +354,9 @@ void PerceptionNode::init()
     auto pnode = std::static_pointer_cast<PerceptionNode>(this->shared_from_this());
     this->climb_checker = ClimbChecker(pnode, climb_condition);
 
-    // auto timer_callback = std::bind(&PerceptionNode::timerCallback, this);
-    // auto period = std::chrono::milliseconds(this->config["period_ms"].as<int>());
-    // this->timer = this->create_wall_timer(period, timer_callback);
+    auto timer_callback = std::bind(&PerceptionNode::timerCallback, this);
+    auto period = std::chrono::milliseconds(this->config["period_ms"].as<int>());
+    this->timer = this->create_wall_timer(period, timer_callback);
     this->perception_use = false;
 }
 
@@ -465,6 +452,14 @@ void PerceptionNode::resetLayers()
     this->layers.clear();
     this->drop_off_layer_map.clear();
     this->climb_checker.reset();
+
+    sensor_msgs::msg::PointCloud2 msg;
+    auto pub_ptr =
+        std::any_cast<std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>>>(this->publishers["output"]);
+    if (pub_ptr)
+    {
+        pub_ptr->publish(msg);
+    }
 }
 
 sensor_msgs::msg::PointCloud2 PerceptionNode::convertToPointCloud2(const pcl::PointCloud<pcl::PointXYZ>& cloud)
@@ -511,6 +506,17 @@ sensor_msgs::msg::PointCloud2 PerceptionNode::convertToPointCloud2(const pcl::Po
 
 void PerceptionNode::timerCallback()
 {
+    auto current_time = std::chrono::steady_clock::now();
+    if (current_time - this->last_state_pub_time > std::chrono::seconds(1))
+    {
+        this->last_state_pub_time = std::chrono::steady_clock::now();
+        this->pub_states();
+    }
+    else if (current_time - this->last_state_pub_time < std::chrono::seconds(0))
+    {
+        this->last_state_pub_time = std::chrono::steady_clock::now();
+    }
+
     if (!this->perception_use)
     {
         return;
@@ -604,5 +610,21 @@ bool PerceptionNode::isClimb()
 {
     return this->climb_checker.isClimb();
 }
-
+/***
+ * @brief PerceptionNode 현재 상태를 topic으로 출력해주는 함수
+ */
+void PerceptionNode::pub_states()
+{
+    std_msgs::msg::Bool msg;
+    msg.data = this->perception_use;
+    if (this->current_state != this->perception_use)
+    {
+        RCLCPP_INFO(
+            this->get_logger(),
+            "[Perception] perception use state change. use: %s.",
+            this->perception_use ? "True" : "False");
+        this->current_state = this->perception_use;
+    }
+    this->state_pub->publish(msg);
+}
 }  // namespace A1::perception

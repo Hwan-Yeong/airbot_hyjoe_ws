@@ -29,11 +29,11 @@ airbot_error_monitor:
         battery_percentage_th: 15
         duration_sec: 30.0
 
-    board_overheat_error:
-      monitoring_rate_ms: 1000
-      occure:
-        temperature_th_c: 70.0
-        duration_sec: 30.0
+    # board_overheat_error:
+    #   monitoring_rate_ms: 1000
+    #   occure:
+    #     temperature_th_c: 70.0
+    #     duration_sec: 30.0
 
     charging_error:
       monitoring_rate_ms: 1000
@@ -76,10 +76,10 @@ airbot_error_monitor:
       occure:
         duration_cnt_sec: 180
 
-    battery_overheat_error:
-      monitoring_rate_ms: 1000
-      occure:
-        high_temp_th: 45 # Fan 구동 시작 온도
-      release:
-        low_temp_th: 40 # Fan 구동 멈춤 온도
-        duration_sec: 10.0 # 사용 X
+    # battery_overheat_error:
+    #   monitoring_rate_ms: 1000
+    #   occure:
+    #     high_temp_th: 45 # Fan 구동 시작 온도
+    #   release:
+    #     low_temp_th: 40 # Fan 구동 멈춤 온도
+    #     duration_sec: 10.0 # 사용 X

@@ -288,7 +288,7 @@ void FallDownErrorMonitor::get_rpy_from_quaternion(const geometry_msgs::msg::Qua
     tf2::Matrix3x3 m(q);
     m.getRPY(roll, pitch, yaw);
 }
-
+/*
 bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 {
     if (input != nullptr) {
@@ -391,7 +391,7 @@ bool BoardOverheatErrorMonitor::checkError(const InputType& input)
 
     return error_state;
 }
-
+*/
 bool ChargingErrorMonitor::checkError(const InputType &input)
 {
     /*
@@ -739,6 +739,7 @@ bool AICommunicationErrorMonitor::checkError(const InputType& input)
     return errorState;
 }
 
+/*
 bool BatteryOverheatErrorMonitor::checkError(const InputType& input)
 {
     static rclcpp::Clock clock(RCL_STEADY_TIME);
@@ -781,3 +782,4 @@ bool BatteryOverheatErrorMonitor::checkError(const InputType& input)
     }
     return error_state;
 }
+*/

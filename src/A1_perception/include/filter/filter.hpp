@@ -165,6 +165,7 @@ class RoIFilter : public BaseFilter
     bool use_inside{true};
     bool use_when_climb{true};
     bool delete_out_of_range{true};
+    bool delete_all_when_climb{false};
 
    private:
     LayerVector updateImpl(LayerVector layer_vector) override;

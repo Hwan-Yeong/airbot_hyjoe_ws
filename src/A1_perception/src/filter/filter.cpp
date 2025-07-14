@@ -242,6 +242,7 @@ RoIFilter::RoIFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node
     this->use_inside = getYamlValue<bool>(__FUNCTION__, config, "use_inside", true);
     this->use_when_climb = getYamlValue<bool>(__FUNCTION__, config, "use_when_climb", true);
     this->delete_out_of_range = getYamlValue<bool>(__FUNCTION__, config, "delete_out_of_range", true);
+    this->delete_all_when_climb = getYamlValue<bool>(__FUNCTION__, config, "delete_all_when_climb", false);
 }
 
 LayerVector RoIFilter::updateImpl(LayerVector layer_vector)
@@ -252,7 +253,7 @@ LayerVector RoIFilter::updateImpl(LayerVector layer_vector)
     {
         for (auto& layer : layer_vector)
         {
-            if (layer.isDeletable)
+            if (layer.isDeletable || this->delete_all_when_climb)
                 layer.cloud.clear();
         }
         return layer_vector;
@@ -344,10 +345,6 @@ DropOffFilter::DropOffFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YA
     this->min_range = getYamlValue<float>(__FUNCTION__, config, "min_range", 0.45);
     this->line_length = getYamlValue<float>(__FUNCTION__, config, "line_length", 0.05);
     this->resolution = getYamlValue<float>(__FUNCTION__, config, "resolution", 0.05);
-
-    // this->compare_dist_diff_max = getYamlValue<float>(__FUNCTION__, config, "compare_dist_diff_max", 0.5);
-    // this->inputs = getYamlValue<std::vector<std::string>>(__FUNCTION__, config, "inputs",
-    // std::vector<std::string>{});
 }
 
 LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
@@ -404,29 +401,6 @@ LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
                 jt = layer_base_link.cloud.erase(jt);
                 continue;
             }
-
-            // float max_diff_ = 0;
-            // float min_diff_ = 1.0;
-            // bool diff_check = false;
-            // for (const auto& tgt_point : target_layer.cloud)
-            // {
-            //     float dist_diff = pcl::euclideanDistance(point_global, tgt_point);
-            //     max_diff_ = std::max(max_diff_, dist_diff);
-            //     min_diff_ = std::min(min_diff_, dist_diff);
-            //     // if (dist_diff > this->row3_dist_diff_min && dist_diff < this->row3_dist_diff_max)
-            //     if (dist_diff < this->compare_dist_diff_max)
-            //     {
-            //         // RCLCPP_INFO(node->get_logger(), "pass ! 3row dist diff %f", dist_diff);
-            //         diff_check = true;
-            //         break;
-            //     }
-            // }
-            // if (diff_check)
-            // {
-            //     it = layer.cloud.erase(it);
-            //     jt = layer_base_link.cloud.erase(jt);
-            //     continue;
-            // }
 
             std::string key = std::to_string(point_global.x).substr(0, std::to_string(point_global.x).find(".") + 3) +
                               "," +

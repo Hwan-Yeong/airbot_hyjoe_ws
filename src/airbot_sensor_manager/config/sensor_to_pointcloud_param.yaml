@@ -50,10 +50,12 @@ airbot_sensor_to_pointcloud:
         topic_row: "tof/multi/left/row_"
         pitch_angle_deg: -5.0 # (-)가 들리는 방향
         sub_cell_idx_array: [
-          1, 4, 7, 17,
-          20, 23, 28, 31,
-          44, 47, 49, 52,
-          55, 57, 60, 63
+          0, 3, 6,
+          17, 20, 23,
+          28, 31,
+          44, 47,
+          49, 52, 55,
+          57, 60, 63
         ]
 
       tof_multi_right:
@@ -62,10 +64,12 @@ airbot_sensor_to_pointcloud:
         topic_row: "tof/multi/right/row_"
         pitch_angle_deg: -5.0 # (-)가 들리는 방향
         sub_cell_idx_array: [
-          0, 3, 6, 16,
-          19, 22, 24, 27,
-          40, 43, 48, 51,
-          54, 56, 59, 62
+          1, 4, 7,
+          16, 19, 22,
+          24, 27,
+          40, 43,
+          48, 51, 54,
+          56, 59, 62
         ]
 
       camera:

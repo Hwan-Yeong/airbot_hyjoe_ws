@@ -72,7 +72,7 @@ private:
     rclcpp::TimerBase::SharedPtr poincloud_publish_timer_;
 
     //debug
-    rclcpp::Publisher<robot_custom_msgs::msg::TofData>::SharedPtr tof_debug_pub_;
+    // rclcpp::Publisher<robot_custom_msgs::msg::TofData>::SharedPtr tof_debug_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr sensor_to_pointcloud_state_pub_;
 
     std::string target_frame_;
