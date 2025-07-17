@@ -7,10 +7,14 @@ AnomalyDetector::AnomalyDetector() : Node("anomaly_detector") {
     declare_parameter("output.collision.imu_pitch_th_deg", -4.0);
     declare_parameter("output.collision.imu_pitch_diff_th_deg", 1.0);
     declare_parameter("output.collision.imu_pitch_diff_window_size", 10);
+    declare_parameter("output.slope.time_duration", 2.0);
+    declare_parameter("output.slope.imu_pitch_th", 0.10472);
 
     // Assign parameters to variables
     pitch_collision_duration_threshold_ = get_parameter("output.collision.time_duration_ms").as_int();
+    pitch_slope_duration_threshold_ = get_parameter("output.slope.time_duration").as_double();
     pitch_threshold_collision_ = get_parameter("output.collision.imu_pitch_th_deg").as_double();
+    pitch_threshold_ = get_parameter("output.slope.imu_pitch_th").as_double();
     pitch_diff_threshold_ = get_parameter("output.collision.imu_pitch_diff_th_deg").as_double();
     pitch_diff_window_size_ = get_parameter("output.collision.imu_pitch_diff_window_size").as_int();
 
@@ -19,6 +23,7 @@ AnomalyDetector::AnomalyDetector() : Node("anomaly_detector") {
     is_climb_detected_ = false;
     is_collision_detected_ = false;
     collision_cnt_ = 0;
+    pitch_slope_start_time_ = 0.0;
 
     // ROS 2 Publishers
     collision_pub_ = create_publisher<robot_custom_msgs::msg::AbnormalEventData>("collision_detected", 10);
@@ -35,9 +40,13 @@ AnomalyDetector::AnomalyDetector() : Node("anomaly_detector") {
 void AnomalyDetector::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg) {
     double roll, pitch, yaw;
     getRPYFromQuaternion(msg->orientation, roll, pitch, yaw);
+    double current_time = this->now().seconds();
 
     // Collision detection
     detectCollision(pitch);
+
+    // Slope detection
+    detectSlope(pitch, roll, current_time);
 }
 
 void AnomalyDetector::cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {
@@ -119,6 +128,36 @@ void AnomalyDetector::detectCollision(double pitch)
         is_collision_detected_ = false;
         pitch_history_.clear();
     }
+}
+
+void AnomalyDetector::detectSlope(double pitch, double roll, double current_time ){    //, double left_rpm) {
+    constexpr double epsilon = 1e-6;  // Small threshold for floating-point comparison
+    if (cmd_vel_x_ > 0.0) {
+        if (abs(pitch) > pitch_threshold_ || abs(roll) > pitch_threshold_) {
+            if (std::abs(pitch_slope_start_time_) < epsilon) {
+                pitch_slope_start_time_ = current_time;
+            }
+
+            double pitch_slope_duration = current_time - pitch_slope_start_time_;
+            if (pitch_slope_duration >= pitch_slope_duration_threshold_) {
+                RCLCPP_WARN(this->get_logger(), "Slope detected! Pitch stayed out of range for %.3f seconds.", pitch_slope_duration);
+                // publishSlope(true);
+                // [25.06.12] hyjoe: collision으로 퍼블리싱하도록 추가 (maneuver 동작 고려)
+                publishCollision(true);
+                pitch_slope_start_time_ = 0.0;  // Reset timer after detection
+            }
+        } else {
+            pitch_slope_start_time_ = 0.0;  // Reset if pitch returns to normal
+        }
+    } else {
+        pitch_slope_start_time_ = 0.0;
+    }
+
+    // // 🚨 Additional Condition: If left RPM is negative and pitch exceeds max threshold → Publish Collision
+    // if (left_rpm < 0 && pitch > pitch_threshold_max) {
+    //     RCLCPP_WARN(this->get_logger(), "[AnomalyDetector] 🚨 Collision detected! Left RPM: %.2f, Pitch: %.2f", left_rpm, pitch);
+    //     publishCollision(true);
+    // }
 }
 
 void AnomalyDetector::publishCollision(bool detected) {

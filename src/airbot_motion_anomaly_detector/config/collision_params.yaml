@@ -7,3 +7,8 @@ collision_detector:
         imu_pitch_th_deg: -4.0
         imu_pitch_diff_th_deg: 1.0
         imu_pitch_diff_window_size: 10
+
+      slope: # Pitch must stay low for slope detection
+        topic_name: "/slope_detected"
+        time_duration: 2.0
+        imu_pitch_th: 0.10472 # [rad] (6deg)

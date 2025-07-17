@@ -30,8 +30,11 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr perception_climb_sub_;
 
     // Parameters
+    double pitch_slope_duration_threshold_;
+    double pitch_threshold_;
     double pitch_threshold_collision_;
     double pitch_diff_threshold_;
+    double pitch_slope_start_time_;
     int pitch_diff_window_size_;
     int pitch_collision_duration_threshold_;
 
@@ -55,6 +58,9 @@ private:
 
     // Collision Detection
     void detectCollision(double pitch);
+
+    // Slope Detection
+    void detectSlope(double pitch, double roll, double current_time);
 
     // Publish Collision Alert
     void publishCollision(bool detected);
