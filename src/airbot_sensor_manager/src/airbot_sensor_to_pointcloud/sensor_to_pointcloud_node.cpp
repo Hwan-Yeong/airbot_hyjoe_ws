@@ -26,7 +26,7 @@ double camera_sensor_frame_y_translate = 0.0;           //[meter]
 double camera_sensor_frame_z_translate = 0.5331;        //[meter]
 double cliff_sensor_distance_center_to_front_ir = 0.15; //[meter]
 double cliff_sensor_angle_to_next_ir_sensor = 50;       //[deg]
-double collision_forward_point_offset = 0.25;           //[meter]
+double collision_forward_point_offset = 0.19;           //[meter]
 
 SensorToPointcloud::SensorToPointcloud()
     : rclcpp::Node("airbot_sensor_to_pointcloud"),
