@@ -85,6 +85,7 @@ airbot_sensor_to_pointcloud:
           - "6: 0" #poop      #30
           # - "8: 0" #threshold 미사용
           - "12: 0" #pole
+          - "17: 0" #bed
         object_direction: true  # 정방향(CCW+):True, 역방향(CW+):False
         object_max_distance_m: 1.5 # 최대 장애물 거리 (해당 거리 이내의 장애물 정보만 처리)
         logger:

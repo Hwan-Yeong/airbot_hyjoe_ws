@@ -132,8 +132,8 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(co
         if (box.size_x <= 0 || box.size_y <= 0 ) { // width, height 음수인 경우는 예외처리 (계산 망가짐)
             return msg;
         }
-        point_size_x = static_cast<int>(box.size_x/resolution) + 1;
-        point_size_y = static_cast<int>(box.size_y/resolution) + 1;
+        point_size_x = static_cast<int>(box.size_x*1000)/static_cast<int>(resolution*1000) + 1;
+        point_size_y = static_cast<int>(box.size_y*1000)/static_cast<int>(resolution*1000) + 1;
         if (point_size_x == 1 && point_size_y == 1) {
             total_points += 1;
         } else {

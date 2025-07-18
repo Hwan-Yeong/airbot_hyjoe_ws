@@ -81,17 +81,17 @@ class CliffDetectionErrorSimulation(Node):
         self.camera_data_array.robot_angle = 0.0
 
         camera_data_1 = CameraData()
-        camera_data_1.id = 12
+        camera_data_1.id = 17
         camera_data_1.score = 50
         camera_data_1.x = 0.0
         camera_data_1.y = 0.0
         camera_data_1.theta = np.deg2rad(50)
-        camera_data_1.width = 1.0
-        camera_data_1.height = 0.8
+        camera_data_1.width = 0.80
+        camera_data_1.height = 0.3
         camera_data_1.distance = 1.0
 
         camera_data_2 = CameraData()
-        camera_data_2.id = 5
+        camera_data_2.id = 123
         camera_data_2.score = 50
         camera_data_2.x = 0.0
         camera_data_2.y = 0.0
@@ -170,12 +170,12 @@ class CliffDetectionErrorSimulation(Node):
             self.ir_monified = True
             self.get_logger().info("IR Status Changed [True => False]")
 
-        self.pubRobotState()
-        self.pubBottomIrData()
-        self.pubOdomData()
+        # self.pubRobotState()
+        # self.pubBottomIrData()
+        # self.pubOdomData()
         self.pubCameraData()
-        self.pubImuData()
-        self.pubToFData()
+        # self.pubImuData()
+        # self.pubToFData()
 
 def main(args=None):
     rclpy.init(args=args)

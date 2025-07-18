@@ -95,7 +95,16 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
                 // } else {
                 //     bbox.size_y = obj.width;
                 // }
-                bbox.size_y = obj.width;
+
+                /*
+                    bed (침대) 객체의 경우,
+                    객체의 최대 너비(가로폭)를 55cm로 제한
+                */
+                if (obj.id == 17) { // bed
+                    bbox.size_y = std::min(obj.width, 0.55);
+                } else {
+                    bbox.size_y = obj.width;
+                }
                 bbox_array.boxes.push_back(bbox);
             }
         } else {
