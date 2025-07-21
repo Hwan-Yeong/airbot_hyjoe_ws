@@ -3,8 +3,8 @@ A1_perception:
     period_ms: 10
     climb_condition:
       pitch_alpha: 0.001
-      enable_climbing_threshold: -1.5
-      disable_climbing_threshold: -1.5
+      enable_climbing_threshold: -1.8
+      disable_climbing_threshold: -1.8
       enable_down_climbing_threshold: 1.4
       disable_down_climbing_threshold: 1.4
       timeout_ms: 2000
@@ -114,9 +114,35 @@ A1_perception:
           compose:
             filters:
               collision:
-                line_length: 0.2
+                line_length: 0.25
                 resolution: 0.05
 
+      collision_tof_134_rows:
+        inputs:
+        - "multi_tof_left_idx_0"
+        - "multi_tof_left_idx_3"
+        - "multi_tof_left_idx_6"
+        - "multi_tof_left_idx_17"
+        - "multi_tof_left_idx_20"
+        - "multi_tof_left_idx_23"
+        - "multi_tof_left_idx_28"
+        - "multi_tof_left_idx_31"
+        - "multi_tof_right_idx_1"
+        - "multi_tof_right_idx_4"
+        - "multi_tof_right_idx_7"
+        - "multi_tof_right_idx_16"
+        - "multi_tof_right_idx_19"
+        - "multi_tof_right_idx_22"
+        - "multi_tof_right_idx_24"
+        - "multi_tof_right_idx_27"
+        filter:
+          compose:
+            filters:
+              lidar_dist_check:
+                min_range: 0.0
+                max_range: 0.1
+              collision_tof:
+                use_data: true
 
 ######## M-Tof persistence(1~6rows)
 

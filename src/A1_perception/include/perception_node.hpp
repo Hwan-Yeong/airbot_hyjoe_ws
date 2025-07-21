@@ -69,6 +69,7 @@ class PerceptionNode : public rclcpp::Node
     bool isClimb();
     bool perception_use{false};
     bool current_state{false};
+    bool is_collision{false};
 
    private:
     void loadConfig(void);

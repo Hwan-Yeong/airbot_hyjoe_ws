@@ -656,7 +656,7 @@ LayerVector CollisionFilter::updateImpl(LayerVector layer_vector)
                 cloud->points.push_back(new_point);
             }
             last_layer.cloud.insert(last_layer.cloud.end(), cloud->begin(), cloud->end());
-
+            node->is_collision = true;
             if (logIntervalPassed())
             {
                 RCLCPP_INFO(
@@ -667,6 +667,42 @@ LayerVector CollisionFilter::updateImpl(LayerVector layer_vector)
                     point_global.x,
                     point_global.y);
             }
+        }
+    }
+    return layer_vector;
+}
+
+CollisionTofFilter::CollisionTofFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config)
+    : BaseFilter(node_ptr_)
+{
+    this->use_data = getYamlValue<bool>(__FUNCTION__, config, "use_data", false);
+}
+
+LayerVector CollisionTofFilter::updateImpl(LayerVector layer_vector)
+{
+    // coordinate transform
+    auto node = this->getNodePtr();
+    if (node->is_collision == false || this->use_data == false)
+    {
+        for (auto& layer : layer_vector)
+        {
+            if (layer.isDeletable)
+                layer.cloud.clear();
+        }
+        return layer_vector;
+    }
+    node->is_collision = false;
+    const int layer_size = layer_vector.size();
+    if (layer_size > 0)
+    {
+        for (auto& layer : layer_vector)
+        {
+            if (layer.isDeletable == false)
+            {
+                continue;
+            }
+            layer.isDeletable = false;
+            RCLCPP_INFO(node->get_logger(), "Collision detected. save Multi tof Data.");
         }
     }
     return layer_vector;

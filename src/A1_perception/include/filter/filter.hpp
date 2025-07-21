@@ -356,6 +356,19 @@ class CollisionFilter : public BaseFilter
 };
 
 /**
+ * @brief CollisionTofFilter 충돌 감지를 위해 만든 필터입니다.
+ */
+class CollisionTofFilter : public BaseFilter
+{
+   public:
+    CollisionTofFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config);
+
+   private:
+    LayerVector updateImpl(LayerVector layer_vector) override;
+    bool use_data{};
+};
+
+/**
  * @brief LowObstacleFilter multi tof 3/4 row를 이용한 장애물 검출 필터.
  *
  * [YAML 설정 예시]
