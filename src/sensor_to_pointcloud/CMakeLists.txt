@@ -1,0 +1,74 @@
+cmake_minimum_required(VERSION 3.8)
+project(sensor_to_pointcloud)
+
+set(CMAKE_BUILD_TYPE Release) #set(CMAKE_BUILD_TYPE Debug)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+# find dependencies
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(robot_custom_msgs REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(vision_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(yaml_cpp_vendor REQUIRED)
+find_package(PCL REQUIRED)
+find_package(pcl_conversions REQUIRED)
+find_package(yaml-cpp REQUIRED)
+
+include_directories(
+  include
+  ${PCL_INCLUDE_DIRS}
+)
+
+link_directories(${PCL_LIBRARY_DIRS} ${YAML_CPP_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
+################################
+##### SENSOR_TO_POINTCLOUD #####
+add_executable(sensor_to_pointcloud
+  src/cloud_converter/cloud_converter_factory.cpp
+  src/cloud_converter/cloud_converter.cpp
+  src/sensor_to_pointcloud_node.cpp
+  src/main.cpp
+)
+ament_target_dependencies(sensor_to_pointcloud
+  rclcpp
+  std_msgs
+  sensor_msgs
+  robot_custom_msgs
+  builtin_interfaces
+  tf2
+  tf2_geometry_msgs
+  vision_msgs
+  visualization_msgs
+  pcl_conversions
+  PCL
+  yaml-cpp
+)
+target_link_libraries(sensor_to_pointcloud yaml-cpp)
+install(TARGETS sensor_to_pointcloud
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+
+################################
+############ GENERAL ###########
+install(DIRECTORY include/
+  DESTINATION include
+)
+install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
+)
+# install(DIRECTORY config
+#   DESTINATION share/${PROJECT_NAME}
+# )
+
+ament_package()
