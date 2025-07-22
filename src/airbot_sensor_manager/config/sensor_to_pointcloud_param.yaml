@@ -88,6 +88,7 @@ airbot_sensor_to_pointcloud:
           - "17: 0" #bed
         object_direction: true  # 정방향(CCW+):True, 역방향(CW+):False
         object_max_distance_m: 1.5 # 최대 장애물 거리 (해당 거리 이내의 장애물 정보만 처리)
+        object_ignore_pitch_th_deg: 3.0 # 객체인식 장애물 무시하는 pitch 각도 (절댓값)
         logger:
           use: true
           margin:

@@ -426,6 +426,7 @@ void SensorToPointcloud::printSensorConfig(const std::string& name, const tSenso
         RCLCPP_INFO(this->get_logger(), "    Point Cloud Resolution: %.2f", cfg.pc_resolution);
         RCLCPP_INFO(this->get_logger(), "    Direction: %s", cfg.direction ? "Forward(CCW+)" : "Reverse(CW+)");
         RCLCPP_INFO(this->get_logger(), "    Object Max Distance: %.2f", cfg.object_max_dist);
+        RCLCPP_INFO(this->get_logger(), "    Object Pitch Threshold: %.1f deg", RAD2DEG(cfg.camera_object_ignore_pitch_th));
         if (!cfg.class_id.empty()) {
             std::stringstream class_stream;
             class_stream << "    Target Objects (ID: Conf_th): [ ";
@@ -472,6 +473,7 @@ tSensor SensorToPointcloud::getSensorCfg(const YAML::Node& node)
     if (node["pointcloud_resolution"]) cfg.pc_resolution = node["pointcloud_resolution"].as<float>();
     if (node["object_direction"]) cfg.direction = node["object_direction"].as<bool>();
     if (node["object_max_distance_m"]) cfg.object_max_dist = node["object_max_distance_m"].as<double>();
+    if (node["object_ignore_pitch_th_deg"]) cfg.camera_object_ignore_pitch_th = DEG2RAD(node["object_ignore_pitch_th_deg"].as<double>());
     if (node["class_id_confidence_th"]) {
         for (auto conf_node : node["class_id_confidence_th"]) {
             cfg.class_id.push_back(conf_node.as<std::string>());
@@ -767,7 +769,7 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
 
             if (current_ids != prev_camera_logged_ids) {
                 std::stringstream ss;
-                ss << "[Camera_Msg_Update] Slope Detected! (Roll: " << RAD2DEG(roll_) << ", Pitch: " << RAD2DEG(pitch_) << ")  Filtered Object ID: ";
+                ss << "[Camera_Msg_Update] Slope Detected! (Roll: " << RAD2DEG(roll_) << " deg, Pitch: " << RAD2DEG(pitch_) << " deg)  Filtered Object ID: ";
 
                 int count = 0;
                 for (int id : current_ids) {
@@ -857,9 +859,9 @@ void SensorToPointcloud::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
 bool SensorToPointcloud::isDetectRamp()
 {
     bool ret = false;
-    double angle_th = DEG2RAD(3);
 
-    if (abs(roll_) >= angle_th || abs(pitch_) >= angle_th) {
+    if (abs(roll_) >= sensor_config_.camera.camera_object_ignore_pitch_th ||
+        abs(pitch_) >= sensor_config_.camera.camera_object_ignore_pitch_th) {
         ramp_detected_ = true;
         ramp_cnt_ = 0;
         ret = true;

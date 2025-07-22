@@ -81,6 +81,7 @@ struct tSensor {
     float pc_resolution = 0.0;
     bool direction = true; // 정방향(CCW+):True, 역방향(CW+):False
     double object_max_dist = 0.0;
+    double camera_object_ignore_pitch_th = 0.0;
     std::vector<std::string> class_id;
 };
 
