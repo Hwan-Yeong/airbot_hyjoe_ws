@@ -18,10 +18,13 @@ class SensorToPointcloudNode : public rclcpp::Node
 {
 public:
     SensorToPointcloudNode();
-    void init(std::shared_ptr<SensorToPointcloudNode> self);
+    void init();
 
 private:
+    void loadConfig();
     void publishPointcloudTimer();
+
+    YAML::Node config_;
 
     std::unordered_map<std::string, CloudConverterPtr> converters_;
 

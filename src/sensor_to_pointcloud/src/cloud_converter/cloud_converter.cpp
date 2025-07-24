@@ -9,6 +9,11 @@ CloudConverterStrategy::CloudConverterStrategy(std::shared_ptr<SensorToPointclou
 {
 }
 
+std::shared_ptr<SensorToPointcloudNode> CloudConverterStrategy::getNodePtr() const
+{
+    return node_ptr;
+}
+
 sensor_msgs::msg::PointCloud2 CameraCloudConverter::pc_convert(const void* sensor_msg)
 {
     auto msg = static_cast<const robot_custom_msgs::msg::CameraDataArray*>(sensor_msg);

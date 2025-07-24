@@ -1,10 +1,13 @@
+#include <ament_index_cpp/get_package_share_directory.hpp>
+
 #include "sensor_to_pointcloud_node.hpp"
 
 namespace sensor_to_pointcloud {
 
-SensorToPointcloudNode::SensorToPointcloudNode()
-: Node("sensor_to_pointcloud_node")
+SensorToPointcloudNode::SensorToPointcloudNode() : Node("sensor_to_pointcloud_node")
 {
+    this->loadConfig();
+
     camera_sub_ = this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
         "/camera_data",
         rclcpp::SensorDataQoS(),
@@ -23,9 +26,48 @@ SensorToPointcloudNode::SensorToPointcloudNode()
     );
 }
 
-void SensorToPointcloudNode::init(std::shared_ptr<SensorToPointcloudNode> self)
+void SensorToPointcloudNode::loadConfig()
 {
-    converters_["Camera"] = sensor_to_pointcloud::CloudConverterFactory::create(SensorType::Camera, self);
+    std::string node_params{};
+    try
+    {
+        std::string package_share_directory = ament_index_cpp::get_package_share_directory("sensor_to_pointcloud");
+        std::string full_path = package_share_directory + "/config/sensor_param.yaml";
+        this->config_ = YAML::LoadFile(full_path)["sensor_to_pointcloud"];
+    }
+    catch (const std::exception& e)
+    {
+        // fallback (ament_index_cpp::get_package_share_directory()가 제대로 작동하지 않을 경우)
+        RCLCPP_ERROR(this->get_logger(), "Failed to load config file: %s", e.what());
+        std::string fallback_path = "install/sensor_to_pointcloud/share/sensor_to_pointcloud/config/sensor_param.yaml";
+        this->config_ = YAML::LoadFile(fallback_path)["sensor_to_pointcloud"];
+    }
+
+    // 🟡 config 내용 출력
+    // RCLCPP_INFO(this->get_logger(), "===== YAML Config Loaded =====");
+    // for (YAML::const_iterator it = this->config_.begin(); it != this->config_.end(); ++it)
+    // {
+    //     const std::string key = it->first.as<std::string>();
+    //     const YAML::Node& value = it->second;
+
+    //     if (value.IsScalar())
+    //     {
+    //         RCLCPP_INFO(this->get_logger(), "%s : %s", key.c_str(), value.as<std::string>().c_str());
+    //     }
+    //     else
+    //     {
+    //         std::stringstream ss;
+    //         ss << value;
+    //         RCLCPP_INFO(this->get_logger(), "%s :\n%s", key.c_str(), ss.str().c_str());
+    //     }
+    // }
+}
+
+void SensorToPointcloudNode::init()
+{
+    auto pnode = std::dynamic_pointer_cast<SensorToPointcloudNode>(this->shared_from_this());
+
+    this->converters_["Camera"] = sensor_to_pointcloud::CloudConverterFactory::create(pnode, "camera", this->config_);
 }
 
 void SensorToPointcloudNode::publishPointcloudTimer()

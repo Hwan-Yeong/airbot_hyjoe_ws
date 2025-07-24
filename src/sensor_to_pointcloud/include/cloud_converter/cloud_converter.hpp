@@ -32,12 +32,21 @@ class CloudConverterStrategy
 
     virtual PointCloudMsg pc_convert(const void* sensor_msg) = 0;
 
+    /**
+     * @brief 필터가 참조하는 SensorToPointcloudNode 스마트 포인터를 반환합니다.
+     *
+     * @return std::shared_ptr<SensorToPointcloudNode> SensorToPointcloudNode 스마트 포인터
+     */
+    std::shared_ptr<SensorToPointcloudNode> getNodePtr() const;
+
   protected:
     std::shared_ptr<SensorToPointcloudNode> node_ptr{};
 };
-
 using CloudConverterPtr = std::shared_ptr<CloudConverterStrategy>;
 
+/**
+ * @brief Camera 센서 데이터 -> PointCloud2 변환
+ */
 class CameraCloudConverter : public CloudConverterStrategy
 {
   public:
