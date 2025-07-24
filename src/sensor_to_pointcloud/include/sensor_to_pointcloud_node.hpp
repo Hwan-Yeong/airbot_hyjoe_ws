@@ -8,7 +8,6 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
 
-#include "sensor_types.hpp"
 #include "cloud_converter/cloud_converter.hpp"
 #include "cloud_converter/cloud_converter_factory.hpp"
 
@@ -25,6 +24,7 @@ private:
     void publishPointcloudTimer();
 
     YAML::Node config_;
+    YAML::Node sensors_;
 
     std::unordered_map<std::string, CloudConverterPtr> converters_;
 

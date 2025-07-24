@@ -34,6 +34,7 @@ void SensorToPointcloudNode::loadConfig()
         std::string package_share_directory = ament_index_cpp::get_package_share_directory("sensor_to_pointcloud");
         std::string full_path = package_share_directory + "/config/sensor_param.yaml";
         this->config_ = YAML::LoadFile(full_path)["sensor_to_pointcloud"];
+        this->sensors_ = this->config_["ros__parameters"]["sensors"];
     }
     catch (const std::exception& e)
     {
@@ -41,33 +42,15 @@ void SensorToPointcloudNode::loadConfig()
         RCLCPP_ERROR(this->get_logger(), "Failed to load config file: %s", e.what());
         std::string fallback_path = "install/sensor_to_pointcloud/share/sensor_to_pointcloud/config/sensor_param.yaml";
         this->config_ = YAML::LoadFile(fallback_path)["sensor_to_pointcloud"];
+        this->sensors_ = this->config_["ros__parameters"]["sensors"];
     }
-
-    // 🟡 config 내용 출력
-    // RCLCPP_INFO(this->get_logger(), "===== YAML Config Loaded =====");
-    // for (YAML::const_iterator it = this->config_.begin(); it != this->config_.end(); ++it)
-    // {
-    //     const std::string key = it->first.as<std::string>();
-    //     const YAML::Node& value = it->second;
-
-    //     if (value.IsScalar())
-    //     {
-    //         RCLCPP_INFO(this->get_logger(), "%s : %s", key.c_str(), value.as<std::string>().c_str());
-    //     }
-    //     else
-    //     {
-    //         std::stringstream ss;
-    //         ss << value;
-    //         RCLCPP_INFO(this->get_logger(), "%s :\n%s", key.c_str(), ss.str().c_str());
-    //     }
-    // }
 }
 
 void SensorToPointcloudNode::init()
 {
     auto pnode = std::dynamic_pointer_cast<SensorToPointcloudNode>(this->shared_from_this());
 
-    this->converters_["Camera"] = sensor_to_pointcloud::CloudConverterFactory::create(pnode, "camera", this->config_);
+    this->converters_["camera"] = sensor_to_pointcloud::CloudConverterFactory::create(pnode, "camera", this->sensors_["camera"]);
 }
 
 void SensorToPointcloudNode::publishPointcloudTimer()
@@ -85,7 +68,7 @@ void SensorToPointcloudNode::publishPointcloudTimer()
     }
 
     // 변환기 조회 및 변환 수행
-    auto it = converters_.find("Camera");
+    auto it = converters_.find("camera");
     if (it == converters_.end() || !it->second) {
         RCLCPP_WARN(this->get_logger(), "No converter for Camera sensor");
         return;

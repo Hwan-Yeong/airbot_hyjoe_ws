@@ -14,16 +14,30 @@ std::shared_ptr<SensorToPointcloudNode> CloudConverterStrategy::getNodePtr() con
     return node_ptr;
 }
 
-sensor_msgs::msg::PointCloud2 CameraCloudConverter::pc_convert(const void* sensor_msg)
+CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node &config)
+    : CloudConverterStrategy(node_ptr_)
+{
+    if (!config.IsMap())
+    {
+        auto s = YAML::Dump(config);
+        throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
+    }
+
+    this->use_camera_ = config["use"].as<bool>();
+    this->pointcloud_resolution_ = config["pointcloud_resolution"].as<double>();
+
+    RCLCPP_INFO(this->node_ptr->get_logger(), "=== Complete to Set Camera PointCloud Converter! ===");
+    RCLCPP_INFO(this->node_ptr->get_logger(),
+        "use_camera_: %d, pointcloud_resolution_: %.2f",
+        this->use_camera_, this->pointcloud_resolution_
+    );
+}
+
+sensor_msgs::msg::PointCloud2 CameraCloudConverter::pc_convert(const void *sensor_msg)
 {
     auto msg = static_cast<const robot_custom_msgs::msg::CameraDataArray*>(sensor_msg);
 
     sensor_msgs::msg::PointCloud2 pc2;
-    // algorithm
-    RCLCPP_INFO(this->node_ptr->get_logger(), "num: %d, data size: %zu", msg->num, msg->data_array.size());
-    if (msg->data_array.size() > 0) {
-        RCLCPP_INFO(this->node_ptr->get_logger(), "id: %d", msg->data_array[0].id);
-    }
 
     return pc2;
 }

@@ -7,7 +7,7 @@ CloudConverterPtr CloudConverterFactory::create(std::shared_ptr<SensorToPointclo
 {
     if (type == "camera")
     {
-        return std::make_shared<CameraCloudConverter>(node_ptr);
+        return std::make_shared<CameraCloudConverter>(node_ptr, config);
     }
     else
     {

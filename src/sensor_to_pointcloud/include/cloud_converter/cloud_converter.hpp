@@ -6,8 +6,6 @@
 
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
-#include "sensor_types.hpp"
-
 #include "robot_custom_msgs/msg/camera_data.hpp"
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "yaml-cpp/yaml.h"
@@ -50,10 +48,14 @@ using CloudConverterPtr = std::shared_ptr<CloudConverterStrategy>;
 class CameraCloudConverter : public CloudConverterStrategy
 {
   public:
-    CameraCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_) : CloudConverterStrategy(node_ptr_) {}
+    CameraCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node& config);
 
   private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
+
+    bool use_camera_;
+    double pointcloud_resolution_;
+    // ...
 };
 
 } // namespace sensor_to_pointcloud

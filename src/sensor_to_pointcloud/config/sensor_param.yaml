@@ -3,7 +3,7 @@ sensor_to_pointcloud:
 
     target_frame: "map" # "map" or "base_link"
 
-    output:
+    sensors:
       topic_prefix: "sensor_to_pointcloud/"
       tof_mono:
         use: true
