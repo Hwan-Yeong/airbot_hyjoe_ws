@@ -3,6 +3,7 @@
 #include <memory>
 #include <unordered_map>
 #include <mutex>
+#include <atomic>
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -34,6 +35,7 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 
     std::mutex camera_mutex_;
+    std::atomic<bool> camera_msg_updated_{false};
     robot_custom_msgs::msg::CameraDataArray::SharedPtr latest_camera_msg_;
 };
 

@@ -35,11 +35,20 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorToPointcloudNod
 
 sensor_msgs::msg::PointCloud2 CameraCloudConverter::pc_convert(const void *sensor_msg)
 {
+    sensor_msgs::msg::PointCloud2 ret;
+
+    if (!this->use_camera_)
+    {
+        return ret;
+    }
+
     auto msg = static_cast<const robot_custom_msgs::msg::CameraDataArray*>(sensor_msg);
+    // RCLCPP_INFO(this->node_ptr->get_logger(), "num: %d, data size: %zu", msg->num, msg->data_array.size());
+    // if (msg->data_array.size() > 0) {
+    //     RCLCPP_INFO(this->node_ptr->get_logger(), "id: %d", msg->data_array[0].id);
+    // }
 
-    sensor_msgs::msg::PointCloud2 pc2;
-
-    return pc2;
+    return ret;
 }
 
 } // namespace sensor_to_pointcloud

@@ -9,13 +9,27 @@ sensor_to_pointcloud:
         use: true
         topic: "tof/mono"
         publish_rate_ms: 10
-        pitch_angle_deg: -39.0 # (-)가 들리는 방향 [double type]
+        extrinsics:
+          translation:
+            x: 0.0942
+            y: 0.0
+            z: 0.56513
+          rotation: # deg
+            roll: 0.0
+            pitch: -39.0 # (-)가 들리는 방향
+            yaw: 0.0
 
       tof_multi:
         use: true
         topic: "tof/multi"
         publish_rate_ms: 10
         enable_8x8: true # 8x8 인덱스 사용 여부
+        extrinsics:
+          fov: 45.0 # deg
+          translation:
+            x: 0.14316
+            y: 0.075446
+            z: 0.03
         filter:
           moving_average:
             use: false
@@ -48,7 +62,6 @@ sensor_to_pointcloud:
         use: true
         topic_idx: "tof/multi/left/idx_"
         topic_row: "tof/multi/left/row_"
-        pitch_angle_deg: -5.0 # (-)가 들리는 방향
         sub_cell_idx_array: [
           0, 3, 6,
           17, 20, 23,
@@ -57,6 +70,15 @@ sensor_to_pointcloud:
           49, 52, 55,
           57, 60, 63
         ]
+        extrinsics:
+          translation:
+            x: 0.14316
+            y: 0.075446
+            z: 0.03
+          rotation: # deg
+            roll: 0.0
+            pitch: -5.0 # (-)가 들리는 방향
+            yaw: 15.0
 
       tof_multi_right:
         use: true
@@ -71,6 +93,15 @@ sensor_to_pointcloud:
           48, 51, 54,
           56, 59, 62
         ]
+        extrinsics:
+          translation:
+            x: 0.14316
+            y: 0.075446
+            z: 0.03
+          rotation: # deg
+            roll: 0.0
+            pitch: -5.0 # (-)가 들리는 방향
+            yaw: -15.0
 
       camera:
         use: true
@@ -89,6 +120,11 @@ sensor_to_pointcloud:
         object_direction: true  # 정방향(CCW+):True, 역방향(CW+):False
         object_max_distance_m: 1.5 # 최대 장애물 거리 (해당 거리 이내의 장애물 정보만 처리)
         object_ignore_pitch_th_deg: 3.0 # 객체인식 장애물 무시하는 pitch 각도 (절댓값)
+        extrinsics:
+          translation:
+            x: 0.15473
+            y: 0.0
+            z: 0.5331
         logger:
           use: true
           margin:
@@ -98,11 +134,16 @@ sensor_to_pointcloud:
         use: true
         topic: "cliff"
         publish_rate_ms: 10
+        extrinsics:
+          distance: 0.15 # distance from robot center
+          angle: 50 # deg to next ir sensor
 
       collision:
         use: true
         topic: "collision"
         publish_rate_ms: 10
+        extrinsics:
+          distance: 0.19 # forward point offset
 
     use_sim_time: false
 
