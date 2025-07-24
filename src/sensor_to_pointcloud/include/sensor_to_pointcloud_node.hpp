@@ -22,9 +22,9 @@ public:
 private:
     void loadConfig();
     void publishPointcloudTimer();
+    void initConverters(const YAML::Node &config);
 
     YAML::Node config_;
-    YAML::Node sensors_;
 
     std::unordered_map<std::string, CloudConverterPtr> converters_;
 

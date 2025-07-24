@@ -5,9 +5,33 @@ namespace sensor_to_pointcloud {
 
 CloudConverterPtr CloudConverterFactory::create(std::shared_ptr<SensorToPointcloudNode> node_ptr, const std::string& type, const YAML::Node& config)
 {
-    if (type == "camera")
+    if (type == "tof_mono")
+    {
+        return nullptr;
+    }
+    else if (type == "tof_multi")
+    {
+        return nullptr;
+    }
+    else if (type == "tof_multi_left")
+    {
+        return nullptr;
+    }
+    else if (type == "tof_multi_right")
+    {
+        return nullptr;
+    }
+    else if (type == "camera")
     {
         return std::make_shared<CameraCloudConverter>(node_ptr, config);
+    }
+    else if (type == "cliff")
+    {
+        return nullptr;
+    }
+    else if (type == "collision")
+    {
+        return nullptr;
     }
     else
     {

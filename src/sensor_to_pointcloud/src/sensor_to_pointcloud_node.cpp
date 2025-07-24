@@ -33,24 +33,31 @@ void SensorToPointcloudNode::loadConfig()
     {
         std::string package_share_directory = ament_index_cpp::get_package_share_directory("sensor_to_pointcloud");
         std::string full_path = package_share_directory + "/config/sensor_param.yaml";
-        this->config_ = YAML::LoadFile(full_path)["sensor_to_pointcloud"];
-        this->sensors_ = this->config_["ros__parameters"]["sensors"];
+        this->config_ = YAML::LoadFile(full_path)["sensor_to_pointcloud"]["ros__parameters"];
     }
     catch (const std::exception& e)
     {
         // fallback (ament_index_cpp::get_package_share_directory()가 제대로 작동하지 않을 경우)
         RCLCPP_ERROR(this->get_logger(), "Failed to load config file: %s", e.what());
         std::string fallback_path = "install/sensor_to_pointcloud/share/sensor_to_pointcloud/config/sensor_param.yaml";
-        this->config_ = YAML::LoadFile(fallback_path)["sensor_to_pointcloud"];
-        this->sensors_ = this->config_["ros__parameters"]["sensors"];
+        this->config_ = YAML::LoadFile(fallback_path)["sensor_to_pointcloud"]["ros__parameters"];
     }
 }
 
 void SensorToPointcloudNode::init()
 {
+    initConverters(this->config_["sensors"]);
+}
+
+void SensorToPointcloudNode::initConverters(const YAML::Node& config)
+{
     auto pnode = std::dynamic_pointer_cast<SensorToPointcloudNode>(this->shared_from_this());
 
-    this->converters_["camera"] = sensor_to_pointcloud::CloudConverterFactory::create(pnode, "camera", this->sensors_["camera"]);
+    for (const auto& sensor : config) {
+        std::string sensor_name = sensor.first.as<std::string>();
+        const YAML::Node& sensor_config = sensor.second;
+        this->converters_[sensor_name] = sensor_to_pointcloud::CloudConverterFactory::create(pnode, sensor_name, sensor_config);
+    }
 }
 
 void SensorToPointcloudNode::publishPointcloudTimer()

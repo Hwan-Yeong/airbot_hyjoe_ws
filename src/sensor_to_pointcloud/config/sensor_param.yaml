@@ -2,9 +2,9 @@ sensor_to_pointcloud:
   ros__parameters:
 
     target_frame: "map" # "map" or "base_link"
+    output_topic_prefix: "pointcloud/"
 
     sensors:
-      topic_prefix: "sensor_to_pointcloud/"
       tof_mono:
         use: true
         topic: "tof/mono"
