@@ -114,6 +114,7 @@ class CliffDetectionErrorSimulation(Node):
         self.imu_data.orientation.y = 0.00000
         self.imu_data.orientation.z = 0.00000
         self.imu_data.orientation.w = 0.99863
+        self.imu_data.linear_acceleration.z = 12.0
         # self.imu_data.orientation.x = 0.00
         # self.imu_data.orientation.y = 0.00
         # self.imu_data.orientation.z = 0.00
@@ -140,10 +141,10 @@ class CliffDetectionErrorSimulation(Node):
         self.bottom_ir_data.bb = False
         self.bottom_ir_data.bl = False
         self.bottom_ir_data.fr = False
-        self.bottom_ir_data.adc_fl = 4070
-        self.bottom_ir_data.adc_bb = 4070
-        self.bottom_ir_data.adc_bl = 4070
-        self.bottom_ir_data.adc_fr = 4070
+        self.bottom_ir_data.adc_fl = 10
+        self.bottom_ir_data.adc_bb = 10
+        self.bottom_ir_data.adc_bl = 17
+        self.bottom_ir_data.adc_fr = 18
         self.bottom_ir_data.robot_x = 0.0
         self.bottom_ir_data.robot_y = 0.0
         self.bottom_ir_data.robot_angle = 0.0
@@ -177,11 +178,11 @@ class CliffDetectionErrorSimulation(Node):
             self.get_logger().info("IR Status Changed [True => False]")
 
         # self.pubRobotState()
-        # self.pubBottomIrData()
+        self.pubBottomIrData()
         # self.pubOdomData()
         # self.pubCameraData()
-        # self.pubImuData()
-        self.pubToFData()
+        self.pubImuData()
+        # self.pubToFData()
 
 def main(args=None):
     rclpy.init(args=args)

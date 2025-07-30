@@ -69,7 +69,7 @@ public:
     void loadParams(const std::string& ns) override {
         if (!node_ptr_) return;
 
-        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_min", 10);
+        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_min", 5);
         node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_max", 15);
         node_ptr_->declare_parameter<int>(ns + ".release.battery_percentage_th", 20);
         node_ptr_->declare_parameter<double>(ns + ".release.duration_sec", 30.0);
@@ -111,9 +111,9 @@ public:
         if (!node_ptr_) return;
 
         node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_min", 0);
-        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_max", 10);
+        node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_max", 5);
         node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 10.0);
-        node_ptr_->declare_parameter<int>(ns + ".release.battery_percentage_th", 15);
+        node_ptr_->declare_parameter<int>(ns + ".release.battery_percentage_th", 10);
         node_ptr_->declare_parameter<double>(ns + ".release.duration_sec", 30.0);
 
         node_ptr_->get_parameter(ns + ".occure.battery_percentage_min", params.occure_percentage_min);

@@ -18,11 +18,12 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
         station_flag = false;
     }
 
+    //250730 KKS : S03 발생 조건 5%로 min값 수정
     //check error
     // 조건 : OFF STATION 상태, 배터리 잔여 15%이하
     if( !error_state ){ //Error 가 아닐 경우
         if( station_flag == false ){ //OFF STATION일 경우
-            if (input.first.battery_percent <= params.occure_percentage_max && input.first.battery_percent > params.occure_percentage_min) { // (10,15] %
+            if (input.first.battery_percent <= params.occure_percentage_max && input.first.battery_percent > params.occure_percentage_min) {
                 if (!prev_state) {
                         // [250407] hyjoe : low battery 에러 발생시 모니터 체크 시간(sec), 배터리 상태 1번만 로깅
                         RCLCPP_INFO(node_ptr_->get_logger(),
@@ -118,7 +119,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
     current_time = clock.now().seconds();
     
     if( !error_state ){ //에러가 아닐떄.
-        if( !charge_flag && input.first.battery_percent <= params.occure_percentage_max) {// 10 %
+        if( !charge_flag && input.first.battery_percent <= params.occure_percentage_max) {// 10 % //250730 KKS : 5%로 변경
             
             if (!init_setting) { // 이전 시간에 대해서 초기시간 설정
                 prev_time = current_time;
@@ -158,7 +159,7 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                 is_first_logging = true;
             }
         }
-    } else { // 조건: 베터리 15프로 초과 & 30초 유지
+    } else { // 조건: 베터리 15프로 초과 & 30초 유지 //250730 KKS : S03에러가 5%로 변경됨에 따라 10%초과로 변경
         if(input.first.battery_percent > params.release_percentage_th ){ // 15 %
             //check time
             if (!init_setting) { // release 체크 시간에 대해서 초기시간 설정
@@ -521,6 +522,9 @@ bool LiftErrorMonitor::checkError(const InputType &input)
     static bool irLiftFlag = false;
     static bool imuLiftFlag = false;
 
+    static bool liftErrorCandidate = false;
+    static double prevTime;
+
     count = (input.first.adc_ff < params.drop_ir_adc_th) + (input.first.adc_fl < params.drop_ir_adc_th) + (input.first.adc_fr < params.drop_ir_adc_th) +
             (input.first.adc_bb < params.drop_ir_adc_th) + (input.first.adc_bl < params.drop_ir_adc_th) + (input.first.adc_br < params.drop_ir_adc_th);
 
@@ -573,13 +577,30 @@ bool LiftErrorMonitor::checkError(const InputType &input)
 
     if (errorCount >= 10) {
         // [250407] hyjoe : 들림 에러 발생 시 에러 체크 카운터 로깅
-        if (!errorState) {
+        if (!liftErrorCandidate) {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[LiftErrorMonitor] IR & IMU both Lift Detected! (error count: %d)",
+                "[LiftErrorMonitor] (Error Suspected!) IR & IMU both Lift Detected! (error count: %d)",
                 static_cast<int>(errorCount)
             );
+            prevTime = clock.now().seconds();
         }
-        errorState = true;
+        // errorState = true;
+        liftErrorCandidate = true;
+    }
+
+    double timeDiff = clock.now().seconds() - prevTime;
+    if (liftErrorCandidate && (timeDiff >= 2)) { // 2sec
+        if (!irLiftFlag) {
+            liftErrorCandidate = false;
+        } else {
+            if (!errorState) {
+                RCLCPP_INFO(node_ptr_->get_logger(),
+                    "[LiftErrorMonitor] IR & IMU both Lift Detected! (error count: %d, IR lift duration: %.3f sec)",
+                    static_cast<int>(errorCount), timeDiff
+                );
+            }
+            errorState = true;
+        }
     }
 
     return errorState;
