@@ -643,8 +643,12 @@ void SensorToPointcloud::mToFCalibrationCmdCallback(const std_msgs::msg::UInt8::
     if (isActiveMToFCalibration == 1 || isActiveMToFCalibration == 2) {
         if (isActiveMToFCalibration == 1) {
             bLeftMToFCalibrationSet = false;
+            mtof_calib_sample_count = 0;
+            mtof_calib_max13 = mtof_calib_max14 = mtof_calib_max15 = -1.0;
         } else {
             bRightMToFCalibrationSet = false;
+            mtof_calib_sample_count = 0;
+            mtof_calib_max13 = mtof_calib_max14 = mtof_calib_max15 = -1.0;
         }
         RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Cmd : Active [%s]", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
     } else {
@@ -985,37 +989,33 @@ bool SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofDa
         return ret;
     }
 
-    static size_t sample_count = 0;
     constexpr size_t sampling_time = 300; // 10hz * 300회
-    static float max13 = -1.0;
-    static float max14 = -1.0;
-    static float max15 = -1.0;
 
-    if (arr[0] > max13) max13 = arr[0];
-    if (arr[1] > max14) max14 = arr[1];
-    if (arr[2] > max15) max15 = arr[2];
-    ++sample_count;
+    if (arr[0] > mtof_calib_max13) mtof_calib_max13 = arr[0];
+    if (arr[1] > mtof_calib_max14) mtof_calib_max14 = arr[1];
+    if (arr[2] > mtof_calib_max15) mtof_calib_max15 = arr[2];
+    ++mtof_calib_sample_count;
 
-    if (sample_count >= sampling_time) {
+    if (mtof_calib_sample_count >= sampling_time) {
         RCLCPP_INFO(this->get_logger(),
-                    "Max over last 300 samples (idx 13,14,15): %.3f, %.3f, %.3f",
-                    static_cast<double>(max13), static_cast<double>(max14), static_cast<double>(max15)
+                    "Max over last %zu samples (idx 13,14,15): %.3f, %.3f, %.3f",
+                    mtof_calib_sample_count, static_cast<double>(mtof_calib_max13), static_cast<double>(mtof_calib_max14), static_cast<double>(mtof_calib_max15)
                 );
 
         if (side == TOF_SIDE::LEFT) {
             bLeftMToFCalibrationSet = true;
-            mtof_calib_result_array_[0] = max13;
-            mtof_calib_result_array_[1] = max14;
-            mtof_calib_result_array_[2] = max15;
+            mtof_calib_result_array_[0] = mtof_calib_max13;
+            mtof_calib_result_array_[1] = mtof_calib_max14;
+            mtof_calib_result_array_[2] = mtof_calib_max15;
         } else {
             bRightMToFCalibrationSet = true;
-            mtof_calib_result_array_[3] = max13;
-            mtof_calib_result_array_[4] = max14;
-            mtof_calib_result_array_[5] = max15;
+            mtof_calib_result_array_[3] = mtof_calib_max13;
+            mtof_calib_result_array_[4] = mtof_calib_max14;
+            mtof_calib_result_array_[5] = mtof_calib_max15;
         }
 
-        sample_count = 0;
-        max13 = max14 = max15 = -1.0;
+        mtof_calib_sample_count = 0;
+        mtof_calib_max13 = mtof_calib_max14 = mtof_calib_max15 = -1.0;
 
         ret = true;
     }

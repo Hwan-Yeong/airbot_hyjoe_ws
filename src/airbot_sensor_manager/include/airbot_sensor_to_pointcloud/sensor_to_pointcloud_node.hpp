@@ -130,6 +130,10 @@ private:
     bool ramp_detected_;
     std::unordered_set<int> prev_camera_logged_ids;
     std::array<float, 6> mtof_calib_result_array_{};
+    size_t mtof_calib_sample_count = 0;
+    float mtof_calib_max13 = -1.0;
+    float mtof_calib_max14 = -1.0;
+    float mtof_calib_max15 = -1.0;
 
     void initVariables();
     void initSensorConfig(const YAML::Node& config);
