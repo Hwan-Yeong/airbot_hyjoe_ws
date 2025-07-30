@@ -275,8 +275,12 @@ void SensorToPointcloud::initPublisher(const YAML::Node& config)
         "sensor_to_pointcloud_active", 10
     );
 
-    mtof_calibration_update_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>(
+    mtof_calibration_complete_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>(
         "perception/calibration/update", 10
+    );
+
+    mtof_calibration_state_pub_ = this->create_publisher<std_msgs::msg::UInt8>(
+        "tof_calib_state", 10
     );
 
     RCLCPP_INFO(this->get_logger(), "Publisher init finished!");
@@ -647,18 +651,44 @@ void SensorToPointcloud::mToFCalibrationCmdCallback(const std_msgs::msg::UInt8::
 void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
     if (!isCompleteMToFCalibration && (isActiveMToFCalibration == 1 || isActiveMToFCalibration == 2)) {
-        if (multiToFCalibration(msg)) {
-            RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Complete To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
-            isCompleteMToFCalibration = true;
-            if (bLeftMToFCalibrationSet && bRightMToFCalibrationSet) {
-                std_msgs::msg::Float32MultiArray msg_out;
-                msg_out.data.assign(mtof_calib_result_array_.begin(), mtof_calib_result_array_.end());
-                mtof_calibration_update_pub_->publish(msg_out);
-                RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Publish m-ToF Calibration Data to A1_Perception");
-                bLeftMToFCalibrationSet = false;
-                bRightMToFCalibrationSet = false;
+
+        std_msgs::msg::UInt8 calib_state_msg;
+
+        if (isActiveMToFCalibration == 1 && !bLeftMToFCalibrationSet) {
+            if (multiToFCalibration(msg)) {
+                bLeftMToFCalibrationSet = true;
+                isCompleteMToFCalibration = true;
+                RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Complete To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
+                calib_state_msg.data = make_mtof_state(true, true);
+                mtof_calibration_state_pub_->publish(calib_state_msg);
+            } else {
+                calib_state_msg.data = make_mtof_state(true, false);
+                mtof_calibration_state_pub_->publish(calib_state_msg);
             }
         }
+
+        if (isActiveMToFCalibration == 2 && !bRightMToFCalibrationSet) {
+            if (multiToFCalibration(msg)) {
+                bRightMToFCalibrationSet = true;
+                isCompleteMToFCalibration = true;
+                RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Complete To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
+                calib_state_msg.data = make_mtof_state(false, true);
+                mtof_calibration_state_pub_->publish(calib_state_msg);
+            } else {
+                calib_state_msg.data = make_mtof_state(false, false);
+                mtof_calibration_state_pub_->publish(calib_state_msg);
+            }
+        }
+
+        if (bLeftMToFCalibrationSet && bRightMToFCalibrationSet) {
+            std_msgs::msg::Float32MultiArray msg_arr;
+            msg_arr.data.assign(mtof_calib_result_array_.begin(), mtof_calib_result_array_.end());
+            mtof_calibration_complete_pub_->publish(msg_arr);
+            RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Publish m-ToF Calibration Data to A1_Perception");
+            bLeftMToFCalibrationSet = false;
+            bRightMToFCalibrationSet = false;
+        }
+
         return;
     }
 
@@ -916,6 +946,17 @@ bool SensorToPointcloud::isDetectRamp()
     }
 
     return ret;
+}
+
+uint8_t SensorToPointcloud::make_mtof_state(bool is_left, bool is_complete)
+{
+    constexpr uint8_t SIDE_LEFT      = 0x10; // 상위비트: Left
+    constexpr uint8_t SIDE_RIGHT     = 0x20; // 상위비트: Right
+
+    constexpr uint8_t STATE_RUNNING  = 0x01; // 하위비트: Running
+    constexpr uint8_t STATE_COMPLETE = 0x02; // 하위비트: Complete
+
+    return (is_left ? SIDE_LEFT : SIDE_RIGHT) | (is_complete ? STATE_COMPLETE : STATE_RUNNING);
 }
 
 bool SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg)

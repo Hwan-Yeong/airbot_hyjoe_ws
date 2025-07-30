@@ -78,7 +78,8 @@ private:
     //debug
     // rclcpp::Publisher<robot_custom_msgs::msg::TofData>::SharedPtr tof_debug_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr sensor_to_pointcloud_state_pub_;
-    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr mtof_calibration_update_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr mtof_calibration_complete_pub_;
+    rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr mtof_calibration_state_pub_;
 
     std::string target_frame_;
 
@@ -160,6 +161,7 @@ private:
     void imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
 
     bool isDetectRamp();
+    uint8_t make_mtof_state(bool is_left, bool is_complete);
     bool multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg);
 };
 

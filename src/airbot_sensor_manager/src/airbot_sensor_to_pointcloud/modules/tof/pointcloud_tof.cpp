@@ -205,11 +205,11 @@ std_msgs::msg::Float32MultiArray PointCloudTof::updateBotTofCalibrationData(cons
     }
 
     std_msgs::msg::Float32MultiArray ret;
-    size_t idx_num = 3;
+    size_t idx_num = 3; // 왼쪽 오른쪽 각각 3개씩([13], [14], [15]) 캘리브레이션 진행 하여 3으로 설정
     if (robot_pts.size() >= idx_num) {
         const size_t n = robot_pts.size();
         ret.data.reserve(idx_num);
-        for (size_t i = n - idx_num; i < n; ++i) {
+        for (size_t i = n - idx_num; i < n; ++i) { // 뒤에서부터 3개 인덱스 접근
             ret.data.push_back(static_cast<float>(sqrt(robot_pts[i].x*robot_pts[i].x + robot_pts[i].y*robot_pts[i].y)));
         }
     } else {
