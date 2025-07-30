@@ -108,6 +108,8 @@ SensorToPointcloud::SensorToPointcloud()
     // Cmd Subscribers
     sensor_to_pointcloud_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
         "cmd_sensor_manager", 10, std::bind(&SensorToPointcloud::activeCmdCallback, this, std::placeholders::_1));
+    mtof_calibration_cmd_sub_ = this->create_subscription<std_msgs::msg::UInt8>(
+        "start_tofcalib", 10, std::bind(&SensorToPointcloud::mToFCalibrationCmdCallback, this, std::placeholders::_1));
 
     // Msg Subscribers
     tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
@@ -140,6 +142,8 @@ void SensorToPointcloud::init()
     wasActiveSensorToPointcloud_cliff = false;
     wasActiveSensorToPointcloud_collision = false;
     camera_object_logger_.setNode(shared_from_this());
+    isActiveMToFCalibration = 0;
+    isCompleteMToFCalibration = false;
     initVariables();
     declareParams();
     setParams();
@@ -269,6 +273,10 @@ void SensorToPointcloud::initPublisher(const YAML::Node& config)
     // );
     sensor_to_pointcloud_state_pub_ = this->create_publisher<std_msgs::msg::Bool>(
         "sensor_to_pointcloud_active", 10
+    );
+
+    mtof_calibration_update_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>(
+        "perception/calibration/update", 10
     );
 
     RCLCPP_INFO(this->get_logger(), "Publisher init finished!");
@@ -625,8 +633,35 @@ void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr 
     }
 }
 
+void SensorToPointcloud::mToFCalibrationCmdCallback(const std_msgs::msg::UInt8::SharedPtr msg)
+{
+    isActiveMToFCalibration = static_cast<int>(msg->data);
+    if (isActiveMToFCalibration == 1 || isActiveMToFCalibration == 2) {
+        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Cmd : Active");
+        isCompleteMToFCalibration = false;
+    } else {
+        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Cmd : De-Active");
+    }
+}
+
 void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
+    if (!isCompleteMToFCalibration && (isActiveMToFCalibration == 1 || isActiveMToFCalibration == 2)) {
+        if (multiToFCalibration(msg)) {
+            RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Complete To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
+            isCompleteMToFCalibration = true;
+            if (bLeftMToFCalibrationSet && bRightMToFCalibrationSet) {
+                std_msgs::msg::Float32MultiArray msg_out;
+                msg_out.data.assign(mtof_calib_result_array_.begin(), mtof_calib_result_array_.end());
+                mtof_calibration_update_pub_->publish(msg_out);
+                RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Publish m-ToF Calibration Data to A1_Perception");
+                bLeftMToFCalibrationSet = false;
+                bRightMToFCalibrationSet = false;
+            }
+        }
+        return;
+    }
+
     if (wasActiveSensorToPointcloud_tof && !isActiveSensorToPointcloud) {
         if (sensor_config_.one_d_tof.use) pc_tof_1d_msg = sensor_msgs::msg::PointCloud2();
         if (sensor_config_.multi_tof.use) pc_tof_multi_msg = sensor_msgs::msg::PointCloud2();
@@ -878,6 +913,68 @@ bool SensorToPointcloud::isDetectRamp()
         } else {
             ret = false;
         }
+    }
+
+    return ret;
+}
+
+bool SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg)
+{
+    bool ret = false;
+
+    TOF_SIDE side;
+    if (isActiveMToFCalibration == 1) {
+        side = TOF_SIDE::LEFT;
+    } else if (isActiveMToFCalibration == 2) {
+        side = TOF_SIDE::RIGHT;
+    } else {
+        RCLCPP_INFO(this->get_logger(), "Wrong Clib Command");
+        return ret;
+    }
+    auto result = point_cloud_tof_.updateBotTofCalibrationData(msg, side, botTofPitchAngle_);
+
+    const auto& arr = result.data;
+
+    if (arr.size() <= 2) {
+        RCLCPP_WARN(this->get_logger(),
+                    "updateBotTofCalibrationData() returned size=%zu (<3). Skip sample.",
+                    arr.size());
+        return ret;
+    }
+
+    static size_t sample_count = 0;
+    constexpr size_t sampling_time = 300; // 10hz * 300회
+    static float max13 = -1.0;
+    static float max14 = -1.0;
+    static float max15 = -1.0;
+
+    if (arr[0] > max13) max13 = arr[0];
+    if (arr[1] > max14) max14 = arr[1];
+    if (arr[2] > max15) max15 = arr[2];
+    ++sample_count;
+
+    if (sample_count >= sampling_time) {
+        RCLCPP_INFO(this->get_logger(),
+                    "Max over last 300 samples (idx 13,14,15): %.3f, %.3f, %.3f",
+                    static_cast<double>(max13), static_cast<double>(max14), static_cast<double>(max15)
+                );
+
+        if (side == TOF_SIDE::LEFT) {
+            bLeftMToFCalibrationSet = true;
+            mtof_calib_result_array_[0] = max13;
+            mtof_calib_result_array_[1] = max14;
+            mtof_calib_result_array_[2] = max15;
+        } else {
+            bRightMToFCalibrationSet = true;
+            mtof_calib_result_array_[3] = max13;
+            mtof_calib_result_array_[4] = max14;
+            mtof_calib_result_array_[5] = max15;
+        }
+
+        sample_count = 0;
+        max13 = max14 = max15 = -1.0;
+
+        ret = true;
     }
 
     return ret;

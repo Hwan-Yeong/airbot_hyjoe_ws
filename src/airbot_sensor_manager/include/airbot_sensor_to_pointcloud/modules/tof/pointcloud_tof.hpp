@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <string>
+#include "std_msgs/msg/float32_multi_array.hpp"
 #include "robot_custom_msgs/msg/tof_data.hpp"
 #include "utils/frame_converter.hpp"
 #include "utils/pointcloud_generator.hpp"
@@ -28,6 +29,7 @@ public:
     void updateRightSubCellIndexArray(std::vector<int> &right_sub_cell_idx_array);
     sensor_msgs::msg::PointCloud2 updateTopTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr msg, double tilting_angle);
     std::vector<sensor_msgs::msg::PointCloud2> updateBotTofPointCloudMsg(const robot_custom_msgs::msg::TofData::SharedPtr& msg, TOF_SIDE side, const tTofPitchAngle& pitchAngle);
+    std_msgs::msg::Float32MultiArray updateBotTofCalibrationData(const robot_custom_msgs::msg::TofData::SharedPtr& msg, TOF_SIDE side, const tTofPitchAngle& pitchAngle);
 
 private:
     FrameConverter frame_converter_;

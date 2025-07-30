@@ -147,6 +147,80 @@ std::vector<sensor_msgs::msg::PointCloud2> PointCloudTof::updateBotTofPointCloud
     return result_msgs;
 }
 
+std_msgs::msg::Float32MultiArray PointCloudTof::updateBotTofCalibrationData(const robot_custom_msgs::msg::TofData::SharedPtr& msg, TOF_SIDE side, const tTofPitchAngle& pitchAngle)
+{
+    tof_bot_left_sensor_frame_pitch_ang_ = pitchAngle.bot_left;
+    tof_bot_right_sensor_frame_pitch_ang_ = pitchAngle.bot_right;
+
+    std::vector<double> tof_dists;
+    std::vector<tPoint> sensor_pts;
+    std::vector<tPoint> robot_pts;
+
+    constexpr size_t INDEX_SIZE = 16;
+
+    if (side == TOF_SIDE::LEFT) {
+        tof_dists.assign(msg->bot_left.begin(), msg->bot_left.end());
+        sensor_pts.reserve(INDEX_SIZE);
+        for (size_t i = 0; i < INDEX_SIZE; ++i) {
+            const double d = tof_dists[i];
+            tPoint p;
+            p.x = d;
+            p.y = d * left_y_tan_[i];
+            p.z = d * left_z_tan_[i];
+            sensor_pts.push_back(p);
+        }
+
+        robot_pts = frame_converter_.transformTofSensor2RobotFrame(
+            sensor_pts,
+            true,
+            tof_bot_left_sensor_frame_yaw_ang_,
+            tof_bot_left_sensor_frame_pitch_ang_,
+            tof_bot_translation_
+        );
+    } else if (side == TOF_SIDE::RIGHT) {
+        tof_dists.assign(msg->bot_right.begin(), msg->bot_right.end());
+        sensor_pts.reserve(INDEX_SIZE);
+        for (size_t i = 0; i < INDEX_SIZE; ++i) {
+            const double d = tof_dists[i];
+            tPoint p;
+            p.x = d;
+            p.y = d * right_y_tan_[i];
+            p.z = d * right_z_tan_[i];
+            sensor_pts.push_back(p);
+        }
+
+        robot_pts = frame_converter_.transformTofSensor2RobotFrame(
+            sensor_pts,
+            false,
+            tof_bot_right_sensor_frame_yaw_ang_,
+            tof_bot_right_sensor_frame_pitch_ang_,
+            tof_bot_translation_
+        );
+    }
+
+    if (robot_pts.size() != INDEX_SIZE) {
+        RCLCPP_WARN(rclcpp::get_logger("PointCloudTof"),
+                    "Expected %zu robot points, but got %zu.",
+                    INDEX_SIZE, robot_pts.size());
+    }
+
+    std_msgs::msg::Float32MultiArray ret;
+    size_t idx_num = 3;
+    if (robot_pts.size() >= idx_num) {
+        const size_t n = robot_pts.size();
+        ret.data.reserve(idx_num);
+        for (size_t i = n - idx_num; i < n; ++i) {
+            ret.data.push_back(static_cast<float>(sqrt(robot_pts[i].x*robot_pts[i].x + robot_pts[i].y*robot_pts[i].y)));
+        }
+    } else {
+        RCLCPP_WARN(rclcpp::get_logger("PointCloudTof"),
+                    "robot_pts has fewer than 3 points (size=%zu). Returning empty array.",
+                    robot_pts.size());
+    }
+
+    return ret;
+}
+
 void PointCloudTof::updateSubCellIndexArray(const std::vector<int> &sub_cell_idx_array, std::vector<double> &y_tan_out, std::vector<double> &z_tan_out)
 {
     if (use_tof_8x8_) {

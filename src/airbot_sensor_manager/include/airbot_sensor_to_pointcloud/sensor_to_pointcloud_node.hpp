@@ -1,10 +1,13 @@
 #ifndef __SENSOR_TO_POINTCLOUD__
 #define __SENSOR_TO_POINTCLOUD__
 
+#include <array>
 #include <chrono>
 #include "rclcpp/rclcpp.hpp"
 #include "yaml-cpp/yaml.h"
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/u_int8.hpp"
+#include "std_msgs/msg/float32_multi_array.hpp"
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
@@ -60,6 +63,7 @@ private:
     std::shared_ptr<rclcpp::ParameterCallbackHandle> mtof_right_subcell_callback_handle_;
 
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sensor_to_pointcloud_cmd_sub_;
+    rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr mtof_calibration_cmd_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr cliff_sub_;
@@ -74,6 +78,7 @@ private:
     //debug
     // rclcpp::Publisher<robot_custom_msgs::msg::TofData>::SharedPtr tof_debug_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr sensor_to_pointcloud_state_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr mtof_calibration_update_pub_;
 
     std::string target_frame_;
 
@@ -104,6 +109,10 @@ private:
     vision_msgs::msg::BoundingBox2DArray bbox_msg;
 
     bool isActiveSensorToPointcloud;
+    int isActiveMToFCalibration;
+    bool isCompleteMToFCalibration;
+    bool bLeftMToFCalibrationSet;
+    bool bRightMToFCalibrationSet;
     bool wasActiveSensorToPointcloud_tof;
     bool wasActiveSensorToPointcloud_camera;
     bool wasActiveSensorToPointcloud_cliff;
@@ -119,6 +128,7 @@ private:
     int ramp_cnt_;
     bool ramp_detected_;
     std::unordered_set<int> prev_camera_logged_ids;
+    std::array<float, 6> mtof_calib_result_array_{};
 
     void initVariables();
     void initSensorConfig(const YAML::Node& config);
@@ -142,6 +152,7 @@ private:
     void publishEmptyMsg();
 
     void activeCmdCallback(const std_msgs::msg::Bool::SharedPtr msg);
+    void mToFCalibrationCmdCallback(const std_msgs::msg::UInt8::SharedPtr msg);
     void tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void cameraMsgUpdate(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
     void cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
@@ -149,6 +160,7 @@ private:
     void imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
 
     bool isDetectRamp();
+    bool multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg);
 };
 
 #endif // SENSOR_TO_POINTCLOUD
