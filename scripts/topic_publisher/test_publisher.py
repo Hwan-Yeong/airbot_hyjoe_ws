@@ -160,6 +160,12 @@ class CliffDetectionErrorSimulation(Node):
     def pubToFData(self):
         self.tof_data.timestamp = self.get_clock().now().to_msg()
         self.tof_data.top = 0.05
+        self.tof_data.bot_left[13] = 0.320
+        self.tof_data.bot_left[14] = 0.320
+        self.tof_data.bot_left[15] = 0.320
+        self.tof_data.bot_right[13] = 0.320
+        self.tof_data.bot_right[14] = 0.320
+        self.tof_data.bot_right[15] = 0.320
         self.tof_publisher.publish(self.tof_data)
 
     def timer_callback(self):
@@ -173,9 +179,9 @@ class CliffDetectionErrorSimulation(Node):
         # self.pubRobotState()
         # self.pubBottomIrData()
         # self.pubOdomData()
-        self.pubCameraData()
+        # self.pubCameraData()
         # self.pubImuData()
-        # self.pubToFData()
+        self.pubToFData()
 
 def main(args=None):
     rclpy.init(args=args)

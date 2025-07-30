@@ -641,23 +641,26 @@ void SensorToPointcloud::mToFCalibrationCmdCallback(const std_msgs::msg::UInt8::
 {
     isActiveMToFCalibration = static_cast<int>(msg->data);
     if (isActiveMToFCalibration == 1 || isActiveMToFCalibration == 2) {
-        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Cmd : Active");
-        isCompleteMToFCalibration = false;
+        if (isActiveMToFCalibration == 1) {
+            bLeftMToFCalibrationSet = false;
+        } else {
+            bRightMToFCalibrationSet = false;
+        }
+        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Cmd : Active [%s]", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
     } else {
-        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Cmd : De-Active");
+        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Cmd : Wrong Command [%d]", isActiveMToFCalibration);
     }
 }
 
 void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
-    if (!isCompleteMToFCalibration && (isActiveMToFCalibration == 1 || isActiveMToFCalibration == 2)) {
+    if ((!bLeftMToFCalibrationSet || !bRightMToFCalibrationSet) && (isActiveMToFCalibration == 1 || isActiveMToFCalibration == 2)) {
 
         std_msgs::msg::UInt8 calib_state_msg;
 
         if (isActiveMToFCalibration == 1 && !bLeftMToFCalibrationSet) {
             if (multiToFCalibration(msg)) {
                 bLeftMToFCalibrationSet = true;
-                isCompleteMToFCalibration = true;
                 RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Complete To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
                 calib_state_msg.data = make_mtof_state(true, true);
                 mtof_calibration_state_pub_->publish(calib_state_msg);
@@ -670,7 +673,6 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
         if (isActiveMToFCalibration == 2 && !bRightMToFCalibrationSet) {
             if (multiToFCalibration(msg)) {
                 bRightMToFCalibrationSet = true;
-                isCompleteMToFCalibration = true;
                 RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Complete To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
                 calib_state_msg.data = make_mtof_state(false, true);
                 mtof_calibration_state_pub_->publish(calib_state_msg);
@@ -950,13 +952,13 @@ bool SensorToPointcloud::isDetectRamp()
 
 uint8_t SensorToPointcloud::make_mtof_state(bool is_left, bool is_complete)
 {
-    constexpr uint8_t SIDE_LEFT      = 0x10; // 상위비트: Left
-    constexpr uint8_t SIDE_RIGHT     = 0x20; // 상위비트: Right
+    constexpr uint8_t LEFT_RUNNING      = 0x01; // 하위비트: Left Running
+    constexpr uint8_t LEFT_COMPLETE     = 0x02; // 하위비트: Left Complete
 
-    constexpr uint8_t STATE_RUNNING  = 0x01; // 하위비트: Running
-    constexpr uint8_t STATE_COMPLETE = 0x02; // 하위비트: Complete
+    constexpr uint8_t RIGHT_RUNNING     = 0x10; // 상위비트: Right Running
+    constexpr uint8_t RIGHT_COMPLETE    = 0x20; // 상위비트: Right Complete
 
-    return (is_left ? SIDE_LEFT : SIDE_RIGHT) | (is_complete ? STATE_COMPLETE : STATE_RUNNING);
+    return is_left ? (is_complete ? LEFT_COMPLETE : LEFT_RUNNING) : (is_complete ? RIGHT_COMPLETE : RIGHT_RUNNING);
 }
 
 bool SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg)
