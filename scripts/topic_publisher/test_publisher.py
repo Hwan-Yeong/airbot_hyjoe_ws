@@ -141,10 +141,10 @@ class CliffDetectionErrorSimulation(Node):
         self.bottom_ir_data.bb = False
         self.bottom_ir_data.bl = False
         self.bottom_ir_data.fr = False
-        self.bottom_ir_data.adc_fl = 10
-        self.bottom_ir_data.adc_bb = 10
-        self.bottom_ir_data.adc_bl = 17
-        self.bottom_ir_data.adc_fr = 18
+        self.bottom_ir_data.adc_fl = 1
+        self.bottom_ir_data.adc_bb = 1
+        self.bottom_ir_data.adc_bl = 1
+        self.bottom_ir_data.adc_fr = 1
         self.bottom_ir_data.robot_x = 0.0
         self.bottom_ir_data.robot_y = 0.0
         self.bottom_ir_data.robot_angle = 0.0

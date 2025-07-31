@@ -589,17 +589,19 @@ bool LiftErrorMonitor::checkError(const InputType &input)
     }
 
     double timeDiff = clock.now().seconds() - prevTime;
-    if (liftErrorCandidate && (timeDiff >= 2)) { // 2sec
+    if (liftErrorCandidate) {
         if (!irLiftFlag) {
             liftErrorCandidate = false;
         } else {
-            if (!errorState) {
-                RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[LiftErrorMonitor] IR & IMU both Lift Detected! (error count: %d, IR lift duration: %.3f sec)",
-                    static_cast<int>(errorCount), timeDiff
-                );
+            if (timeDiff >= 2) {
+                if (!errorState) {
+                    RCLCPP_INFO(node_ptr_->get_logger(),
+                        "[LiftErrorMonitor] IR & IMU both Lift Detected! (error count: %d, IR lift duration: %.3f sec)",
+                        static_cast<int>(errorCount), timeDiff
+                    );
+                }
+                errorState = true;
             }
-            errorState = true;
         }
     }
 
