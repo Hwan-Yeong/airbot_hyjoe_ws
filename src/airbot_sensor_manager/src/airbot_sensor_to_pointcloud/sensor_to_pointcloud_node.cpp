@@ -664,6 +664,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
 
         if (isActiveMToFCalibration == 1 && !bLeftMToFCalibrationSet) {
             if (multiToFCalibration(msg)) {
+                isActiveMToFCalibration = 0;
                 bLeftMToFCalibrationSet = true;
                 RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Complete To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
                 calib_state_msg.data = make_mtof_state(true, true);
@@ -676,6 +677,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
 
         if (isActiveMToFCalibration == 2 && !bRightMToFCalibrationSet) {
             if (multiToFCalibration(msg)) {
+                isActiveMToFCalibration = 0;
                 bRightMToFCalibrationSet = true;
                 RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Complete To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
                 calib_state_msg.data = make_mtof_state(false, true);
