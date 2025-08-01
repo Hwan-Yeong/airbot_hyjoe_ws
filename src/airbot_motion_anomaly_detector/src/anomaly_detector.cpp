@@ -3,8 +3,8 @@
 
 AnomalyDetector::AnomalyDetector() : Node("anomaly_detector") {
     // Load parameters
-    declare_parameter("output.collision.time_duration_ms", 500);
-    declare_parameter("output.collision.imu_pitch_th_deg", -4.0);
+    declare_parameter("output.collision.time_duration_ms", 700);
+    declare_parameter("output.collision.imu_pitch_th_deg", -5.0);
     declare_parameter("output.collision.imu_pitch_diff_th_deg", 1.0);
     declare_parameter("output.collision.imu_pitch_diff_window_size", 10);
     declare_parameter("output.slope.time_duration", 2.0);
@@ -13,9 +13,9 @@ AnomalyDetector::AnomalyDetector() : Node("anomaly_detector") {
     // Assign parameters to variables
     pitch_collision_duration_threshold_ = get_parameter("output.collision.time_duration_ms").as_int();
     pitch_slope_duration_threshold_ = get_parameter("output.slope.time_duration").as_double();
-    pitch_threshold_collision_ = get_parameter("output.collision.imu_pitch_th_deg").as_double();
+    pitch_threshold_collision_ = get_parameter("output.collision.imu_pitch_th_deg").as_double()*M_PI/180.0;
     pitch_threshold_ = get_parameter("output.slope.imu_pitch_th").as_double();
-    pitch_diff_threshold_ = get_parameter("output.collision.imu_pitch_diff_th_deg").as_double();
+    pitch_diff_threshold_ = get_parameter("output.collision.imu_pitch_diff_th_deg").as_double()*M_PI/180.0;
     pitch_diff_window_size_ = get_parameter("output.collision.imu_pitch_diff_window_size").as_int();
 
     // Initialize variables
@@ -83,12 +83,10 @@ double AnomalyDetector:: quaternion_to_euler(const geometry_msgs::msg::Quaternio
 
 void AnomalyDetector::detectCollision(double pitch)
 {
-    double pitch_deg = pitch*180/M_PI;
-
     if (cmd_vel_x_ > 0.0 && is_climb_detected_ && !is_collision_detected_) {
-        if (pitch_deg < pitch_threshold_collision_) {
+        if (pitch < pitch_threshold_collision_) {
 
-            pitch_history_.push_back(pitch_deg);
+            pitch_history_.push_back(pitch);
 
             if (static_cast<int>(pitch_history_.size()) > pitch_diff_window_size_) {
                 pitch_history_.pop_front();
@@ -101,8 +99,8 @@ void AnomalyDetector::detectCollision(double pitch)
                     collision_cnt_++;
                     // if (collision_cnt_ % 10 == 0) {
                     //     RCLCPP_INFO(this->get_logger(),
-                    //         "Suspect Collision! Pitch %.2f deg, diff: %.2f deg, cnt: %d ms",
-                    //         pitch_deg, pitch_diff, collision_cnt_ * 10
+                    //         "Suspect Collision! Pitch %.2f deg, diff: %.2f deg, dirr_th: %.2f deg, cnt: %d ms",
+                    //         pitch*180/M_PI, pitch_diff*180/M_PI, pitch_diff_threshold_*180/M_PI, collision_cnt_ * 10
                     //     );
                     // }
 
@@ -111,7 +109,7 @@ void AnomalyDetector::detectCollision(double pitch)
                         is_collision_detected_ = true;
                         RCLCPP_INFO(this->get_logger(),
                             "Collision Detected! Pitch %.2f deg, duration: %d ms",
-                            pitch_deg, pitch_collision_duration_threshold_
+                            pitch*180/M_PI, pitch_collision_duration_threshold_
                         );
                     }
                 }

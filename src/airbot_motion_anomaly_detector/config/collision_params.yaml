@@ -3,8 +3,8 @@ collision_detector:
     output:
       collision: # Pitch must stay negative to detect collision
         topic_name: "/collision_detected"
-        time_duration_ms: 500
-        imu_pitch_th_deg: -4.0
+        time_duration_ms: 700
+        imu_pitch_th_deg: -5.0
         imu_pitch_diff_th_deg: 1.0
         imu_pitch_diff_window_size: 10
 
