@@ -7,6 +7,9 @@ namespace sensor_to_pointcloud {
 SensorToPointcloudNode::SensorToPointcloudNode() : Node("sensor_to_pointcloud_node")
 {
     this->loadConfig();
+    this->declare_parameter("target_frame", "map");
+    this->get_parameter("target_frame", node_target_frame_);
+    RCLCPP_INFO(this->get_logger(), "  Target Frame: '%s'", node_target_frame_.c_str());
 
     camera_sub_ = this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
         "/camera_data",
@@ -74,13 +77,13 @@ void SensorToPointcloudNode::publishPointcloudTimer()
         }
 
         if (!camera_msg_copy) {
-            RCLCPP_DEBUG(this->get_logger(), "No latest camera msg");
+            RCLCPP_INFO(this->get_logger(), "No latest camera msg");
             return;
         }
 
         auto it = converters_.find("camera");
         if (it == converters_.end() || !it->second) {
-            RCLCPP_WARN(this->get_logger(), "No converter for Camera sensor");
+            RCLCPP_INFO(this->get_logger(), "No converter for Camera sensor");
             return;
         }
 

@@ -19,6 +19,7 @@ class SensorToPointcloudNode : public rclcpp::Node
 public:
     SensorToPointcloudNode();
     void init();
+    std::string getTargetFrame() const { return node_target_frame_; }
 
 private:
     void loadConfig();
@@ -26,6 +27,7 @@ private:
     void initConverters(const YAML::Node &config);
 
     YAML::Node config_;
+    std::string node_target_frame_;
 
     std::unordered_map<std::string, CloudConverterPtr> converters_;
 

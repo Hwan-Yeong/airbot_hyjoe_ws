@@ -6,9 +6,12 @@
 
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
+#include "vision_msgs/msg/bounding_box2_d_array.hpp"
 #include "robot_custom_msgs/msg/camera_data.hpp"
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "yaml-cpp/yaml.h"
+
+#include "utils/common_struct.hpp"
 
 
 namespace sensor_to_pointcloud {
@@ -39,6 +42,7 @@ class CloudConverterStrategy
 
   protected:
     std::shared_ptr<SensorToPointcloudNode> node_ptr{};
+    std::string target_frame_;
 };
 using CloudConverterPtr = std::shared_ptr<CloudConverterStrategy>;
 
@@ -52,9 +56,15 @@ class CameraCloudConverter : public CloudConverterStrategy
 
   private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
+    vision_msgs::msg::BoundingBox2DArray generateObjectBBoxArray(const robot_custom_msgs::msg::CameraDataArray* msg, tPose &robot_pose,std::map<int, int> class_id_confidence_th, bool direction, double object_max_distance);
+    sensor_msgs::msg::PointCloud2 generateCameraPointCloudMsg(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution);
 
     bool use_camera_;
+    bool object_direction_;
     double pointcloud_resolution_;
+    double object_max_dist_;
+    tPoint sensor_frame_translation_;
+    std::map<int, int> camera_class_id_confidence_th_;
     // ...
 };
 
