@@ -53,7 +53,7 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorToPointcloudNod
     for (const auto& [class_id, confidence_th] : this->camera_class_id_confidence_th_) {
         oss << "    - ID: " << class_id << ", Threshold: " << confidence_th << "\n";
     }
-    oss << "================================================\n";
+    oss <<   "================================================";
     RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
 }
 
@@ -254,6 +254,78 @@ sensor_msgs::msg::PointCloud2 CameraCloudConverter::generateCameraPointCloudMsg(
             }
         }
     }
+
+    return msg;
+}
+
+EmptyCloudConverter::EmptyCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node& config)
+    : CloudConverterStrategy(node_ptr_)
+{
+    // Load Config
+    if (!config.IsMap())
+    {
+        auto s = YAML::Dump(config);
+        throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
+    }
+
+    this->use_empty_msg_ = config["use"].as<bool>();
+
+    // Print Config
+    std::ostringstream oss;
+    oss << "\n==== EMPTY POINTCLOUD PARAMETERS ====\n";
+    oss << std::boolalpha;
+    oss << "  use_empty_: " << this->use_empty_msg_ << "\n";
+    oss <<   "=====================================";
+    RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
+}
+
+sensor_msgs::msg::PointCloud2 EmptyCloudConverter::pc_convert(const void *sensor_msg)
+{
+    sensor_msgs::msg::PointCloud2 ret;
+
+    if (sensor_msg == nullptr && this->use_empty_msg_) {
+        ret = generateEmptyPointCloudMsg();
+    }
+
+    return ret;
+}
+
+sensor_msgs::msg::PointCloud2 EmptyCloudConverter::generateEmptyPointCloudMsg()
+{
+    sensor_msgs::msg::PointCloud2 msg;
+
+    msg.header.stamp = rclcpp::Clock().now();
+    msg.header.frame_id = this->target_frame_;
+
+    msg.height = 1;                // 단일 행
+    msg.width = 0;                 // 데이터 포인트 0개
+    msg.is_dense = true;           // 빈 메시지이므로 dense라고 봐도 무방
+    msg.is_bigendian = false;
+    msg.point_step = 12;           // 3 floats * 4 bytes
+    msg.row_step = msg.point_step * msg.width;  // 0
+
+    // 필드 정의 (x, y, z)
+    sensor_msgs::msg::PointField field_x;
+    field_x.name = "x";
+    field_x.offset = 0;
+    field_x.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_x.count = 1;
+
+    sensor_msgs::msg::PointField field_y;
+    field_y.name = "y";
+    field_y.offset = 4;
+    field_y.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_y.count = 1;
+
+    sensor_msgs::msg::PointField field_z;
+    field_z.name = "z";
+    field_z.offset = 8;
+    field_z.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_z.count = 1;
+
+    msg.fields = {field_x, field_y, field_z};
+
+    msg.data.clear();
 
     return msg;
 }

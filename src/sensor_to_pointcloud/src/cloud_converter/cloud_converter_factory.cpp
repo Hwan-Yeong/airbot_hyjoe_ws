@@ -33,6 +33,10 @@ CloudConverterPtr CloudConverterFactory::create(std::shared_ptr<SensorToPointclo
     {
         return nullptr;
     }
+    else if (type == "empty")
+    {
+        return std::make_shared<EmptyCloudConverter>(node_ptr, config);
+    }
     else
     {
         throw std::runtime_error("Unknown Sensor type: " + type);

@@ -65,7 +65,21 @@ class CameraCloudConverter : public CloudConverterStrategy
     double object_max_dist_;
     tPoint sensor_frame_translation_;
     std::map<int, int> camera_class_id_confidence_th_;
-    // ...
+};
+
+/**
+ * @brief Empty PointCloud2 변환
+ */
+class EmptyCloudConverter : public CloudConverterStrategy
+{
+  public:
+    EmptyCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node& config);
+
+  private:
+    PointCloudMsg pc_convert(const void* sensor_msg) override;
+    sensor_msgs::msg::PointCloud2 generateEmptyPointCloudMsg();
+
+    bool use_empty_msg_;
 };
 
 } // namespace sensor_to_pointcloud

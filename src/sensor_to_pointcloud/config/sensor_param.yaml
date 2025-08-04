@@ -145,6 +145,9 @@ sensor_to_pointcloud:
         extrinsics:
           distance: 0.19 # forward point offset
 
+      empty:
+        use: true
+
     use_sim_time: false
 
 ################################

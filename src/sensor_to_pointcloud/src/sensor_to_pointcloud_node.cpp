@@ -11,6 +11,37 @@ SensorToPointcloudNode::SensorToPointcloudNode() : Node("sensor_to_pointcloud_no
     this->get_parameter("target_frame", node_target_frame_);
     RCLCPP_INFO(this->get_logger(), "  Target Frame: '%s'", node_target_frame_.c_str());
 
+    // Sensor Manager On/Off Cmd Subscriber
+    sensor_to_pointcloud_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+        "cmd_sensor_manager",
+        rclcpp::QoS(3).reliable(),
+        [this](std_msgs::msg::Bool::SharedPtr msg) {
+            if (!msg) {
+                RCLCPP_ERROR(this->get_logger(), "cmd_sensor_to_pointcloud topic is a nullptr message.");
+                return;
+            }
+
+            this->node_active_cmd_ = msg->data;
+            std_msgs::msg::Bool sensor_manager_state_msg;
+            sensor_manager_state_msg.data = msg->data;
+
+            if (this->node_active_cmd_){
+                RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] activeCmdCallback : Active");
+                for (int i=0; i<3; ++i) {
+                    node_active_cmd_response_pub_->publish(sensor_manager_state_msg);
+                    rclcpp::sleep_for(std::chrono::milliseconds(1));
+                }
+            } else {
+                publishEmptyMsg();
+                RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] activeCmdCallback : De-Active");
+                for (int i=0; i<3; ++i) {
+                    node_active_cmd_response_pub_->publish(sensor_manager_state_msg);
+                    rclcpp::sleep_for(std::chrono::milliseconds(1));
+                }
+            }
+        }
+    );
+
     // Camera Msg Subscriber
     camera_sub_ = this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
         "/camera_data",
@@ -24,7 +55,13 @@ SensorToPointcloudNode::SensorToPointcloudNode() : Node("sensor_to_pointcloud_no
 
     // PointCloud Publishers
     camera_pc_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-        "/pointcloud/camera", 10);
+        "/pointcloud/camera", 10
+    );
+
+    // etc Publishers
+    node_active_cmd_response_pub_ = this->create_publisher<std_msgs::msg::Bool>(
+        "sensor_to_pointcloud_active", 10
+    );
 
     // PointCloud Publish Timer
     timer_ = this->create_wall_timer(
@@ -71,6 +108,8 @@ void SensorToPointcloudNode::loadConfig()
 
 void SensorToPointcloudNode::init()
 {
+    // initializeOnce();
+    initializeRuntime();
     initConverters(this->config_["sensors"]);
 }
 
@@ -85,8 +124,18 @@ void SensorToPointcloudNode::initConverters(const YAML::Node& config)
     }
 }
 
+void SensorToPointcloudNode::initializeRuntime()
+{
+    this->node_active_cmd_ = false;
+}
+
 void SensorToPointcloudNode::publishPointcloudTimer()
 {
+    if (!this->node_active_cmd_) {
+        initializeRuntime();
+        return;
+    }
+
     if (camera_msg_updated_.load()) {
         robot_custom_msgs::msg::CameraDataArray::SharedPtr camera_msg_copy;
 
@@ -109,6 +158,26 @@ void SensorToPointcloudNode::publishPointcloudTimer()
 
         camera_pc_pub_->publish(pc2_msg);
     }
+}
+
+void SensorToPointcloudNode::publishEmptyMsg()
+{
+    auto it = converters_.find("empty");
+    if (it == converters_.end() || !it->second) {
+        RCLCPP_INFO(this->get_logger(), "No converter for empty msg");
+        return;
+    }
+
+    auto empty_msg = it->second->pc_convert(nullptr);
+
+    // for (auto& [name, pub] : pointcloud_pubs_) {
+    //     if (pub && pub->get_subscription_count() > 0) {
+    //         pub->publish(empty_msg);
+    //     }
+    // }
+    camera_pc_pub_->publish(empty_msg);
+
+    RCLCPP_INFO(this->get_logger(), "All Active Publisher publish empty_cloud msgs!");
 }
 
 } // namespace sensor_to_pointcloud
