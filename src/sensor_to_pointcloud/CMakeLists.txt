@@ -58,6 +58,20 @@ install(TARGETS sensor_to_pointcloud
   DESTINATION lib/${PROJECT_NAME}
 )
 
+################################
+######## PARAM_MANAGER #########
+add_executable(param_setter
+  src/parameter_manager/param_setter.cpp
+  src/parameter_manager/main.cpp
+)
+ament_target_dependencies(param_setter
+  rclcpp
+  std_msgs
+)
+install(TARGETS param_setter
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 
 ################################
 ############ GENERAL ###########

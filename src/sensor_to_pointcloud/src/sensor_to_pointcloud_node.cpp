@@ -11,6 +11,7 @@ SensorToPointcloudNode::SensorToPointcloudNode() : Node("sensor_to_pointcloud_no
     this->get_parameter("target_frame", node_target_frame_);
     RCLCPP_INFO(this->get_logger(), "  Target Frame: '%s'", node_target_frame_.c_str());
 
+    // Camera Msg Subscriber
     camera_sub_ = this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
         "/camera_data",
         rclcpp::SensorDataQoS(),
@@ -21,12 +22,32 @@ SensorToPointcloudNode::SensorToPointcloudNode() : Node("sensor_to_pointcloud_no
         }
     );
 
+    // PointCloud Publishers
     camera_pc_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
         "/pointcloud/camera", 10);
 
+    // PointCloud Publish Timer
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(100),
         std::bind(&SensorToPointcloudNode::publishPointcloudTimer, this)
+    );
+
+    // Dynamic Parameter Handler
+    param_handler_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
+    target_frame_callback_handle_ = param_handler_->add_parameter_callback(
+        "target_frame",
+        [this](const rclcpp::Parameter & param) {
+            if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                std::string before = this->node_target_frame_;
+                this->node_target_frame_ = param.as_string();
+                std::string after;
+                if (this->get_parameter("target_frame", after)) {
+                    RCLCPP_INFO(this->get_logger(), "[=== Updating target_frame: %s -> %s ===]", before.c_str(), after.c_str());
+                } else {
+                    RCLCPP_WARN(this->get_logger(), "target_frame parameter not found!");
+                }
+            }
+        }
     );
 }
 
@@ -76,10 +97,7 @@ void SensorToPointcloudNode::publishPointcloudTimer()
             camera_msg_updated_.store(false);
         }
 
-        if (!camera_msg_copy) {
-            RCLCPP_INFO(this->get_logger(), "No latest camera msg");
-            return;
-        }
+        if (!camera_msg_copy) { return; }
 
         auto it = converters_.find("camera");
         if (it == converters_.end() || !it->second) {

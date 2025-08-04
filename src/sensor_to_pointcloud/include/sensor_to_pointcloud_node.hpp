@@ -32,7 +32,11 @@ private:
     std::unordered_map<std::string, CloudConverterPtr> converters_;
 
     rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
+
     rclcpp::Publisher<PointCloudMsg>::SharedPtr camera_pc_pub_;
+
+    std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
+    std::shared_ptr<rclcpp::ParameterCallbackHandle> target_frame_callback_handle_;
 
     rclcpp::TimerBase::SharedPtr timer_;
 
