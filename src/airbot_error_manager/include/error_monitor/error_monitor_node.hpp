@@ -55,6 +55,7 @@ private:
     void tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void aiVerCallback(const std_msgs::msg::String::SharedPtr msg);
     void cameraCallback(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
+    void checkMemoryUsage();
 
     bool update_battery_status_low_battery, update_battery_status_battery_discharging, update_battery_status_charging,
         update_bottom_ir_data_fall_down, update_bottom_ir_data_lift, update_bottom_ir_data_cliff_detection,
@@ -107,6 +108,8 @@ private:
     std::unordered_map<std::type_index, std::shared_ptr<void>> monitors_;
 
     rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::TimerBase::SharedPtr memory_monitor_timer_;
+
 };
 
 #endif // __ERROR_MONITOR_NODE_HPP__

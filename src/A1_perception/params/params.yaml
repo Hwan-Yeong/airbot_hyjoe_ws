@@ -4,3 +4,4 @@ A1_perception:
     # 0: unset, 10: debug, 20: info, 30: warn, 40: error
     log_level: 20
     node_params: node_8x8.yaml
+    calibration_file_path: /home/airbot/app_rw/perception/params/calibration.yaml

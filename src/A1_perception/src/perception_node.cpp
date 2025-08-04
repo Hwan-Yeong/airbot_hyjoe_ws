@@ -113,6 +113,7 @@ PerceptionNode::PerceptionNode() : Node("A1_perception")
 {
     // 파라미터 선언: params.yaml의 "ros__parameters" 아래에 node_params가 있으므로 기본값을 설정
     this->declare_parameter("node_params", "node.yaml");
+    this->declare_parameter("calibration_file_path", "/home/airbot/app_rw/perception/params/calibration.yaml");
     this->loadConfig();
     this->last_state_pub_time = std::chrono::steady_clock::now();
 
@@ -121,25 +122,50 @@ PerceptionNode::PerceptionNode() : Node("A1_perception")
     this->get_parameter("log_level", log_level);
 
     // 로그 레벨 설정
-    rcutils_logging_set_logger_level(this->get_logger().get_name(), static_cast<RCUTILS_LOG_SEVERITY>(log_level));
-
+    rcutils_ret_t result =
+        rcutils_logging_set_logger_level(this->get_logger().get_name(), static_cast<RCUTILS_LOG_SEVERITY>(log_level));
+    if (result != RCUTILS_RET_OK)
+    {
+        RCLCPP_WARN(this->get_logger(), "Failed to set logger level.");
+    }
     RCLCPP_INFO(this->get_logger(), "A1_perception has been started.");
 }
 
 void PerceptionNode::loadConfig(void)
 {
     std::string node_params{};
+    std::string calibration_file_path{};
     this->get_parameter("node_params", node_params);
+    this->get_parameter("calibration_file_path", calibration_file_path);
+
     try
     {
-        std::string package_share_directory = ament_index_cpp::get_package_share_directory("A1_perception");
-        std::string full_path = package_share_directory + "/" + "params" + "/" + node_params;
-        this->config = YAML::LoadFile(full_path)["A1_perception"]["node"];
+        std::string config_file_to_load;
+        if (!calibration_file_path.empty() && std::filesystem::exists(calibration_file_path))
+        {
+            // calibration_file_path가 있고, 파일이 실제로 존재하면 그걸 사용
+            config_file_to_load = calibration_file_path;
+            RCLCPP_INFO(
+                this->get_logger(),
+                "Loading calibration file: %s, file size: %ld",
+                calibration_file_path.c_str(),
+                std::filesystem::file_size(calibration_file_path));
+        }
+        else
+        {
+            // calibration_file_path 없거나 파일이 없으면 기존 방식 유지
+            std::string package_share_directory = ament_index_cpp::get_package_share_directory("A1_perception");
+            config_file_to_load = package_share_directory + "/params/" + node_params;
+            RCLCPP_INFO(this->get_logger(), "Loading node_params file: %s", config_file_to_load.c_str());
+        }
+
+        this->config = YAML::LoadFile(config_file_to_load)["A1_perception"]["node"];
     }
     catch (const std::exception& e)
     {
-        // fallback (ament_index_cpp::get_package_share_directory()가 제대로 작동하지 않을 경우)
         RCLCPP_ERROR(this->get_logger(), "Failed to load config file: %s", e.what());
+
+        // fallback (ament_index_cpp::get_package_share_directory()가 제대로 작동하지 않을 경우)
         std::string fallback_path = "install/A1_perception/share/A1_perception/params/" + node_params;
         this->config = YAML::LoadFile(fallback_path)["A1_perception"]["node"];
     }
@@ -223,25 +249,73 @@ void PerceptionNode::initController()
         qos_profile,
         [this](const std_msgs::msg::Empty::SharedPtr msg)
         {
-            this->perception_use = false;
-            this->resetLayers();
-            if (this->timer)
-                this->timer.reset();
-
-            this->subscribers.clear();
-            this->publishers.clear();
-
-            this->filters.clear();
-            this->drop_off_layer_map.clear();
-            this->sensor_layer_map.clear();
-            this->layers.clear();
-
-            this->init();
-
-            RCLCPP_INFO(this->get_logger(), "[Perception] Complete reload configuration.");
+            (void)msg;
+            this->reloadConfiguration();
         });
 
+    // [EB]calibration update process start
+    this->controller_subscribers["parameter_updater"] = this->create_subscription<std_msgs::msg::Float32MultiArray>(
+        "/perception/calibration/update",
+        qos_profile,
+        std::bind(&PerceptionNode::calibrationCallback, this, std::placeholders::_1));
+
     this->state_pub = this->create_publisher<std_msgs::msg::Bool>("/perception/state", 1);
+
+    // [CB]calibration complete
+    this->calibration_pub = this->create_publisher<std_msgs::msg::Bool>("/perception/calibration/complete", 1);
+}
+void PerceptionNode::calibrationCallback(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
+{
+    if (this->is_calibration_process)
+    {
+        return;
+    }
+    this->is_calibration_process = true;
+    RCLCPP_INFO(this->get_logger(), "[Calibration] calibration update callback.");
+    std::string node_params{};
+    std::string calibration_file_path{};
+    this->get_parameter("node_params", node_params);
+    this->get_parameter("calibration_file_path", calibration_file_path);
+    std::string package_share_directory = ament_index_cpp::get_package_share_directory("A1_perception");
+    std::string full_path = package_share_directory + "/" + "params" + "/" + node_params;
+    auto pnode = std::static_pointer_cast<PerceptionNode>(this->shared_from_this());
+    // param manager 생성
+    ParamManager param_manager(pnode, full_path);
+    // 파라미터 업데이트
+    param_manager.update_parameters(msg->data);
+    // 파일 저장
+    bool status = param_manager.save_config_file(calibration_file_path);
+    RCLCPP_INFO(this->get_logger(), "[Calibration] calibration file save complete. %s", calibration_file_path.c_str());
+    // 저장 되는 시간 동안 딜레이
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    this->reloadConfiguration();
+    // 결과 전송
+    std_msgs::msg::Bool result_msg;
+    result_msg.data = status;
+    this->calibration_pub->publish(result_msg);
+    RCLCPP_INFO(this->get_logger(), "[Calibration] parameter update completes.");
+    this->is_calibration_process = false;
+}
+
+void PerceptionNode::reloadConfiguration(void)
+{
+    this->perception_use = false;
+    this->loadConfig();
+    this->resetLayers();
+    if (this->timer)
+        this->timer.reset();
+
+    this->subscribers.clear();
+    this->publishers.clear();
+
+    this->filters.clear();
+    this->drop_off_layer_map.clear();
+    this->sensor_layer_map.clear();
+    this->layers.clear();
+
+    this->init();
+
+    RCLCPP_INFO(this->get_logger(), "[Perception] Complete reload configuration.");
 }
 
 // 수정된 initSubscribers(): inputs는 시퀀스 내부에 mapping 형태로 정의되어 있음

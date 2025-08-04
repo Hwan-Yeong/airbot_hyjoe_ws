@@ -12,12 +12,14 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/empty.hpp>
+#include <std_msgs/msg/float32_multi_array.hpp>
 #include <std_msgs/msg/int8.hpp>
 
 #include "climb_checker.hpp"
 #include "filter/filter.hpp"
 #include "layer.hpp"
 #include "motor_status.hpp"
+#include "param_manager.hpp"
 #include "position.hpp"
 #include "robot_custom_msgs/msg/motor_status.hpp"
 #include "yaml-cpp/yaml.h"
@@ -77,9 +79,11 @@ class PerceptionNode : public rclcpp::Node
     void initMultiToFSubscribers(const YAML::Node& config);
     void initPublishers(const YAML::Node& config);
     void initFilters(const YAML::Node& config);
-    void pub_states();
-    void initController();
-    void timerCallback();
+    void pub_states(void);
+    void initController(void);
+    void timerCallback(void);
+    void reloadConfiguration(void);
+    void calibrationCallback(const std_msgs::msg::Float32MultiArray::SharedPtr msg);
 
     sensor_msgs::msg::PointCloud2 convertToPointCloud2(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 
@@ -88,6 +92,8 @@ class PerceptionNode : public rclcpp::Node
     Position robot_position{};
     Position imu_data{};
     MotorStatus motor_status{};
+
+    bool is_calibration_process{false};
 
     rclcpp::TimerBase::SharedPtr timer{};
     std::chrono::steady_clock::time_point last_state_pub_time;
@@ -103,6 +109,7 @@ class PerceptionNode : public rclcpp::Node
     ClimbChecker climb_checker;
 
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr state_pub;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr calibration_pub;
 };
 }  // namespace A1::perception
 

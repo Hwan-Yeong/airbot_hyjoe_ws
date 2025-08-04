@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
+cmake_policy(SET CMP0077 NEW)
 project(A1_perception)
 
 set(PROJECT_LIB ${PROJECT_NAME}_lib)
@@ -55,6 +56,7 @@ add_definitions(${PCL_DEFINITIONS})
 set(src_files 
 	src/perception_node.cpp
 	src/climb_checker.cpp
+	src/param_manager.cpp
 	src/filter/filter.cpp
 	src/filter/filter_factory.cpp
 )

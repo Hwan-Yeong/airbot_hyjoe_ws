@@ -265,19 +265,13 @@ class ComposeFilter : public BaseFilter
  * --------------------------------------------------
  * compose:
  *   filters:
- *     timeout:
- *       timeout_milliseconds: 100   # TimeoutFilter: 데이터를 무효화할 시간 (밀리초)
+ *     lidar_dist_check:             # LidarDistCheckFilter: 라이다와 거리 계산을 해서 데이터를 지우는 필터
+ *       min_range: 0.0              # LidarDistCheckFilter: 최소 거리값
+ *       max_range: 0.3              # LidarDistCheckFilter: 최대 거리값
  *     drop_off:
  *       min_range: 0.58             # DropOffFilter: 최소 거리값
- *       max_range: 0.7              # DropOffFilter: 최대 거리값
  *       line_length: 0.2            # DropOffFilter: 생성할 직선 길이/2(m)
  *       resolution: 0.05            # DropOffFilter: 생성할 직선의 레졸루션(m)
- *       compare_dist_diff_max: 0.5  # DropOffFilter: row3와 데이터를 비교해서 거리가 멀어야 단차로 잡힘
- *       inputs:                     # DropOffFilter: compare_dist_diff_max를 적용할 데이터
- *         - multi_tof_right_row3
- *     density:
- *       max_count: 3                # DensityFilter: 유지할 최대 점 수
- *       radius: 0.1                 # DensityFilter: 밀도 평가 반경
  * --------------------------------------------------
  */
 class DropOffFilter : public BaseFilter
@@ -290,8 +284,36 @@ class DropOffFilter : public BaseFilter
     float min_range{};
     float line_length{};
     float resolution{};
-    float compare_dist_diff_max{};
-    std::vector<std::string> inputs{};
+};
+
+/**
+ * @brief DropOffDiffFilter 단차 검증을 위해 만든 필터입니다.
+ *
+ * [YAML 설정 예시]
+ * --------------------------------------------------
+ * compose:
+ *   filters:
+ *     lidar_dist_check:             # LidarDistCheckFilter: 라이다와 거리 계산을 해서 데이터를 지우는 필터
+ *       min_range: 0.0              # LidarDistCheckFilter: 최소 거리값
+ *       max_range: 0.3              # LidarDistCheckFilter: 최대 거리값
+ *     drop_off_diff:
+ *       dist_diff: 0.08             # DropOffDiffFilter: 이전 샘플과의 거리 차이
+ *       line_length: 0.2            # DropOffDiffFilter: 생성할 직선 길이/2(m)
+ *       resolution: 0.05            # DropOffDiffFilter: 생성할 직선의 레졸루션(m)
+ * --------------------------------------------------
+ */
+class DropOffDiffFilter : public BaseFilter
+{
+   public:
+    DropOffDiffFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config);
+
+   private:
+    LayerVector updateImpl(LayerVector layer_vector) override;
+    float standard_dist{};
+    std::chrono::steady_clock::time_point prev_time;
+    float dist_diff{};
+    float line_length{};
+    float resolution{};
 };
 
 /**

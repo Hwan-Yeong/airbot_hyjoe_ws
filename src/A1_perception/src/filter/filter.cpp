@@ -366,17 +366,12 @@ LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
     double resolution = this->resolution;
 
     MotorStatus motor_status = node->getMotorStatus();
-
-    Layer target_layer;
-    for (auto input : this->inputs)
-    {
-        auto target_sensor_layer = node->getSensorLayer(input);
-        target_layer.cloud.insert(
-            target_layer.cloud.end(), target_sensor_layer.cloud.begin(), target_sensor_layer.cloud.end());
-    }
-
     for (auto& layer : layer_vector)
     {
+        if (layer.isDeletable == false)
+        {
+            continue;
+        }
         auto layer_base_link = layer;
         pcl::transformPointCloud(layer.cloud, layer_base_link.cloud, inverse_transform);
 
@@ -402,9 +397,9 @@ LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
                 continue;
             }
 
-            std::string key = std::to_string(point_global.x).substr(0, std::to_string(point_global.x).find(".") + 3) +
+            std::string key = std::to_string(point_global.x).substr(0, std::to_string(point_global.x).find(".") + 2) +
                               "," +
-                              std::to_string(point_global.y).substr(0, std::to_string(point_global.y).find(".") + 3);
+                              std::to_string(point_global.y).substr(0, std::to_string(point_global.y).find(".") + 2);
             if (node->getDropOffLayerMap().find(key) == node->getDropOffLayerMap().end())
             {
                 auto line_layer = Layer();
@@ -425,7 +420,7 @@ LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
                 node->getDropOffLayerMap()[key] = line_layer;
                 // 1 -> DROP_OFF STOP
                 node->sendActionStop(1);
-
+                layer.isDeletable = false;
                 if (logIntervalPassed())
                 {
                     RCLCPP_INFO(
@@ -443,6 +438,150 @@ LayerVector DropOffFilter::updateImpl(LayerVector layer_vector)
         }
     }
 
+    return layer_vector;
+}
+
+DropOffDiffFilter::DropOffDiffFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config)
+    : BaseFilter(node_ptr_)
+{
+    this->dist_diff = getYamlValue<float>(__FUNCTION__, config, "dist_diff", 0.1);
+    this->standard_dist = getYamlValue<float>(__FUNCTION__, config, "standard_dist", 0.5);
+    this->line_length = getYamlValue<float>(__FUNCTION__, config, "line_length", 0.05);
+    this->resolution = getYamlValue<float>(__FUNCTION__, config, "resolution", 0.05);
+}
+
+LayerVector DropOffDiffFilter::updateImpl(LayerVector layer_vector)
+{
+    auto node = this->getNodePtr();
+    MotorStatus motor_status = node->getMotorStatus();
+    if (node->isClimb())  // || !motor_status.isMoveToFoward())
+    {
+        for (auto& layer : layer_vector)
+        {
+            if (layer.isDeletable)
+                layer.cloud.clear();
+        }
+        return layer_vector;
+    }
+    // coordinate transform
+    auto position = node->getPosition();
+    geometry_msgs::msg::Transform transform_msg;
+    tf2::toMsg(position.getTransform().inverse(), transform_msg);
+    Eigen::Affine3f inverse_transform = tf2::transformToEigen(transform_msg).cast<float>();
+
+    auto now = std::chrono::steady_clock::now();
+
+    double heading_x = cos(position.yaw);
+    double heading_y = sin(position.yaw);
+
+    double orthogonal_x = -heading_y;
+    double orthogonal_y = heading_x;
+    double length = this->line_length;
+    double resolution = this->resolution;
+
+    for (auto& layer : layer_vector)
+    {
+        if (layer.isDeletable == false)
+        {
+            continue;
+        }
+        auto layer_base_link = layer;
+        pcl::transformPointCloud(layer.cloud, layer_base_link.cloud, inverse_transform);
+
+        auto it = layer.cloud.begin();
+        auto jt = layer_base_link.cloud.begin();
+
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+        for (; it != layer.cloud.end();)
+        {
+            pcl::PointXY point{jt->x, jt->y};
+            pcl::PointXYZ point_global{it->x, it->y, 0};
+            float distance = std::sqrt(point.x * point.x + point.y * point.y);
+            float diff = distance - this->standard_dist;
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - this->prev_time).count();
+            // RCLCPP_INFO(
+            //     node->get_logger(),
+            //     "Drop off check prev dist: %.3f, cur dist:%.3f dist diff:%.3f",
+            //     this->prev_dist,
+            //     distance,
+            //     diff);
+            if (diff < this->dist_diff || elapsed > 20)
+            {
+                it = layer.cloud.erase(it);
+                jt = layer_base_link.cloud.erase(jt);
+                continue;
+            }
+
+            // RCLCPP_INFO(node->get_logger(), "Drop off detect dist diff:%.3f", diff);
+            std::string key = std::to_string(point_global.x).substr(0, std::to_string(point_global.x).find(".") + 2) +
+                              "," +
+                              std::to_string(point_global.y).substr(0, std::to_string(point_global.y).find(".") + 2);
+            if (node->getDropOffLayerMap().find(key) == node->getDropOffLayerMap().end())
+            {
+                auto line_layer = Layer();
+                double start_x = point_global.x - orthogonal_x * length;
+                double start_y = point_global.y - orthogonal_y * length;
+                pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+                for (double t = 0; t <= length * 2; t += resolution)
+                {
+                    pcl::PointXYZ new_point;
+                    new_point.x = start_x + orthogonal_x * t;
+                    new_point.y = start_y + orthogonal_y * t;
+                    new_point.z = 0.0;
+                    cloud->points.push_back(new_point);
+                }
+                line_layer.sensor_timestamp = layer.sensor_timestamp;
+                line_layer.timestamp = node->now();
+                line_layer.cloud = *cloud;
+                node->getDropOffLayerMap()[key] = line_layer;
+                // 1 -> DROP_OFF STOP
+                if (motor_status.isMoveToFoward())
+                    node->sendActionStop(1);
+                if (logIntervalPassed())
+                {
+                    RCLCPP_INFO(
+                        node->get_logger(),
+                        "Detect drop off. robot_xy(%.3f, %.3f), drop(x:%.3f, y:%.3f, dist: %.3f, diff:%.3f)",
+                        position.x,
+                        position.y,
+                        point_global.x,
+                        point_global.y,
+                        distance,
+                        diff);
+                }
+            }
+            // double start_x = point_global.x - orthogonal_x * length;
+            // double start_y = point_global.y - orthogonal_y * length;
+            // for (double t = 0; t <= length * 2; t += resolution)
+            // {
+            //     pcl::PointXYZ new_point;
+            //     new_point.x = start_x + orthogonal_x * t;
+            //     new_point.y = start_y + orthogonal_y * t;
+            //     new_point.z = 0.0;
+            //     cloud->points.push_back(new_point);
+            // }
+            // // 1 -> DROP_OFF STOP
+            // node->sendActionStop(1);
+            // layer.isDeletable = false;
+            // if (logIntervalPassed())
+            // {
+            //     RCLCPP_INFO(
+            //         node->get_logger(),
+            //         "Detect drop off. robot_xy(%.3f, %.3f), drop(x:%.3f, y:%.3f, dist: %.3f, diff:%.3f)",
+            //         position.x,
+            //         position.y,
+            //         point_global.x,
+            //         point_global.y,
+            //         distance,
+            //         diff);
+            // }
+
+            it = layer.cloud.erase(it);
+            jt = layer_base_link.cloud.erase(jt);
+        }
+        // layer.cloud.insert(layer.cloud.end(), cloud->begin(), cloud->end());
+    }
+    this->prev_time = now;
     return layer_vector;
 }
 

@@ -48,6 +48,7 @@ ErrorMonitorNode::ErrorMonitorNode()
     one_d_tof_detection_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/top_tof_obstacle_error", 10);
     ai_communication_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/f_code/ai_connect", 10);
     // Timer
+    memory_monitor_timer_ = this->create_wall_timer(std::chrono::seconds(60), std::bind(&ErrorMonitorNode::checkMemoryUsage, this));
     timer_ = this->create_wall_timer(
         10ms,
         std::bind(&ErrorMonitorNode::errorMonitor, this));
@@ -398,4 +399,61 @@ void ErrorMonitorNode::aiVerCallback(const std_msgs::msg::String::SharedPtr)
 void ErrorMonitorNode::cameraCallback(const robot_custom_msgs::msg::CameraDataArray::SharedPtr)
 {
     update_camera_data = true;
+}
+
+void ErrorMonitorNode::checkMemoryUsage() {
+  long mem_total = 0;
+  long mem_available = 0;
+  long mem_buffers = 0;
+  long mem_cached = 0;
+
+  std::ifstream meminfo("/proc/meminfo");
+  if (!meminfo.is_open()) {
+    RCLCPP_ERROR(this->get_logger(), "Could not open /proc/meminfo to check memory usage.");
+    return;
+  }
+
+  std::stringstream full_meminfo_content;
+  std::string line;
+  while (std::getline(meminfo, line))
+  {
+    full_meminfo_content << line << "\n"; //meminfo stream 저장.
+    std::istringstream iss(line);
+    std::string key;
+    long value;
+    std::string unit;
+
+    if (iss >> key >> value >> unit)
+    {
+      if (key == "MemTotal:"){
+        mem_total = value;
+      } else if (key == "MemAvailable:"){
+        mem_available = value;
+      } else if (key == "Buffers:"){
+        mem_buffers = value;
+      } else if (key == "Cached:"){
+        mem_cached = value;
+      }
+    }
+  }
+
+  // 디버깅을 위해 /proc/meminfo 전체 내용 출력
+  // RCLCPP_INFO(this->get_logger(), "/proc/meminfo:\n%s", full_meminfo_content.str().c_str());
+
+  if (mem_total == 0) {
+    RCLCPP_ERROR(this->get_logger(), "Could not parse MemTotal from /proc/meminfo.");
+    return;
+  }
+
+  long used = mem_total - mem_available;
+  double used_percent = (double)used / (double)mem_total * 100.0;
+  RCLCPP_INFO(this->get_logger(), "Memory MemTotal: %ld kB", mem_total);
+  RCLCPP_INFO(this->get_logger(), "Memory MemAvailable: %ld kB", mem_available);
+  RCLCPP_INFO(this->get_logger(), "Memory Buffers: %ld kB", mem_buffers);
+  RCLCPP_INFO(this->get_logger(), "Memory Cached: %ld kB", mem_cached);
+  RCLCPP_INFO(this->get_logger(), "Memory Usage: %.2f%% (%ld / %ld kB)-------------", used_percent, used, mem_total);
+  if (used_percent > 90.0)
+  {
+    RCLCPP_WARN(this->get_logger(),"Memory usage exceeded 90%%. -->USED MEMORY[%.2f%%] OOM may occur!", used_percent);
+  }
 }

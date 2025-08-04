@@ -33,6 +33,10 @@ FilterFactory::create(std::shared_ptr<PerceptionNode> node_ptr, const std::strin
     {
         return std::make_shared<DropOffFilter>(node_ptr, config);
     }
+    else if (type == "drop_off_diff")
+    {
+        return std::make_shared<DropOffDiffFilter>(node_ptr, config);
+    }
     else if (type == "one_d_roi")
     {
         return std::make_shared<OneDRoIFilter>(node_ptr, config);
