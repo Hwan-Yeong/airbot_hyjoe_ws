@@ -148,8 +148,8 @@ private:
     void setParams();
 
     void printParams();
-    void printSensorConfig(const std::string& name, const tSensor& cfg);
-    void printFilterConfig(const std::string& name, const tFilter& filter);
+    void appendSensorConfig(std::ostringstream& oss, const std::string& name, const tSensor& cfg);
+    void appendFilterConfig(std::ostringstream& oss, const std::string& name, const tFilter& cfg);
 
     tSensor getSensorCfg(const YAML::Node& node);
 
