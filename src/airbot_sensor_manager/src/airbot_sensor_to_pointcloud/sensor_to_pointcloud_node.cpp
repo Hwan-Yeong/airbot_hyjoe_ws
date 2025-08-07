@@ -404,7 +404,7 @@ void SensorToPointcloud::printParams()
     appendSensorConfig(oss, "Collision", sensor_config_.collision);
 
     oss << "===============================================================\n";
-    oss << "Parameter update finished!\n";
+    oss << "Parameter update finished!";
 
     RCLCPP_INFO(this->get_logger(), "%s", oss.str().c_str());
 }
