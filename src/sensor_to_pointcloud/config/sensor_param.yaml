@@ -109,14 +109,27 @@ sensor_to_pointcloud:
         publish_rate_ms: 100
         pointcloud_resolution: 0.05
         class_id_confidence_th: # 형식: "class id: confidence score"
-          - "0: 0" #cable     #50
-          # - "1: 0" #carpet    #75
-          - "2: 0" #clothes   #60
-          - "5: 0" #obstacle 미사용
-          - "6: 0" #poop      #30
-          # - "8: 0" #threshold 미사용
-          - "12: 0" #pole
+          - "0: 0"  #cable
+          - "1: 0"  #carpet [Unused]
+          - "2: 0"  #clothes
+          - "3: 0"  #liquid [Unused]
+          - "4: 0"  #non_obstacle [Unused]
+          - "5: 0"  #obstacle [Unused]
+          - "6: 0"  #poop
+          - "7: 0"  #scale
+          # - "8: 0"  #threshold [Unused]
+          # - "9: 0"  #person
+          - "10: 0" #dog [Unused]
+          - "11: 0" #cat [Unused]
+          - "12: 0" #chair
+          - "13: 0" #base
+          # - "14: 0" #shoes
+          - "15: 0" #electronic_device
+          - "16: 0" #dryingrack
           - "17: 0" #bed
+          - "18: 0"
+          - "19: 0"
+          - "20: 0"
         object_direction: true  # 정방향(CCW+):True, 역방향(CW+):False
         object_max_distance_m: 1.5 # 최대 장애물 거리 (해당 거리 이내의 장애물 정보만 처리)
         object_ignore_pitch_th_deg: 3.0 # 객체인식 장애물 무시하는 pitch 각도 (절댓값)
@@ -161,21 +174,25 @@ sensor_to_pointcloud:
 ################################
 #######  Camera Object  ########
 ######     Class ID      #######
-#                              #
-#        0: cable              #
-#        1: carpet             #
-#        2: clothes            #
-#        3: liquid             #
-#        4: non_obstacle       #
-#        5: obstacle           #
-#        6: poop               #
-#        7: scale              #
-#        8: threshold          #
-#        9: person             #
-#        10: dog               #
-#        11: cat               #
-#        12: pole              #
-#                              #
+#
+#        00: 케이블
+#        01: 카펫
+#        02: 옷, 수건, 양말
+#        03: 액체
+#        04: 비장애물
+#        05: 장애물
+#        06: 동물 대변
+#        07: 체중계
+#        08: 문턱
+#        09: 사람
+#        10: 개
+#        11: 고양이
+#        12: 의자
+#        13: 선풍기, 원형책상, 기둥, 전등기둥
+#        14: 신발
+#        15: 전자기기 (노트북, 태블릿, 스마트폰)
+#        16: 건조대
+#
 ################################
 ###########  Bot IR  ###########
 ######### < Top View > #########

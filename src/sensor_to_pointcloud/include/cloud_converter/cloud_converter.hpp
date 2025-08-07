@@ -59,12 +59,35 @@ class CameraCloudConverter : public CloudConverterStrategy
     vision_msgs::msg::BoundingBox2DArray generateObjectBBoxArray(const robot_custom_msgs::msg::CameraDataArray* msg, tPose &robot_pose,std::map<int, int> class_id_confidence_th, bool direction, double object_max_distance);
     sensor_msgs::msg::PointCloud2 generateCameraPointCloudMsg(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution);
 
-    bool use_camera_;
-    bool object_direction_;
-    double pointcloud_resolution_;
-    double object_max_dist_;
-    tPoint sensor_frame_translation_;
-    std::map<int, int> camera_class_id_confidence_th_;
+    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
+    bool use_camera_ = true;
+    bool object_direction_ = true;
+    double pointcloud_resolution_ = 0.05;
+    double object_max_dist_ = 1.5;
+    tPoint sensor_frame_translation_ = tPoint(0.15473, 0.0, 0.5331);
+    // std::map<int, int> camera_class_id_confidence_th_ = {};  // yaml 에서만 주석하면 자동으로 반영되도록
+    std::map<int, int> camera_class_id_confidence_th_ = {       // yaml과 해당 선언부에서 모두 주석해야 반영됨
+      {0, 0},  // cable
+      {1, 0},  // carpet [Unused]
+      {2, 0},  // clothes
+      {3, 0},  // liquid [Unused]
+      {4, 0},  // non_obstacle [Unused]
+      {5, 0},  // obstacle [Unused]
+      {6, 0},  // poop
+      {7, 0},  // scale
+      // {8, 0},  // threshold [Unused]
+      // {9, 0},  // person
+      {10, 0}, // dog [Unused]
+      {11, 0}, // cat [Unused]
+      {12, 0}, // chair
+      {13, 0}, // base
+      // {14, 0}, // shoes
+      {15, 0}, // electronic_device
+      {16, 0}, // dryingrack
+      {17, 0}, // bed
+      {18, 0},
+      {19, 0}
+    };
 };
 
 /**
@@ -79,7 +102,8 @@ class EmptyCloudConverter : public CloudConverterStrategy
     PointCloudMsg pc_convert(const void* sensor_msg) override;
     sensor_msgs::msg::PointCloud2 generateEmptyPointCloudMsg();
 
-    bool use_empty_msg_;
+    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
+    bool use_empty_msg_ = true;
 };
 
 } // namespace sensor_to_pointcloud
