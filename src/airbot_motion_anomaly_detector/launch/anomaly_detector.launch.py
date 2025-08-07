@@ -22,4 +22,18 @@ def generate_launch_description():
         name="odom_monitor",
         output="screen",
         ),
+
+        Node(
+        package=package_name,
+        executable="tf_monitor",
+        name="tf_monitor",
+        output="screen",
+        ),
+
+        Node(
+        package=package_name,
+        executable="scan_monitor",
+        name="scan_monitor",
+        output="screen",
+        ),
     ])

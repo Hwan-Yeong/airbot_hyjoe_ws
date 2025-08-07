@@ -22,10 +22,17 @@ find_package(tf2_geometry_msgs REQUIRED)
 # Define the executable
 add_executable(anomaly_detector src/anomaly_detector.cpp)
 add_executable(odom_monitor src/odom_monitor.cpp)
+add_executable(tf_monitor src/tf_monitor.cpp)
+add_executable(scan_monitor src/scan_monitor.cpp)
 target_include_directories(anomaly_detector PUBLIC include)
 target_include_directories(odom_monitor PUBLIC include)
+target_include_directories(tf_monitor PUBLIC include)
+target_include_directories(scan_monitor PUBLIC include)
+
 ament_target_dependencies(anomaly_detector rclcpp sensor_msgs std_msgs geometry_msgs robot_custom_msgs tf2 tf2_ros tf2_geometry_msgs)
 ament_target_dependencies(odom_monitor rclcpp sensor_msgs std_msgs geometry_msgs robot_custom_msgs tf2 tf2_ros tf2_geometry_msgs nav_msgs)
+ament_target_dependencies(tf_monitor rclcpp sensor_msgs std_msgs geometry_msgs robot_custom_msgs tf2 tf2_ros tf2_geometry_msgs nav_msgs)
+ament_target_dependencies(scan_monitor rclcpp sensor_msgs std_msgs geometry_msgs robot_custom_msgs tf2 tf2_ros tf2_geometry_msgs nav_msgs)
 
 
 install(DIRECTORY launch config
@@ -34,6 +41,8 @@ install(DIRECTORY launch config
 install(TARGETS
   anomaly_detector 
   odom_monitor
+  tf_monitor
+  scan_monitor
   DESTINATION lib/${PROJECT_NAME})
 
 # Ament package

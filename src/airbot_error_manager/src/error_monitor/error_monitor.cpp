@@ -117,9 +117,9 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
     }
     
     current_time = clock.now().seconds();
-    
+
     if( !error_state ){ //에러가 아닐떄.
-        if( !charge_flag && input.first.battery_percent <= params.occure_percentage_max) {// 10 % //250730 KKS : 5%로 변경
+            if( !charge_flag && input.first.battery_percent > 0 && input.first.battery_percent <= params.occure_percentage_max) {// 10 % //250730 KKS : 5%로 변경  // 0%초과 5%이하
             
             if (!init_setting) { // 이전 시간에 대해서 초기시간 설정
                 prev_time = current_time;
