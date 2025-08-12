@@ -79,7 +79,8 @@ ComposeFilter::ComposeFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YA
     if (!config.IsMap() || config.size() != 1)
     {
         auto s = YAML::Dump(config);
-        throw std::runtime_error("Invalid filter config format.");
+        RCLCPP_ERROR(node_ptr->get_logger(), "Invalid filter config format.");
+        // throw std::runtime_error("Invalid filter config format.");
     }
     auto it = config.begin();
     std::string type = it->first.as<std::string>();

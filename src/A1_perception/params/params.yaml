@@ -4,4 +4,12 @@ A1_perception:
     # 0: unset, 10: debug, 20: info, 30: warn, 40: error
     log_level: 20
     node_params: node_8x8.yaml
-    calibration_file_path: /home/airbot/app_rw/perception/params/calibration.yaml
+    calibration:
+      file_path: /home/airbot/app_rw/perception/params/calibration.yaml
+      targets: |
+        index_0: [layers.multi_tof_left_drop_off_diff_idx_57.filter.compose.filters.drop_off_diff.standard_dist]
+        index_1: [layers.multi_tof_left_drop_off_diff_idx_60.filter.compose.filters.drop_off_diff.standard_dist]
+        index_2: [layers.multi_tof_left_drop_off_diff_idx_63.filter.compose.filters.drop_off_diff.standard_dist]
+        index_3: [layers.multi_tof_right_drop_off_diff_idx_56.filter.compose.filters.drop_off_diff.standard_dist]
+        index_4: [layers.multi_tof_right_drop_off_diff_idx_59.filter.compose.filters.drop_off_diff.standard_dist]
+        index_5: [layers.multi_tof_right_drop_off_diff_idx_62.filter.compose.filters.drop_off_diff.standard_dist]

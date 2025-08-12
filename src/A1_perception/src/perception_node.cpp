@@ -113,7 +113,9 @@ PerceptionNode::PerceptionNode() : Node("A1_perception")
 {
     // 파라미터 선언: params.yaml의 "ros__parameters" 아래에 node_params가 있으므로 기본값을 설정
     this->declare_parameter("node_params", "node.yaml");
-    this->declare_parameter("calibration_file_path", "/home/airbot/app_rw/perception/params/calibration.yaml");
+    this->declare_parameter("calibration.file_path", "/home/airbot/app_rw/perception/params/calibration.yaml");
+    this->declare_parameter("calibration.targets", "");
+
     this->loadConfig();
     this->last_state_pub_time = std::chrono::steady_clock::now();
 
@@ -136,7 +138,7 @@ void PerceptionNode::loadConfig(void)
     std::string node_params{};
     std::string calibration_file_path{};
     this->get_parameter("node_params", node_params);
-    this->get_parameter("calibration_file_path", calibration_file_path);
+    this->get_parameter("calibration.file_path", calibration_file_path);
 
     try
     {
@@ -274,13 +276,15 @@ void PerceptionNode::calibrationCallback(const std_msgs::msg::Float32MultiArray:
     RCLCPP_INFO(this->get_logger(), "[Calibration] calibration update callback.");
     std::string node_params{};
     std::string calibration_file_path{};
+    std::string targets_str{};
     this->get_parameter("node_params", node_params);
-    this->get_parameter("calibration_file_path", calibration_file_path);
+    this->get_parameter("calibration.file_path", calibration_file_path);
+    this->get_parameter("calibration.targets", targets_str);
     std::string package_share_directory = ament_index_cpp::get_package_share_directory("A1_perception");
     std::string full_path = package_share_directory + "/" + "params" + "/" + node_params;
     auto pnode = std::static_pointer_cast<PerceptionNode>(this->shared_from_this());
     // param manager 생성
-    ParamManager param_manager(pnode, full_path);
+    ParamManager param_manager(pnode, full_path, targets_str);
     // 파라미터 업데이트
     param_manager.update_parameters(msg->data);
     // 파일 저장

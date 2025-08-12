@@ -63,6 +63,11 @@ int main(int argc, char **argv)
 	auto scan_state_pub = node->create_publisher<std_msgs::msg::Bool>("scan_state", 10);
 	auto scan_dirty_error_pub = node->create_publisher<std_msgs::msg::Bool>("scan_dirty", 10);
 
+	auto scan_msg = std::make_shared<sensor_msgs::msg::LaserScan>();
+	static auto last_scan_msg = std::make_shared<sensor_msgs::msg::LaserScan>();
+
+	rclcpp::TimerBase::SharedPtr scan_publisher_timer;
+
 	auto error_msg = std::make_shared<std_msgs::msg::Bool>();
 	error_msg->data = false;
 	auto state_msg = std::make_shared<std_msgs::msg::Bool>();
@@ -80,42 +85,47 @@ int main(int argc, char **argv)
 
 	static float min_angle = 70 * M_PI/180;
 	static float max_angle = 290 * M_PI/180;
-	static std::vector<float> last_ranges;
-	static std::vector<float> last_intensities;
 
 	static int start_cnt = 0;
 	static int lidar_run_cnt = 0;
+
+	rclcpp::Time now = node->now();
+	scan_msg->header.stamp = now;
+	scan_msg->header.frame_id = frame_id;
+	scan_msg->angle_min = min_angle;
+	scan_msg->angle_max = max_angle;
+	scan_msg->ranges = std::vector<float>();
+	scan_msg->intensities = std::vector<float>();
+
     // 별도 스레드에서 데이터 처리(publish 부분)
 	std::thread lidar_thread([&]() {
 		node_start();
 
 		while(rclcpp::ok())
 		{
+			auto start_time = std::chrono::steady_clock::now();
+
 			LaserScan scan;
 
-			// 기존 scan 퍼블리싱 동작
-			auto scan_msg = std::make_shared<sensor_msgs::msg::LaserScan>();
-
-			scan_msg->angle_min = min_angle;
-			scan_msg->angle_max = max_angle;
-			scan_msg->angle_increment = scan.config.angle_increment;
-			scan_msg->scan_time = scan.config.scan_time;
-			scan_msg->time_increment = scan.config.time_increment;
-			scan_msg->range_min = scan.config.min_range;
-			scan_msg->range_max = scan.config.max_range;
-
-			if( !bLidarRun ){
-				scan_msg->ranges = last_ranges;
-				scan_msg->intensities = last_intensities;
-			} else{
-
-				scan_msg->ranges = std::vector<float>();
-				scan_msg->intensities = std::vector<float>();
+			if (!bLidarCmd || !bLidarRun) {
+				if (!scan_publisher_timer) {
+					RCLCPP_INFO(node->get_logger(), "bLidarCmd false -> Last Scan Publish Timer On");
+				}
+				scan_publisher_timer = node->create_wall_timer(
+                    100ms,
+                    [node, scan_pub]() {
+						if (last_scan_msg && !last_scan_msg->ranges.empty()) {
+							last_scan_msg->header.stamp = node->now();
+							scan_pub->publish(*last_scan_msg);
+						}
+                    }
+                );
+			} else {
+				if (scan_publisher_timer) {
+					RCLCPP_INFO(node->get_logger(), "bLidarCmd true -> Last Scan Publish Timer OFF");
+				}
+				scan_publisher_timer.reset();
 			}
-
-			rclcpp::Time now = node->now();
-			scan_msg->header.stamp = now;
-			scan_msg->header.frame_id = frame_id;
 
 			if (bLidarCmd && !bLidarRun) // 라이다 On 명령이지만 동작하지 않을 때 (최초 시작 or 에러 상태)
 			{
@@ -179,7 +189,13 @@ int main(int argc, char **argv)
 			}
 			else if (bLidarCmd && bLidarRun)
 			{
+				auto start = std::chrono::steady_clock::now();
 				bLidarRun = data_handling(scan);
+				auto end = std::chrono::steady_clock::now();
+				double duration_sec =  std::chrono::duration<double>(end - start).count();
+				if(duration_sec >= 0.15 || duration_sec <= 0.05){
+					RCLCPP_INFO(node->get_logger(), "Lidar is running.data_handling() took %.5fsec", duration_sec);
+				}
 
 				if (!bLidarRun)
 				{
@@ -240,17 +256,16 @@ int main(int argc, char **argv)
 
 					dirty_points = 0;
 
-					rclcpp::Time now = node->now();
-					scan_msg->header.stamp = now;
 					scan_msg->ranges = filtered_ranges;
 					scan_msg->intensities = filtered_intensities;
 
-					last_ranges = std::move(filtered_ranges);
-					last_intensities = std::move(filtered_intensities);
+					last_scan_msg = scan_msg;
 
 					state_msg->data = true;
 					scan_state_pub->publish(*state_msg);
 				}
+				scan_msg->header.stamp = node->now();
+				scan_pub->publish(*scan_msg);
 			}
 			else if (!bLidarCmd && bLidarRun)
 			{
@@ -300,7 +315,21 @@ int main(int argc, char **argv)
 				start_cnt = 0;
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			}
-			scan_pub->publish(*scan_msg);
+			// scan_pub->publish(*scan_msg);
+
+			auto end_time = std::chrono::steady_clock::now();
+			double duration_ms =  std::chrono::duration<double, std::milli>(end_time - start_time).count();
+			double loop_period_ms = 50.0;
+        	double sleep_time_ms = loop_period_ms - duration_ms;
+
+			if (sleep_time_ms > 0) {
+				RCLCPP_INFO(node->get_logger(), "Lidar Loop duration took %.2f ms, sleep %.2f ms", duration_ms, sleep_time_ms);
+				std::this_thread::sleep_for(duration<double, std::milli>(sleep_time_ms));				
+			} else if(duration_ms > 200){
+				RCLCPP_INFO(node->get_logger(), "Lidar Loop duration took %.2f ms", duration_ms);
+			} else {
+				// RCLCPP_INFO(node->get_logger(), "Lidar Loop duration took %.2f ms", duration_ms);
+			}
 		}
 
 		node_lidar.serial_port->write_data(end_lidar,4);

@@ -63,7 +63,8 @@ FilterFactory::create(std::shared_ptr<PerceptionNode> node_ptr, const std::strin
     }
     else
     {
-        throw std::runtime_error("Unknown filter type: " + type);
+        RCLCPP_ERROR(node_ptr->get_logger(), "Unknown filter type: %s", type);
+        // throw std::runtime_error("Unknown filter type: " + type);
     }
 }
 BaseFilterPtr FilterFactory::create(std::shared_ptr<PerceptionNode> node_ptr, const YAML::Node& config)
@@ -72,7 +73,8 @@ BaseFilterPtr FilterFactory::create(std::shared_ptr<PerceptionNode> node_ptr, co
     if (!config.IsMap() || config.size() != 1)
     {
         auto s = YAML::Dump(config);
-        throw std::runtime_error("Invalid filter config format.");
+        RCLCPP_ERROR(node_ptr->get_logger(), "Invalid filter config format.");
+        // throw std::runtime_error("Invalid filter config format.");
     }
 
     auto it = config.begin();

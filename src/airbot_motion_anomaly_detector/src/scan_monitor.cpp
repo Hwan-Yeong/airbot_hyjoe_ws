@@ -35,7 +35,7 @@ ScanMonitorNode::ScanMonitorNode()
     );
 
     monitor_timer_ = this->create_wall_timer(
-        std::chrono::milliseconds(1000),
+        std::chrono::milliseconds(200),
         std::bind(&ScanMonitorNode::checkScanHealth, this)
     );
 
@@ -120,8 +120,8 @@ void ScanMonitorNode::checkScanHealth()
 
     if (elapsed_ms > timeout_ms_) {
         scanOk = false;
-        last_scan_time_ = {};
-        RCLCPP_ERROR(this->get_logger(), "[checkScanHealth] No scan received for %.2f ms! Sensor or driver may be down.", elapsed_ms);
+        //last_scan_time_ = {};
+        RCLCPP_ERROR(this->get_logger(), "[checkScanHealth] No scan received for %.2f ms", elapsed_ms);
         return;
     }
 

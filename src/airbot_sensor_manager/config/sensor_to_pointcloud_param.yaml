@@ -86,17 +86,17 @@ airbot_sensor_to_pointcloud:
           - "5: 0"  #obstacle [Unused]
           - "6: 0"  #poop
           - "7: 0"  #scale
-          # - "8: 0"  #threshold [Unused]
+          - "8: 0"  #threshold [Unused]
           # - "9: 0"  #person
           - "10: 0" #dog [Unused]
           - "11: 0" #cat [Unused]
           - "12: 0" #chair
           - "13: 0" #base
-          # - "14: 0" #shoes
+          - "14: 0" #shoes
           - "15: 0" #electronic_device
           - "16: 0" #dryingrack
           - "17: 0" #bed
-          - "18: 0"
+          - "18: 0" #hanger
           - "19: 0"
           - "20: 0"
         object_direction: true  # 정방향(CCW+):True, 역방향(CW+):False
@@ -148,6 +148,8 @@ airbot_sensor_to_pointcloud:
 #        14: 신발
 #        15: 전자기기 (노트북, 태블릿, 스마트폰)
 #        16: 건조대
+#        17: 침대
+#        18: 옷걸이
 #
 ################################
 ###########  Bot IR  ###########
