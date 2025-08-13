@@ -138,7 +138,7 @@ private:
     bool ramp_detected_;
     std::unordered_set<int> prev_camera_logged_ids;
     std::array<float, 6> mtof_calib_result_array_{};
-    size_t mtof_calib_sample_count = 0;
+    int mtof_calib_sample_count = 0;
     float mtof_calib_stat13 = -1.0;
     float mtof_calib_stat14 = -1.0;
     float mtof_calib_stat15 = -1.0;

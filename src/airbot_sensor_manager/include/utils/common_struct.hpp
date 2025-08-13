@@ -67,6 +67,11 @@ struct tFilteredPointCloud {
     std::vector<bool> zero_dist_mask;
 };
 
+struct tCalibration {
+    std::string method;
+    int sampling_count;
+};
+
 struct tSensor {
     // general
     bool use = false;
@@ -77,6 +82,7 @@ struct tSensor {
     // tof
     double pitch_angle_deg = 0.0;
     std::vector<int> sub_cell_idx_array;
+    tCalibration calibration;
     // camera
     float pc_resolution = 0.0;
     bool direction = true; // 정방향(CCW+):True, 역방향(CW+):False

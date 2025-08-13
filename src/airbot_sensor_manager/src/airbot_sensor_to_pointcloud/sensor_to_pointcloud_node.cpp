@@ -8,10 +8,6 @@
     true : idx (각 16개)
 */
 #define IS_4X4_INDEX false
-#define CALIB_METHOD_MAX     1
-#define CALIB_METHOD_MEDIAN  2
-// #define CALIB_METHOD         CALIB_METHOD_MAX
-#define CALIB_METHOD         CALIB_METHOD_MEDIAN
 
 using namespace std::chrono_literals;
 
@@ -396,6 +392,9 @@ void SensorToPointcloud::printParams()
     appendSensorConfig(oss, "TOF 1D", sensor_config_.one_d_tof);
     appendSensorConfig(oss, "TOF Multi", sensor_config_.multi_tof);
     oss << "    TOF Multi 8x8 Use: " << (use_tof_8x8_ ? "True" : "False") << "\n";
+    oss << "    Calibration: " << "\n";
+    oss << "      Method: " << sensor_config_.multi_tof.calibration.method << "\n";
+    oss << "      Sampling count: " << sensor_config_.multi_tof.calibration.sampling_count << "\n";
     appendSensorConfig(oss, "TOF Multi Left", sensor_config_.multi_tof_left);
     appendSensorConfig(oss, "TOF Multi Right", sensor_config_.multi_tof_right);
 
@@ -508,6 +507,9 @@ tSensor SensorToPointcloud::getSensorCfg(const YAML::Node& node)
             cfg.class_id.push_back(conf_node.as<std::string>());
         }
     }
+    YAML::Node calib = node["calibration"];
+    if (calib && calib["method"]) cfg.calibration.method = calib["method"].as<std::string>();
+    if (calib && calib["sampling_count"]) cfg.calibration.sampling_count = calib["sampling_count"].as<int>();
 
     return cfg;
 }
@@ -1007,8 +1009,6 @@ bool SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofDa
         return ret;
     }
 
-    constexpr size_t sampling_time = 300; // 10hz * 300회
-
     if (mtof_calib_sample_count == 0) {
         mtof_calib_stat13 = mtof_calib_stat14 = mtof_calib_stat15 = -1;
         if (mtof_calib_samples13.size() > 0) mtof_calib_samples13.clear();
@@ -1016,46 +1016,43 @@ bool SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofDa
         if (mtof_calib_samples15.size() > 0) mtof_calib_samples15.clear();
     }
 
-#if CALIB_METHOD == CALIB_METHOD_MAX
-    // Max
-    if (arr[0] > mtof_calib_stat13) mtof_calib_stat13 = arr[0];
-    if (arr[1] > mtof_calib_stat14) mtof_calib_stat14 = arr[1];
-    if (arr[2] > mtof_calib_stat15) mtof_calib_stat15 = arr[2];
-#elif CALIB_METHOD == CALIB_METHOD_MEDIAN
-    // Median
-    mtof_calib_samples13.push_back(arr[0]);
-    mtof_calib_samples14.push_back(arr[1]);
-    mtof_calib_samples15.push_back(arr[2]);
-#endif
+    if (sensor_config_.multi_tof.calibration.method == "Max") {
+        if (arr[0] > mtof_calib_stat13) mtof_calib_stat13 = arr[0];
+        if (arr[1] > mtof_calib_stat14) mtof_calib_stat14 = arr[1];
+        if (arr[2] > mtof_calib_stat15) mtof_calib_stat15 = arr[2];
+    } else if (sensor_config_.multi_tof.calibration.method == "Median") {
+        mtof_calib_samples13.push_back(arr[0]);
+        mtof_calib_samples14.push_back(arr[1]);
+        mtof_calib_samples15.push_back(arr[2]);
+    }
 
     ++mtof_calib_sample_count;
 
-    if (mtof_calib_sample_count >= sampling_time) {
-#if CALIB_METHOD == CALIB_METHOD_MAX
-        // Max
-        RCLCPP_INFO(this->get_logger(),
-            "Max over last %zu samples (idx 13,14,15): %.3f, %.3f, %.3f",
-            mtof_calib_sample_count, static_cast<double>(mtof_calib_stat13), static_cast<double>(mtof_calib_stat14), static_cast<double>(mtof_calib_stat15)
-        );
-#elif CALIB_METHOD == CALIB_METHOD_MEDIAN
-        // Median
-        auto calcMedian = [](std::vector<float> v) {
-            std::sort(v.begin(), v.end());
-            size_t n = v.size();
-            if (n % 2 == 0) {
-                return (v[n / 2 - 1] + v[n / 2]) / 2.0f;
-            } else {
-                return v[n / 2];
-            }
-        };
-        mtof_calib_stat13 = calcMedian(mtof_calib_samples13);
-        mtof_calib_stat14 = calcMedian(mtof_calib_samples14);
-        mtof_calib_stat15 = calcMedian(mtof_calib_samples15);
-        RCLCPP_INFO(this->get_logger(),
-            "Median over last %zu samples (idx 13,14,15): %.3f, %.3f, %.3f",
-            mtof_calib_sample_count, static_cast<double>(mtof_calib_stat13), static_cast<double>(mtof_calib_stat14), static_cast<double>(mtof_calib_stat15)
-        );
-#endif
+    if (mtof_calib_sample_count >= sensor_config_.multi_tof.calibration.sampling_count) {
+        if (sensor_config_.multi_tof.calibration.method == "Max") {
+            RCLCPP_INFO(this->get_logger(),
+                "Max over last %d samples (idx 13,14,15): %.3f, %.3f, %.3f",
+                mtof_calib_sample_count, static_cast<double>(mtof_calib_stat13), static_cast<double>(mtof_calib_stat14), static_cast<double>(mtof_calib_stat15)
+            );
+        } else if (sensor_config_.multi_tof.calibration.method == "Median") {
+            auto calcMedian = [](std::vector<float> v) {
+                std::sort(v.begin(), v.end());
+                size_t n = v.size();
+                if (n % 2 == 0) {
+                    return (v[n / 2 - 1] + v[n / 2]) / 2.0f;
+                } else {
+                    return v[n / 2];
+                }
+            };
+            mtof_calib_stat13 = calcMedian(mtof_calib_samples13);
+            mtof_calib_stat14 = calcMedian(mtof_calib_samples14);
+            mtof_calib_stat15 = calcMedian(mtof_calib_samples15);
+            RCLCPP_INFO(this->get_logger(),
+                "Median over last %d samples (idx 13,14,15): %.3f, %.3f, %.3f",
+                mtof_calib_sample_count, static_cast<double>(mtof_calib_stat13), static_cast<double>(mtof_calib_stat14), static_cast<double>(mtof_calib_stat15)
+            );
+        }
+
         if (side == TOF_SIDE::LEFT) {
             bLeftMToFCalibrationSet = true;
             mtof_calib_result_array_[0] = mtof_calib_stat13;
