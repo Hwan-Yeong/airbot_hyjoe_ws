@@ -8,6 +8,10 @@
     true : idx (각 16개)
 */
 #define IS_4X4_INDEX false
+#define CALIB_METHOD_MAX     1
+#define CALIB_METHOD_MEDIAN  2
+// #define CALIB_METHOD         CALIB_METHOD_MAX
+#define CALIB_METHOD         CALIB_METHOD_MEDIAN
 
 using namespace std::chrono_literals;
 
@@ -657,11 +661,9 @@ void SensorToPointcloud::mToFCalibrationCmdCallback(const std_msgs::msg::UInt8::
         if (isActiveMToFCalibration == 1) {
             bLeftMToFCalibrationSet = false;
             mtof_calib_sample_count = 0;
-            mtof_calib_max13 = mtof_calib_max14 = mtof_calib_max15 = -1.0;
         } else {
             bRightMToFCalibrationSet = false;
             mtof_calib_sample_count = 0;
-            mtof_calib_max13 = mtof_calib_max14 = mtof_calib_max15 = -1.0;
         }
         RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Cmd : Active [%s]", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
     } else {
@@ -1007,31 +1009,67 @@ bool SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofDa
 
     constexpr size_t sampling_time = 300; // 10hz * 300회
 
-    if (arr[0] > mtof_calib_max13) mtof_calib_max13 = arr[0];
-    if (arr[1] > mtof_calib_max14) mtof_calib_max14 = arr[1];
-    if (arr[2] > mtof_calib_max15) mtof_calib_max15 = arr[2];
+    if (mtof_calib_sample_count == 0) {
+        mtof_calib_stat13 = mtof_calib_stat14 = mtof_calib_stat15 = -1;
+        if (mtof_calib_samples13.size() > 0) mtof_calib_samples13.clear();
+        if (mtof_calib_samples14.size() > 0) mtof_calib_samples14.clear();
+        if (mtof_calib_samples15.size() > 0) mtof_calib_samples15.clear();
+    }
+
+#if CALIB_METHOD == CALIB_METHOD_MAX
+    // Max
+    if (arr[0] > mtof_calib_stat13) mtof_calib_stat13 = arr[0];
+    if (arr[1] > mtof_calib_stat14) mtof_calib_stat14 = arr[1];
+    if (arr[2] > mtof_calib_stat15) mtof_calib_stat15 = arr[2];
+#elif CALIB_METHOD == CALIB_METHOD_MEDIAN
+    // Median
+    mtof_calib_samples13.push_back(arr[0]);
+    mtof_calib_samples14.push_back(arr[1]);
+    mtof_calib_samples15.push_back(arr[2]);
+#endif
+
     ++mtof_calib_sample_count;
 
     if (mtof_calib_sample_count >= sampling_time) {
+#if CALIB_METHOD == CALIB_METHOD_MAX
+        // Max
         RCLCPP_INFO(this->get_logger(),
-                    "Max over last %zu samples (idx 13,14,15): %.3f, %.3f, %.3f",
-                    mtof_calib_sample_count, static_cast<double>(mtof_calib_max13), static_cast<double>(mtof_calib_max14), static_cast<double>(mtof_calib_max15)
-                );
-
+            "Max over last %zu samples (idx 13,14,15): %.3f, %.3f, %.3f",
+            mtof_calib_sample_count, static_cast<double>(mtof_calib_stat13), static_cast<double>(mtof_calib_stat14), static_cast<double>(mtof_calib_stat15)
+        );
+#elif CALIB_METHOD == CALIB_METHOD_MEDIAN
+        // Median
+        auto calcMedian = [](std::vector<float> v) {
+            std::sort(v.begin(), v.end());
+            size_t n = v.size();
+            if (n % 2 == 0) {
+                return (v[n / 2 - 1] + v[n / 2]) / 2.0f;
+            } else {
+                return v[n / 2];
+            }
+        };
+        mtof_calib_stat13 = calcMedian(mtof_calib_samples13);
+        mtof_calib_stat14 = calcMedian(mtof_calib_samples14);
+        mtof_calib_stat15 = calcMedian(mtof_calib_samples15);
+        RCLCPP_INFO(this->get_logger(),
+            "Median over last %zu samples (idx 13,14,15): %.3f, %.3f, %.3f",
+            mtof_calib_sample_count, static_cast<double>(mtof_calib_stat13), static_cast<double>(mtof_calib_stat14), static_cast<double>(mtof_calib_stat15)
+        );
+#endif
         if (side == TOF_SIDE::LEFT) {
             bLeftMToFCalibrationSet = true;
-            mtof_calib_result_array_[0] = mtof_calib_max13;
-            mtof_calib_result_array_[1] = mtof_calib_max14;
-            mtof_calib_result_array_[2] = mtof_calib_max15;
+            mtof_calib_result_array_[0] = mtof_calib_stat13;
+            mtof_calib_result_array_[1] = mtof_calib_stat14;
+            mtof_calib_result_array_[2] = mtof_calib_stat15;
         } else {
             bRightMToFCalibrationSet = true;
-            mtof_calib_result_array_[3] = mtof_calib_max13;
-            mtof_calib_result_array_[4] = mtof_calib_max14;
-            mtof_calib_result_array_[5] = mtof_calib_max15;
+            mtof_calib_result_array_[3] = mtof_calib_stat13;
+            mtof_calib_result_array_[4] = mtof_calib_stat14;
+            mtof_calib_result_array_[5] = mtof_calib_stat15;
         }
 
         mtof_calib_sample_count = 0;
-        mtof_calib_max13 = mtof_calib_max14 = mtof_calib_max15 = -1.0;
+        mtof_calib_stat13 = mtof_calib_stat14 = mtof_calib_stat15 = -1.0;
 
         ret = true;
     }
