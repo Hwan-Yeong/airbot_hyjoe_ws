@@ -24,7 +24,7 @@ public:
     vision_msgs::msg::BoundingBox2DArray generateBoundingBoxMessage(
         const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg,
         std::map<int, int> class_id_confidence_th,
-        bool direction, double object_max_distance);
+        bool direction, double object_max_distance, std::vector<int> &cam_object_ids);
     
     std::pair<robot_custom_msgs::msg::CameraDataArray, vision_msgs::msg::BoundingBox2DArray> getObjectBoundingBoxInfo(
         const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg,

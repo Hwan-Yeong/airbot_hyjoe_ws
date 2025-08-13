@@ -34,8 +34,9 @@ void BoundingBoxGenerator::updateRobotPose(tPose &pose)
 vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMessage(
     const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg,
     std::map<int, int> class_id_confidence_th,
-    bool direction, double object_max_distance)
+    bool direction, double object_max_distance, std::vector<int> &cam_object_ids)
 {
+    cam_object_ids.clear();
     auto bbox_array = vision_msgs::msg::BoundingBox2DArray();
 
     if (msg->data_array.empty() || msg->num == 0) {
@@ -105,6 +106,7 @@ vision_msgs::msg::BoundingBox2DArray BoundingBoxGenerator::generateBoundingBoxMe
                 } else {
                     bbox.size_y = obj.width;
                 }
+                cam_object_ids.push_back(obj.id);
                 bbox_array.boxes.push_back(bbox);
             }
         } else {

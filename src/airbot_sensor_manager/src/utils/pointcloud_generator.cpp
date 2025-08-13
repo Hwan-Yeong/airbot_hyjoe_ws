@@ -113,7 +113,7 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2EmptyMessa
  * @input: vision_msgs::msg::BoundingBox2DArray
  * ### Convert Camera Data
  */
-sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution)
+sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution, const std::vector<int> &bbox_ai_ids, const geometry_msgs::msg::PoseWithCovarianceStamped init_pose_msg)
 {
     sensor_msgs::msg::PointCloud2 msg;
 
@@ -123,6 +123,11 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(co
     }
     if (resolution <= 0) {
         // RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "Invalid resolution: %f", resolution);
+        return msg;
+    }
+
+    if(input_bbox_array.boxes.size() != bbox_ai_ids.size()) {
+        RCLCPP_ERROR(rclcpp::get_logger("PointCloud"), "Mismatch between BoundingBox count and AI ID count![%ld|%ld]", input_bbox_array.boxes.size(), bbox_ai_ids.size());
         return msg;
     }
 
@@ -168,10 +173,19 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(co
 
     msg.fields = {field_x, field_y, field_z};
     
+    
+    const float safety_min_x = init_pose_msg.pose.pose.position.x + -0.4f;
+    const float safety_max_x = init_pose_msg.pose.pose.position.x + 0.4f;
+    const float safety_min_y = init_pose_msg.pose.pose.position.y + -0.4f;
+    const float safety_max_y = init_pose_msg.pose.pose.position.y + 0.4f;
+    size_t filtered_points = 0;
+    auto cam_object_it = bbox_ai_ids.cbegin();
+
     msg.data.resize(msg.row_step);
     size_t max_size = msg.data.size();
     uint8_t* ptr = msg.data.data();
     for (const auto& box : input_bbox_array.boxes) {
+        const auto& cam_object_id = *cam_object_it;
         const double center_x = box.center.position.x;
         const double center_y = box.center.position.y;
         const double size_x = box.size_x;
@@ -183,22 +197,36 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(co
         for (int i = 0; i < point_size_x; ++i) {
             for (int j = 0; j < point_size_y; ++j) {
                 if (i == 0 || i == point_size_x - 1 || j == 0 || j == point_size_y - 1) { // 테두리 조건: x축 가장자리 or y축 가장자리일 때만 point 생성
+                    
+                    float x = (center_x - size_x/2) + i*resolution;
+                    float y = (center_y - size_y/2) + j*resolution;
+                    float z = 0.0f;
+
+                    // min_x <= x <= max_x
+                    // min_y <= y <= max_y, box포인트가 safetybox 안에 들어오면 skip
+                    if (cam_object_id == 0 && (x >= safety_min_x && x <= safety_max_x && y >= safety_min_y && y <= safety_max_y)) {
+                        continue;
+                    }
+
                     size_t current_offset = static_cast<size_t>(ptr - msg.data.data());
                     if (current_offset + msg.point_step > max_size) {
                         return msg;
                     }
 
-                    float x = (center_x - size_x/2) + i*resolution;
-                    float y = (center_y - size_y/2) + j*resolution;
-                    float z = 0.0f;
                     memcpy(ptr, &x, sizeof(float));
                     memcpy(ptr + 4, &y, sizeof(float));
                     memcpy(ptr + 8, &z, sizeof(float));
                     ptr += msg.point_step;
+                    filtered_points++;        
                 }
             }
         }
+        ++cam_object_it;
     }
+    // filter처리된 point 만큼 data resize.
+    msg.width = filtered_points; 
+    msg.row_step = msg.width * msg.point_step;
+    msg.data.resize(msg.row_step);
 
     return msg;
 }

@@ -7,6 +7,7 @@
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "utils/pointcloud_generator.hpp"
 #include "utils/boundingbox_generator.hpp"
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 
 class PointCloudCamera
 {
@@ -14,7 +15,7 @@ public:
     PointCloudCamera();
     ~PointCloudCamera();
 
-    sensor_msgs::msg::PointCloud2 updateCameraPointCloudMsg(vision_msgs::msg::BoundingBox2DArray msg, float pc_resolution);
+    sensor_msgs::msg::PointCloud2 updateCameraPointCloudMsg(vision_msgs::msg::BoundingBox2DArray msg, float pc_resolution, const std::vector<int> bbox_ai_ids, const geometry_msgs::msg::PoseWithCovarianceStamped init_pose_msg);
 
 private:
     std::shared_ptr<PointCloudGenerator> pointcloud_generator_;

@@ -123,6 +123,13 @@ SensorToPointcloud::SensorToPointcloud()
     imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
         "/imu_data", 10, std::bind(&SensorToPointcloud::imuCallback, this, std::placeholders::_1));
 
+    rclcpp::QoS qos_profile(rclcpp::KeepLast(1));
+    qos_profile.best_effort();
+    init_pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+            "/init_pose",
+            qos_profile,
+            std::bind(&SensorToPointcloud::init_pose_callback, this, std::placeholders::_1));
+
     // Monitor Timer
     poincloud_publish_timer_ = this->create_wall_timer(
         10ms, std::bind(&SensorToPointcloud::publisherMonitor, this));
@@ -878,8 +885,9 @@ void SensorToPointcloud::cameraMsgUpdate(const robot_custom_msgs::msg::CameraDat
         camera_object_logger_.log(bounding_box_generator_.getObjectBoundingBoxInfo(msg, camera_class_id_confidence_th_, sensor_config_.camera.direction, sensor_config_.camera.object_max_dist));
     }
     if (sensor_config_.camera.use) {
-        bbox_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th_, sensor_config_.camera.direction, sensor_config_.camera.object_max_dist);
-        pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_msg, sensor_config_.camera.pc_resolution);
+        cam_object_ids.clear();
+        bbox_msg = bounding_box_generator_.generateBoundingBoxMessage(msg, camera_class_id_confidence_th_, sensor_config_.camera.direction, sensor_config_.camera.object_max_dist, cam_object_ids);
+        pc_camera_msg = point_cloud_camera_.updateCameraPointCloudMsg(bbox_msg, sensor_config_.camera.pc_resolution, cam_object_ids, init_pose_msg);
     }
 
     isCameraUpdating = true;
@@ -1029,4 +1037,21 @@ bool SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofDa
     }
 
     return ret;
+}
+
+void SensorToPointcloud::init_pose_callback( const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+    init_pose_msg.header.stamp = this->get_clock()->now();
+    init_pose_msg.header.frame_id = msg->header.frame_id;
+    init_pose_msg.pose.pose.position.x = msg->pose.pose.position.x;
+    init_pose_msg.pose.pose.position.y = msg->pose.pose.position.y;
+    init_pose_msg.pose.pose.position.z = msg->pose.pose.position.z;
+    init_pose_msg.pose.pose.orientation.x = msg->pose.pose.orientation.x;
+    init_pose_msg.pose.pose.orientation.y = msg->pose.pose.orientation.y;
+    init_pose_msg.pose.pose.orientation.z = msg->pose.pose.orientation.z;
+    init_pose_msg.pose.pose.orientation.w = msg->pose.pose.orientation.w;
+
+    for (size_t i = 0; i < 36; ++i)
+    {
+        init_pose_msg.pose.covariance[i] = msg->pose.covariance[i];
+    }
 }

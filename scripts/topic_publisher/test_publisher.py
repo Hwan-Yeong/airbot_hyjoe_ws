@@ -81,24 +81,24 @@ class CliffDetectionErrorSimulation(Node):
         self.camera_data_array.robot_angle = 0.0
 
         camera_data_1 = CameraData()
-        camera_data_1.id = 17
+        camera_data_1.id = 0
         camera_data_1.score = 50
         camera_data_1.x = 0.0
         camera_data_1.y = 0.0
         camera_data_1.theta = np.deg2rad(50)
         camera_data_1.width = 0.80
         camera_data_1.height = 0.3
-        camera_data_1.distance = 1.0
+        camera_data_1.distance = 0.2
 
         camera_data_2 = CameraData()
-        camera_data_2.id = 123
+        camera_data_2.id = 3
         camera_data_2.score = 50
         camera_data_2.x = 0.0
         camera_data_2.y = 0.0
         camera_data_2.theta = -np.deg2rad(30)
         camera_data_2.width = 0.5
         camera_data_2.height = 0.9
-        camera_data_2.distance = 1.0
+        camera_data_2.distance = 0.1
 
         self.camera_data_array.data_array = [camera_data_1, camera_data_2]
         # self.camera_data_array.data_array = []
@@ -178,10 +178,10 @@ class CliffDetectionErrorSimulation(Node):
             self.get_logger().info("IR Status Changed [True => False]")
 
         # self.pubRobotState()
-        self.pubBottomIrData()
+        # self.pubBottomIrData()
         # self.pubOdomData()
-        # self.pubCameraData()
-        self.pubImuData()
+        self.pubCameraData()
+        # self.pubImuData()
         # self.pubToFData()
 
 def main(args=None):

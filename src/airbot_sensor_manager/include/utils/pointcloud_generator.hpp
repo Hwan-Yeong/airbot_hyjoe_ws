@@ -12,6 +12,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 
 class PointCloudGenerator
 {
@@ -21,7 +22,7 @@ public:
 
     sensor_msgs::msg::PointCloud2 mergePointCloud2Vector(const std::vector<sensor_msgs::msg::PointCloud2>& pc_msgs, std::string frame);
     sensor_msgs::msg::PointCloud2 generatePointCloud2Message(const std::vector<tPoint> &points, std::string frame);
-    sensor_msgs::msg::PointCloud2 generatePointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution);
+    sensor_msgs::msg::PointCloud2 generatePointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution, const std::vector<int> &bbox_ai_ids, const geometry_msgs::msg::PoseWithCovarianceStamped init_pose_msg);
     sensor_msgs::msg::PointCloud2 generatePointCloud2EmptyMessage(const std::string &frame);
 private:
 };

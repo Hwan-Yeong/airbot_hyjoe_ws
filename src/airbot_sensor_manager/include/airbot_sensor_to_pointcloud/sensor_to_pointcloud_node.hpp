@@ -3,6 +3,10 @@
 
 #include <array>
 #include <chrono>
+#include <iostream>
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <filesystem>  // C++17 이상
 #include "rclcpp/rclcpp.hpp"
 #include "yaml-cpp/yaml.h"
 #include "std_msgs/msg/bool.hpp"
@@ -32,6 +36,7 @@
 #include "airbot_sensor_to_pointcloud/filters/tof_low_pass_filter.hpp"
 #include "airbot_sensor_to_pointcloud/filters/tof_moving_average_filter.hpp"
 #include "airbot_sensor_to_pointcloud/filters/tof_complementary_filte.hpp"
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 
 using PC2PublisherPtr = rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr;
 
@@ -69,6 +74,7 @@ private:
     rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr cliff_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::AbnormalEventData>::SharedPtr collision_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr init_pose_sub_;
 
     std::unordered_map<std::string, PC2PublisherPtr> pointcloud_pubs_;
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr bbox_array_camera_pub_;
@@ -108,6 +114,8 @@ private:
     std::unordered_map<int, sensor_msgs::msg::PointCloud2> pc_4x4_tof_left_msg_map_;
     std::unordered_map<int, sensor_msgs::msg::PointCloud2> pc_4x4_tof_right_msg_map_;
     vision_msgs::msg::BoundingBox2DArray bbox_msg;
+    std::vector<int> cam_object_ids;
+    geometry_msgs::msg::PoseWithCovarianceStamped init_pose_msg;
 
     bool isActiveSensorToPointcloud;
     int isActiveMToFCalibration;
@@ -167,6 +175,8 @@ private:
     bool isDetectRamp();
     uint8_t make_mtof_state(bool is_left, bool is_complete);
     bool multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg);
+
+    void init_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
 };
 
 #endif // SENSOR_TO_POINTCLOUD

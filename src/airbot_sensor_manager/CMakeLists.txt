@@ -22,6 +22,7 @@ find_package(yaml_cpp_vendor REQUIRED)
 find_package(PCL REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(yaml-cpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 include_directories(
   include
@@ -58,6 +59,7 @@ ament_target_dependencies(sensor_to_pointcloud
   pcl_conversions
   PCL
   yaml-cpp
+  geometry_msgs
 )
 target_link_libraries(sensor_to_pointcloud yaml-cpp)
 install(TARGETS sensor_to_pointcloud
