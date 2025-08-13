@@ -20,17 +20,21 @@ class TPoint:
 
 # ========== [1] 사용할 센서 인덱스 입력 ==========
 left_idx = [
-    1, 3, 5, 7,
-    17, 19, 21, 23,
-    34, 37, 42, 45,
-    50, 53, 58, 61
+    0, 3, 6,
+    17, 20, 23,
+    28, 31,
+    44, 47,
+    49, 52, 55,
+    57, 60, 63
 ]
 
 right_idx = [
-    0, 2, 4, 6,
-    16, 18, 20, 22,
-    34, 37, 42, 45,
-    50, 53, 58, 61
+    1, 4, 7,
+    16, 19, 22,
+    24, 27,
+    40, 43,
+    48, 51, 54,
+    56, 59, 62
 ]
 
 # left_idx = [
@@ -48,7 +52,7 @@ right_idx = [
 # ]
 
 tof_fov_angle_deg = 45  # FOV 각도
-distances = [1.0] * 16  # 거리 고정 1m
+distances = [0.2879] * 16  # 거리 고정 1m
 robot_radius = 0.19  # 로봇 반지름
 height_from_base_link = 0.05 # 바닥으로부터 로봇 중심까지의 높이
 
@@ -367,7 +371,7 @@ def visualize_fov_combined_view(
         ax_side.plot(closest.x, closest.z, 'o', color='green', markersize=10)
         ax_side.text(
             0.05, 0.05,
-            f"Closest Intersection\nDist from base_link = {closest.x:.2f} m",
+            f"Closest Intersection\nDist from base_link = {closest.x:.5f} m",
             transform=ax_side.transAxes,
             fontsize=13,
             fontweight='bold',
