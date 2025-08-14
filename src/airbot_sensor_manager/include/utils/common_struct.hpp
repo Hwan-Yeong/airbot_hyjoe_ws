@@ -6,6 +6,12 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
 
+enum class CALIB_STATE {
+    RUN,
+    PASS,
+    FAIL,
+};
+
 struct tPoint
 {
     double x = 0.0;
@@ -70,6 +76,9 @@ struct tFilteredPointCloud {
 struct tCalibration {
     std::string method;
     int sampling_count;
+    double pass_min_value;
+    double pass_max_value;
+    double valid_data_percentage;
 };
 
 struct tSensor {

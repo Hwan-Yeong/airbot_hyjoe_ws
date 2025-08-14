@@ -395,6 +395,9 @@ void SensorToPointcloud::printParams()
     oss << "    Calibration: " << "\n";
     oss << "      Method: " << sensor_config_.multi_tof.calibration.method << "\n";
     oss << "      Sampling count: " << sensor_config_.multi_tof.calibration.sampling_count << "\n";
+    oss << "      Pass Min Value: " << sensor_config_.multi_tof.calibration.pass_min_value << "\n";
+    oss << "      Pass Max Value: " << sensor_config_.multi_tof.calibration.pass_max_value << "\n";
+    oss << "      Valid Data Percentage: " << sensor_config_.multi_tof.calibration.valid_data_percentage << "\n";
     appendSensorConfig(oss, "TOF Multi Left", sensor_config_.multi_tof_left);
     appendSensorConfig(oss, "TOF Multi Right", sensor_config_.multi_tof_right);
 
@@ -510,6 +513,9 @@ tSensor SensorToPointcloud::getSensorCfg(const YAML::Node& node)
     YAML::Node calib = node["calibration"];
     if (calib && calib["method"]) cfg.calibration.method = calib["method"].as<std::string>();
     if (calib && calib["sampling_count"]) cfg.calibration.sampling_count = calib["sampling_count"].as<int>();
+    if (calib && calib["pass_min_value"]) cfg.calibration.pass_min_value = calib["pass_min_value"].as<double>();
+    if (calib && calib["pass_max_value"]) cfg.calibration.pass_max_value = calib["pass_max_value"].as<double>();
+    if (calib && calib["valid_data_percentage"]) cfg.calibration.valid_data_percentage = calib["valid_data_percentage"].as<double>();
 
     return cfg;
 }
@@ -658,6 +664,7 @@ void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr 
 
 void SensorToPointcloud::mToFCalibrationCmdCallback(const std_msgs::msg::UInt8::SharedPtr msg)
 {
+    // start_left_calibration = 0x01, start_right_calibration = 0x02, unknown = else,
     isActiveMToFCalibration = static_cast<int>(msg->data);
     if (isActiveMToFCalibration == 1 || isActiveMToFCalibration == 2) {
         if (isActiveMToFCalibration == 1) {
@@ -676,40 +683,63 @@ void SensorToPointcloud::mToFCalibrationCmdCallback(const std_msgs::msg::UInt8::
 void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
     if ((!bLeftMToFCalibrationSet || !bRightMToFCalibrationSet) && (isActiveMToFCalibration == 1 || isActiveMToFCalibration == 2)) {
-
         std_msgs::msg::UInt8 calib_state_msg;
 
         if (isActiveMToFCalibration == 1 && !bLeftMToFCalibrationSet) {
-            if (multiToFCalibration(msg)) {
-                bLeftMToFCalibrationSet = true;
-                RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Complete To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
-                isActiveMToFCalibration = 0;
-                calib_state_msg.data = make_mtof_state(true, true);
-                mtof_calibration_state_pub_->publish(calib_state_msg);
-            } else {
-                calib_state_msg.data = make_mtof_state(true, false);
-                mtof_calibration_state_pub_->publish(calib_state_msg);
+            CALIB_STATE result = multiToFCalibration(msg);
+            switch(result) {
+                case CALIB_STATE::RUN:
+                    calib_state_msg.data = make_mtof_state(true, false, true);
+                    mtof_calibration_state_pub_->publish(calib_state_msg);
+                    break;
+                case CALIB_STATE::PASS:
+                    bLeftMToFCalibrationSet = true;
+                    RCLCPP_INFO(this->get_logger(), "Success To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
+                    isActiveMToFCalibration = 0;
+                    calib_state_msg.data = make_mtof_state(true, true, true);
+                    mtof_calibration_state_pub_->publish(calib_state_msg);
+                    break;
+                case CALIB_STATE::FAIL:
+                    RCLCPP_INFO(this->get_logger(), "Fail To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
+                    isActiveMToFCalibration = 0;
+                    calib_state_msg.data = make_mtof_state(true, false, false);
+                    mtof_calibration_state_pub_->publish(calib_state_msg);
+                    break;
+                default:
+                    break;
             }
         }
 
         if (isActiveMToFCalibration == 2 && !bRightMToFCalibrationSet) {
-            if (multiToFCalibration(msg)) {
-                bRightMToFCalibrationSet = true;
-                RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Complete To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
-                isActiveMToFCalibration = 0;
-                calib_state_msg.data = make_mtof_state(false, true);
-                mtof_calibration_state_pub_->publish(calib_state_msg);
-            } else {
-                calib_state_msg.data = make_mtof_state(false, false);
-                mtof_calibration_state_pub_->publish(calib_state_msg);
+            CALIB_STATE result = multiToFCalibration(msg);
+            switch(result) {
+                case CALIB_STATE::RUN:
+                    calib_state_msg.data = make_mtof_state(false, false, true);
+                    mtof_calibration_state_pub_->publish(calib_state_msg);
+                    break;
+                case CALIB_STATE::PASS:
+                    bRightMToFCalibrationSet = true;
+                    RCLCPP_INFO(this->get_logger(), "Success To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
+                    isActiveMToFCalibration = 0;
+                    calib_state_msg.data = make_mtof_state(false, true, true);
+                    mtof_calibration_state_pub_->publish(calib_state_msg);
+                    break;
+                case CALIB_STATE::FAIL:
+                    RCLCPP_INFO(this->get_logger(), "Fail To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
+                    isActiveMToFCalibration = 0;
+                    calib_state_msg.data = make_mtof_state(false, false, false);
+                    mtof_calibration_state_pub_->publish(calib_state_msg);
+                    break;
+                default:
+                    break;
             }
         }
 
-        if (bLeftMToFCalibrationSet && bRightMToFCalibrationSet) {
+        if (bLeftMToFCalibrationSet && bRightMToFCalibrationSet) { 
             std_msgs::msg::Float32MultiArray msg_arr;
             msg_arr.data.assign(mtof_calib_result_array_.begin(), mtof_calib_result_array_.end());
             mtof_calibration_complete_pub_->publish(msg_arr);
-            RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] Publish m-ToF Calibration Data to A1_Perception");
+            RCLCPP_INFO(this->get_logger(), "[Calibration Result: PASS] Publish m-ToF Calibration Data to A1_Perception");
             bLeftMToFCalibrationSet = false;
             bRightMToFCalibrationSet = false;
         }
@@ -974,7 +1004,12 @@ bool SensorToPointcloud::isDetectRamp()
     return ret;
 }
 
-uint8_t SensorToPointcloud::make_mtof_state(bool is_left, bool is_complete)
+/**
+ * @param bool is_left / 왼쪽이면 true
+ * @param bool is_complete / 완료됐으면 true (동작중엔 false)
+ * @param bool is_success / 결과가 pass 이면 true
+ */
+uint8_t SensorToPointcloud::make_mtof_state(bool is_left, bool is_complete, bool is_success)
 {
     constexpr uint8_t LEFT_RUNNING      = 0x01; // 하위비트: Left Running
     constexpr uint8_t LEFT_COMPLETE     = 0x02; // 하위비트: Left Complete
@@ -982,12 +1017,17 @@ uint8_t SensorToPointcloud::make_mtof_state(bool is_left, bool is_complete)
     constexpr uint8_t RIGHT_RUNNING     = 0x10; // 상위비트: Right Running
     constexpr uint8_t RIGHT_COMPLETE    = 0x20; // 상위비트: Right Complete
 
+    if (!is_success)
+    {
+        return is_left ? 0x0F : 0xF0;
+    }
+
     return is_left ? (is_complete ? LEFT_COMPLETE : LEFT_RUNNING) : (is_complete ? RIGHT_COMPLETE : RIGHT_RUNNING);
 }
 
-bool SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg)
+CALIB_STATE SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
-    bool ret = false;
+    CALIB_STATE ret = CALIB_STATE::RUN;
 
     TOF_SIDE side;
     if (isActiveMToFCalibration == 1) {
@@ -996,45 +1036,139 @@ bool SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofDa
         side = TOF_SIDE::RIGHT;
     } else {
         RCLCPP_INFO(this->get_logger(), "Wrong Clib Command");
-        return ret;
+        return CALIB_STATE::FAIL;
     }
-    auto result = point_cloud_tof_.updateBotTofCalibrationData(msg, side, botTofPitchAngle_);
 
+    // Min,Max 기준값의 tf 변환
+    auto pnp_th_msg = std::make_shared<robot_custom_msgs::msg::TofData>();
+    auto set_pass_values = [&](double value) {
+        if (pnp_th_msg->bot_left.size() == 16 && pnp_th_msg->bot_right.size() == 16) {
+            for (int idx : {13, 14, 15}) {
+                pnp_th_msg->bot_left[idx]  = value;
+                pnp_th_msg->bot_right[idx] = value;
+            }
+        }
+    };
+    set_pass_values(sensor_config_.multi_tof.calibration.pass_min_value);
+    auto min_th = point_cloud_tof_.updateBotTofCalibrationData(pnp_th_msg, side, botTofPitchAngle_);
+    set_pass_values(sensor_config_.multi_tof.calibration.pass_max_value);
+    auto max_th = point_cloud_tof_.updateBotTofCalibrationData(pnp_th_msg, side, botTofPitchAngle_);
+
+    // input 데이터의 tf 변환
+    auto result = point_cloud_tof_.updateBotTofCalibrationData(msg, side, botTofPitchAngle_);
     const auto& arr = result.data;
 
     if (arr.size() <= 2) {
         RCLCPP_WARN(this->get_logger(),
-                    "updateBotTofCalibrationData() returned size=%zu (<3). Skip sample.",
-                    arr.size());
-        return ret;
+            "updateBotTofCalibrationData() returned size=%zu (<3). Skip sample.",
+            arr.size()
+        );
+        return CALIB_STATE::FAIL;
     }
 
     if (mtof_calib_sample_count == 0) {
         mtof_calib_stat13 = mtof_calib_stat14 = mtof_calib_stat15 = -1;
-        if (mtof_calib_samples13.size() > 0) mtof_calib_samples13.clear();
-        if (mtof_calib_samples14.size() > 0) mtof_calib_samples14.clear();
-        if (mtof_calib_samples15.size() > 0) mtof_calib_samples15.clear();
+        if (mtof_calib_max_samples13.size() > 0) mtof_calib_max_samples13.clear();
+        if (mtof_calib_max_samples14.size() > 0) mtof_calib_max_samples14.clear();
+        if (mtof_calib_max_samples15.size() > 0) mtof_calib_max_samples15.clear();
+        if (mtof_calib_median_samples13.size() > 0) mtof_calib_median_samples13.clear();
+        if (mtof_calib_median_samples14.size() > 0) mtof_calib_median_samples14.clear();
+        if (mtof_calib_median_samples15.size() > 0) mtof_calib_median_samples15.clear();
     }
 
     if (sensor_config_.multi_tof.calibration.method == "Max") {
-        if (arr[0] > mtof_calib_stat13) mtof_calib_stat13 = arr[0];
-        if (arr[1] > mtof_calib_stat14) mtof_calib_stat14 = arr[1];
-        if (arr[2] > mtof_calib_stat15) mtof_calib_stat15 = arr[2];
+        mtof_calib_max_samples13.push_back(arr[0]);
+        mtof_calib_max_samples14.push_back(arr[1]);
+        mtof_calib_max_samples15.push_back(arr[2]);
     } else if (sensor_config_.multi_tof.calibration.method == "Median") {
-        mtof_calib_samples13.push_back(arr[0]);
-        mtof_calib_samples14.push_back(arr[1]);
-        mtof_calib_samples15.push_back(arr[2]);
+        mtof_calib_median_samples13.push_back(arr[0]);
+        mtof_calib_median_samples14.push_back(arr[1]);
+        mtof_calib_median_samples15.push_back(arr[2]);
     }
 
     ++mtof_calib_sample_count;
 
+    // sample 수집 완료 후 판단
     if (mtof_calib_sample_count >= sensor_config_.multi_tof.calibration.sampling_count) {
         if (sensor_config_.multi_tof.calibration.method == "Max") {
-            RCLCPP_INFO(this->get_logger(),
-                "Max over last %d samples (idx 13,14,15): %.3f, %.3f, %.3f",
-                mtof_calib_sample_count, static_cast<double>(mtof_calib_stat13), static_cast<double>(mtof_calib_stat14), static_cast<double>(mtof_calib_stat15)
-            );
+            if (!mtof_calib_max_samples13.empty()) {
+                mtof_calib_stat13 = *std::max_element(mtof_calib_max_samples13.begin(), mtof_calib_max_samples13.end());
+            }
+            if (!mtof_calib_max_samples14.empty()) {
+                mtof_calib_stat14 = *std::max_element(mtof_calib_max_samples14.begin(), mtof_calib_max_samples14.end());
+            }
+            if (!mtof_calib_max_samples15.empty()) {
+                mtof_calib_stat15 = *std::max_element(mtof_calib_max_samples15.begin(), mtof_calib_max_samples15.end());
+            }
+            if (min_th.data.size() == 3 && max_th.data.size() == 3) {
+                if (mtof_calib_stat13 < min_th.data[0] || mtof_calib_stat13 > max_th.data[0]
+                || mtof_calib_stat14 < min_th.data[1] || mtof_calib_stat14 > max_th.data[1]
+                || mtof_calib_stat15 < min_th.data[2] || mtof_calib_stat15 > max_th.data[2])
+                {
+                    RCLCPP_INFO(
+                        this->get_logger(),
+                        "[Calibration: FAIL]\n"
+                        "  idx_13: %.3f (min_th: %.3f, max_th: %.3f)\n"
+                        "  idx_14: %.3f (min_th: %.3f, max_th: %.3f)\n"
+                        "  idx_15: %.3f (min_th: %.3f, max_th: %.3f)",
+                        mtof_calib_stat13, min_th.data[0], max_th.data[0],
+                        mtof_calib_stat14, min_th.data[1], max_th.data[1],
+                        mtof_calib_stat15, min_th.data[2], max_th.data[2]
+                    );
+                    ret = CALIB_STATE::FAIL;
+                }
+                else
+                {
+                    ret = CALIB_STATE::PASS;
+                }
+            }
         } else if (sensor_config_.multi_tof.calibration.method == "Median") {
+
+            if (min_th.data.size() == 3 && max_th.data.size() == 3) {
+                auto countValid = [&](const std::vector<float>& samples,
+                                      float min_val, float max_val) -> size_t {
+                    return std::count_if(samples.begin(), samples.end(),
+                                         [&](float v) { return v >= min_val && v <= max_val; });
+                };
+
+                size_t valid_count_13 = countValid(mtof_calib_median_samples13, min_th.data[0], max_th.data[0]);
+                size_t valid_count_14 = countValid(mtof_calib_median_samples14, min_th.data[1], max_th.data[1]);
+                size_t valid_count_15 = countValid(mtof_calib_median_samples15, min_th.data[2], max_th.data[2]);
+
+                double ratio_13 = static_cast<double>(valid_count_13) / static_cast<double>(mtof_calib_median_samples13.size());
+                double ratio_14 = static_cast<double>(valid_count_14) / static_cast<double>(mtof_calib_median_samples14.size());
+                double ratio_15 = static_cast<double>(valid_count_15) / static_cast<double>(mtof_calib_median_samples15.size());
+
+                RCLCPP_INFO(
+                    this->get_logger(),
+                    "[Valid Data Ratios] Required >= %.2f%%\n"
+                    "  idx_13: %.2f%% (%zu/%zu)\n"
+                    "  idx_14: %.2f%% (%zu/%zu)\n"
+                    "  idx_15: %.2f%% (%zu/%zu)",
+                    sensor_config_.multi_tof.calibration.valid_data_percentage * 100.0,
+                    ratio_13 * 100.0, valid_count_13, mtof_calib_median_samples13.size(),
+                    ratio_14 * 100.0, valid_count_14, mtof_calib_median_samples14.size(),
+                    ratio_15 * 100.0, valid_count_15, mtof_calib_median_samples15.size()
+                );
+
+                if (ratio_13 < sensor_config_.multi_tof.calibration.valid_data_percentage
+                 || ratio_14 < sensor_config_.multi_tof.calibration.valid_data_percentage
+                 || ratio_15 < sensor_config_.multi_tof.calibration.valid_data_percentage)
+                {
+                    RCLCPP_INFO(
+                        this->get_logger(),
+                        "[Calibration: FAIL] One or more indices below valid data ratio threshold"
+                    );
+                    mtof_calib_sample_count = 0;
+                    mtof_calib_stat13 = mtof_calib_stat14 = mtof_calib_stat15 = -1.0;
+                    return CALIB_STATE::FAIL;
+                }
+                else
+                {
+                    ret = CALIB_STATE::PASS;
+                }
+            }
+
             auto calcMedian = [](std::vector<float> v) {
                 std::sort(v.begin(), v.end());
                 size_t n = v.size();
@@ -1044,15 +1178,26 @@ bool SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofDa
                     return v[n / 2];
                 }
             };
-            mtof_calib_stat13 = calcMedian(mtof_calib_samples13);
-            mtof_calib_stat14 = calcMedian(mtof_calib_samples14);
-            mtof_calib_stat15 = calcMedian(mtof_calib_samples15);
-            RCLCPP_INFO(this->get_logger(),
-                "Median over last %d samples (idx 13,14,15): %.3f, %.3f, %.3f",
-                mtof_calib_sample_count, static_cast<double>(mtof_calib_stat13), static_cast<double>(mtof_calib_stat14), static_cast<double>(mtof_calib_stat15)
-            );
+            mtof_calib_stat13 = calcMedian(mtof_calib_median_samples13);
+            mtof_calib_stat14 = calcMedian(mtof_calib_median_samples14);
+            mtof_calib_stat15 = calcMedian(mtof_calib_median_samples15);
         }
 
+        // 결과 로깅
+        RCLCPP_INFO(
+            this->get_logger(),
+            "[Calibration: PASS] Method: %s | Samples: %d\n"
+            "  idx_13: %.3f\n"
+            "  idx_14: %.3f\n"
+            "  idx_15: %.3f",
+            sensor_config_.multi_tof.calibration.method.c_str(),
+            mtof_calib_sample_count,
+            mtof_calib_stat13,
+            mtof_calib_stat14,
+            mtof_calib_stat15
+        );
+
+        // 외부 노드(A1_perception)로 보낼 Float64MultiArray에 데이터 저장
         if (side == TOF_SIDE::LEFT) {
             bLeftMToFCalibrationSet = true;
             mtof_calib_result_array_[0] = mtof_calib_stat13;
@@ -1067,8 +1212,6 @@ bool SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofDa
 
         mtof_calib_sample_count = 0;
         mtof_calib_stat13 = mtof_calib_stat14 = mtof_calib_stat15 = -1.0;
-
-        ret = true;
     }
 
     return ret;
