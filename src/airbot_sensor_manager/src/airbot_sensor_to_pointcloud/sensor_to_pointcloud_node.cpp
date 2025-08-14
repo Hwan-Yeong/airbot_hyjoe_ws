@@ -683,6 +683,7 @@ void SensorToPointcloud::mToFCalibrationCmdCallback(const std_msgs::msg::UInt8::
 void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
     if ((!bLeftMToFCalibrationSet || !bRightMToFCalibrationSet) && (isActiveMToFCalibration == 1 || isActiveMToFCalibration == 2)) {
+
         std_msgs::msg::UInt8 calib_state_msg;
 
         if (isActiveMToFCalibration == 1 && !bLeftMToFCalibrationSet) {
@@ -735,7 +736,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
             }
         }
 
-        if (bLeftMToFCalibrationSet && bRightMToFCalibrationSet) { 
+        if (bLeftMToFCalibrationSet && bRightMToFCalibrationSet) {
             std_msgs::msg::Float32MultiArray msg_arr;
             msg_arr.data.assign(mtof_calib_result_array_.begin(), mtof_calib_result_array_.end());
             mtof_calibration_complete_pub_->publish(msg_arr);
@@ -1125,6 +1126,8 @@ CALIB_STATE SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg
         } else if (sensor_config_.multi_tof.calibration.method == "Median") {
 
             if (min_th.data.size() == 3 && max_th.data.size() == 3) {
+                // ==== 데이터가 기준 범위내에 들어오는 비율을 보고 Pass/Fail을 판단하는 경우 ====
+                /*
                 auto countValid = [&](const std::vector<float>& samples,
                                       float min_val, float max_val) -> size_t {
                     return std::count_if(samples.begin(), samples.end(),
@@ -1167,20 +1170,42 @@ CALIB_STATE SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg
                 {
                     ret = CALIB_STATE::PASS;
                 }
-            }
+                */
+                // ==== 데이터의 Median 결과를 보고 Pass/Fail을 판단하는 경우 ====
+                auto calcMedian = [](std::vector<float> v) {
+                    std::sort(v.begin(), v.end());
+                    size_t n = v.size();
+                    if (n % 2 == 0) {
+                        return (v[n / 2 - 1] + v[n / 2]) / 2.0f;
+                    } else {
+                        return v[n / 2];
+                    }
+                };
+                mtof_calib_stat13 = calcMedian(mtof_calib_median_samples13);
+                mtof_calib_stat14 = calcMedian(mtof_calib_median_samples14);
+                mtof_calib_stat15 = calcMedian(mtof_calib_median_samples15);
 
-            auto calcMedian = [](std::vector<float> v) {
-                std::sort(v.begin(), v.end());
-                size_t n = v.size();
-                if (n % 2 == 0) {
-                    return (v[n / 2 - 1] + v[n / 2]) / 2.0f;
-                } else {
-                    return v[n / 2];
+                if (mtof_calib_stat13 < min_th.data[0] || mtof_calib_stat13 > max_th.data[0]
+                 || mtof_calib_stat14 < min_th.data[1] || mtof_calib_stat14 > max_th.data[1]
+                 || mtof_calib_stat15 < min_th.data[2] || mtof_calib_stat15 > max_th.data[2])
+                {
+                    RCLCPP_INFO(
+                        this->get_logger(),
+                        "[Calibration: FAIL]\n"
+                        "  idx_13: %.3f (min_th: %.3f, max_th: %.3f)\n"
+                        "  idx_14: %.3f (min_th: %.3f, max_th: %.3f)\n"
+                        "  idx_15: %.3f (min_th: %.3f, max_th: %.3f)",
+                        mtof_calib_stat13, min_th.data[0], max_th.data[0],
+                        mtof_calib_stat14, min_th.data[1], max_th.data[1],
+                        mtof_calib_stat15, min_th.data[2], max_th.data[2]
+                    );
+                    ret = CALIB_STATE::FAIL;
                 }
-            };
-            mtof_calib_stat13 = calcMedian(mtof_calib_median_samples13);
-            mtof_calib_stat14 = calcMedian(mtof_calib_median_samples14);
-            mtof_calib_stat15 = calcMedian(mtof_calib_median_samples15);
+                else
+                {
+                    ret = CALIB_STATE::PASS;
+                }
+            }
         }
 
         // 결과 로깅
