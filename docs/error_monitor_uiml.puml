@@ -1,0 +1,92 @@
+@startuml
+
+' Base Class
+abstract class BaseErrorMonitor<<abstract>> {
+    +~BaseErrorMonitor()
+    +checkError(input: T) : bool
+    +loadParams(ns: string)
+    +setNode(node: rclcpp::Node::SharedPtr)
+    #node_ptr_: rclcpp::Node::SharedPtr
+}
+
+' Error Monitors
+class LowBatteryErrorMonitor {
+    +checkError(input: pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>) : bool
+    +loadParams(ns: string)
+    +paramNamespace() : string
+    params: tParams
+}
+LowBatteryErrorMonitor --|> BaseErrorMonitor
+
+class BatteryDischargingErrorMonitor {
+    +checkError(input: pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>) : bool
+    +loadParams(ns: string)
+    +paramNamespace() : string
+    params: tParams
+}
+BatteryDischargingErrorMonitor --|> BaseErrorMonitor
+
+class FallDownErrorMonitor {
+    +checkError(input: pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>) : bool
+    +loadParams(ns: string)
+    +paramNamespace() : string
+    params: tParams
+}
+FallDownErrorMonitor --|> BaseErrorMonitor
+
+class LiftErrorMonitor {
+    +checkError(input: tuple<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu, robot_custom_msgs::msg::StationData>) : bool
+    +loadParams(ns: string)
+    +paramNamespace() : string
+    params: tParams
+}
+LiftErrorMonitor --|> BaseErrorMonitor
+
+class ChargingErrorMonitor {
+    +checkError(input: tuple<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData>) : bool
+    +loadParams(ns: string)
+    +paramNamespace() : string
+    params: tParams
+}
+ChargingErrorMonitor --|> BaseErrorMonitor
+
+class CliffDetectionErrorMonitor {
+    +checkError(input: tuple<robot_custom_msgs::msg::BottomIrData, robot_custom_msgs::msg::RobotState, nav_msgs::msg::Odometry>) : bool
+    +loadParams(ns: string)
+    +paramNamespace() : string
+    params: tParams
+}
+CliffDetectionErrorMonitor --|> BaseErrorMonitor
+
+class TofErrorMonitor {
+    +checkError(input: robot_custom_msgs::msg::TofData) : bool
+    +loadParams(ns: string)
+    +paramNamespace() : string
+    params: tParams
+}
+TofErrorMonitor --|> BaseErrorMonitor
+
+class AICommunicationErrorMonitor {
+    +checkError(input: pair<bool, bool>) : bool
+    +loadParams(ns: string)
+    +paramNamespace() : string
+    params: tParams
+}
+AICommunicationErrorMonitor --|> BaseErrorMonitor
+
+' ErrorMonitorNode
+class ErrorMonitorNode {
+    +ErrorMonitorNode()
+    +~ErrorMonitorNode()
+    +init()
+    +addMonitor(monitor: shared_ptr<BaseErrorMonitor<T>>)
+    +runMonitor(input: T) : bool
+    ... 센서 콜백 등
+
+    monitors_: unordered_map<type_index, shared_ptr<void>>
+    timer_: rclcpp::TimerBase::SharedPtr
+}
+
+BaseErrorMonitor --o ErrorMonitorNode
+
+@enduml
