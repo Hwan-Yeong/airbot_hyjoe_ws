@@ -49,6 +49,7 @@ public:
     void init();
 
 private:
+    rclcpp::Clock clock_;
     PointCloudTof point_cloud_tof_;
     PointCloudCamera point_cloud_camera_;
     PointCloudCliff point_cloud_cliff_;
@@ -138,6 +139,8 @@ private:
     bool ramp_detected_;
     std::unordered_set<int> prev_camera_logged_ids;
     std::array<float, 6> mtof_calib_result_array_{};
+    rclcpp::Time mtof_calib_left_finish_time_;
+    rclcpp::Time mtof_calib_right_finish_time_;
     int mtof_calib_sample_count = 0;
     float mtof_calib_stat13 = -1.0;
     float mtof_calib_stat14 = -1.0;

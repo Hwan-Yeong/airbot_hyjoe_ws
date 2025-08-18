@@ -94,6 +94,7 @@ struct tCalibration {
     int sampling_count;
     double pass_min_value;
     double pass_max_value;
+    double timeout;
     double valid_data_percentage;
 };
 

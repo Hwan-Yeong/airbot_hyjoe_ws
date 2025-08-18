@@ -29,7 +29,7 @@ double cliff_sensor_angle_to_next_ir_sensor = 50;       //[deg]
 double collision_forward_point_offset = 0.19;           //[meter]
 
 SensorToPointcloud::SensorToPointcloud()
-    : rclcpp::Node("airbot_sensor_to_pointcloud"),
+    : rclcpp::Node("airbot_sensor_to_pointcloud"), clock_(RCL_STEADY_TIME),
     point_cloud_tof_(tof_top_sensor_frame_x_translate,
                      tof_top_sensor_frame_y_translate,
                      tof_top_sensor_frame_z_translate,
@@ -151,6 +151,8 @@ void SensorToPointcloud::init()
     camera_object_logger_.setNode(shared_from_this());
     isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
     isCompleteMToFCalibration = false;
+    mtof_calib_left_finish_time_ = clock_.now();
+    mtof_calib_right_finish_time_ = clock_.now();
     initVariables();
     declareParams();
     setParams();
@@ -397,6 +399,7 @@ void SensorToPointcloud::printParams()
     oss << "      Sampling count: " << sensor_config_.multi_tof.calibration.sampling_count << "\n";
     oss << "      Pass Min Value: " << sensor_config_.multi_tof.calibration.pass_min_value << "\n";
     oss << "      Pass Max Value: " << sensor_config_.multi_tof.calibration.pass_max_value << "\n";
+    oss << "      Time Out Threshold: " << sensor_config_.multi_tof.calibration.timeout << "\n";
     oss << "      Valid Data Percentage: " << sensor_config_.multi_tof.calibration.valid_data_percentage << "\n";
     appendSensorConfig(oss, "TOF Multi Left", sensor_config_.multi_tof_left);
     appendSensorConfig(oss, "TOF Multi Right", sensor_config_.multi_tof_right);
@@ -515,6 +518,7 @@ tSensor SensorToPointcloud::getSensorCfg(const YAML::Node& node)
     if (calib && calib["sampling_count"]) cfg.calibration.sampling_count = calib["sampling_count"].as<int>();
     if (calib && calib["pass_min_value"]) cfg.calibration.pass_min_value = calib["pass_min_value"].as<double>();
     if (calib && calib["pass_max_value"]) cfg.calibration.pass_max_value = calib["pass_max_value"].as<double>();
+    if (calib && calib["time_out_sec"]) cfg.calibration.timeout = calib["time_out_sec"].as<double>();
     if (calib && calib["valid_data_percentage"]) cfg.calibration.valid_data_percentage = calib["valid_data_percentage"].as<double>();
 
     return cfg;
@@ -674,10 +678,10 @@ void SensorToPointcloud::mToFCalibrationCmdCallback(const std_msgs::msg::UInt8::
             bRightMToFCalibrationSet = false;
             mtof_calib_sample_count = 0;
         }
-        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Cmd : [%s]", enumToString(isActiveMToFCalibration).c_str());
+        RCLCPP_INFO(this->get_logger(), "multi-ToF Calibration Cmd : [%s]", enumToString(isActiveMToFCalibration).c_str());
     } else {
         isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
-        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Wrong Cmd : [%d], Set State => [%s]", msg->data, enumToString(isActiveMToFCalibration).c_str());
+        RCLCPP_INFO(this->get_logger(), "multi-ToF Calibration Wrong Cmd : [%d], Set State => [%s]", msg->data, enumToString(isActiveMToFCalibration).c_str());
     }
 }
 
@@ -700,6 +704,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
                     isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
                     calib_state_msg.data = make_mtof_state(true, true, true);
                     mtof_calibration_state_pub_->publish(calib_state_msg);
+                    mtof_calib_left_finish_time_ = clock_.now();
                     break;
                 case MTOF_CALIB_RESULT::FAIL:
                     RCLCPP_INFO(this->get_logger(), "Fail To m-ToF Calibration, SIDE: %s", enumToString(isActiveMToFCalibration).c_str());
@@ -725,6 +730,7 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
                     isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
                     calib_state_msg.data = make_mtof_state(false, true, true);
                     mtof_calibration_state_pub_->publish(calib_state_msg);
+                    mtof_calib_right_finish_time_ = clock_.now();
                     break;
                 case MTOF_CALIB_RESULT::FAIL:
                     RCLCPP_INFO(this->get_logger(), "Fail To m-ToF Calibration, SIDE: %s", enumToString(isActiveMToFCalibration).c_str());
@@ -747,6 +753,33 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
         }
 
         return;
+    } else {
+        auto now = clock_.now();
+        auto time_diff = (now - mtof_calib_left_finish_time_).seconds();
+
+        if (bLeftMToFCalibrationSet && !bRightMToFCalibrationSet && time_diff > sensor_config_.multi_tof.calibration.timeout) {
+            isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
+            bLeftMToFCalibrationSet = false;
+            // calib_state_msg.data = make_mtof_state(time out fail protocol);
+            // mtof_calibration_state_pub_->publish(calib_state_msg);
+            RCLCPP_INFO(this->get_logger(),
+                "[Calibration: TIMEOUT] Right calibration command not received within %.2f sec after Left finished. Calibration state set to [%s]",
+                time_diff, enumToString(isActiveMToFCalibration).c_str()
+            );
+            mtof_calib_left_finish_time_ = now;
+        }
+
+        if (!bLeftMToFCalibrationSet && bRightMToFCalibrationSet && (now - mtof_calib_right_finish_time_).seconds() > 10) {
+            isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
+            bRightMToFCalibrationSet = false;
+            // calib_state_msg.data = make_mtof_state(time out fail protocol);
+            // mtof_calibration_state_pub_->publish(calib_state_msg);
+            RCLCPP_INFO(this->get_logger(),
+                "[Calibration: TIMEOUT] Left calibration command not received within %.2f sec after Right finished. Calibration state set to [%s]",
+                time_diff, enumToString(isActiveMToFCalibration).c_str()
+            );
+            mtof_calib_right_finish_time_ = now;
+        }
     }
 
     if (wasActiveSensorToPointcloud_tof && !isActiveSensorToPointcloud) {

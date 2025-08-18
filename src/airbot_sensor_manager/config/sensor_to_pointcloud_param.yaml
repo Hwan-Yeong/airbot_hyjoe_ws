@@ -21,6 +21,7 @@ airbot_sensor_to_pointcloud:
           sampling_count: 300
           pass_min_value: 0.250 # raw sensor data "이상"인 경우 통과
           pass_max_value: 0.370 # raw sensor data "이하"인 경우 통과
+          time_out_sec: 10.0 # 한쪽 캘리브레이션 완료 후 최대 대기시간, 실패 시 timeout fail 처리
           valid_data_percentage: 0.50 # (method: "Median"인 경우 사용) 수집한 데이터중 범위 안에 들어온 데이터가 50% "이상"인 경우 Pass
         filter:
           moving_average:
