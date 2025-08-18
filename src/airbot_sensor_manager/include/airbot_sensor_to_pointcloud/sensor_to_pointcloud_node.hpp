@@ -142,6 +142,7 @@ private:
     rclcpp::Time mtof_calib_left_finish_time_;
     rclcpp::Time mtof_calib_right_finish_time_;
     int mtof_calib_sample_count = 0;
+    std_msgs::msg::UInt8 calib_state_msg;
     float mtof_calib_stat13 = -1.0;
     float mtof_calib_stat14 = -1.0;
     float mtof_calib_stat15 = -1.0;
@@ -182,7 +183,7 @@ private:
     void imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
 
     bool isDetectRamp();
-    uint8_t make_mtof_state(bool is_left, bool is_complete, bool is_success);
+    uint8_t make_mtof_state(TOF_SIDE side, MTOF_CALIB_RESULT state);
     MTOF_CALIB_RESULT multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg);
 
     void init_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);

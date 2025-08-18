@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 import numpy as np
 import math
+import random
 from nav_msgs.msg import Odometry
 from robot_custom_msgs.msg import RobotState, BottomIrData, CameraData, CameraDataArray, TofData
 from sensor_msgs.msg import Imu
@@ -67,6 +68,8 @@ class CliffDetectionErrorSimulation(Node):
 
         self.start_time = self.get_clock().now()
         self.ir_monified = False
+
+        self.tof14_base = 0.320
 
     def pubRobotState(self):
         self.robot_state.state = 1
@@ -162,10 +165,12 @@ class CliffDetectionErrorSimulation(Node):
         self.tof_data.timestamp = self.get_clock().now().to_msg()
         self.tof_data.top = 0.05
         self.tof_data.bot_left[13] = 0.320
-        self.tof_data.bot_left[14] = 0.320
+        # self.tof_data.bot_left[14] = 0.320
+        self.tof_data.bot_left[14] = self.tof14_base + random.uniform(-0.2, 0.2)
         self.tof_data.bot_left[15] = 0.320
         self.tof_data.bot_right[13] = 0.320
-        self.tof_data.bot_right[14] = 0.320
+        # self.tof_data.bot_right[14] = 0.320
+        self.tof_data.bot_right[14] = self.tof14_base + random.uniform(-0.2, 0.2)
         self.tof_data.bot_right[15] = 0.320
         self.tof_publisher.publish(self.tof_data)
 
@@ -180,9 +185,9 @@ class CliffDetectionErrorSimulation(Node):
         # self.pubRobotState()
         # self.pubBottomIrData()
         # self.pubOdomData()
-        self.pubCameraData()
+        # self.pubCameraData()
         # self.pubImuData()
-        # self.pubToFData()
+        self.pubToFData()
 
 def main(args=None):
     rclpy.init(args=args)
