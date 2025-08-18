@@ -3,11 +3,27 @@
 
 #include <cmath>
 #include <vector>
+#include <string>
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
 
-enum class CALIB_STATE {
-    RUN,
+enum class MTOF_CALIB_STATE {
+    INACTIVE        = 0,
+    ACTIVE_LEFT     = 1,
+    ACTIVE_RIGHT    = 2,
+};
+
+inline std::string enumToString(MTOF_CALIB_STATE state) {
+    switch (state) {
+        case MTOF_CALIB_STATE::INACTIVE:     return "INACTIVE";
+        case MTOF_CALIB_STATE::ACTIVE_LEFT:  return "ACTIVE_LEFT";
+        case MTOF_CALIB_STATE::ACTIVE_RIGHT: return "ACTIVE_RIGHT";
+        default:                             return "UNKNOWN";
+    }
+}
+
+enum class MTOF_CALIB_RESULT {
+    RUNNING,
     PASS,
     FAIL,
 };

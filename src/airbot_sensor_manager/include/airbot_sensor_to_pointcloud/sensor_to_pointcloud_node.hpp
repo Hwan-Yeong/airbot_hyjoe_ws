@@ -118,7 +118,7 @@ private:
     geometry_msgs::msg::PoseWithCovarianceStamped init_pose_msg;
 
     bool isActiveSensorToPointcloud;
-    int isActiveMToFCalibration;
+    MTOF_CALIB_STATE isActiveMToFCalibration;
     bool isCompleteMToFCalibration;
     bool bLeftMToFCalibrationSet;
     bool bRightMToFCalibrationSet;
@@ -180,7 +180,7 @@ private:
 
     bool isDetectRamp();
     uint8_t make_mtof_state(bool is_left, bool is_complete, bool is_success);
-    CALIB_STATE multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg);
+    MTOF_CALIB_RESULT multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg);
 
     void init_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
 };

@@ -149,7 +149,7 @@ void SensorToPointcloud::init()
     wasActiveSensorToPointcloud_cliff = false;
     wasActiveSensorToPointcloud_collision = false;
     camera_object_logger_.setNode(shared_from_this());
-    isActiveMToFCalibration = 0;
+    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
     isCompleteMToFCalibration = false;
     initVariables();
     declareParams();
@@ -665,44 +665,45 @@ void SensorToPointcloud::activeCmdCallback(const std_msgs::msg::Bool::SharedPtr 
 void SensorToPointcloud::mToFCalibrationCmdCallback(const std_msgs::msg::UInt8::SharedPtr msg)
 {
     // start_left_calibration = 0x01, start_right_calibration = 0x02, unknown = else,
-    isActiveMToFCalibration = static_cast<int>(msg->data);
-    if (isActiveMToFCalibration == 1 || isActiveMToFCalibration == 2) {
-        if (isActiveMToFCalibration == 1) {
+    isActiveMToFCalibration = static_cast<MTOF_CALIB_STATE>(msg->data);
+    if (isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_LEFT || isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_RIGHT) {
+        if (isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_LEFT) {
             bLeftMToFCalibrationSet = false;
             mtof_calib_sample_count = 0;
-        } else {
+        } else { // MTOF_CALIB_STATE::ACTIVE_RIGHT
             bRightMToFCalibrationSet = false;
             mtof_calib_sample_count = 0;
         }
-        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Cmd : Active [%s]", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
+        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Cmd : [%s]", enumToString(isActiveMToFCalibration).c_str());
     } else {
-        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Cmd : Wrong Command [%d]", isActiveMToFCalibration);
+        isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
+        RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] multi-ToF Calibration Wrong Cmd : [%d], Set State => [%s]", msg->data, enumToString(isActiveMToFCalibration).c_str());
     }
 }
 
 void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
-    if ((!bLeftMToFCalibrationSet || !bRightMToFCalibrationSet) && (isActiveMToFCalibration == 1 || isActiveMToFCalibration == 2)) {
+    if ((!bLeftMToFCalibrationSet || !bRightMToFCalibrationSet) && (isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_LEFT || isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_RIGHT)) {
 
         std_msgs::msg::UInt8 calib_state_msg;
 
-        if (isActiveMToFCalibration == 1 && !bLeftMToFCalibrationSet) {
-            CALIB_STATE result = multiToFCalibration(msg);
+        if (isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_LEFT && !bLeftMToFCalibrationSet) {
+            MTOF_CALIB_RESULT result = multiToFCalibration(msg);
             switch(result) {
-                case CALIB_STATE::RUN:
+                case MTOF_CALIB_RESULT::RUNNING:
                     calib_state_msg.data = make_mtof_state(true, false, true);
                     mtof_calibration_state_pub_->publish(calib_state_msg);
                     break;
-                case CALIB_STATE::PASS:
+                case MTOF_CALIB_RESULT::PASS:
                     bLeftMToFCalibrationSet = true;
-                    RCLCPP_INFO(this->get_logger(), "Success To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
-                    isActiveMToFCalibration = 0;
+                    RCLCPP_INFO(this->get_logger(), "Success To m-ToF Calibration, SIDE: %s", enumToString(isActiveMToFCalibration).c_str());
+                    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
                     calib_state_msg.data = make_mtof_state(true, true, true);
                     mtof_calibration_state_pub_->publish(calib_state_msg);
                     break;
-                case CALIB_STATE::FAIL:
-                    RCLCPP_INFO(this->get_logger(), "Fail To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
-                    isActiveMToFCalibration = 0;
+                case MTOF_CALIB_RESULT::FAIL:
+                    RCLCPP_INFO(this->get_logger(), "Fail To m-ToF Calibration, SIDE: %s", enumToString(isActiveMToFCalibration).c_str());
+                    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
                     calib_state_msg.data = make_mtof_state(true, false, false);
                     mtof_calibration_state_pub_->publish(calib_state_msg);
                     break;
@@ -711,23 +712,23 @@ void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::Sha
             }
         }
 
-        if (isActiveMToFCalibration == 2 && !bRightMToFCalibrationSet) {
-            CALIB_STATE result = multiToFCalibration(msg);
+        if (isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_RIGHT && !bRightMToFCalibrationSet) {
+            MTOF_CALIB_RESULT result = multiToFCalibration(msg);
             switch(result) {
-                case CALIB_STATE::RUN:
+                case MTOF_CALIB_RESULT::RUNNING:
                     calib_state_msg.data = make_mtof_state(false, false, true);
                     mtof_calibration_state_pub_->publish(calib_state_msg);
                     break;
-                case CALIB_STATE::PASS:
+                case MTOF_CALIB_RESULT::PASS:
                     bRightMToFCalibrationSet = true;
-                    RCLCPP_INFO(this->get_logger(), "Success To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
-                    isActiveMToFCalibration = 0;
+                    RCLCPP_INFO(this->get_logger(), "Success To m-ToF Calibration, SIDE: %s", enumToString(isActiveMToFCalibration).c_str());
+                    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
                     calib_state_msg.data = make_mtof_state(false, true, true);
                     mtof_calibration_state_pub_->publish(calib_state_msg);
                     break;
-                case CALIB_STATE::FAIL:
-                    RCLCPP_INFO(this->get_logger(), "Fail To m-ToF Calibration, SIDE: %s", isActiveMToFCalibration == 1 ? "LEFT" : "RIGHT");
-                    isActiveMToFCalibration = 0;
+                case MTOF_CALIB_RESULT::FAIL:
+                    RCLCPP_INFO(this->get_logger(), "Fail To m-ToF Calibration, SIDE: %s", enumToString(isActiveMToFCalibration).c_str());
+                    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
                     calib_state_msg.data = make_mtof_state(false, false, false);
                     mtof_calibration_state_pub_->publish(calib_state_msg);
                     break;
@@ -1026,37 +1027,54 @@ uint8_t SensorToPointcloud::make_mtof_state(bool is_left, bool is_complete, bool
     return is_left ? (is_complete ? LEFT_COMPLETE : LEFT_RUNNING) : (is_complete ? RIGHT_COMPLETE : RIGHT_RUNNING);
 }
 
-CALIB_STATE SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg)
+MTOF_CALIB_RESULT SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
-    CALIB_STATE ret = CALIB_STATE::RUN;
+    MTOF_CALIB_RESULT ret = MTOF_CALIB_RESULT::RUNNING;
 
     TOF_SIDE side;
-    if (isActiveMToFCalibration == 1) {
+    if (isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_LEFT) {
         side = TOF_SIDE::LEFT;
-    } else if (isActiveMToFCalibration == 2) {
+    } else if (isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_RIGHT) {
         side = TOF_SIDE::RIGHT;
     } else {
         RCLCPP_INFO(this->get_logger(), "Wrong Clib Command");
-        return CALIB_STATE::FAIL;
+        return MTOF_CALIB_RESULT::FAIL;
     }
 
     // Min,Max 기준값의 tf 변환
     auto pnp_th_msg = std::make_shared<robot_custom_msgs::msg::TofData>();
+    std_msgs::msg::Float32MultiArray min_th;
+    std_msgs::msg::Float32MultiArray max_th;
     auto set_pass_values = [&](double value) {
-        if (pnp_th_msg->bot_left.size() == 16 && pnp_th_msg->bot_right.size() == 16) {
-            for (int idx : {13, 14, 15}) {
-                pnp_th_msg->bot_left[idx]  = value;
-                pnp_th_msg->bot_right[idx] = value;
-            }
+        for (int idx : {13, 14, 15}) {
+            pnp_th_msg->bot_left[idx]  = value;
+            pnp_th_msg->bot_right[idx] = value;
         }
     };
-    set_pass_values(sensor_config_.multi_tof.calibration.pass_min_value);
-    auto min_th = point_cloud_tof_.updateBotTofCalibrationData(pnp_th_msg, side, botTofPitchAngle_);
-    set_pass_values(sensor_config_.multi_tof.calibration.pass_max_value);
-    auto max_th = point_cloud_tof_.updateBotTofCalibrationData(pnp_th_msg, side, botTofPitchAngle_);
+    if (pnp_th_msg->bot_left.size() == 16 && pnp_th_msg->bot_right.size() == 16) {
+        set_pass_values(sensor_config_.multi_tof.calibration.pass_min_value);
+        min_th = point_cloud_tof_.updateBotTofCalibrationData(pnp_th_msg, side, botTofPitchAngle_);
+        set_pass_values(sensor_config_.multi_tof.calibration.pass_max_value);
+        max_th = point_cloud_tof_.updateBotTofCalibrationData(pnp_th_msg, side, botTofPitchAngle_);
+    } else {
+        RCLCPP_WARN(this->get_logger(),
+            "Invalid pnp_th_msg size (left: %zu, right: %zu)",
+            pnp_th_msg->bot_left.size(), pnp_th_msg->bot_right.size()
+        );
+        return MTOF_CALIB_RESULT::FAIL;
+    }
 
     // input 데이터의 tf 변환
-    auto result = point_cloud_tof_.updateBotTofCalibrationData(msg, side, botTofPitchAngle_);
+    std_msgs::msg::Float32MultiArray result;
+    if (msg->bot_left.size() == 16 && msg->bot_right.size() == 16) {
+        result = point_cloud_tof_.updateBotTofCalibrationData(msg, side, botTofPitchAngle_);
+    } else {
+        RCLCPP_WARN(this->get_logger(),
+            "Invalid msg size (left: %zu, right: %zu)",
+            msg->bot_left.size(), msg->bot_right.size()
+        );
+        return MTOF_CALIB_RESULT::FAIL;
+    }
     const auto& arr = result.data;
 
     if (arr.size() <= 2) {
@@ -1064,7 +1082,7 @@ CALIB_STATE SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg
             "updateBotTofCalibrationData() returned size=%zu (<3). Skip sample.",
             arr.size()
         );
-        return CALIB_STATE::FAIL;
+        return MTOF_CALIB_RESULT::FAIL;
     }
 
     if (mtof_calib_sample_count == 0) {
@@ -1116,12 +1134,18 @@ CALIB_STATE SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg
                         mtof_calib_stat14, min_th.data[1], max_th.data[1],
                         mtof_calib_stat15, min_th.data[2], max_th.data[2]
                     );
-                    ret = CALIB_STATE::FAIL;
+                    ret = MTOF_CALIB_RESULT::FAIL;
                 }
                 else
                 {
-                    ret = CALIB_STATE::PASS;
+                    ret = MTOF_CALIB_RESULT::PASS;
                 }
+            } else {
+                RCLCPP_WARN(this->get_logger(),
+                    "Invalid threshold data size (min_th: %zu, max_th: %zu)",
+                    min_th.data.size(), max_th.data.size()
+                );
+                return MTOF_CALIB_RESULT::FAIL;
             }
         } else if (sensor_config_.multi_tof.calibration.method == "Median") {
 
@@ -1164,11 +1188,11 @@ CALIB_STATE SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg
                     );
                     mtof_calib_sample_count = 0;
                     mtof_calib_stat13 = mtof_calib_stat14 = mtof_calib_stat15 = -1.0;
-                    return CALIB_STATE::FAIL;
+                    return MTOF_CALIB_RESULT::FAIL;
                 }
                 else
                 {
-                    ret = CALIB_STATE::PASS;
+                    ret = MTOF_CALIB_RESULT::PASS;
                 }
                 */
                 // ==== 데이터의 Median 결과를 보고 Pass/Fail을 판단하는 경우 ====
@@ -1199,12 +1223,18 @@ CALIB_STATE SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg
                         mtof_calib_stat14, min_th.data[1], max_th.data[1],
                         mtof_calib_stat15, min_th.data[2], max_th.data[2]
                     );
-                    ret = CALIB_STATE::FAIL;
+                    ret = MTOF_CALIB_RESULT::FAIL;
                 }
                 else
                 {
-                    ret = CALIB_STATE::PASS;
+                    ret = MTOF_CALIB_RESULT::PASS;
                 }
+            } else {
+                RCLCPP_WARN(this->get_logger(),
+                    "Invalid threshold data size (min_th: %zu, max_th: %zu)",
+                    min_th.data.size(), max_th.data.size()
+                );
+                return MTOF_CALIB_RESULT::FAIL;
             }
         }
 
