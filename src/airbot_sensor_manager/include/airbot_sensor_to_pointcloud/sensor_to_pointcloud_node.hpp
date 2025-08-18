@@ -184,6 +184,7 @@ private:
 
     bool isDetectRamp();
     uint8_t make_mtof_state(TOF_SIDE side, MTOF_CALIB_RESULT state);
+    void handleCalibrationSide(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, bool &side_calib_set, rclcpp::Time &side_finish_time);
     MTOF_CALIB_RESULT multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg);
 
     void init_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);

@@ -687,79 +687,22 @@ void SensorToPointcloud::mToFCalibrationCmdCallback(const std_msgs::msg::UInt8::
 
 void SensorToPointcloud::tofMsgUpdate(const robot_custom_msgs::msg::TofData::SharedPtr msg)
 {
-    if ((!bLeftMToFCalibrationSet || !bRightMToFCalibrationSet) && (isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_LEFT || isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_RIGHT)) {
+    if ((!bLeftMToFCalibrationSet || !bRightMToFCalibrationSet) &&
+        (isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_LEFT || isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_RIGHT)) {
 
         if (isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_LEFT && !bLeftMToFCalibrationSet) {
-            MTOF_CALIB_RESULT result = multiToFCalibration(msg);
-            switch(result) {
-                case MTOF_CALIB_RESULT::RUNNING:
-                    break;
-                case MTOF_CALIB_RESULT::PASS:
-                    bLeftMToFCalibrationSet = true;
-                    RCLCPP_INFO(this->get_logger(), "[Calibration: %s] SIDE: %s", enumToString(result).c_str(), enumToString(isActiveMToFCalibration).c_str());
-                    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
-                    mtof_calib_left_finish_time_ = clock_.now();
-                    break;
-                case MTOF_CALIB_RESULT::FAIL_OUT_OF_RANGE:
-                    RCLCPP_INFO(this->get_logger(), "[Calibration: %s] SIDE: %s", enumToString(result).c_str(), enumToString(isActiveMToFCalibration).c_str());
-                    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
-                    mtof_calib_left_finish_time_ = clock_.now();
-                    break;
-                case MTOF_CALIB_RESULT::FAIL_UNSTABLE_RANGE:
-                    RCLCPP_INFO(this->get_logger(), "[Calibration: %s] SIDE: %s", enumToString(result).c_str(), enumToString(isActiveMToFCalibration).c_str());
-                    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
-                    mtof_calib_left_finish_time_ = clock_.now();
-                    break;
-                case MTOF_CALIB_RESULT::FAIL_UNKNOWN:
-                    RCLCPP_INFO(this->get_logger(), "[Calibration: %s] SIDE: %s", enumToString(result).c_str(), enumToString(isActiveMToFCalibration).c_str());
-                    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
-                    mtof_calib_left_finish_time_ = clock_.now();
-                    break;
-                default:
-                    break;
-            }
-            calib_state_msg.data = make_mtof_state(TOF_SIDE::LEFT, result);
-            mtof_calibration_state_pub_->publish(calib_state_msg);
+            handleCalibrationSide(msg, TOF_SIDE::LEFT, bLeftMToFCalibrationSet, mtof_calib_left_finish_time_);
         }
 
         if (isActiveMToFCalibration == MTOF_CALIB_STATE::ACTIVE_RIGHT && !bRightMToFCalibrationSet) {
-            MTOF_CALIB_RESULT result = multiToFCalibration(msg);
-            switch(result) {
-                case MTOF_CALIB_RESULT::RUNNING:
-                    break;
-                case MTOF_CALIB_RESULT::PASS:
-                    bRightMToFCalibrationSet = true;
-                    RCLCPP_INFO(this->get_logger(), "[Calibration: %s] SIDE: %s", enumToString(result).c_str(), enumToString(isActiveMToFCalibration).c_str());
-                    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
-                    mtof_calib_right_finish_time_ = clock_.now();
-                    break;
-                case MTOF_CALIB_RESULT::FAIL_OUT_OF_RANGE:
-                    RCLCPP_INFO(this->get_logger(), "[Calibration: %s] SIDE: %s", enumToString(result).c_str(), enumToString(isActiveMToFCalibration).c_str());
-                    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
-                    mtof_calib_left_finish_time_ = clock_.now();
-                    break;
-                case MTOF_CALIB_RESULT::FAIL_UNSTABLE_RANGE:
-                    RCLCPP_INFO(this->get_logger(), "[Calibration: %s] SIDE: %s", enumToString(result).c_str(), enumToString(isActiveMToFCalibration).c_str());
-                    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
-                    mtof_calib_left_finish_time_ = clock_.now();
-                    break;
-                case MTOF_CALIB_RESULT::FAIL_UNKNOWN:
-                    RCLCPP_INFO(this->get_logger(), "[Calibration: %s] SIDE: %s", enumToString(result).c_str(), enumToString(isActiveMToFCalibration).c_str());
-                    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
-                    mtof_calib_left_finish_time_ = clock_.now();
-                    break;
-                default:
-                    break;
-            }
-            calib_state_msg.data = make_mtof_state(TOF_SIDE::RIGHT, result);
-            mtof_calibration_state_pub_->publish(calib_state_msg);
+            handleCalibrationSide(msg, TOF_SIDE::RIGHT, bRightMToFCalibrationSet, mtof_calib_right_finish_time_);
         }
 
         if (bLeftMToFCalibrationSet && bRightMToFCalibrationSet) {
             std_msgs::msg::Float32MultiArray msg_arr;
             msg_arr.data.assign(mtof_calib_result_array_.begin(), mtof_calib_result_array_.end());
             mtof_calibration_complete_pub_->publish(msg_arr);
-            RCLCPP_INFO(this->get_logger(), "[Calibration: FINISH] Publish m-ToF Calibration Data to A1_Perception");
+            RCLCPP_INFO(this->get_logger(), "[Calibration Result: PASS] Publish m-ToF Calibration Data to A1_Perception");
             bLeftMToFCalibrationSet = false;
             bRightMToFCalibrationSet = false;
         }
@@ -1078,6 +1021,30 @@ uint8_t SensorToPointcloud::make_mtof_state(TOF_SIDE side, MTOF_CALIB_RESULT sta
     }
 
     return value;
+}
+
+void SensorToPointcloud::handleCalibrationSide(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, bool &side_calib_set, rclcpp::Time &side_finish_time)
+{
+    MTOF_CALIB_RESULT result = multiToFCalibration(msg);
+
+    if (result != MTOF_CALIB_RESULT::RUNNING) {
+        RCLCPP_INFO(this->get_logger(),
+            "[Calibration: %s] SIDE: %s",
+            enumToString(result).c_str(),
+            enumToString(isActiveMToFCalibration).c_str()
+        );
+
+        isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
+        side_finish_time = clock_.now();
+
+        if (result == MTOF_CALIB_RESULT::PASS) {
+            side_calib_set = true;
+        }
+    }
+
+    std_msgs::msg::UInt8 calib_state_msg;
+    calib_state_msg.data = make_mtof_state(side, result);
+    mtof_calibration_state_pub_->publish(calib_state_msg);
 }
 
 MTOF_CALIB_RESULT SensorToPointcloud::multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg)
