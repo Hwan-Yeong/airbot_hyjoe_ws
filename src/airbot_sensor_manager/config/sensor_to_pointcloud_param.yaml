@@ -17,12 +17,13 @@ airbot_sensor_to_pointcloud:
         publish_rate_ms: 10
         enable_8x8: true # 8x8 인덱스 사용 여부
         calibration:
-          method: "Median" # "Max" or "Median"
+          method: "Max" # "Max" or "Median"
           sampling_count: 300
           pass_min_value: 0.250 # raw sensor data "이상"인 경우 통과
           pass_max_value: 0.370 # raw sensor data "이하"인 경우 통과
           pass_diff_th: 0.030   # raw data min,max의 diff 가 30mm "이하"인 경우 통과
           time_out_sec: 10.0 # 한쪽 캘리브레이션 완료 후 최대 대기시간, 실패 시 timeout fail 처리
+          data_non_renewal_count: 90
         filter:
           moving_average:
             use: false
@@ -104,7 +105,7 @@ airbot_sensor_to_pointcloud:
           - "16: 0" #dryingrack
           - "17: 0" #bed
           - "18: 0" #hanger
-          - "19: 0"
+          - "19: 0" #floor_socket_box
           - "20: 0"
         object_direction: true  # 정방향(CCW+):True, 역방향(CW+):False
         object_max_distance_m: 1.5 # 최대 장애물 거리 (해당 거리 이내의 장애물 정보만 처리)

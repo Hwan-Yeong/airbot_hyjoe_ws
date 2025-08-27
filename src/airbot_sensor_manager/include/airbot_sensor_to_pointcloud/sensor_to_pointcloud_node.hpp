@@ -8,6 +8,12 @@
 #include <nlohmann/json.hpp>
 #include <filesystem>  // C++17 이상
 #include "rclcpp/rclcpp.hpp"
+
+#include "json.hpp" // yrmoon250818: Add json header
+#include <deque>    // yrmoon250818: Add deque header
+#include <ctime>    // yrmoon250818: Add current date and time
+#include <iomanip>  // yrmoon250818: Required for std::put_time
+
 #include "yaml-cpp/yaml.h"
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/u_int8.hpp"
@@ -39,6 +45,7 @@
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 
 using PC2PublisherPtr = rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr;
+using json = nlohmann::ordered_json; // yrmoon250818: Add json
 
 class SensorToPointcloud : public rclcpp::Node
 {
@@ -87,6 +94,7 @@ private:
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr sensor_to_pointcloud_state_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr mtof_calibration_complete_pub_;
     rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr mtof_calibration_state_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr mtof_calibration_data_pub_;
 
     std::string target_frame_;
 
@@ -121,8 +129,6 @@ private:
     bool isActiveSensorToPointcloud;
     MTOF_CALIB_STATE isActiveMToFCalibration;
     bool isCompleteMToFCalibration;
-    bool bLeftMToFCalibrationSet;
-    bool bRightMToFCalibrationSet;
     bool wasActiveSensorToPointcloud_tof;
     bool wasActiveSensorToPointcloud_camera;
     bool wasActiveSensorToPointcloud_cliff;
@@ -132,6 +138,13 @@ private:
     bool isCliffUpdating;
     bool isCollisionUpdating;
 
+    MTOF_CALIB_DATA result_data_;
+    MTOF_CALIB_RESULT left_result_;
+    MTOF_CALIB_RESULT right_result_;
+
+    bool bLeftMToFCalibrationSet;
+    bool bRightMToFCalibrationSet;
+
     double roll_;
     double pitch_;
     double yaw_;
@@ -139,6 +152,7 @@ private:
     bool ramp_detected_;
     std::unordered_set<int> prev_camera_logged_ids;
     std::array<float, 6> mtof_calib_result_array_{};
+    std::array<unsigned int, 3> mtof_data_non_renewal_count_{};
     rclcpp::Time mtof_calib_left_finish_time_;
     rclcpp::Time mtof_calib_right_finish_time_;
     int mtof_calib_sample_count = 0;
@@ -146,13 +160,14 @@ private:
     float mtof_calib_stat13 = -1.0;
     float mtof_calib_stat14 = -1.0;
     float mtof_calib_stat15 = -1.0;
-    std::vector<float> mtof_calib_max_samples13;
-    std::vector<float> mtof_calib_max_samples14;
-    std::vector<float> mtof_calib_max_samples15;
-    std::vector<float> mtof_calib_median_samples13;
-    std::vector<float> mtof_calib_median_samples14;
-    std::vector<float> mtof_calib_median_samples15;
+    std::vector<float> mtof_origin_13;
+    std::vector<float> mtof_origin_14;
+    std::vector<float> mtof_origin_15;
+    std::vector<float> mtof_calib_samples13;
+    std::vector<float> mtof_calib_samples14;
+    std::vector<float> mtof_calib_samples15;
 
+    void initOnceVariables();
     void initVariables();
     void initSensorConfig(const YAML::Node& config);
     void initPublisher(const YAML::Node& config);
@@ -184,10 +199,18 @@ private:
 
     bool isDetectRamp();
     uint8_t make_mtof_state(TOF_SIDE side, MTOF_CALIB_RESULT state);
-    void handleCalibrationSide(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, bool &side_calib_set, rclcpp::Time &side_finish_time);
+    MTOF_CALIB_RESULT handleCalibrationSide(const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, bool &side_calib_set, rclcpp::Time &side_finish_time);
     MTOF_CALIB_RESULT multiToFCalibration(const robot_custom_msgs::msg::TofData::SharedPtr msg);
 
     void init_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+
+    // yrmoon250818 : Tof selftest calibration log save function
+    void writeSelfTestCalibFile(TOF_SIDE side, MTOF_CALIB_RESULT resultCode);
+    bool checkFileExist(std::string path, std::deque<std::string> &buffer);
+    void createJsonData(json &j, TOF_SIDE side, MTOF_CALIB_RESULT resultCode);
+    void writeDataFile(const std::string& path, const std::deque<std::string>& buffer, const json& output_data);
+
+    double truncate_to_n(double value, int n);
 };
 
 #endif // SENSOR_TO_POINTCLOUD

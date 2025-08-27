@@ -7,12 +7,6 @@
 #include "robot_custom_msgs/msg/abnormal_event_data.hpp"
 #include "utils/common_struct.hpp"
 
-enum class TOF_SIDE
-{
-    LEFT,
-    RIGHT,
-    BOTH
-};
 
 class FrameConverter
 {

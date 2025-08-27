@@ -54,7 +54,7 @@ void ParamSetterNode::socCmdCallback(const std_msgs::msg::UInt8::SharedPtr msg) 
             future.get();
             RCLCPP_INFO(rclcpp::get_logger("param_setter"), "Successfully set parameter!");
         } catch (const std::exception &e) {
-            RCLCPP_ERROR(rclcpp::get_logger("param_setter"), "Exception in set_parameters(): %s", e.what());
+            RCLCPP_ERROR(rclcpp::get_logger("param_setter"), "std::exception in set_parameters(): %s", e.what());
         }
     }).detach();
 }
@@ -84,7 +84,7 @@ void ParamSetterNode::subCellIdxLeftCallback(const std_msgs::msg::Int32MultiArra
             future.get();
             RCLCPP_INFO(rclcpp::get_logger("param_setter"), "Successfully updated left sub_cell_index_map parameter.");
         } catch (const std::exception& e) {
-            RCLCPP_ERROR(rclcpp::get_logger("param_setter"), "Failed to set left sub_cell_index_map: %s", e.what());
+            RCLCPP_ERROR(rclcpp::get_logger("param_setter"), "std::exception Failed to set left sub_cell_index_map: %s", e.what());
         }
     }).detach();
 }
@@ -114,7 +114,7 @@ void ParamSetterNode::subCellIdxRightCallback(const std_msgs::msg::Int32MultiArr
             future.get();
             RCLCPP_INFO(rclcpp::get_logger("param_setter"), "Successfully updated right sub_cell_index_map parameter.");
         } catch (const std::exception& e) {
-            RCLCPP_ERROR(rclcpp::get_logger("param_setter"), "Failed to set right sub_cell_index_map: %s", e.what());
+            RCLCPP_ERROR(rclcpp::get_logger("param_setter"), "std::exception Failed to set right sub_cell_index_map: %s", e.what());
         }
     }).detach();
 }
