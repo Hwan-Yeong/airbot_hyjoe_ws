@@ -65,29 +65,29 @@ class CameraCloudConverter : public CloudConverterStrategy
     double pointcloud_resolution_ = 0.05;
     double object_max_dist_ = 1.5;
     tPoint sensor_frame_translation_ = tPoint(0.15473, 0.0, 0.5331);
-    // std::map<int, int> camera_class_id_confidence_th_ = {};  // yaml 에서만 주석하면 자동으로 반영되도록
-    std::map<int, int> camera_class_id_confidence_th_ = {       // yaml과 해당 선언부에서 모두 주석해야 반영됨
-      {0, 0},  // cable
-      {1, 0},  // carpet [Unused]
-      {2, 0},  // clothes
-      {3, 0},  // liquid [Unused]
-      {4, 0},  // non_obstacle [Unused]
-      {5, 0},  // obstacle [Unused]
-      {6, 0},  // poop
-      {7, 0},  // scale
-      // {8, 0},  // threshold [Unused]
-      // {9, 0},  // person
-      {10, 0}, // dog [Unused]
-      {11, 0}, // cat [Unused]
-      {12, 0}, // chair
-      {13, 0}, // base
-      // {14, 0}, // shoes
-      {15, 0}, // electronic_device
-      {16, 0}, // dryingrack
-      {17, 0}, // bed
-      {18, 0},
-      {19, 0}
-    };
+    std::map<int, int> camera_class_id_confidence_th_ = {};  // yaml 에서만 수정하면 자동으로 반영, but 초기화 없음
+    // std::map<int, int> camera_class_id_confidence_th_ = {       // yaml & 선언부에서 모두 수정해야 반영, but 초기화 있음
+    //   {0, 0},  // cable
+    //   {1, 0},  // carpet [Unused]
+    //   {2, 0},  // clothes
+    //   {3, 0},  // liquid [Unused]
+    //   {4, 0},  // non_obstacle [Unused]
+    //   {5, 0},  // obstacle [Unused]
+    //   {6, 0},  // poop
+    //   {7, 0},  // scale
+    //   // {8, 0},  // threshold [Unused]
+    //   // {9, 0},  // person
+    //   {10, 0}, // dog [Unused]
+    //   {11, 0}, // cat [Unused]
+    //   {12, 0}, // chair
+    //   {13, 0}, // base
+    //   // {14, 0}, // shoes
+    //   {15, 0}, // electronic_device
+    //   {16, 0}, // dryingrack
+    //   {17, 0}, // bed
+    //   {18, 0},
+    //   {19, 0}
+    // };
 };
 
 /**

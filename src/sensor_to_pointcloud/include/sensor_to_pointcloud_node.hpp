@@ -15,6 +15,8 @@
 
 namespace sensor_to_pointcloud {
 
+using PC2PublisherPtr = rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr;
+
 class SensorToPointcloudNode : public rclcpp::Node
 {
 public:
@@ -25,8 +27,11 @@ public:
 private:
     void loadConfig();
     void initializeRuntime();
+    void initPublisher(const YAML::Node& config);
+    void initPublishingRates(const YAML::Node &config);
     void initConverters(const YAML::Node &config);
     void publishPointcloudTimer();
+    void publishPointcloud(const std::string& converter_key, const std::string& topic_key, const std::shared_ptr<void> msg_copy);
     void publishEmptyMsg();
 
     YAML::Node config_;
@@ -37,7 +42,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sensor_to_pointcloud_cmd_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
 
-    rclcpp::Publisher<PointCloudMsg>::SharedPtr camera_pc_pub_;
+    std::unordered_map<std::string, PC2PublisherPtr> pointcloud_pubs_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr node_active_cmd_response_pub_;
 
     std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
@@ -46,6 +51,9 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 
     bool node_active_cmd_;
+
+    std::unordered_map<std::string, unsigned int> pointcloud_publishing_rate_map_;
+    unsigned int camera_publishing_cnt_;
 
     std::mutex camera_mutex_;
     std::atomic<bool> camera_msg_updated_{false};
