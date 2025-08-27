@@ -3,6 +3,8 @@
 
 #include <cmath>
 #include <vector>
+#include <mutex>
+#include <atomic>
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
 
@@ -107,6 +109,13 @@ struct tFilterConfig {
     tFilter moving_average;
     tFilter low_pass;
     tFilter complementary;
+};
+
+template<typename MsgT>
+struct tSensorBuffer {
+    std::mutex mtx;
+    std::atomic<bool> updated{false};
+    typename MsgT::SharedPtr latest_msg;
 };
 
 #endif

@@ -42,14 +42,25 @@ SensorToPointcloudNode::SensorToPointcloudNode() : Node("sensor_to_pointcloud_no
         }
     );
 
+    // ToF Msg Subscriber
+    tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
+        "/tof_data",
+        rclcpp::SensorDataQoS(),
+        [this](robot_custom_msgs::msg::TofData::SharedPtr msg) {
+            std::lock_guard<std::mutex> lock(tof_buffer_.mtx);
+            tof_buffer_.latest_msg = msg;
+            tof_buffer_.updated.store(true);
+        }
+    );
+
     // Camera Msg Subscriber
     camera_sub_ = this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
         "/camera_data",
         rclcpp::SensorDataQoS(),
         [this](robot_custom_msgs::msg::CameraDataArray::SharedPtr msg) {
-            std::lock_guard<std::mutex> lock(camera_mutex_);
-            latest_camera_msg_ = msg;
-            camera_msg_updated_.store(true);
+            std::lock_guard<std::mutex> lock(camera_buffer_.mtx);
+            camera_buffer_.latest_msg = msg;
+            camera_buffer_.updated.store(true);
         }
     );
 
@@ -226,13 +237,13 @@ void SensorToPointcloudNode::publishPointcloudTimer()
     }
 
     camera_publishing_cnt_ += 10;
-    if (camera_msg_updated_.load() && (camera_publishing_cnt_ >= pointcloud_publishing_rate_map_["camera"])) {
+    if (camera_buffer_.updated.load() && (camera_publishing_cnt_ >= pointcloud_publishing_rate_map_["camera"])) {
         robot_custom_msgs::msg::CameraDataArray::SharedPtr camera_msg_copy;
         {
-            std::lock_guard<std::mutex> lock(camera_mutex_);
-            camera_msg_copy = latest_camera_msg_;
-            latest_camera_msg_.reset();
-            camera_msg_updated_.store(false);
+            std::lock_guard<std::mutex> lock(camera_buffer_.mtx);
+            camera_msg_copy = camera_buffer_.latest_msg;
+            camera_buffer_.latest_msg.reset();
+            camera_buffer_.updated.store(false);
         }
         if (!camera_msg_copy) {
             return;

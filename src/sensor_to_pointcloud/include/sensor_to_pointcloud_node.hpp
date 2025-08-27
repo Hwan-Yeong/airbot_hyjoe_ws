@@ -2,8 +2,6 @@
 
 #include <memory>
 #include <unordered_map>
-#include <mutex>
-#include <atomic>
 
 #include <rclcpp/rclcpp.hpp>
 #include "std_msgs/msg/bool.hpp"
@@ -40,6 +38,7 @@ private:
     std::unordered_map<std::string, CloudConverterPtr> converters_;
 
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sensor_to_pointcloud_cmd_sub_;
+    rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
 
     std::unordered_map<std::string, PC2PublisherPtr> pointcloud_pubs_;
@@ -55,9 +54,8 @@ private:
     std::unordered_map<std::string, unsigned int> pointcloud_publishing_rate_map_;
     unsigned int camera_publishing_cnt_;
 
-    std::mutex camera_mutex_;
-    std::atomic<bool> camera_msg_updated_{false};
-    robot_custom_msgs::msg::CameraDataArray::SharedPtr latest_camera_msg_;
+    tSensorBuffer<robot_custom_msgs::msg::TofData> tof_buffer_;
+    tSensorBuffer<robot_custom_msgs::msg::CameraDataArray> camera_buffer_;
 };
 
 } // namespace sensor_to_pointcloud

@@ -7,6 +7,7 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
 #include "vision_msgs/msg/bounding_box2_d_array.hpp"
+#include "robot_custom_msgs/msg/tof_data.hpp"
 #include "robot_custom_msgs/msg/camera_data.hpp"
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "yaml-cpp/yaml.h"
