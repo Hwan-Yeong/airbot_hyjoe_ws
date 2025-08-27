@@ -22,7 +22,7 @@ sensor_to_pointcloud:
       tof_multi:
         use: true
         topic: "tof/multi"
-        publish_rate_ms: 10
+        publish_rate_ms: 100
         enable_8x8: true # 8x8 인덱스 사용 여부
         extrinsics:
           fov: 45.0 # deg

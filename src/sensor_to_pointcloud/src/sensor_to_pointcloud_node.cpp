@@ -226,7 +226,8 @@ void SensorToPointcloudNode::initConverters(const YAML::Node& config)
 void SensorToPointcloudNode::initializeRuntime()
 {
     this->node_active_cmd_ = false;
-    this->camera_publishing_cnt_ = 0;
+    this->tof_buffer_.reset();
+    this->camera_buffer_.reset();
 }
 
 void SensorToPointcloudNode::publishPointcloudTimer()
@@ -236,8 +237,28 @@ void SensorToPointcloudNode::publishPointcloudTimer()
         return;
     }
 
-    camera_publishing_cnt_ += 10;
-    if (camera_buffer_.updated.load() && (camera_publishing_cnt_ >= pointcloud_publishing_rate_map_["camera"])) {
+    tof_buffer_.publishing_cnt_map["tof_mono"] += 10;
+    tof_buffer_.publishing_cnt_map["tof_multi"] += 10;
+    if (tof_buffer_.updated.load()) {
+        robot_custom_msgs::msg::TofData::SharedPtr tof_msg_copy;
+        {
+            std::lock_guard<std::mutex> lock(tof_buffer_.mtx);
+            tof_msg_copy = tof_buffer_.latest_msg;
+            tof_buffer_.latest_msg.reset();
+            tof_buffer_.updated.store(false);
+        }
+        if (tof_buffer_.publishing_cnt_map["tof_mono"] >= pointcloud_publishing_rate_map_["tof_mono"]) {
+            publishPointcloud("tof_mono", "tof_mono", tof_msg_copy);
+            tof_buffer_.publishing_cnt_map["tof_mono"] = 0;
+        }
+        if (tof_buffer_.publishing_cnt_map["tof_multi"] >= pointcloud_publishing_rate_map_["tof_multi"]) {
+            publishPointcloud("tof_multi", "tof_multi", tof_msg_copy);
+            tof_buffer_.publishing_cnt_map["tof_multi"] = 0;
+        }
+    }
+
+    camera_buffer_.publishing_cnt += 10;
+    if (camera_buffer_.updated.load() && (camera_buffer_.publishing_cnt >= pointcloud_publishing_rate_map_["camera"])) {
         robot_custom_msgs::msg::CameraDataArray::SharedPtr camera_msg_copy;
         {
             std::lock_guard<std::mutex> lock(camera_buffer_.mtx);
@@ -249,7 +270,7 @@ void SensorToPointcloudNode::publishPointcloudTimer()
             return;
         }
         publishPointcloud("camera", "camera_object", camera_msg_copy);
-        camera_publishing_cnt_ = 0;
+        camera_buffer_.publishing_cnt = 0;
     }
 }
 

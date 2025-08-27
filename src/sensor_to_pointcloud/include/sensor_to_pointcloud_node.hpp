@@ -52,7 +52,6 @@ private:
     bool node_active_cmd_;
 
     std::unordered_map<std::string, unsigned int> pointcloud_publishing_rate_map_;
-    unsigned int camera_publishing_cnt_;
 
     tSensorBuffer<robot_custom_msgs::msg::TofData> tof_buffer_;
     tSensorBuffer<robot_custom_msgs::msg::CameraDataArray> camera_buffer_;

@@ -116,6 +116,15 @@ struct tSensorBuffer {
     std::mutex mtx;
     std::atomic<bool> updated{false};
     typename MsgT::SharedPtr latest_msg;
+    unsigned int publishing_cnt = 0;
+    std::unordered_map<std::string, unsigned int> publishing_cnt_map;
+
+    void reset() {
+        updated.store(false);
+        latest_msg.reset();
+        publishing_cnt = 0;
+        publishing_cnt_map.clear();
+    }
 };
 
 #endif
