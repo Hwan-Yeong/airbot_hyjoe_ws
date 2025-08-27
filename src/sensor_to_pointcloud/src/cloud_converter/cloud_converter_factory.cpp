@@ -7,7 +7,7 @@ CloudConverterPtr CloudConverterFactory::create(std::shared_ptr<SensorToPointclo
 {
     if (type == "tof_mono")
     {
-        return nullptr;
+        return std::make_shared<TofMonoCloudConverter>(node_ptr, config);
     }
     else if (type == "tof_multi")
     {

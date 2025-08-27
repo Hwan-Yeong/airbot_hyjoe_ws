@@ -196,7 +196,7 @@ void SensorToPointcloudNode::initPublishingRates(const YAML::Node& config)
     }
 
     std::ostringstream oss;
-    oss << "\n==== POINTCLOUD CONVERTER PUBLISHING RATE PARAMETERS ====\n";
+    oss << "\n[POINTCLOUD PUBLISHING RATES]\n";
 
     for (const auto& sensor_pair : config) {
         unsigned int rate_ms = 0;
@@ -208,7 +208,7 @@ void SensorToPointcloudNode::initPublishingRates(const YAML::Node& config)
             oss << "  " << sensor_name << " : " << rate_ms << " ms\n";
         }
     }
-    oss <<   "==========================================================";
+    oss << "----------------------------------------------------";
     RCLCPP_INFO(this->get_logger(), "%s", oss.str().c_str());
 }
 
@@ -248,11 +248,11 @@ void SensorToPointcloudNode::publishPointcloudTimer()
             tof_buffer_.updated.store(false);
         }
         if (tof_buffer_.publishing_cnt_map["tof_mono"] >= pointcloud_publishing_rate_map_["tof_mono"]) {
-            publishPointcloud("tof_mono", "tof_mono", tof_msg_copy);
+            publishPointcloud("tof_mono", "tof/mono", tof_msg_copy);
             tof_buffer_.publishing_cnt_map["tof_mono"] = 0;
         }
         if (tof_buffer_.publishing_cnt_map["tof_multi"] >= pointcloud_publishing_rate_map_["tof_multi"]) {
-            publishPointcloud("tof_multi", "tof_multi", tof_msg_copy);
+            publishPointcloud("tof_multi", "tof/multi", tof_msg_copy);
             tof_buffer_.publishing_cnt_map["tof_multi"] = 0;
         }
     }

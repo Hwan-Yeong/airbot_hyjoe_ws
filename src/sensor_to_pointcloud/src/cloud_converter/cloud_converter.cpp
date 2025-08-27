@@ -15,6 +15,89 @@ std::shared_ptr<SensorToPointcloudNode> CloudConverterStrategy::getNodePtr() con
     return node_ptr;
 }
 
+TofMonoCloudConverter::TofMonoCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node &config)
+    : CloudConverterStrategy(node_ptr_)
+{
+    // Load Config
+    if (!config.IsMap())
+    {
+        auto s = YAML::Dump(config);
+        throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
+    }
+
+    this->use_tof_mono_ = config["use"].as<bool>();
+    this->sensor_frame_pose_ = tPose(
+        tPoint(
+            config["extrinsics"]["translation"]["x"].as<double>(),
+            config["extrinsics"]["translation"]["y"].as<double>(),
+            config["extrinsics"]["translation"]["z"].as<double>()
+        ),
+        tOrientation(
+            DEG2RAD(config["extrinsics"]["rotation"]["roll"].as<double>()),
+            DEG2RAD(config["extrinsics"]["rotation"]["pitch"].as<double>()),
+            DEG2RAD(config["extrinsics"]["rotation"]["yaw"].as<double>())
+        )
+    );
+    this->tof_mono_sensor_frame_pitch_cosine = std::cos(this->sensor_frame_pose_.orientation.pitch);
+    this->tof_mono_sensor_frame_pitch_sine = std::sin(this->sensor_frame_pose_.orientation.pitch);
+
+    // Print Config
+    std::ostringstream oss;
+    oss << "\n[1D TOF POINTCLOUD CONVERTER PARAMETERS]\n";
+    oss << std::boolalpha;
+    oss << "  use_tof_mono_          : " << this->use_tof_mono_ << "\n";
+    oss << "  sensor_frame_pose      : position [m] = ("
+        << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.x << ", "
+        << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.y << ", "
+        << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.z << "), "
+        << "orientation [deg] = ("
+        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_frame_pose_.orientation.roll)  << ", "
+        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_frame_pose_.orientation.pitch) << ", "
+        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_frame_pose_.orientation.yaw)   << ")\n";
+    oss << "----------------------------------------------------";
+    RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
+}
+
+sensor_msgs::msg::PointCloud2 TofMonoCloudConverter::pc_convert(const void *sensor_msg)
+{
+    sensor_msgs::msg::PointCloud2 ret;
+
+    if (this->use_tof_mono_)
+    {
+        auto msg = static_cast<const robot_custom_msgs::msg::TofData*>(sensor_msg);
+
+        tPose robot_pose;
+        robot_pose.position.x = msg->robot_x;
+        robot_pose.position.y = msg->robot_y;
+        robot_pose.orientation.yaw = msg->robot_angle;
+
+        sensor_msgs::msg::PointCloud2 pc_msg = generateTofMonoPointCloudMsg(msg, robot_pose);
+
+        ret = pc_msg;
+    }
+
+    return ret;
+}
+
+sensor_msgs::msg::PointCloud2 TofMonoCloudConverter::generateTofMonoPointCloudMsg(const robot_custom_msgs::msg::TofData* input_msg, tPose &robot_pose)
+{
+    sensor_msgs::msg::PointCloud2 ret;
+
+    tPoint point_on_robot_frame;
+    point_on_robot_frame.x = this->sensor_frame_pose_.position.x + input_msg->top * this->tof_mono_sensor_frame_pitch_cosine;
+    point_on_robot_frame.y = this->sensor_frame_pose_.position.y;
+    point_on_robot_frame.z = this->sensor_frame_pose_.position.z - input_msg->top * this->tof_mono_sensor_frame_pitch_sine;
+
+    if (this->target_frame_ == "map") {
+        std::vector<tPoint> point_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame({point_on_robot_frame}, robot_pose);
+        ret = this->pointcloud_generator_.generatePointCloud2Message(point_on_map_frame, this->target_frame_);
+    } else {
+        ret = this->pointcloud_generator_.generatePointCloud2Message({point_on_robot_frame}, this->target_frame_);
+    }
+
+    return ret;
+}
+
 CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node &config)
     : CloudConverterStrategy(node_ptr_)
 {
@@ -37,23 +120,29 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorToPointcloudNod
             this->camera_class_id_confidence_th_[std::stoi(key)] = std::stoi(value);
         }
     }
-    this->sensor_frame_translation_ = tPoint(
-                                                config["extrinsics"]["translation"]["x"].as<double>(),
-                                                config["extrinsics"]["translation"]["y"].as<double>(),
-                                                config["extrinsics"]["translation"]["z"].as<double>()
-                                            );
+    this->sensor_frame_pose_.position = tPoint(
+        config["extrinsics"]["translation"]["x"].as<double>(),
+        config["extrinsics"]["translation"]["y"].as<double>(),
+        config["extrinsics"]["translation"]["z"].as<double>()
+    );
 
     // Print Config
     std::ostringstream oss;
-    oss << "\n==== CAMERA POINTCLOUD CONVERTER PARAMETERS ====\n";
+    oss << "\n[CAMERA POINTCLOUD CONVERTER PARAMETERS]\n";
     oss << std::boolalpha;
-    oss << "  use_camera_: " << this->use_camera_ << "\n";
-    oss << "  Pitch Angle: " << std::fixed << std::setprecision(2) << this->pointcloud_resolution_ << "\n";
-    oss << "  Camera Class ID Confidence Threshold:\n";
+    oss << "  use_camera_            : " << this->use_camera_ << "\n";
+    oss << "  object_direction_      : " << this->object_direction_ << "\n";
+    oss << "  pointcloud_resolution_ : " << std::fixed << std::setprecision(2) << this->pointcloud_resolution_ << "\n";
+    oss << "  object_max_dist_       : " << std::fixed << std::setprecision(2) << this->object_max_dist_ << " m\n";
+    oss << "  sensor_frame_pose      : position [m] = ("
+        << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.x << ", "
+        << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.y << ", "
+        << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.z << ")\n";
+    oss << "  class_id_confidence_th :\n";
     for (const auto& [class_id, confidence_th] : this->camera_class_id_confidence_th_) {
-        oss << "    - ID: " << class_id << ", Threshold: " << confidence_th << "\n";
+        oss << "    - { id: " << class_id << ", th: " << confidence_th << " }\n";
     }
-    oss <<   "================================================";
+    oss << "----------------------------------------------------";
     RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
 }
 
@@ -72,7 +161,7 @@ sensor_msgs::msg::PointCloud2 CameraCloudConverter::pc_convert(const void *senso
 
         vision_msgs::msg::BoundingBox2DArray bbox_array = generateObjectBBoxArray(msg, robot_pose, this->camera_class_id_confidence_th_, this->object_direction_, this->object_max_dist_);
 
-        sensor_msgs::msg::PointCloud2 pc_msg = generateCameraPointCloudMsg(bbox_array, this->pointcloud_resolution_);
+        sensor_msgs::msg::PointCloud2 pc_msg = this->pointcloud_generator_.generateCameraPointCloud2Message(bbox_array, this->pointcloud_resolution_);
 
         ret = pc_msg;
     }
@@ -119,11 +208,11 @@ vision_msgs::msg::BoundingBox2DArray CameraCloudConverter::generateObjectBBoxArr
                     point_on_sensor_frame.x = obj.distance * std::cos(-obj.theta) + height/2;
                     point_on_sensor_frame.y = obj.distance * std::sin(-obj.theta);
                 }
-                // point_on_sensor_frame.z = -this->sensor_frame_translation_.z;
+                // point_on_sensor_frame.z = -this->sensor_frame_pose_.position.z;
 
-                point_on_robot_frame.x = point_on_sensor_frame.x + this->sensor_frame_translation_.x;
-                point_on_robot_frame.y = point_on_sensor_frame.y + this->sensor_frame_translation_.y;
-                // point_on_robot_frame.z = point_on_sensor_frame.z + this->sensor_frame_translation_.z;
+                point_on_robot_frame.x = point_on_sensor_frame.x + this->sensor_frame_pose_.position.x;
+                point_on_robot_frame.y = point_on_sensor_frame.y + this->sensor_frame_pose_.position.y;
+                // point_on_robot_frame.z = point_on_sensor_frame.z + this->sensor_frame_pose_.position.z;
                 if (this->target_frame_ == "map") {
                     bbox.center.position.x = point_on_robot_frame.x*robot_cos - point_on_robot_frame.y*robot_sin + robot_pose.position.x;
                     bbox.center.position.y = point_on_robot_frame.x*robot_sin + point_on_robot_frame.y*robot_cos + robot_pose.position.y;
@@ -168,96 +257,6 @@ vision_msgs::msg::BoundingBox2DArray CameraCloudConverter::generateObjectBBoxArr
     return bbox_array;
 }
 
-sensor_msgs::msg::PointCloud2 CameraCloudConverter::generateCameraPointCloudMsg(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution)
-{
-    sensor_msgs::msg::PointCloud2 msg;
-
-    if (input_bbox_array.boxes.empty()) {
-        // RCLCPP_WARN(this->node_ptr->get_logger(), "Input data is empty!");
-        return msg;
-    }
-    if (resolution <= 0) {
-        // RCLCPP_ERROR(this->node_ptr->get_logger(), "Invalid resolution: %f", resolution);
-        return msg;
-    }
-
-    size_t total_points = 0;
-    int point_size_x, point_size_y;
-    for (const auto& box : input_bbox_array.boxes) {
-        if (box.size_x <= 0 || box.size_y <= 0 ) { // width, height 음수인 경우는 예외처리 (계산 망가짐)
-            return msg;
-        }
-        point_size_x = static_cast<int>(box.size_x*1000)/static_cast<int>(resolution*1000) + 1;
-        point_size_y = static_cast<int>(box.size_y*1000)/static_cast<int>(resolution*1000) + 1;
-        if (point_size_x == 1 && point_size_y == 1) {
-            total_points += 1;
-        } else {
-            total_points += 2*point_size_x + 2*(point_size_y-2);
-        }
-    }
-
-    msg.header = input_bbox_array.header;
-
-    msg.height = 1;
-    msg.width = total_points;
-    msg.is_dense = false;
-    msg.is_bigendian = false;
-    msg.point_step = 12;
-    msg.row_step = msg.width * msg.point_step;
-
-    sensor_msgs::msg::PointField field_x, field_y, field_z;
-    field_x.name = "x";
-    field_x.offset = 0;
-    field_x.datatype = sensor_msgs::msg::PointField::FLOAT32;
-    field_x.count = 1;
-
-    field_y.name = "y";
-    field_y.offset = 4;
-    field_y.datatype = sensor_msgs::msg::PointField::FLOAT32;
-    field_y.count = 1;
-
-    field_z.name = "z";
-    field_z.offset = 8;
-    field_z.datatype = sensor_msgs::msg::PointField::FLOAT32;
-    field_z.count = 1;
-
-    msg.fields = {field_x, field_y, field_z};
-
-    msg.data.resize(msg.row_step);
-    size_t max_size = msg.data.size();
-    uint8_t* ptr = msg.data.data();
-    for (const auto& box : input_bbox_array.boxes) {
-        const double center_x = box.center.position.x;
-        const double center_y = box.center.position.y;
-        const double size_x = box.size_x;
-        const double size_y = box.size_y;
-
-        point_size_x = static_cast<int>(box.size_x*1000)/static_cast<int>(resolution*1000) + 1;
-        point_size_y = static_cast<int>(box.size_y*1000)/static_cast<int>(resolution*1000) + 1;
-
-        for (int i = 0; i < point_size_x; ++i) {
-            for (int j = 0; j < point_size_y; ++j) {
-                if (i == 0 || i == point_size_x - 1 || j == 0 || j == point_size_y - 1) { // 테두리 조건: x축 가장자리 or y축 가장자리일 때만 point 생성
-                    size_t current_offset = static_cast<size_t>(ptr - msg.data.data());
-                    if (current_offset + msg.point_step > max_size) {
-                        return msg;
-                    }
-
-                    float x = (center_x - size_x/2) + i*resolution;
-                    float y = (center_y - size_y/2) + j*resolution;
-                    float z = 0.0f;
-                    memcpy(ptr, &x, sizeof(float));
-                    memcpy(ptr + 4, &y, sizeof(float));
-                    memcpy(ptr + 8, &z, sizeof(float));
-                    ptr += msg.point_step;
-                }
-            }
-        }
-    }
-
-    return msg;
-}
-
 EmptyCloudConverter::EmptyCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node& config)
     : CloudConverterStrategy(node_ptr_)
 {
@@ -272,10 +271,10 @@ EmptyCloudConverter::EmptyCloudConverter(std::shared_ptr<SensorToPointcloudNode>
 
     // Print Config
     std::ostringstream oss;
-    oss << "\n==== EMPTY POINTCLOUD PARAMETERS ====\n";
+    oss << "\n[EMPTY POINTCLOUD PARAMETERS]\n";
     oss << std::boolalpha;
     oss << "  use_empty_: " << this->use_empty_msg_ << "\n";
-    oss <<   "=====================================";
+    oss << "----------------------------------------------------";
     RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
 }
 
@@ -284,50 +283,10 @@ sensor_msgs::msg::PointCloud2 EmptyCloudConverter::pc_convert(const void *sensor
     sensor_msgs::msg::PointCloud2 ret;
 
     if (sensor_msg == nullptr && this->use_empty_msg_) {
-        ret = generateEmptyPointCloudMsg();
+        ret = this->pointcloud_generator_.generateEmptyPointCloud2Message(this->target_frame_);
     }
 
     return ret;
-}
-
-sensor_msgs::msg::PointCloud2 EmptyCloudConverter::generateEmptyPointCloudMsg()
-{
-    sensor_msgs::msg::PointCloud2 msg;
-
-    msg.header.stamp = rclcpp::Clock().now();
-    msg.header.frame_id = this->target_frame_;
-
-    msg.height = 1;                // 단일 행
-    msg.width = 0;                 // 데이터 포인트 0개
-    msg.is_dense = true;           // 빈 메시지이므로 dense라고 봐도 무방
-    msg.is_bigendian = false;
-    msg.point_step = 12;           // 3 floats * 4 bytes
-    msg.row_step = msg.point_step * msg.width;  // 0
-
-    // 필드 정의 (x, y, z)
-    sensor_msgs::msg::PointField field_x;
-    field_x.name = "x";
-    field_x.offset = 0;
-    field_x.datatype = sensor_msgs::msg::PointField::FLOAT32;
-    field_x.count = 1;
-
-    sensor_msgs::msg::PointField field_y;
-    field_y.name = "y";
-    field_y.offset = 4;
-    field_y.datatype = sensor_msgs::msg::PointField::FLOAT32;
-    field_y.count = 1;
-
-    sensor_msgs::msg::PointField field_z;
-    field_z.name = "z";
-    field_z.offset = 8;
-    field_z.datatype = sensor_msgs::msg::PointField::FLOAT32;
-    field_z.count = 1;
-
-    msg.fields = {field_x, field_y, field_z};
-
-    msg.data.clear();
-
-    return msg;
 }
 
 } // namespace sensor_to_pointcloud

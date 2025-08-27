@@ -34,6 +34,8 @@ add_definitions(${PCL_DEFINITIONS})
 ################################
 ##### SENSOR_TO_POINTCLOUD #####
 add_executable(sensor_to_pointcloud
+  src/utils/pointcloud_generator.cpp
+  src/utils/frame_converter.cpp
   src/cloud_converter/cloud_converter_factory.cpp
   src/cloud_converter/cloud_converter.cpp
   src/sensor_to_pointcloud_node.cpp

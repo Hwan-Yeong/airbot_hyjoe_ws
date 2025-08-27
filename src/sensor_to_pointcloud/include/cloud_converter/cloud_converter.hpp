@@ -13,6 +13,8 @@
 #include "yaml-cpp/yaml.h"
 
 #include "utils/common_struct.hpp"
+#include "utils/frame_converter.hpp"
+#include "utils/pointcloud_generator.hpp"
 
 
 namespace sensor_to_pointcloud {
@@ -27,7 +29,7 @@ using PointCloudMsg = sensor_msgs::msg::PointCloud2;
  */
 class CloudConverterStrategy
 {
-  public:
+public:
     CloudConverterStrategy(std::shared_ptr<SensorToPointcloudNode> node_ptr_);
 
     virtual ~CloudConverterStrategy() = default;
@@ -41,54 +43,52 @@ class CloudConverterStrategy
      */
     std::shared_ptr<SensorToPointcloudNode> getNodePtr() const;
 
-  protected:
+protected:
     std::shared_ptr<SensorToPointcloudNode> node_ptr{};
     std::string target_frame_;
+
+    FrameConverter frame_converter_;
+    PointCloudGenerator pointcloud_generator_;
 };
 using CloudConverterPtr = std::shared_ptr<CloudConverterStrategy>;
+
+/**
+ * @brief 1D ToF 센서 데이터 -> PointCloud2 변환
+ */
+class TofMonoCloudConverter : public CloudConverterStrategy
+{
+public:
+    TofMonoCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node& config);
+
+private:
+    PointCloudMsg pc_convert(const void* sensor_msg) override;
+    sensor_msgs::msg::PointCloud2 generateTofMonoPointCloudMsg(const robot_custom_msgs::msg::TofData* input_msg, tPose &robot_pose);
+
+    bool use_tof_mono_ = true;
+    tPose sensor_frame_pose_ = tPose(tPoint(0.0942, 0.0, 0.56513),tOrientation(0.0, -DEG2RAD(39.0), 0.0));
+    double tof_mono_sensor_frame_pitch_cosine;
+    double tof_mono_sensor_frame_pitch_sine;
+};
 
 /**
  * @brief Camera 센서 데이터 -> PointCloud2 변환
  */
 class CameraCloudConverter : public CloudConverterStrategy
 {
-  public:
+public:
     CameraCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node& config);
 
-  private:
+private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
     vision_msgs::msg::BoundingBox2DArray generateObjectBBoxArray(const robot_custom_msgs::msg::CameraDataArray* msg, tPose &robot_pose,std::map<int, int> class_id_confidence_th, bool direction, double object_max_distance);
-    sensor_msgs::msg::PointCloud2 generateCameraPointCloudMsg(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution);
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
     bool use_camera_ = true;
     bool object_direction_ = true;
     double pointcloud_resolution_ = 0.05;
     double object_max_dist_ = 1.5;
-    tPoint sensor_frame_translation_ = tPoint(0.15473, 0.0, 0.5331);
-    std::map<int, int> camera_class_id_confidence_th_ = {};  // yaml 에서만 수정하면 자동으로 반영, but 초기화 없음
-    // std::map<int, int> camera_class_id_confidence_th_ = {       // yaml & 선언부에서 모두 수정해야 반영, but 초기화 있음
-    //   {0, 0},  // cable
-    //   {1, 0},  // carpet [Unused]
-    //   {2, 0},  // clothes
-    //   {3, 0},  // liquid [Unused]
-    //   {4, 0},  // non_obstacle [Unused]
-    //   {5, 0},  // obstacle [Unused]
-    //   {6, 0},  // poop
-    //   {7, 0},  // scale
-    //   // {8, 0},  // threshold [Unused]
-    //   // {9, 0},  // person
-    //   {10, 0}, // dog [Unused]
-    //   {11, 0}, // cat [Unused]
-    //   {12, 0}, // chair
-    //   {13, 0}, // base
-    //   // {14, 0}, // shoes
-    //   {15, 0}, // electronic_device
-    //   {16, 0}, // dryingrack
-    //   {17, 0}, // bed
-    //   {18, 0},
-    //   {19, 0}
-    // };
+    tPose sensor_frame_pose_ = tPose(tPoint(0.15473, 0.0, 0.5331),tOrientation(0.0, 0.0, 0.0));
+    std::map<int, int> camera_class_id_confidence_th_ = {};
 };
 
 /**
@@ -96,12 +96,11 @@ class CameraCloudConverter : public CloudConverterStrategy
  */
 class EmptyCloudConverter : public CloudConverterStrategy
 {
-  public:
+public:
     EmptyCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node& config);
 
-  private:
+private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
-    sensor_msgs::msg::PointCloud2 generateEmptyPointCloudMsg();
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
     bool use_empty_msg_ = true;

@@ -16,12 +16,12 @@ class SensorToPointcloudNode;
  */
 class CloudConverterFactory
 {
-  public:
+public:
     CloudConverterFactory() = default;
     ~CloudConverterFactory() = default;
 
-  static CloudConverterPtr create(std::shared_ptr<SensorToPointcloudNode> node_ptr, const std::string& type, const YAML::Node& config);
-  static CloudConverterPtr create(std::shared_ptr<SensorToPointcloudNode> node_ptr, const YAML::Node& config);
+    static CloudConverterPtr create(std::shared_ptr<SensorToPointcloudNode> node_ptr, const std::string& type, const YAML::Node& config);
+    static CloudConverterPtr create(std::shared_ptr<SensorToPointcloudNode> node_ptr, const YAML::Node& config);
 };
 
 } // namespace sensor_to_pointcloud
