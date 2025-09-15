@@ -4,7 +4,7 @@ import numpy as np
 import math
 import random
 from nav_msgs.msg import Odometry
-from robot_custom_msgs.msg import RobotState, BottomIrData, CameraData, CameraDataArray, TofData
+from robot_custom_msgs.msg import RobotState, BottomIrData, CameraData, CameraDataArray, TofData, BatteryStatus
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import Quaternion
 
@@ -41,6 +41,11 @@ class CliffDetectionErrorSimulation(Node):
             'tof_data',
             10
         )
+        self.battery_publisher = self.create_publisher(
+            BatteryStatus,
+            'battery_status',
+            10
+        )
         self.timer = self.create_timer(0.01, self.timer_callback)
         self.robot_state = RobotState()
         self.bottom_ir_data = BottomIrData()
@@ -48,6 +53,7 @@ class CliffDetectionErrorSimulation(Node):
         self.camera_data_array = CameraDataArray()
         self.imu_data = Imu()
         self.tof_data = TofData()
+        self.battery_msg = BatteryStatus()
         self.odom_data.header.stamp = self.get_clock().now().to_msg()
         self.odom_data.header.frame_id = 'odom'
         self.odom_data.child_frame_id = 'base_link'
@@ -173,6 +179,19 @@ class CliffDetectionErrorSimulation(Node):
         self.tof_data.bot_right[14] = self.tof14_base + random.uniform(-0.2, 0.2)
         self.tof_data.bot_right[15] = 0.320
         self.tof_publisher.publish(self.tof_data)
+    
+    def pubBatteryStatus(self):
+        self.battery_msg.cell_voltage1 = 1
+        self.battery_msg.cell_voltage2 = 2
+        self.battery_msg.cell_voltage3 = 3
+        self.battery_msg.cell_voltage4 = 4
+        self.battery_msg.cell_voltage5 = 5
+        self.battery_msg.total_capacity = 6
+        self.battery_msg.remaining_capacity = 7
+        self.battery_msg.battery_percent = 60
+        self.battery_msg.charge_status = 70
+        self.battery_msg.battery_version = 26
+        self.battery_publisher.publish(self.battery_msg)
 
     def timer_callback(self):
         currrent_time = self.get_clock().now()
@@ -182,12 +201,13 @@ class CliffDetectionErrorSimulation(Node):
             self.ir_monified = True
             self.get_logger().info("IR Status Changed [True => False]")
 
-        # self.pubRobotState()
-        # self.pubBottomIrData()
-        # self.pubOdomData()
-        # self.pubCameraData()
-        # self.pubImuData()
+        self.pubRobotState()
+        self.pubBottomIrData()
+        self.pubOdomData()
+        self.pubCameraData()
+        self.pubImuData()
         self.pubToFData()
+        self.pubBatteryStatus()
 
 def main(args=None):
     rclpy.init(args=args)

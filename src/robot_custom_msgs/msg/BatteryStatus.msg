@@ -19,4 +19,4 @@ uint8 shipping_mode
 uint8 precharge_state
 uint8 charge_mode 
 uint8 fet_state
-string battery_version
+uint8 battery_version
