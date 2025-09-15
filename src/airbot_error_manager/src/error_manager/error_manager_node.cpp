@@ -35,7 +35,7 @@ ErrorManagerNode::ErrorManagerNode()
         this->config = YAML::LoadFile(full_path)["airbot_error_manager"]["error_list"];
         // RCLCPP_INFO(this->get_logger(), "YAML Config: \n%s", YAML::Dump(this->config).c_str());
     } catch (const std::exception& e) { //ament_index_cpp::get_package_share_directory()가 제대로 작동하지 않을 경우
-        RCLCPP_ERROR(this->get_logger(), "Failed to load config file: %s", e.what());
+        RCLCPP_ERROR(this->get_logger(), "std::exception Failed to load config file: %s", e.what());
         std::string fallback_path = "/home/airbot/airbot_ws/install/airbot_error_manager/share/airbot_error_manager/config/" + error_list;
         this->config = YAML::LoadFile(fallback_path)["airbot_error_manager"]["error_list"];
     }
@@ -51,7 +51,7 @@ ErrorManagerNode::ErrorManagerNode()
     erase_after_pub_error_codes_.insert("E05"); // 전면 라이다 센서 오염 (from lidar)
     erase_after_pub_error_codes_.insert("E06"); // 후면 라이다 센서 오염 (from mcu)
     erase_after_pub_error_codes_.insert("E07"); // 스테이션 위치 확인 불가 (from state_manager)
-    erase_after_pub_error_codes_.insert("E08"); // 충전불가 (from mcu)
+    // erase_after_pub_error_codes_.insert("E08"); // 충전불가 (from error_monitor)
     // erase_after_pub_error_codes_.insert("F09-2"); // 카메라 & AI 통신 불량(비복귀에러)
 
     error_list_pub_ = this->create_publisher<robot_custom_msgs::msg::ErrorListArray>("/error_list", 10);

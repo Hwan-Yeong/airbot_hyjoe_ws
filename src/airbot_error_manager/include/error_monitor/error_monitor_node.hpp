@@ -54,7 +54,8 @@ private:
     void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
     void tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void aiVerCallback(const std_msgs::msg::String::SharedPtr msg);
-    void cameraCallback(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
+    // void cameraCallback(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
+    void aiTemperatureCallback(const robot_custom_msgs::msg::AiTemperature::SharedPtr msg);
     void checkMemoryUsage();
 
     bool update_battery_status_low_battery, update_battery_status_battery_discharging, update_battery_status_charging,
@@ -64,7 +65,8 @@ private:
         update_station_data_low_battery, update_robot_state_cliff_detection,
         update_odom_data_cliff_detection,
         update_tof_one_d_detection,
-        update_ai_version, update_camera_data;
+        update_ai_version, update_ai_temperature_data, update_station_data_for_ir_lift;
+    // bool update_camera_data;
     int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_,
         publish_cnt_battery_discharge_error_,
         publish_cnt_charging_error_, publish_cnt_lift_error_,
@@ -78,8 +80,8 @@ private:
         publish_cnt_tof_detection_error_rate_,
         publish_cnt_ai_commnucation_error_rate_;
 
-    bool ai_version_sub_removed_ = false;
-    bool camera_sub_removed_ = false;
+    // bool ai_version_sub_removed_ = false;
+    // bool camera_sub_removed_ = false;
 
     robot_custom_msgs::msg::BatteryStatus battery_data;
     robot_custom_msgs::msg::BottomIrData bottom_ir_data;
@@ -97,7 +99,8 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr ai_version_sub_;
-    rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
+    // rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
+    rclcpp::Subscription<robot_custom_msgs::msg::AiTemperature>::SharedPtr ai_temperature_sub_;
 
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
         low_battery_error_pub_, fall_down_error_pub_,

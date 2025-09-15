@@ -46,7 +46,7 @@ airbot_error_monitor:
       monitoring_rate_ms: 1000
       occure:
         drop_ir_adc_th: 900
-        drop_ir_cnt_min: 3
+        drop_ir_cnt_min: 4
         imu_roll_th_deg: 60.0
         imu_pitch_th_deg: 60.0
 
@@ -69,12 +69,13 @@ airbot_error_monitor:
       occure:
         duration_sec: 60.0
         one_d_min_dist_m: 0.03
-        one_d_max_dist_m: 0.15
+        one_d_max_dist_m: 0.13
 
     ai_error:
       monitoring_rate_ms: 1000
       occure:
-        duration_cnt_sec: 180
+        duration_cnt_first_sec: 180
+        duration_cnt_sec: 3
 
     # battery_overheat_error:
     #   monitoring_rate_ms: 1000

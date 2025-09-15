@@ -29,11 +29,13 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
                         RCLCPP_INFO(node_ptr_->get_logger(),
                         "[LowBatteryErrorMonitor] OCCUR LOW BATTERY ERROR!!!\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "Battery Version: 0x%02X",
                         
                         input.first.battery_manufacturer,
                         input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.battery_version
                     );
                 }
                 error_state = true;
@@ -55,10 +57,12 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
                         "[LowBatteryErrorMonitor] [RELEASED] Low Battery error \n"
                         "elapsed time since release check started: %.3f\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "Battery Version: 0x%02X",
                         release_time_diff,
                         input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.battery_version
                     );
                 }
                 prev_time = current_time;
@@ -72,9 +76,11 @@ bool LowBatteryErrorMonitor::checkError(const InputType& input)
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[LowBatteryErrorMonitor] [START RELEASE] low battery monitor\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "Battery Version: 0x%02X",
                         input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.battery_version
                     );
                     is_first_logging = false;
                 }
@@ -132,10 +138,12 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[BatteryDischargingErrorMonitor] elapsed time since error check started: %.3f\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "Battery Version: 0x%02X",
                         time_diff,
                         input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.battery_version
                     );
                 }
                 error_state = true;
@@ -144,9 +152,11 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[BatteryDischargingErrorMonitor] start to battery discharging monitor\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "Battery Version: 0x%02X",
                         input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.battery_version
                     );
                     is_first_logging = false;
                 }
@@ -175,10 +185,12 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                         "[BatteryDischargingErrorMonitor] [RELEASED] battery discharging error \n"
                         "elapsed time since release check started: %.3f\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "Battery Version: 0x%02X",
                         release_time_diff,
                         input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.battery_version
                     );
                 }
                 release_start_time = current_time;
@@ -192,9 +204,11 @@ bool BatteryDischargingErrorMonitor::checkError(const InputType &input)
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[BatteryDischargingErrorMonitor] [START RELEASE] battery discharging monitor\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "Battery Version: 0x%02X",
                         input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5
+                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.battery_version
                     );
                     is_first_logging = false;
                 }
@@ -241,7 +255,7 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
         count++;
     }
 
-    if (count >= params.drop_ir_cnt_min) { // 3
+    if (count >= params.drop_ir_cnt_min) { // 4
         bottomdata_range = true;
     } else {
         bottomdata_range = false;
@@ -425,10 +439,12 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
             node_ptr_->get_logger(),
             "[ChargingErrorMonitor] Docking status: 0x%02X\n"
             "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-            "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+            "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+            "Battery Version: 0x%02X",
             station.docking_status,
             battery.battery_manufacturer, battery.remaining_capacity, static_cast<int>(battery.battery_percent), battery.battery_current, battery.battery_voltage, battery.battery_temperature1, battery.battery_temperature2,
-            battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5
+            battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5,
+            battery.battery_version
         );
         prevChargePercentage = currentChargePercentage;
     }
@@ -455,10 +471,12 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
                     node_ptr_->get_logger(),
                     "[ChargingErrorMonitor] Docking status: 0x%02X\n"
                     "[ChargingErrorMonitor] Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                    "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                    "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                    "Battery Version: 0x%02X",
                     station.docking_status,
                     battery.battery_manufacturer, battery.remaining_capacity, static_cast<int>(battery.battery_percent), battery.battery_current, battery.battery_voltage, battery.battery_temperature1, battery.battery_temperature2,
-                    battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5
+                    battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5,
+                    battery.battery_version
                 );
             }
             double timediff = currentTime - lastCheckTime;
@@ -472,10 +490,12 @@ bool ChargingErrorMonitor::checkError(const InputType &input)
                         node_ptr_->get_logger(),
                         "[ChargingErrorMonitor] Docking status: 0x%02X\n"
                         "Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d",
+                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "Battery Version: 0x%02X",
                         station.docking_status,
                         battery.battery_manufacturer, battery.remaining_capacity, static_cast<int>(battery.battery_percent), battery.battery_current, battery.battery_voltage, battery.battery_temperature1, battery.battery_temperature2,
-                        battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5
+                        battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5,
+                        battery.battery_version
                     );
                     // [250407] hyjoe : 충전 에러 발생 시 에러 체크 시작으로부터 경과시간 로그 출력
                     RCLCPP_INFO(node_ptr_->get_logger(),
@@ -517,6 +537,10 @@ bool LiftErrorMonitor::checkError(const InputType &input)
         4. 모든 IR 센서가 false일 경우 에러를 해제시킨다.
     */
 
+    auto ir_data = std::get<0>(input);
+    auto imu_data = std::get<1>(input);
+    auto station = std::get<2>(input);
+
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     static int count = 0;
     static bool irLiftFlag = false;
@@ -525,13 +549,21 @@ bool LiftErrorMonitor::checkError(const InputType &input)
     static bool liftErrorCandidate = false;
     static double prevTime;
 
-    count = (input.first.adc_ff < params.drop_ir_adc_th) + (input.first.adc_fl < params.drop_ir_adc_th) + (input.first.adc_fr < params.drop_ir_adc_th) +
-            (input.first.adc_bb < params.drop_ir_adc_th) + (input.first.adc_bl < params.drop_ir_adc_th) + (input.first.adc_br < params.drop_ir_adc_th);
+    count = (ir_data.adc_ff < params.drop_ir_adc_th) + (ir_data.adc_fl < params.drop_ir_adc_th) + (ir_data.adc_fr < params.drop_ir_adc_th) +
+            (ir_data.adc_bb < params.drop_ir_adc_th) + (ir_data.adc_bl < params.drop_ir_adc_th) + (ir_data.adc_br < params.drop_ir_adc_th);
+    
+    bool isChargerConnect = station.docking_status & 0x10; // 충전 단자 인식 시 LiftFlag 해제
 
-    if (count == 0) { // 모든 IR 센서가 false일 경우 에러 해제.
+    if (count == 0 || isChargerConnect) { // 모든 IR 센서가 false일 경우 에러 해제. 또는 충전 단자 인식 시 에러 해제
         if (errorState) {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[LiftErrorMonitor] LiftError Released!"
+                "[LiftErrorMonitor] LiftError Released! isChargerConnect = %d", isChargerConnect
+            );
+        }
+        if (errorCount > 0)
+        {
+            RCLCPP_INFO(node_ptr_->get_logger(),
+                "[LiftErrorMonitor] Error Clear. errorCounnt = %d, count = %d, isChargerConnect = %d", errorCount, count, isChargerConnect
             );
         }
         errorCount = 0;
@@ -542,7 +574,7 @@ bool LiftErrorMonitor::checkError(const InputType &input)
         if (!irLiftFlag) {
             RCLCPP_INFO(node_ptr_->get_logger(),
                 "[LiftErrorMonitor] Over 4 IR sensors Lift Detected! (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) (adc_bb : %d) (adc_bl : %d) (adc_br : %d)",
-                input.first.adc_ff, input.first.adc_fr, input.first.adc_fr, input.first.adc_bb, input.first.adc_bl, input.first.adc_br
+                ir_data.adc_ff, ir_data.adc_fr, ir_data.adc_fr, ir_data.adc_bb, ir_data.adc_bl, ir_data.adc_br
             );
         }
         irLiftFlag = true;
@@ -550,7 +582,7 @@ bool LiftErrorMonitor::checkError(const InputType &input)
         irLiftFlag = false;
     }
 
-    double acc_z = input.second.linear_acceleration.z;
+    double acc_z = imu_data.linear_acceleration.z;
 
     //250521 KKS : 낙하가 감지되지 않을 경우 z축 검사하지 않음
     // acc_z가 10.5이상이고 acc_z가 9.2이하이면 imu 들림 의심 (기준값 수정 필요할 수도 있음)
@@ -592,6 +624,10 @@ bool LiftErrorMonitor::checkError(const InputType &input)
     if (liftErrorCandidate) {
         if (!irLiftFlag) {
             liftErrorCandidate = false;
+            RCLCPP_INFO(node_ptr_->get_logger(),
+                        "[LiftErrorMonitor] IR & IMU both Lift Detected BUT release in 2 sec (error count: %d, IR list duration: %.3f sec)",
+                        static_cast<int>(errorCount), timeDiff
+                    );
         } else {
             if (timeDiff >= 2) {
                 if (!errorState) {
@@ -700,7 +736,7 @@ bool TofErrorMonitor::checkError(const InputType& input) {
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     static double check_oned_startTime;
     static bool isError = false;
-    static double next_check_sec = 10;
+    static double next_check_sec = 1;
 
     double tof_data = input.top;
 
@@ -709,13 +745,13 @@ bool TofErrorMonitor::checkError(const InputType& input) {
             check_oned_startTime = clock.now().seconds();
             RCLCPP_INFO(node_ptr_->get_logger(), "[1D_TofErrorMonitor] check start dist=%.2f", tof_data);
             is_first_detect = true;
-            next_check_sec = 10;
+            next_check_sec = 1;
         }
 
         double time_diff = clock.now().seconds() - check_oned_startTime;
         if ((time_diff >= next_check_sec) && !isError) { // 10초 단위로 로깅
             RCLCPP_INFO(node_ptr_->get_logger(), "[1D_TofErrorMonitor] Error Checking for %.2fsec", time_diff);
-            next_check_sec += 10;
+            next_check_sec += 1;
         }
 
         // 에러 상태가 60초 이상 유지된 경우
@@ -723,7 +759,7 @@ bool TofErrorMonitor::checkError(const InputType& input) {
             if (!isError) {
                 RCLCPP_INFO(node_ptr_->get_logger(), "[1D_TofErrorMonitor] Error occurred");
             }
-            next_check_sec = 10;
+            next_check_sec = 1;
             isError = true;
         }
     } else {
@@ -738,15 +774,19 @@ bool TofErrorMonitor::checkError(const InputType& input) {
 }
 
 bool AICommunicationErrorMonitor::checkError(const InputType& input)
-{
+{    
     bool bVersionUpdate = input.first;
-    bool bCameraDataUpdate = input.second;
+    bool bTemperatureDataUpdate = input.second;    
+    
+    int duration_cnt = firstReceiveCheck == false ? params.duration_cnt_first : params.duration_cnt;
 
-    if (bVersionUpdate || bCameraDataUpdate) {
+    if (bVersionUpdate || bTemperatureDataUpdate) {
         errorState = false;
+        firstReceiveCheck = true;
+        monitorCnt = 0;
     } else {
         monitorCnt++;
-        if (monitorCnt >= params.duration_cnt) {
+        if (monitorCnt >= duration_cnt) {
             if (!errorState) {
                 RCLCPP_INFO(node_ptr_->get_logger(), "[AICommunicationErrorMonitor] AI disconnect Error Occured! Timeout %d sec", monitorCnt);
             }
@@ -758,6 +798,9 @@ bool AICommunicationErrorMonitor::checkError(const InputType& input)
             }
         }
     }
+
+    // RCLCPP_INFO(node_ptr_->get_logger(), "[AICommunicationErrorMonitor] flag : {first(%d), version(%d), temp(%d)}, cnt: {cnt(%d), max(%d)}", 
+    //     firstReceiveCheck, bVersionUpdate, bTemperatureDataUpdate, monitorCnt, duration_cnt);
 
     return errorState;
 }

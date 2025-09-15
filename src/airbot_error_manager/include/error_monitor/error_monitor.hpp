@@ -13,6 +13,7 @@
 #include "robot_custom_msgs/msg/tof_data.hpp"
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "robot_custom_msgs/msg/camera_data.hpp"
+#include "robot_custom_msgs/msg/ai_temperature.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "error_monitor/error_monitor_node.hpp"
 
@@ -149,7 +150,7 @@ public:
         if (!node_ptr_) return;
 
         node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_adc_th", 900);
-        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_cnt_min", 3);
+        node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_cnt_min", 4);
         node_ptr_->declare_parameter<double>(ns + ".occure.imu_roll_th_deg", 60.0);
         node_ptr_->declare_parameter<double>(ns + ".occure.imu_pitch_th_deg", 60.0);
 
@@ -163,10 +164,10 @@ private:
     void get_rpy_from_quaternion(const geometry_msgs::msg::Quaternion& quaternion, double& roll, double& pitch, double& yaw);
 };
 
-class LiftErrorMonitor : public BaseErrorMonitor<std::pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>>
+class LiftErrorMonitor : public BaseErrorMonitor<std::tuple<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu, robot_custom_msgs::msg::StationData>>
 {
 public:
-    using InputType = std::pair<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu>;
+    using InputType = std::tuple<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu, robot_custom_msgs::msg::StationData>;
 
     struct tParams {
         int drop_ir_adc_th;
@@ -323,7 +324,7 @@ public:
 
         node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 60.0);
         node_ptr_->declare_parameter<double>(ns + ".occure.one_d_min_dist_m", 0.03);
-        node_ptr_->declare_parameter<double>(ns + ".occure.one_d_max_dist_m", 0.15);
+        node_ptr_->declare_parameter<double>(ns + ".occure.one_d_max_dist_m", 0.13);
 
         node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
         node_ptr_->get_parameter(ns + ".occure.one_d_min_dist_m", params.one_d_min_dist_m);
@@ -337,6 +338,7 @@ public:
     using InputType = std::pair<bool, bool>;
 
     struct tParams {
+        int duration_cnt_first;
         int duration_cnt;
     } params;
 
@@ -347,10 +349,13 @@ public:
     void loadParams(const std::string& ns) override {
         if (!node_ptr_) return;
 
-        node_ptr_->declare_parameter<int>(ns + ".occure.duration_cnt_sec", 180);
+        node_ptr_->declare_parameter<int>(ns + ".occure.duration_cnt_first_sec", 180);
+        node_ptr_->declare_parameter<int>(ns + ".occure.duration_cnt_sec", 3);
 
+        node_ptr_->get_parameter(ns + ".occure.duration_cnt_first_sec", params.duration_cnt_first);
         node_ptr_->get_parameter(ns + ".occure.duration_cnt_sec", params.duration_cnt);
     }
+    bool firstReceiveCheck = false;
     bool errorState = false;
     int monitorCnt = 0;
 };

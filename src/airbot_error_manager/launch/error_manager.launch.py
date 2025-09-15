@@ -6,16 +6,10 @@ from launch.substitutions import LaunchConfiguration
 from launch.actions import DeclareLaunchArgument, TimerAction
 
 def generate_launch_description():
-    parameter_file = LaunchConfiguration('params_file')
-
-    params_declare = DeclareLaunchArgument(
-        'params_file',
-        default_value=os.path.join(
-            get_package_share_directory('airbot_error_manager'),
-            'config',
-            'params.yaml'
-        ),
-        description='Path to the ROS2 parameters file to use.'
+    parameter_file = os.path.join(
+        get_package_share_directory('airbot_error_manager'),
+        'config',
+        'error_manager_params.yaml'
     )
 
     error_monitor_node = Node(
@@ -24,6 +18,8 @@ def generate_launch_description():
         name='airbot_error_monitor',
         output='screen',
         parameters=[parameter_file],
+        respawn=True,
+        respawn_delay=2.0
     )
 
     error_manager_node = TimerAction(
@@ -34,12 +30,13 @@ def generate_launch_description():
                 executable='error_manager_node',
                 name='airbot_error_manager',
                 output='screen',
+                respawn=True,
+                respawn_delay=2.0
             )
         ]
     )
 
     return LaunchDescription([
-        params_declare,
         error_monitor_node,
         error_manager_node
     ])

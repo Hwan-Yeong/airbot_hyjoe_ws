@@ -4,7 +4,7 @@ ErrorMonitorNode::ErrorMonitorNode()
     : Node("airbot_error_monitor")
 {
     rclcpp::QoS qos_state_profile = rclcpp::QoS(5).reliable().durability_volatile();
-
+    rclcpp::QoS qos_profile_ai = rclcpp::QoS(5).reliable().transient_local();
     initVariables();
     setParams();
 
@@ -31,10 +31,13 @@ ErrorMonitorNode::ErrorMonitorNode()
         "/tof_data", 10, std::bind(&ErrorMonitorNode::tofCallback, this, std::placeholders::_1)
     );
     ai_version_sub_ = this->create_subscription<std_msgs::msg::String>(
-        "/ai_version", 10, std::bind(&ErrorMonitorNode::aiVerCallback, this, std::placeholders::_1)
+        "/ai_version", qos_profile_ai, std::bind(&ErrorMonitorNode::aiVerCallback, this, std::placeholders::_1)
     );
-    camera_sub_ = this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
-        "camera_data", 10, std::bind(&ErrorMonitorNode::cameraCallback, this, std::placeholders::_1)
+    // camera_sub_ = this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
+    //     "camera_data", 10, std::bind(&ErrorMonitorNode::cameraCallback, this, std::placeholders::_1)
+    // );
+    ai_temperature_sub_ = this->create_subscription<robot_custom_msgs::msg::AiTemperature>(
+        "/aitemperature_data", 10, std::bind(&ErrorMonitorNode::aiTemperatureCallback, this, std::placeholders::_1)
     );
 
     // Publisher
@@ -48,7 +51,7 @@ ErrorMonitorNode::ErrorMonitorNode()
     one_d_tof_detection_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/top_tof_obstacle_error", 10);
     ai_communication_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/f_code/ai_connect", 10);
     // Timer
-    memory_monitor_timer_ = this->create_wall_timer(std::chrono::seconds(60), std::bind(&ErrorMonitorNode::checkMemoryUsage, this));
+    memory_monitor_timer_ = this->create_wall_timer(std::chrono::seconds(600), std::bind(&ErrorMonitorNode::checkMemoryUsage, this));
     timer_ = this->create_wall_timer(
         10ms,
         std::bind(&ErrorMonitorNode::errorMonitor, this));
@@ -91,7 +94,9 @@ void ErrorMonitorNode::initVariables()
     update_odom_data_cliff_detection = false;
     update_tof_one_d_detection = false;
     update_ai_version = false;
-    update_camera_data = false;
+    // update_camera_data = false;
+    update_ai_temperature_data = false;
+    update_station_data_for_ir_lift = false;
     // update_battery_status_overheat = false;
 
     publish_cnt_low_battery_error_ = 0;
@@ -250,9 +255,9 @@ void ErrorMonitorNode::errorMonitor()
     }
 
     // lift monitor
-    if (update_bottom_ir_data_lift && update_imu_lift
+    if (update_bottom_ir_data_lift && update_imu_lift && update_station_data_for_ir_lift
         && (publish_cnt_lift_error_ >= publish_cnt_lift_error_rate_)) {
-        bool lift_error = this->runMonitor<LiftErrorMonitor>(std::make_pair(bottom_ir_data, imu_data));
+        bool lift_error = this->runMonitor<LiftErrorMonitor>(std::make_tuple(bottom_ir_data, imu_data, station_data));
         if (lift_error) {
             // RCLCPP_INFO(this->get_logger(), "lift_error : %s", lift_error ? "true" : "false");
             error_msg.data = true;
@@ -264,6 +269,7 @@ void ErrorMonitorNode::errorMonitor()
         publish_cnt_lift_error_ = 0;
         update_bottom_ir_data_lift = false;
         update_imu_lift = false;
+        update_station_data_for_ir_lift = false;
     }
 
     // cliff detectoin monitor
@@ -302,6 +308,7 @@ void ErrorMonitorNode::errorMonitor()
     // AI Communication Error Monitor
     if (publish_cnt_ai_commnucation_error_ >= publish_cnt_ai_commnucation_error_rate_)
     {
+        /*
         if (!ai_version_sub_removed_ && !camera_sub_removed_) {
             bool ai_communication_error = this->runMonitor<AICommunicationErrorMonitor>(std::make_pair(update_ai_version, update_camera_data));
             if (ai_communication_error) {
@@ -326,6 +333,19 @@ void ErrorMonitorNode::errorMonitor()
             }
         }
         publish_cnt_ai_commnucation_error_ = 0;
+        */
+
+        bool ai_communication_error = this->runMonitor<AICommunicationErrorMonitor>(std::make_pair(update_ai_version, update_ai_temperature_data));
+
+        if (ai_communication_error) {
+            error_msg.data = true;
+            ai_communication_error_pub_->publish(error_msg);
+        } else {
+            // error_msg.data = false;
+            // ai_communication_error_pub_->publish(error_msg);
+        }       
+        publish_cnt_ai_commnucation_error_ = 0;
+        update_ai_temperature_data = false;
     }
 
 
@@ -371,6 +391,7 @@ void ErrorMonitorNode::stationDataCallback(const robot_custom_msgs::msg::Station
     update_station_data_charging = true;
     update_station_data_discharging = true;
     update_station_data_low_battery = true;
+    update_station_data_for_ir_lift = true;
 }
 
 void ErrorMonitorNode::robotStateCallback(const robot_custom_msgs::msg::RobotState::SharedPtr msg)
@@ -395,10 +416,15 @@ void ErrorMonitorNode::aiVerCallback(const std_msgs::msg::String::SharedPtr)
 {
     update_ai_version = true;
 }
-
+/*
 void ErrorMonitorNode::cameraCallback(const robot_custom_msgs::msg::CameraDataArray::SharedPtr)
 {
     update_camera_data = true;
+}
+*/
+void ErrorMonitorNode::aiTemperatureCallback(const robot_custom_msgs::msg::AiTemperature::SharedPtr)
+{
+    update_ai_temperature_data = true;
 }
 
 void ErrorMonitorNode::checkMemoryUsage() {
