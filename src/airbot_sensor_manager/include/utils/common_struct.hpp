@@ -243,7 +243,8 @@ struct tSensorConfig {
     tSensor multi_tof_right;
     tSensor camera;
     tSensor cliff;
-    tSensor collision;
+    tSensor front_collision;
+    tSensor rear_collision;
 };
 
 struct tFilter {

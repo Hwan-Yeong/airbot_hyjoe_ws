@@ -25,5 +25,7 @@ def generate_launch_description():
             executable='sensor_to_pointcloud',
             output='screen',
             parameters=[parameter_file],
+            respawn=True,
+            respawn_delay=2.0
         )
     ])

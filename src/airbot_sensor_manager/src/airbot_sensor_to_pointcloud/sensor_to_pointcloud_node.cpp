@@ -171,15 +171,17 @@ void SensorToPointcloud::initVariables()
     isTofUpdating = false;
     isCameraUpdating = false;
     isCliffUpdating = false;
-    isCollisionUpdating = false;
-    isActiveSensorToPointcloud = false;
+    isFrontCollisionUpdating = false;
+    isRearCollisionUpdating = false;
+    isActiveSensorToPointcloud = true;
 
     publish_cnt_1d_tof_ = 0;
     publish_cnt_multi_tof_ = 0;
     publish_cnt_row_tof_ = 0;
     publish_cnt_camera_ = 0;
     publish_cnt_cliff_ = 0;
-    publish_cnt_collision_ = 0;
+    publish_cnt_front_collision_ = 0;
+    publish_cnt_rear_collision_ = 0;
 
     ramp_cnt_ = 0;
     ramp_detected_ = false;
@@ -198,7 +200,12 @@ void SensorToPointcloud::initSensorConfig(const YAML::Node& config)
         else if (sensor_name == "tof_multi_right") sensor_config_.multi_tof_right = getSensorCfg(sensor_config);
         else if (sensor_name == "camera") sensor_config_.camera = getSensorCfg(sensor_config);
         else if (sensor_name == "cliff") sensor_config_.cliff = getSensorCfg(sensor_config);
-        else if (sensor_name == "collision") sensor_config_.collision = getSensorCfg(sensor_config);
+        else if (sensor_name == "collision") {
+            if (sensor_config["front"])
+                sensor_config_.front_collision = getSensorCfg(sensor_config["front"]);
+            if (sensor_config["rear"])
+                sensor_config_.rear_collision = getSensorCfg(sensor_config["rear"]);
+        }
     }
 }
 
@@ -232,6 +239,17 @@ void SensorToPointcloud::initPublisher(const YAML::Node& config)
                     bbox_array_camera_pub_ = this->create_publisher<vision_msgs::msg::BoundingBox2DArray>(
                         "sensor_to_pointcloud/camera/bbox", 10
                     );
+                }
+            }
+            if (sensor_name == "collision") {
+                for (YAML::const_iterator sub_it = sensor_config.begin(); sub_it != sensor_config.end(); ++sub_it) {
+                    std::string sub_name = sub_it->first.as<std::string>();
+                    YAML::Node sub_cfg = sub_it->second;
+
+                    if (sub_cfg["use"] && sub_cfg["use"].as<bool>() && sub_cfg["topic"]) {
+                        std::string topic_name = sub_cfg["topic"].as<std::string>();
+                        pointcloud_pubs_[topic_name] = create_pc_pub(topic_name);
+                    }
                 }
             }
         }
@@ -423,7 +441,8 @@ void SensorToPointcloud::printParams()
     appendSensorConfig(oss, "Cliff", sensor_config_.cliff);
 
     oss << "[Collision Settings]\n";
-    appendSensorConfig(oss, "Collision", sensor_config_.collision);
+    appendSensorConfig(oss, "Front Collision", sensor_config_.front_collision);
+    appendSensorConfig(oss, "Rear Collision", sensor_config_.rear_collision);
 
     oss << "===============================================================\n";
     oss << "Parameter update finished!";
@@ -439,7 +458,8 @@ void SensorToPointcloud::appendSensorConfig(std::ostringstream& oss, const std::
 #if IS_4X4_INDEX
     oss << "    Topic: " << cfg.topic_idx << "\n";
 #else
-    oss << "    Topic: " << (cfg.use ? cfg.topic_idx : cfg.topic_row) << "\n";
+    oss << "    Topic: " << (cfg.topic) << "\n";
+    oss << "    MToF Topic: " << (cfg.use ? cfg.topic_idx : cfg.topic_row) << "\n";
 #endif
 
     oss << "    Publish Rate: " << cfg.publish_rate << " ms\n";
@@ -543,7 +563,8 @@ void SensorToPointcloud::publisherMonitor()
     publish_cnt_row_tof_ += 10;
     publish_cnt_camera_ += 10;
     publish_cnt_cliff_ += 10;
-    publish_cnt_collision_ += 10;
+    publish_cnt_front_collision_ += 10;
+    publish_cnt_rear_collision_ += 10;
 
     // publish pointCloud Data
     if (isTofUpdating) { // ToF
@@ -617,20 +638,28 @@ void SensorToPointcloud::publisherMonitor()
             publish_cnt_cliff_ = 0;
         }
     }
-    if (sensor_config_.collision.use && isCollisionUpdating) {
-        if (publish_cnt_collision_ >= sensor_config_.collision.publish_rate) {
-            pointcloud_pubs_[sensor_config_.collision.topic]->publish(pc_collision_msg);
-            isCollisionUpdating = false;
-            publish_cnt_collision_ = 0;
+    if (sensor_config_.front_collision.use && isFrontCollisionUpdating) {
+        if (publish_cnt_front_collision_ >= sensor_config_.front_collision.publish_rate) {
+            pointcloud_pubs_[sensor_config_.front_collision.topic]->publish(pc_collision_msg);
+            isFrontCollisionUpdating = false;
+            publish_cnt_front_collision_ = 0;
+        }
+    }
+    if (sensor_config_.rear_collision.use && isRearCollisionUpdating) {
+        if (publish_cnt_rear_collision_ >= sensor_config_.rear_collision.publish_rate) {
+            pointcloud_pubs_[sensor_config_.rear_collision.topic]->publish(pc_collision_msg);
+            isRearCollisionUpdating = false;
+            publish_cnt_rear_collision_ = 0;
         }
     }
 
-    if (publish_cnt_1d_tof_ > 10000)     publish_cnt_1d_tof_ = 0;
-    if (publish_cnt_multi_tof_ > 10000)  publish_cnt_multi_tof_ = 0;
-    if (publish_cnt_row_tof_ > 10000)    publish_cnt_row_tof_ = 0;
-    if (publish_cnt_camera_ > 10000)     publish_cnt_camera_ = 0;
-    if (publish_cnt_cliff_ > 10000)      publish_cnt_cliff_ = 0;
-    if (publish_cnt_collision_ > 10000)  publish_cnt_collision_ = 0;
+    if (publish_cnt_1d_tof_ > 10000)            publish_cnt_1d_tof_ = 0;
+    if (publish_cnt_multi_tof_ > 10000)         publish_cnt_multi_tof_ = 0;
+    if (publish_cnt_row_tof_ > 10000)           publish_cnt_row_tof_ = 0;
+    if (publish_cnt_camera_ > 10000)            publish_cnt_camera_ = 0;
+    if (publish_cnt_cliff_ > 10000)             publish_cnt_cliff_ = 0;
+    if (publish_cnt_front_collision_ > 10000)   publish_cnt_front_collision_ = 0;
+    if (publish_cnt_rear_collision_ > 10000)    publish_cnt_rear_collision_ = 0;
 }
 
 void SensorToPointcloud::publishEmptyMsg()
@@ -973,7 +1002,8 @@ void SensorToPointcloud::cliffMsgUpdate(const robot_custom_msgs::msg::BottomIrDa
 void SensorToPointcloud::collisionMsgUpdate(const robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg)
 {
     if (wasActiveSensorToPointcloud_collision && !isActiveSensorToPointcloud) {
-        if (sensor_config_.collision.use) pc_collision_msg = sensor_msgs::msg::PointCloud2();
+        if (sensor_config_.front_collision.use) pc_collision_msg = sensor_msgs::msg::PointCloud2();
+        if (sensor_config_.rear_collision.use) pc_collision_msg = sensor_msgs::msg::PointCloud2();
         RCLCPP_INFO(this->get_logger(), "Collision PointCloud Msg Clear");
     }
     wasActiveSensorToPointcloud_collision = isActiveSensorToPointcloud;
@@ -987,9 +1017,17 @@ void SensorToPointcloud::collisionMsgUpdate(const robot_custom_msgs::msg::Abnorm
         point_cloud_collosion_.updateRobotPose(pose);
     }
 
-    if (sensor_config_.collision.use && msg->event_trigger) pc_collision_msg = point_cloud_collosion_.updateCollisionPointCloudMsg(msg);
-
-    isCollisionUpdating = true;
+    if (msg->event_trigger == 1) { // front collision
+        if (sensor_config_.front_collision.use) pc_collision_msg = point_cloud_collosion_.updateCollisionPointCloudMsg(msg);
+        isFrontCollisionUpdating = true;
+    } else if (msg->event_trigger == -1) { // rear collision
+        if (sensor_config_.rear_collision.use) pc_collision_msg = point_cloud_collosion_.updateCollisionPointCloudMsg(msg);
+        isRearCollisionUpdating = true;
+    } else if (msg->event_trigger == 0) { // no collision
+        RCLCPP_INFO(this->get_logger(), "No Collision Msg Subscribe : %d", msg->event_trigger);
+    } else { // unknown
+        RCLCPP_INFO(this->get_logger(), "UNKNOWN Collision Msg Subscribe : %d", msg->event_trigger);
+    }
 }
 
 void SensorToPointcloud::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
@@ -1154,11 +1192,20 @@ MTOF_CALIB_RESULT SensorToPointcloud::multiToFCalibration(const robot_custom_msg
     // samples 마지막 값이 현재 값과 같다면 count 증가
     auto checkDataRenewal = [&](std::vector<float> &samples, int idx){
         if (!samples.empty()){
-            if ((std::fabs(samples.back() - msg->bot_left[idx])) < 1e-6f) {
-                mtof_data_non_renewal_count_[idx-13]++;
-            } else {
-                mtof_data_non_renewal_count_[idx-13] = 0;
+            if (side == TOF_SIDE::LEFT) {
+                if ((std::fabs(samples.back() - msg->bot_left[idx])) < 1e-6f) {
+                    mtof_data_non_renewal_count_[idx-13]++;
+                } else {
+                    mtof_data_non_renewal_count_[idx-13] = 0;
+                }
+            } else if (side == TOF_SIDE::RIGHT) {
+                if ((std::fabs(samples.back() - msg->bot_right[idx])) < 1e-6f) {
+                    mtof_data_non_renewal_count_[idx-13]++;
+                } else {
+                    mtof_data_non_renewal_count_[idx-13] = 0;
+                }
             }
+            
         } 
     };
 
@@ -1189,9 +1236,16 @@ MTOF_CALIB_RESULT SensorToPointcloud::multiToFCalibration(const robot_custom_msg
     mtof_calib_samples14.push_back(arr[1]);
     mtof_calib_samples15.push_back(arr[2]);
 
-    mtof_origin_13.push_back(msg->bot_left[13]);
-    mtof_origin_14.push_back(msg->bot_left[14]);
-    mtof_origin_15.push_back(msg->bot_left[15]);
+    if (side == TOF_SIDE::LEFT) {
+        mtof_origin_13.push_back(msg->bot_left[13]);
+        mtof_origin_14.push_back(msg->bot_left[14]);
+        mtof_origin_15.push_back(msg->bot_left[15]);
+    } else if (side == TOF_SIDE::RIGHT) {
+        mtof_origin_13.push_back(msg->bot_right[13]);
+        mtof_origin_14.push_back(msg->bot_right[14]);
+        mtof_origin_15.push_back(msg->bot_right[15]);
+    }
+    
 
     ++mtof_calib_sample_count;
 
@@ -1239,7 +1293,7 @@ MTOF_CALIB_RESULT SensorToPointcloud::multiToFCalibration(const robot_custom_msg
                     );
                     ret = MTOF_CALIB_RESULT::FAIL_OUT_OF_RANGE;
                 }
-                else if ((max_val - min_val) >= sensor_config_.multi_tof.calibration.pass_diff_th)
+                else if ((max_val - min_val) > sensor_config_.multi_tof.calibration.pass_diff_th)
                 {
                     ret = MTOF_CALIB_RESULT::FAIL_UNSTABLE_RANGE;
                 }
@@ -1297,7 +1351,7 @@ MTOF_CALIB_RESULT SensorToPointcloud::multiToFCalibration(const robot_custom_msg
                     );
                     ret = MTOF_CALIB_RESULT::FAIL_OUT_OF_RANGE;
                 }
-                else if ((max_val - min_val) >= sensor_config_.multi_tof.calibration.pass_diff_th)
+                else if ((max_val - min_val) > sensor_config_.multi_tof.calibration.pass_diff_th)
                 {
                     ret = MTOF_CALIB_RESULT::FAIL_UNSTABLE_RANGE;
                 }
@@ -1317,7 +1371,7 @@ MTOF_CALIB_RESULT SensorToPointcloud::multiToFCalibration(const robot_custom_msg
         // 결과 로깅
         RCLCPP_INFO(
             this->get_logger(),
-            "[Calibration: PASS] Method: %s | Samples: %d\n"
+            "[Calibration Result] Method: %s | Samples: %d\n"
             "  idx_13: %.3f\n"
             "  idx_14: %.3f\n"
             "  idx_15: %.3f",

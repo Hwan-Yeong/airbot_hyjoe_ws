@@ -105,7 +105,8 @@ private:
     int publish_cnt_multi_tof_;
     int publish_cnt_camera_;
     int publish_cnt_cliff_;
-    int publish_cnt_collision_;
+    int publish_cnt_front_collision_;
+    int publish_cnt_rear_collision_;
     double camera_logger_distance_margin_;
     std::map<int, int> camera_class_id_confidence_th_;
 
@@ -136,7 +137,8 @@ private:
     bool isTofUpdating;
     bool isCameraUpdating;
     bool isCliffUpdating;
-    bool isCollisionUpdating;
+    bool isFrontCollisionUpdating;
+    bool isRearCollisionUpdating;
 
     MTOF_CALIB_DATA result_data_;
     MTOF_CALIB_RESULT left_result_;

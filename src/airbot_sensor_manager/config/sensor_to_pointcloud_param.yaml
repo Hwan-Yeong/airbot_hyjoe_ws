@@ -105,8 +105,8 @@ airbot_sensor_to_pointcloud:
           - "16: 0" #dryingrack
           - "17: 0" #bed
           - "18: 0" #hanger
-          - "19: 0" #floor_socket_box
-          - "20: 0"
+          - "19: 0" #floor_socket_box [Unused]
+          - "20: 0" #potty pad
         object_direction: true  # 정방향(CCW+):True, 역방향(CW+):False
         object_max_distance_m: 1.5 # 최대 장애물 거리 (해당 거리 이내의 장애물 정보만 처리)
         object_ignore_pitch_th_deg: 3.0 # 객체인식 장애물 무시하는 pitch 각도 (절댓값)
@@ -121,9 +121,14 @@ airbot_sensor_to_pointcloud:
         publish_rate_ms: 10
 
       collision:
-        use: true
-        topic: "collision"
-        publish_rate_ms: 10
+        front:
+          use: true
+          topic: "collision/front"
+          publish_rate_ms: 10
+        rear:
+          use: true
+          topic: "collision/rear"
+          publish_rate_ms: 10
 
     use_sim_time: false
 
@@ -158,6 +163,8 @@ airbot_sensor_to_pointcloud:
 #        16: 건조대
 #        17: 침대
 #        18: 옷걸이
+#        19: 바닥전선함
+#        20: 배변패드
 #
 ################################
 ###########  Bot IR  ###########

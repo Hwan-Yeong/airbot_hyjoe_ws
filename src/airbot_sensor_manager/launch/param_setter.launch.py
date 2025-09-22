@@ -8,6 +8,8 @@ def generate_launch_description():
             name='airbot_param_setter',
             package='airbot_sensor_manager',
             executable='param_setter',
-            output='screen',            
+            output='screen',
+            respawn=True,
+            respawn_delay=2.0
         )
     ])
