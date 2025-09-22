@@ -14,6 +14,7 @@ using namespace std::chrono;
 static bool bLidarCmd = true;
 static bool bLidarRun = false;
 static bool bErrorState = false;
+static int lidar_on_check_cnt = 0;
 
 class MinimalSubscriber
 {
@@ -30,6 +31,7 @@ class MinimalSubscriber
 	{
 		if (msg->data) // turn on lidar
 		{
+			lidar_on_check_cnt = 0;
 			bLidarCmd = true;
 			RCLCPP_INFO(node_->get_logger(), "[Subscribe] Lidar ON");
 		}
@@ -103,28 +105,28 @@ int main(int argc, char **argv)
 
 		while(rclcpp::ok())
 		{
-			auto start_time = std::chrono::steady_clock::now();
+			auto loop_start_time = std::chrono::steady_clock::now();
 
-			LaserScan scan;
+			LaserScan _laser_scan;
 
 			if (!bLidarCmd || !bLidarRun) {
 				if (!scan_publisher_timer) {
 					RCLCPP_INFO(node->get_logger(), "bLidarCmd false -> Last Scan Publish Timer On");
-				}
-				scan_publisher_timer = node->create_wall_timer(
-                    100ms,
-                    [node, scan_pub]() {
-						if (last_scan_msg && !last_scan_msg->ranges.empty()) {
-							last_scan_msg->header.stamp = node->now();
-							scan_pub->publish(*last_scan_msg);
+					scan_publisher_timer = node->create_wall_timer(
+						100ms,
+						[node, scan_pub]() {
+							if (last_scan_msg && !last_scan_msg->ranges.empty()) {
+								last_scan_msg->header.stamp = node->now();
+								scan_pub->publish(*last_scan_msg);
+							}
 						}
-                    }
-                );
+					);
+				}
 			} else {
 				if (scan_publisher_timer) {
 					RCLCPP_INFO(node->get_logger(), "bLidarCmd true -> Last Scan Publish Timer OFF");
+					scan_publisher_timer.reset();
 				}
-				scan_publisher_timer.reset();
 			}
 
 			if (bLidarCmd && !bLidarRun) // 라이다 On 명령이지만 동작하지 않을 때 (최초 시작 or 에러 상태)
@@ -136,7 +138,7 @@ int main(int argc, char **argv)
 					node_lidar.lidar_status.lidar_ready = true;
 					node_lidar.serial_port->write_data(start_lidar,4);
 
-					bool is_lidar_run = data_handling(scan); // timeout 3sec
+					bool is_lidar_run = data_handling(_laser_scan); // timeout 3sec
 
 					if (is_lidar_run) {
 						if (lidar_run_cnt > 10) {
@@ -159,11 +161,40 @@ int main(int argc, char **argv)
 				else
 				{
 					// 라이다  START
-					RCLCPP_INFO(node->get_logger(), "LiDAR START");
-					node_lidar.lidar_status.lidar_ready = true;
-					node_lidar.serial_port->write_data(start_lidar,4);
+					if(lidar_on_check_cnt == 0){
+						RCLCPP_INFO(node->get_logger(), "LiDAR START");
+						node_lidar.lidar_status.lidar_ready = true;
+						node_lidar.serial_port->write_data(start_lidar,4);
+					}
 
-					bLidarRun = data_handling(scan); // timeout 3sec
+					//hjkim : 250903 : discard data 10times after lidar sensor on for lidar motor rpm stabilization 
+					if(data_handling(_laser_scan)){
+						if(++lidar_on_check_cnt >= 10){
+							bLidarRun = true;
+							lidar_on_check_cnt = 0;
+						}
+
+						RCLCPP_INFO(node->get_logger(),
+							"Success to start LiDAR, Lidar Running: %s, retry cnt: %d, check on cnt: %d",
+							bLidarRun ? "true" : "false", start_cnt,lidar_on_check_cnt
+						);
+						start_cnt = 0;
+					}else{
+						if (start_cnt > 2) { // 최대 2번까지 시도 (한번엔 안켜지는 경우가 있음)
+							RCLCPP_INFO(node->get_logger(), "[ERROR/Occured] LiDAR START FAIL. Publishing LiDAR Communication Error.");
+							bErrorState = true;
+							error_msg->data = true;
+							scan_error_pub->publish(*error_msg);
+						}
+						start_cnt++;
+						lidar_on_check_cnt = 0;
+						RCLCPP_INFO(node->get_logger(),
+							"Waiting to start LiDAR, Lidar Running: %s, retry cnt: %d",
+							bLidarRun ? "true" : "false", start_cnt
+						);
+					}
+#if 0 // hjkim : before code 250903
+					bLidarRun = data_handling(_laser_scan); // timeout 3sec
 
 					if (!bLidarRun)
 					{
@@ -185,16 +216,18 @@ int main(int argc, char **argv)
 						);
 						start_cnt = 0;
 					}
+#endif
 				}
 			}
 			else if (bLidarCmd && bLidarRun)
 			{
-				auto start = std::chrono::steady_clock::now();
-				bLidarRun = data_handling(scan);
-				auto end = std::chrono::steady_clock::now();
-				double duration_sec =  std::chrono::duration<double>(end - start).count();
-				if(duration_sec >= 0.15 || duration_sec <= 0.05){
-					RCLCPP_INFO(node->get_logger(), "Lidar is running.data_handling() took %.5fsec", duration_sec);
+				auto data_handling_start_time = std::chrono::steady_clock::now();
+				bLidarRun = data_handling(_laser_scan);
+				auto data_handling_end_time = std::chrono::steady_clock::now();
+				double data_handling_duration_sec = std::chrono::duration<double>(data_handling_end_time - data_handling_start_time).count();
+				if(data_handling_duration_sec > 0.15 || data_handling_duration_sec < 0.05){
+					RCLCPP_INFO(node->get_logger(), "data_handling() duration: %.5f sec, scan_time: %.5f sec, point_size: %zu"
+							, data_handling_duration_sec, _laser_scan.config.scan_time, _laser_scan.points.size());
 				}
 
 				if (!bLidarRun)
@@ -207,21 +240,21 @@ int main(int argc, char **argv)
 				}
 				else
 				{
-					scan_msg->angle_increment = scan.config.angle_increment;
-					scan_msg->scan_time = scan.config.scan_time;
-					scan_msg->time_increment = scan.config.time_increment;
-					scan_msg->range_min = scan.config.min_range;
-					scan_msg->range_max = scan.config.max_range;
+					scan_msg->angle_increment = _laser_scan.config.angle_increment;
+					scan_msg->scan_time = _laser_scan.config.scan_time;
+					scan_msg->time_increment = _laser_scan.config.time_increment;
+					scan_msg->range_min = _laser_scan.config.min_range;
+					scan_msg->range_max = _laser_scan.config.max_range;
 
 					std::vector<float> filtered_ranges;
 					std::vector<float> filtered_intensities;
 
-					for (size_t i = 0; i < scan.points.size(); i++) {
-						float angle = scan.config.min_angle + i * scan.config.angle_increment;
+					for (size_t i = 0; i < _laser_scan.points.size(); i++) {
+						float angle = _laser_scan.config.min_angle + i * _laser_scan.config.angle_increment;
 
 						if (angle >= min_angle && angle <= max_angle) {
-							filtered_ranges.push_back(scan.points[i].range);
-							if (scan.points[i].range > 1e-6 && scan.points[i].range <= min_range_th) {
+							filtered_ranges.push_back(_laser_scan.points[i].range);
+							if (_laser_scan.points[i].range > 1e-6 && _laser_scan.points[i].range <= min_range_th) {
 								dirty_points += 1;
 							}
 						}
@@ -275,7 +308,7 @@ int main(int argc, char **argv)
 				node_lidar.lidar_status.close_lidar = true;
 				node_lidar.serial_port->write_data(end_lidar,4);
 
-				bLidarRun = data_handling(scan); // timeout 3sec
+				bLidarRun = data_handling(_laser_scan); // timeout 3sec
 
 				if (bLidarRun)
 				{
@@ -290,7 +323,7 @@ int main(int argc, char **argv)
 					node_lidar.lidar_status.lidar_ready = true;
 					node_lidar.serial_port->write_data(start_lidar,4);
 
-					bool is_lidar_run = data_handling(scan); // timeout 3sec
+					bool is_lidar_run = data_handling(_laser_scan); // timeout 3sec
 
 					if (is_lidar_run) {
 						if (lidar_run_cnt > 10) {
@@ -317,16 +350,16 @@ int main(int argc, char **argv)
 			}
 			// scan_pub->publish(*scan_msg);
 
-			auto end_time = std::chrono::steady_clock::now();
-			double duration_ms =  std::chrono::duration<double, std::milli>(end_time - start_time).count();
+			auto loop_end_time = std::chrono::steady_clock::now();
+			double loop_duration_ms =  std::chrono::duration<double, std::milli>(loop_end_time - loop_start_time).count();
 			double loop_period_ms = 50.0;
-        	double sleep_time_ms = loop_period_ms - duration_ms;
+        	double sleep_time_ms = loop_period_ms - loop_duration_ms;
 
 			if (sleep_time_ms > 0) {
-				RCLCPP_INFO(node->get_logger(), "Lidar Loop duration took %.2f ms, sleep %.2f ms", duration_ms, sleep_time_ms);
+				RCLCPP_INFO(node->get_logger(), "Lidar Loop duration: %.2f ms, sleep: %.2f ms", loop_duration_ms, sleep_time_ms);
 				std::this_thread::sleep_for(duration<double, std::milli>(sleep_time_ms));				
-			} else if(duration_ms > 200){
-				RCLCPP_INFO(node->get_logger(), "Lidar Loop duration took %.2f ms", duration_ms);
+			} else if(loop_duration_ms > 200){
+				RCLCPP_INFO(node->get_logger(), "Lidar Loop duration: %.2f ms", loop_duration_ms);
 			} else {
 				// RCLCPP_INFO(node->get_logger(), "Lidar Loop duration took %.2f ms", duration_ms);
 			}
