@@ -146,14 +146,25 @@ void PerceptionNode::loadConfig(void)
         if (!calibration_file_path.empty() && std::filesystem::exists(calibration_file_path))
         {
             // calibration_file_path가 있고, 파일이 실제로 존재하면 그걸 사용
-            config_file_to_load = calibration_file_path;
-            RCLCPP_INFO(
-                this->get_logger(),
-                "Loading calibration file: %s, file size: %ld",
-                calibration_file_path.c_str(),
-                std::filesystem::file_size(calibration_file_path));
+            auto file_size = std::filesystem::file_size(calibration_file_path);
+            if (file_size > 100)
+            {
+                RCLCPP_INFO(
+                    this->get_logger(),
+                    "Loading calibration file: %s, file size: %ld",
+                    calibration_file_path.c_str(),
+                    file_size);
+                config_file_to_load = calibration_file_path;
+            }
+            else
+            {
+                RCLCPP_INFO(
+                    this->get_logger(),
+                    "Calibration file exists. But file size is too small(file size: %ld). Loading default file.",
+                    file_size);
+            }
         }
-        else
+        if (config_file_to_load.empty())
         {
             // calibration_file_path 없거나 파일이 없으면 기존 방식 유지
             std::string package_share_directory = ament_index_cpp::get_package_share_directory("A1_perception");
