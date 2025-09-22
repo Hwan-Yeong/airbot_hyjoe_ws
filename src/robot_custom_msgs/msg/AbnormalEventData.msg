@@ -1,6 +1,6 @@
 builtin_interfaces/Time timestamp
 
-bool event_trigger
+int16 event_trigger # -1: rear collision / 0: no collision / 1: front collision
 
 # AMCL pose
 float64 robot_x
