@@ -231,6 +231,7 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
     bool imu_range = false;
     int count = 0;
     static bool prev_status=false;
+    static rclcpp::Clock clock(RCL_STEADY_TIME);
 
     // 밑 센서값 조정
     // 값이 방향에 따라서 일정하게 변하지 않기 때문에
@@ -270,6 +271,25 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
     deg_pitch = pitch * 180.0 / M_PI;
     deg_roll = roll * 180.0 / M_PI;
 
+    if(is_first_boot) {
+        baseline_pitch_deg = deg_pitch;
+        baseline_roll_deg = deg_roll;
+        baseline_time = clock.now().seconds();
+        is_first_boot = false;
+    }
+
+    // roll, pitch 10도 이상의 변화가 생길때마다 로깅 (처음 저장한 시점으로부터의 pitch, roll, elapsed time 출력)
+    if (abs(deg_roll - baseline_roll_deg) >= 10.0 || abs(deg_pitch - baseline_pitch_deg) >= 10.0) {
+        double duration = clock.now().seconds() - baseline_time;
+        RCLCPP_INFO(node_ptr_->get_logger(),
+            "[FallDownErrorMonitor] Pitch/Roll Changed more than 10 degress! Previous [pitch : %.3f deg, roll : %.3f deg], Current [pitch : %.3f deg, roll : %.3f deg], angle_change_elapsed_time: %.2f sec",
+            baseline_pitch_deg, baseline_roll_deg, deg_pitch, deg_roll, duration
+        );
+        baseline_pitch_deg = deg_pitch;
+        baseline_roll_deg = deg_roll;
+        baseline_time = clock.now().seconds();
+    }
+
     if (abs(deg_pitch) >= params.imu_pitch_th || abs(deg_roll) >= params.imu_roll_th) { // 60 deg, 60 deg
         imu_range = true;
     }
@@ -278,7 +298,7 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
         if(!prev_status){
             // [250407] hyjoe : 전도 에러 발생시 낙하IR상태, roll, pitch 정보 1번만 로깅
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[FallDownErrorMonitor] Occured (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) (adc_bb : %d) (adc_bl : %d) (adc_br : %d)  (pich : %.3f deg) (roll : %.3f deg)",
+                "[FallDownErrorMonitor] Occured (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) (adc_bb : %d) (adc_bl : %d) (adc_br : %d)  (pitch : %.3f deg) (roll : %.3f deg)",
                 input.first.adc_ff, input.first.adc_fr, input.first.adc_fr, input.first.adc_bb, input.first.adc_bl, input.first.adc_br, deg_pitch, deg_roll
             );
             prev_status=true;
@@ -288,10 +308,13 @@ bool FallDownErrorMonitor::checkError(const InputType& input)
         if(prev_status){
             // [250407] hyjoe : 전도 에러 발생 한적이 있었던 경우, 해제시 1번만 낙하IR상태, roll, pitch 정보 1번만 로깅
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[FallDownErrorMonitor] Released (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) (adc_bf : %d) (adc_bl : %d) (adc_br : %d)  (pich : %.3f deg) (roll : %.3f deg)",
+                "[FallDownErrorMonitor] Released (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) (adc_bf : %d) (adc_bl : %d) (adc_br : %d)  (pitch : %.3f deg) (roll : %.3f deg)",
                 input.first.adc_ff, input.first.adc_fr, input.first.adc_fr, input.first.adc_bb, input.first.adc_bl, input.first.adc_br, deg_pitch, deg_roll
             );
-            prev_status=false;
+            prev_status = false;
+            baseline_pitch_deg = deg_pitch;
+            baseline_roll_deg = deg_roll;
+            baseline_time = clock.now().seconds();
         }
         return false;
     }

@@ -161,6 +161,10 @@ public:
     }
 
 private:
+    bool is_first_boot = true;
+    double baseline_pitch_deg = 0.0;
+    double baseline_roll_deg = 0.0;
+    double baseline_time = 0.0;
     void get_rpy_from_quaternion(const geometry_msgs::msg::Quaternion& quaternion, double& roll, double& pitch, double& yaw);
 };
 
