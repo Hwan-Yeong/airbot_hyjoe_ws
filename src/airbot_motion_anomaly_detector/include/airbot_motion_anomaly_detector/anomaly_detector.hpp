@@ -16,6 +16,30 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
+enum class COLLISION_STATE {
+    NONE = 0,
+    FRONT_COLLISION = 1,
+    REAR_COLLISION = -1
+};
+
+inline std::string enumToString(COLLISION_STATE in) {
+    std::string out;
+    switch (in) {
+    case COLLISION_STATE::NONE:
+      out = std::string("NONE");
+      break;
+    case COLLISION_STATE::FRONT_COLLISION:
+      out = std::string("FRONT_COLLISION");
+      break;
+    case COLLISION_STATE::REAR_COLLISION:
+      out = std::string("REAR_COLLISION");
+      break;
+    default:
+      out = std::string("ERROR");
+      break;
+    }
+    return out;
+};
 
 class AnomalyDetector : public rclcpp::Node {
 public:
@@ -30,22 +54,29 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr perception_climb_sub_;
 
     // Parameters
-    double pitch_slope_duration_threshold_;
-    double pitch_threshold_;
-    double pitch_threshold_collision_;
-    double pitch_diff_threshold_;
-    double pitch_slope_start_time_;
-    int pitch_diff_window_size_;
-    int pitch_collision_duration_threshold_;
+    double slope_pitch_duration_threshold_;
+    double slope_pitch_threshold_;
+    double slope_pitch_start_time_;
+    double front_collision_pitch_threshold_;
+    double front_collision_pitch_diff_threshold_;
+    int front_collision_pitch_diff_window_size_;
+    int front_collision_pitch_duration_threshold_;
+    double rear_collision_pitch_threshold_;
+    double rear_collision_pitch_diff_threshold_;
+    int rear_collision_pitch_diff_window_size_;
+    int rear_collision_pitch_duration_threshold_;
 
     double robot_pose_x;
     double robot_pose_y;
     double robot_pose_angle;
 
     bool is_climb_detected_;
-    bool is_collision_detected_;
-    int collision_cnt_;
-    std::deque<double> pitch_history_;
+    bool is_front_collision_detected_;
+    int front_collision_cnt_;
+    std::deque<double> front_pitch_history_;
+    bool is_rear_collision_detected_;
+    int rear_collision_cnt_;
+    std::deque<double> rear_pitch_history_;
 
     // Variables
     double cmd_vel_x_;
@@ -63,7 +94,7 @@ private:
     void detectSlope(double pitch, double roll, double current_time);
 
     // Publish Collision Alert
-    void publishCollision(bool detected);
+    void publishCollision(COLLISION_STATE col_state);
 
     // Convert Quaternion to Roll, Pitch, Yaw
     void getRPYFromQuaternion(const geometry_msgs::msg::Quaternion &q, double &roll, double &pitch, double &yaw);

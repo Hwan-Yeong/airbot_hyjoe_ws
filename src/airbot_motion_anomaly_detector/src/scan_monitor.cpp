@@ -8,13 +8,24 @@ ScanMonitorNode::ScanMonitorNode()
     lower_bound_ms_ = expected_interval_ms * (1.0 - tolerance);
     upper_bound_ms_ = expected_interval_ms * (1.0 + tolerance);
     timeout_ms_ = expected_interval_ms * 3.0;  // 예: 3번 이상 못 받으면 경고
-    monitor_enabled_ = false;
     scan_front_state_ = false;
     scan_back_state_ = false;
     prev_scan_time_ = {};
     last_scan_time_ = {};
-    scanOk = false;
+    #if USE_LIDAR_STATE_CHECK > 0
+    lidar_state = 0;
+    bLidarCmd = true; //hjkim : airbot_lidar에서 respwan 적용하면서 default를 ON으로 변경하여, TRUE로 초기화
 
+    cmd_lidar_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+		"cmd_lidar", 10, std::bind(&ScanMonitorNode::lidar_cmd_callback, this, std::placeholders::_1));
+    #else
+    monitor_enabled_ = false;
+    scanOk = false;
+    
+    scan_monitor_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+        "/scan_monitor_cmd", 10,
+        std::bind(&ScanMonitorNode::cmdCallback, this, std::placeholders::_1));
+    #endif
     scan_front_state_sub_ = this->create_subscription<std_msgs::msg::Bool>(
         "/scan_state_front", 10,
         std::bind(&ScanMonitorNode::scanFrontStateCallback, this, std::placeholders::_1)
@@ -25,14 +36,13 @@ ScanMonitorNode::ScanMonitorNode()
         std::bind(&ScanMonitorNode::scanBackStateCallback, this, std::placeholders::_1)
     );
 
-    scan_monitor_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/scan_monitor_cmd", 10,
-        std::bind(&ScanMonitorNode::cmdCallback, this, std::placeholders::_1));
-
     scan_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
         "/scan", rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_sensor_data)).reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT),
         std::bind(&ScanMonitorNode::scanCallback, this, std::placeholders::_1)
     );
+
+    lidar_state_pub_ = this->create_publisher<std_msgs::msg::UInt8>("/lidar_state", 10);
+    scanHz_state_pub_ = this->create_publisher<std_msgs::msg::Bool>("/scanHz_state", 10);
 
     monitor_timer_ = this->create_wall_timer(
         std::chrono::milliseconds(200),
@@ -42,14 +52,29 @@ ScanMonitorNode::ScanMonitorNode()
     RCLCPP_INFO(this->get_logger(), "Scan Monitor Node initialized. Expecting 10Hz (±10%%)");
 }
 
+#if USE_LIDAR_STATE_CHECK > 0
+void ScanMonitorNode::lidar_cmd_callback(const std_msgs::msg::Bool::SharedPtr msg)
+{
+    if (msg->data){
+        bLidarCmd = true;
+        RCLCPP_INFO(this->get_logger(), "[lidar_cmd_callback] Lidar ON");
+    }
+    else{
+        bLidarCmd = false;
+        RCLCPP_INFO(this->get_logger(), "[lidar_cmd_callback] Lidar OFF");
+    }
+    isScanHzOk = false;
+    hz_check_count_ = 0;
+    last_scan_time_ = {};
+}
+#else
 void ScanMonitorNode::cmdCallback(const std_msgs::msg::Bool::SharedPtr msg)
 {
-    scanOk = false;
-    scan_received_ = false;
     last_scan_time_ = {};
     monitor_enabled_ = msg->data;
     RCLCPP_INFO(this->get_logger(), "SCAN Monitor %s", monitor_enabled_ ? "ENABLED" : "DISABLED");
 }
+#endif
 
 void ScanMonitorNode::scanFrontStateCallback(const std_msgs::msg::Bool::SharedPtr msg)
 {
@@ -84,9 +109,124 @@ void ScanMonitorNode::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr 
 
     prev_scan_time_ = last_scan_time_;
     last_scan_time_ = std::chrono::steady_clock::now();
-    scan_received_ = true;
 }
 
+#if USE_LIDAR_STATE_CHECK > 0
+void ScanMonitorNode::checkScanHealth()
+{
+    checkScanState();
+    checkScanHz();
+}
+
+void ScanMonitorNode::checkScanState()
+{
+    /* lidar_state
+    0: OFF
+    1: ON
+    2: STARTING
+    3: STOPING
+    */
+    if(scan_front_state_ && scan_back_state_){
+        if(lidar_state != 1){
+            RCLCPP_INFO(this->get_logger(), "[checkScanState] Lidar ON, prevState[%d](0:OFF, 1:ON, 2:STARTING, 3:STOPING) lidarCmd[%s] Front[%s] Back[%s]",
+            lidar_state, bLidarCmd ? "ON" : "OFF", scan_front_state_ ? "ON" : "OFF", scan_back_state_ ? "ON" : "OFF");
+        }
+        lidar_state = 1;
+    }else if(!scan_front_state_ && !scan_back_state_){
+        if(lidar_state != 0){
+            RCLCPP_INFO(this->get_logger(), "[checkScanState] Lidar OFF, prevState[%d](0:OFF, 1:ON, 2:STARTING, 3:STOPING) lidarCmd[%s] Front[%s] Back[%s]",
+            lidar_state, bLidarCmd ? "ON" : "OFF", scan_front_state_ ? "ON" : "OFF", scan_back_state_ ? "ON" : "OFF");
+        }
+        lidar_state = 0;
+    }else if(bLidarCmd){
+        if(lidar_state != 2){
+            RCLCPP_INFO(this->get_logger(), "[checkScanState] Lidar STARTING, prevState[%d](0:OFF, 1:ON, 2:STARTING, 3:STOPING) lidarCmd[%s] Front[%s] Back[%s]",
+            lidar_state, bLidarCmd ? "ON" : "OFF", scan_front_state_ ? "ON" : "OFF", scan_back_state_ ? "ON" : "OFF");
+        }
+        lidar_state = 2;
+    }else{
+        if(lidar_state != 3){
+            RCLCPP_INFO(this->get_logger(), "[checkScanState] Lidar STOPPING, prevState[%d](0:OFF, 1:ON, 2:STARTING, 3:STOPING) lidarCmd[%s] Front[%s] Back[%s]",
+            lidar_state, bLidarCmd ? "ON" : "OFF", scan_front_state_ ? "ON" : "OFF", scan_back_state_ ? "ON" : "OFF");
+        }
+        lidar_state = 3;
+    }
+    publishLidarState(lidar_state);
+}
+void ScanMonitorNode::checkScanHz()
+{
+    if(!scan_front_state_ || !scan_back_state_){
+        hz_check_count_ = 0;
+        isScanHzOk = false;
+        if(bLidarCmd){
+            RCLCPP_INFO(this->get_logger(), "[checkScanHz] scan state is front[%s], back[%s]", 
+            scan_front_state_ ? "ON" : "OFF", scan_back_state_ ? "ON" : "OFF" );
+        }
+        return;
+    }
+
+    if (prev_scan_time_.time_since_epoch().count() == 0 || last_scan_time_.time_since_epoch().count() == 0) {
+        RCLCPP_INFO(this->get_logger(), "[checkScanHz] wait for two times scan received.");
+        return;
+    }
+
+    double interval_ms = std::chrono::duration<double, std::milli>(last_scan_time_ - prev_scan_time_).count();
+    
+    constexpr double kMinDt = 1e-3; // 1 ms
+    if (interval_ms < kMinDt) {
+        if(hz_check_count_ > 0){
+            hz_check_count_--;
+        }else{
+            isScanHzOk = false;
+        }
+        RCLCPP_INFO(this->get_logger(),"[checkScanHz] scan interval too small  interval(%.2f)ms, count[%u], isScanHzOk[%s]",interval_ms,hz_check_count_,isScanHzOk? "TRUE" : "FALSE");
+        return;
+    }
+
+    double hz = 1000.0 / interval_ms;
+    if (interval_ms < lower_bound_ms_ || interval_ms > upper_bound_ms_) {
+        if(hz_check_count_ > 0){
+            hz_check_count_--;
+        }else{
+            isScanHzOk = false;
+        }
+        RCLCPP_INFO(this->get_logger(),"[checkScanHz] scan hz not in expected range interval(%.2f)ms hz(%.2f) count[%u] isScanHzOk[%s]",interval_ms, hz,hz_check_count_,isScanHzOk? "TRUE" : "FALSE");
+    }else{
+        if(hz_check_count_ >= 3){
+            isScanHzOk = true;
+        }else{
+            hz_check_count_++;
+            RCLCPP_INFO(this->get_logger(),"[checkScanHz] scan is good... interval(%.2f)ms hz(%.2f) count[%u] isScanHzOk[%s]",interval_ms, hz,hz_check_count_,isScanHzOk? "TRUE" : "FALSE"); 
+        }
+    }
+    publishScanHzState(isScanHzOk);
+}
+
+void ScanMonitorNode::publishLidarState(uint8_t state)
+{
+    static uint8_t prev_msg_state = 0;
+    std_msgs::msg::UInt8 lidar_state_msg;
+    lidar_state_msg.data = state;
+    lidar_state_pub_->publish(lidar_state_msg);
+
+    if(prev_msg_state != state){
+        RCLCPP_INFO(this->get_logger(), "[publishLidarState] state (0:OFF, 1:ON, 2:STARTING, 3:STOPING): %u", state);
+    }
+    prev_msg_state = state;
+}
+
+void ScanMonitorNode::publishScanHzState(bool state)
+{
+    static bool prev_msg_state = false;
+    std_msgs::msg::Bool scanHz_state_msg;
+    scanHz_state_msg.data = state;
+    scanHz_state_pub_->publish(scanHz_state_msg);
+    if(prev_msg_state != state){
+        RCLCPP_INFO(this->get_logger(), "[publishScanHzState] state: %s", state ? "OK" : "NOT OK");
+    }
+    prev_msg_state = state;
+}
+#else
 void ScanMonitorNode::checkScanHealth()
 {
     if (!monitor_enabled_)
@@ -101,15 +241,6 @@ void ScanMonitorNode::checkScanHealth()
         }
         scanOk = false;
         last_scan_time_ = {};
-        return;
-    }
-
-    if(!scan_received_){
-        if (prev_scan_time_.time_since_epoch().count() == 0) {
-            RCLCPP_INFO(this->get_logger(), "[checkScanHealth] wait scan received...");
-        }else{
-            RCLCPP_INFO(this->get_logger(), "[checkScanHealth] LIdar is On. but can`t received scan.");
-        }
         return;
     }
 
@@ -137,6 +268,7 @@ void ScanMonitorNode::checkScanHealth()
         }
     }
 }
+#endif
 
 int main(int argc, char **argv)
 {

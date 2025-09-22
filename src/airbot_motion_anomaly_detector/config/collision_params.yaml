@@ -2,11 +2,18 @@ collision_detector:
   ros__parameters:
     output:
       collision: # Pitch must stay negative to detect collision
-        topic_name: "/collision_detected"
-        time_duration_ms: 700
-        imu_pitch_th_deg: -5.0
-        imu_pitch_diff_th_deg: 1.0
-        imu_pitch_diff_window_size: 10
+        front:
+          topic_name: "/collision_detected/front"
+          time_duration_ms: 700
+          imu_pitch_th_deg: -5.0
+          imu_pitch_diff_th_deg: 1.0
+          imu_pitch_diff_window_size: 10
+        rear:
+          topic_name: "/collision_detected/back"
+          time_duration_ms: 700
+          imu_pitch_th_deg: 5.0
+          imu_pitch_diff_th_deg: 1.0
+          imu_pitch_diff_window_size: 10
 
       slope: # Pitch must stay low for slope detection
         topic_name: "/slope_detected"
