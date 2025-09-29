@@ -85,6 +85,9 @@ class PerceptionNode : public rclcpp::Node
     void reloadConfiguration(void);
     void calibrationCallback(const std_msgs::msg::Float32MultiArray::SharedPtr msg);
 
+    void mergeConfigFile();
+    void mergeYaml(YAML::Node cali_yaml, const YAML::Node& default_yaml);
+
     sensor_msgs::msg::PointCloud2 convertToPointCloud2(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 
     YAML::Node config{};

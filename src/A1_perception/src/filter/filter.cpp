@@ -796,16 +796,33 @@ LayerVector CollisionFilter::updateImpl(LayerVector layer_vector)
                 cloud->points.push_back(new_point);
             }
             last_layer.cloud.insert(last_layer.cloud.end(), cloud->begin(), cloud->end());
-            node->is_collision = true;
-            if (logIntervalPassed())
+            // 2025.09.19 ksj, 전진일 때만 tof 데이터 저장
+            if (motor_status.isMoveToFoward())
             {
-                RCLCPP_INFO(
-                    node->get_logger(),
-                    "Collision detected. robot_xy(%.3f, %.3f), Coord(x:%.3f, y:%.3f).",
-                    position.x,
-                    position.y,
-                    point_global.x,
-                    point_global.y);
+                node->is_collision = true;
+                if (logIntervalPassed())
+                {
+                    RCLCPP_INFO(
+                        node->get_logger(),
+                        "Collision detected. robot_xy(%.3f, %.3f), Coord(x:%.3f, y:%.3f).",
+                        position.x,
+                        position.y,
+                        point_global.x,
+                        point_global.y);
+                }
+            }
+            else
+            {
+                if (logIntervalPassed())
+                {
+                    RCLCPP_INFO(
+                        node->get_logger(),
+                        "Back Collision detected. robot_xy(%.3f, %.3f), Coord(x:%.3f, y:%.3f).",
+                        position.x,
+                        position.y,
+                        point_global.x,
+                        point_global.y);
+                }
             }
         }
     }

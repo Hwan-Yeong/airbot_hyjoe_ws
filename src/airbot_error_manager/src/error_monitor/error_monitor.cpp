@@ -690,7 +690,9 @@ bool CliffDetectionErrorMonitor::checkError(const InputType &input)
 
     // ROBOT_STATE::IDLE, ONSTATION, ERROR (로봇 정지상태에서는 판단 X)
     if (robotState.state == 0 || robotState.state == 7 || robotState.state == 9) {
-        isFirstCheckArray[6]={true};
+        for (int i=0; i<6; i++) {
+            isFirstCheckArray[i] = true;
+        }
         return false;
     }
 

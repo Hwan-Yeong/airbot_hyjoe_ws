@@ -123,7 +123,7 @@ airbot_sensor_to_pointcloud:
       collision:
         front:
           use: true
-          topic: "collision/front"
+          topic: "collision"
           publish_rate_ms: 10
         rear:
           use: true

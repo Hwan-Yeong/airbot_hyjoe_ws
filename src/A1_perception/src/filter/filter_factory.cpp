@@ -63,7 +63,7 @@ FilterFactory::create(std::shared_ptr<PerceptionNode> node_ptr, const std::strin
     }
     else
     {
-        RCLCPP_ERROR(node_ptr->get_logger(), "Unknown filter type: %s", type);
+        RCLCPP_ERROR(node_ptr->get_logger(), "Unknown filter type: %s", type.c_str());
         // throw std::runtime_error("Unknown filter type: " + type);
     }
 }

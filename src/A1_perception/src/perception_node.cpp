@@ -21,6 +21,34 @@
 namespace A1::perception
 {
 
+bool saveAndSyncYamlFile(const std::string& file_path, const std::string& content, rclcpp::Logger logger)
+{
+    FILE* fp = std::fopen(file_path.c_str(), "w");
+    if (!fp)
+    {
+        RCLCPP_ERROR(logger, "Failed to open file for writing: %s", file_path.c_str());
+        return false;
+    }
+
+    if (std::fputs(content.c_str(), fp) == EOF)
+    {
+        RCLCPP_ERROR(logger, "Failed to write YAML content to file: %s", file_path.c_str());
+        std::fclose(fp);
+        return false;
+    }
+
+    std::fflush(fp);
+
+    int fd = fileno(fp);
+    if (fd != -1)
+    {
+        fsync(fd);
+    }
+
+    std::fclose(fp);
+    return true;
+}
+
 void pointCloud2Callback(
     const std::string& name,
     std::shared_ptr<PerceptionNode> node,
@@ -115,7 +143,7 @@ PerceptionNode::PerceptionNode() : Node("A1_perception")
     this->declare_parameter("node_params", "node.yaml");
     this->declare_parameter("calibration.file_path", "/home/airbot/app_rw/perception/params/calibration.yaml");
     this->declare_parameter("calibration.targets", "");
-
+    this->mergeConfigFile();
     this->loadConfig();
     this->last_state_pub_time = std::chrono::steady_clock::now();
 
@@ -131,6 +159,66 @@ PerceptionNode::PerceptionNode() : Node("A1_perception")
         RCLCPP_WARN(this->get_logger(), "Failed to set logger level.");
     }
     RCLCPP_INFO(this->get_logger(), "A1_perception has been started.");
+}
+
+void PerceptionNode::mergeConfigFile()
+{
+    std::string node_params{};
+    std::string calibration_file_path{};
+    this->get_parameter("node_params", node_params);
+    this->get_parameter("calibration.file_path", calibration_file_path);
+
+    // calibration_file_path 없거나 파일이 없으면 기존 방식 유지
+    std::string package_share_directory = ament_index_cpp::get_package_share_directory("A1_perception");
+    std::string default_path = package_share_directory + "/params/" + node_params;
+    try
+    {
+        if (!calibration_file_path.empty() && !std::filesystem::exists(calibration_file_path))
+        {
+            std::filesystem::path dir = std::filesystem::path(calibration_file_path).parent_path();
+            if (!dir.empty() && !std::filesystem::exists(dir))
+            {
+                std::filesystem::create_directories(dir);
+            }
+            YAML::Node default_yaml = YAML::LoadFile(default_path);
+            YAML::Emitter out;
+            out << default_yaml;
+            saveAndSyncYamlFile(calibration_file_path, out.c_str(), this->get_logger());
+        }
+        else
+        {
+            YAML::Node cali_yaml = YAML::LoadFile(calibration_file_path);
+            YAML::Node default_yaml = YAML::LoadFile(default_path);
+
+            // 병합 수행
+            this->mergeYaml(cali_yaml, default_yaml);
+
+            YAML::Emitter out;
+            out << cali_yaml;
+            saveAndSyncYamlFile(calibration_file_path, out.c_str(), this->get_logger());
+            RCLCPP_INFO(this->get_logger(), "Merge config file done.");
+        }
+    }
+    catch (const std::exception& e)
+    {
+        RCLCPP_ERROR(this->get_logger(), "Failed to save calibration config file: %s", e.what());
+    }
+}
+void PerceptionNode::mergeYaml(YAML::Node cali_yaml, const YAML::Node& default_yaml)
+{
+    for (auto it = default_yaml.begin(); it != default_yaml.end(); ++it)
+    {
+        const std::string& key = it->first.as<std::string>();
+        const YAML::Node& value = it->second;
+        if (!cali_yaml[key])
+        {
+            cali_yaml[key] = value;
+        }
+        else if (value.IsMap() && cali_yaml[key].IsMap())
+        {
+            mergeYaml(cali_yaml[key], value);
+        }
+    }
 }
 
 void PerceptionNode::loadConfig(void)

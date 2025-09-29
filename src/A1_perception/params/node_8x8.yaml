@@ -28,7 +28,12 @@ A1_perception:
       collision: 
         topic: "/sensor_to_pointcloud/collision"
         type: "PointCloud2"
-        
+
+      #[From everybot(sensor_manager)]
+      collision_back: 
+        topic: "/sensor_to_pointcloud/collision/rear"
+        type: "PointCloud2"
+
       #[From everybot(sensor_manager)]
       camera_points: 
         topic: "/sensor_to_pointcloud/camera_object"
@@ -115,6 +120,16 @@ A1_perception:
             filters:
               collision:
                 line_length: 0.25
+                resolution: 0.05
+
+      collision_back:
+        inputs:
+        - "collision_back"
+        filter:
+          compose:
+            filters:
+              collision:
+                line_length: 0.15
                 resolution: 0.05
 
       collision_tof_134_rows:
