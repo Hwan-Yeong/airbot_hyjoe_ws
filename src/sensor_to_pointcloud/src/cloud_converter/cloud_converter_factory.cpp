@@ -31,7 +31,7 @@ CloudConverterPtr CloudConverterFactory::create(std::shared_ptr<SensorToPointclo
     }
     else if (type == "collision")
     {
-        return nullptr;
+        return std::make_shared<CollisionCloudConverter>(node_ptr, config);
     }
     else if (type == "empty")
     {

@@ -158,18 +158,17 @@ std::vector<tPoint> FrameConverter::tfCliffSensor2RobotFrame(robot_custom_msgs::
     return active_sensor_points;
 }
 
-std::vector<tPoint> FrameConverter::tfCollisionData2RobotFrame(robot_custom_msgs::msg::AbnormalEventData::SharedPtr collision_msg, double offset_m)
+tPoint FrameConverter::tfCollisionData2RobotFrame(const robot_custom_msgs::msg::AbnormalEventData* collision_msg, double offset_m)
 {
-    std::vector<tPoint> points;
-    if (collision_msg->event_trigger) {
-        tPoint collision_point;
+    tPoint points;
 
-        collision_point.x = offset_m;
-        collision_point.y = 0.0;
-        collision_point.z = 0.0;
-
-        points.push_back(collision_point);
+    // 1: 전방 충돌, -1: 후방 충돌
+    if (collision_msg->event_trigger == 1 || collision_msg->event_trigger == -1) {
+        points.x = offset_m * collision_msg->event_trigger;
+        points.y = 0.0;
+        points.z = 0.0;
     }
+
     return points;
 }
 

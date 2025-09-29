@@ -63,7 +63,7 @@ public:
      * @param[in] offset_m 로봇 base_link 기준 해당 거리 전방에 장애물로 쓰일 point 1개 생성 [m]
      * @return 변환된 로봇좌표계(base_link) 기준 좌표 데이터
      */
-    std::vector<tPoint> tfCollisionData2RobotFrame(robot_custom_msgs::msg::AbnormalEventData::SharedPtr collision_msg, double offset_m);
+    tPoint tfCollisionData2RobotFrame(const robot_custom_msgs::msg::AbnormalEventData* collision_msg, double offset_m);
 
     /**
      * @brief 로봇좌표계 -> 글로벌좌표계 변환 함수

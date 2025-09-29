@@ -82,6 +82,22 @@ private:
 };
 
 /**
+ * @brief Collision 이벤트 발생 -> PointCloud2 변환
+ */
+class CollisionCloudConverter : public CloudConverterStrategy
+{
+public:
+    CollisionCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node& config);
+
+private:
+    PointCloudMsg pc_convert(const void* sensor_msg) override;
+
+    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
+    bool use_collision_ = true;
+    tPose sensor_frame_pose_ = tPose(tPoint(0.19, 0.0, 0.0),tOrientation(0.0, 0.0, 0.0));
+};
+
+/**
  * @brief Empty PointCloud2 변환
  */
 class EmptyCloudConverter : public CloudConverterStrategy

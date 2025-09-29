@@ -74,8 +74,10 @@ sensor_msgs::msg::PointCloud2 TofMonoCloudConverter::pc_convert(const void *sens
         if (this->target_frame_ == "map") {
             std::vector<tPoint> point_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame({point_on_robot_frame}, robot_pose);
             ret = this->pointcloud_generator_.generatePointCloud2Message(point_on_map_frame, this->target_frame_);
-        } else {
+        } else if (this->target_frame_ == "base_link") {
             ret = this->pointcloud_generator_.generatePointCloud2Message({point_on_robot_frame}, this->target_frame_);
+        } else {
+            RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
         }
     }
 
@@ -151,6 +153,64 @@ sensor_msgs::msg::PointCloud2 CameraCloudConverter::pc_convert(const void *senso
         sensor_msgs::msg::PointCloud2 pc_msg = this->pointcloud_generator_.generateCameraPointCloud2Message(bbox_array, this->pointcloud_resolution_);
 
         ret = pc_msg;
+    }
+
+    return ret;
+}
+
+CollisionCloudConverter::CollisionCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node &config)
+    : CloudConverterStrategy(node_ptr_)
+{
+    // Load Config
+    if (!config.IsMap())
+    {
+        auto s = YAML::Dump(config);
+        throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
+    }
+
+    this->use_collision_ = config["use"].as<bool>();
+    this->sensor_frame_pose_.position = tPoint(
+        config["extrinsics"]["distance"].as<double>(),
+        0.0,
+        0.0
+    );
+
+    // Print Config
+    std::ostringstream oss;
+    oss << "\n[COLLISION POINTCLOUD CONVERTER PARAMETERS]\n";
+    oss << std::boolalpha;
+    oss << "  use_collision_         : " << this->use_collision_ << "\n";
+    oss << "  sensor_frame_pose      : position [m] = ("
+        << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.x << ", "
+        << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.y << ", "
+        << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.z << ")\n";
+    oss << "----------------------------------------------------";
+    RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
+}
+
+sensor_msgs::msg::PointCloud2 CollisionCloudConverter::pc_convert(const void *sensor_msg)
+{
+    sensor_msgs::msg::PointCloud2 ret;
+
+    if (this->use_collision_)
+    {
+        auto msg = static_cast<const robot_custom_msgs::msg::AbnormalEventData*>(sensor_msg);
+
+        tPose robot_pose;
+        robot_pose.position.x = msg->robot_x;
+        robot_pose.position.y = msg->robot_y;
+        robot_pose.orientation.yaw = msg->robot_angle;
+
+        tPoint point_on_robot_frame = this->frame_converter_.tfCollisionData2RobotFrame(msg, this->sensor_frame_pose_.position.x);
+
+        if (this->target_frame_ == "map") {
+            std::vector<tPoint> point_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame({point_on_robot_frame}, robot_pose);
+            ret = this->pointcloud_generator_.generatePointCloud2Message(point_on_map_frame, this->target_frame_);
+        } else if (this->target_frame_ == "base_link") {
+            ret = this->pointcloud_generator_.generatePointCloud2Message({point_on_robot_frame}, this->target_frame_);
+        } else {
+            RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
+        }
     }
 
     return ret;
