@@ -1,0 +1,47 @@
+A1_maneuver:
+  ros__parameters:
+    velocity_scaling_factor: 0.06
+    time_ms:
+      timer: 10
+      wait:
+        normal: 1000
+        drop_off: 1000
+      back:
+        1d: 2000
+        collision: 1500           # 0.2m/s
+    costmap:
+      no_plan:
+        sampling_threshold: 300   # time_ms.timer * sampling_threshold
+        release_degree: 30.0      # deg
+        global_plan_timeout_sec: 3.0
+        timeout_sec: 5.0          # float
+      escape:
+        value: 90
+        release_value: 70
+        sampling_threshold: 150 
+        time_multiplier_for_dist: 7500
+        angular_z_speed: 0.6
+        candidate:
+          threshold: 70
+          min_dist: 0.05
+          max_dist: 0.3
+    lidar:
+      escape:
+        front:
+          diagonal_distance: 0.20
+          min_distance: 0.20
+          max_distance: 0.45
+          angle: 25.0
+          max_vel: 0.40
+          min_vel: 0.01
+        back: 
+          distance: 0.30
+          angle: 60.0
+      drop_ir:
+        collision:
+          front:
+            distance: 0.24
+            angle: 75.0
+          back:
+            distance: 0.24
+            angle: 75.0
