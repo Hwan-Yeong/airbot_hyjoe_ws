@@ -32,6 +32,7 @@ SensorToPointcloudNode::SensorToPointcloudNode() : Node("sensor_to_pointcloud_no
                     rclcpp::sleep_for(std::chrono::milliseconds(1));
                 }
             } else {
+                initializeRuntime();
                 publishEmptyMsg();
                 RCLCPP_INFO(this->get_logger(), "[sensor to pointcloud] activeCmdCallback : De-Active");
                 for (int i=0; i<3; ++i) {
@@ -233,7 +234,6 @@ void SensorToPointcloudNode::initializeRuntime()
 void SensorToPointcloudNode::publishPointcloudTimer()
 {
     if (!this->node_active_cmd_) {
-        initializeRuntime();
         return;
     }
 
