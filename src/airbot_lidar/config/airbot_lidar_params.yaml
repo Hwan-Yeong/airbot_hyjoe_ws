@@ -93,3 +93,15 @@
     transform_tolerance: 0.01
     use_inf: true
     use_sim_time: false #false
+    forced_escape_scan_roi:
+      robot_radius: 0.19
+      roi:
+        height: 3.0
+        sector_resolution: 10.0
+        sector_front_min_deg: -45.0
+        sector_front_max_deg: 45.0
+        sector_back_min_deg: 135.0
+        sector_back_max_deg: -135.0
+      score_weight:
+        distance: 1.0
+        angle: 1.0

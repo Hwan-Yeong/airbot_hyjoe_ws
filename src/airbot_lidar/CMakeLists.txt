@@ -89,6 +89,8 @@ ament_target_dependencies(pointcloud_to_laserscan_node
   tf2_sensor_msgs
   sensor_msgs
   message_filters
+  std_msgs
+  visualization_msgs
 )
 install(TARGETS pointcloud_to_laserscan_node
   DESTINATION lib/${PROJECT_NAME}

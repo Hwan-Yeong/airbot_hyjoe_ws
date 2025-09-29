@@ -41,6 +41,8 @@
 #ifndef POINTCLOUD_TO_LASERSCAN__POINTCLOUD_TO_LASERSCAN_NODE_HPP_
 #define POINTCLOUD_TO_LASERSCAN__POINTCLOUD_TO_LASERSCAN_NODE_HPP_
 
+#define DEBUG_MODE 0
+
 #include <atomic>
 #include <memory>
 #include <string>
@@ -56,10 +58,29 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
 #include "pointcloud_to_laserscan/visibility_control.h"
-
+#include "std_msgs/msg/float32_multi_array.hpp"
+#include "std_msgs/msg/bool.hpp"
+#if DEBUG_MODE
+// debug
+#include <visualization_msgs/msg/marker.hpp>
+#endif
 namespace pointcloud_to_laserscan
 {
 typedef tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2> MessageFilter;
+
+struct ScanRoiConfig {
+  float roi_x_min;
+  float roi_x_max;
+  float roi_y_min;
+  float roi_y_max;
+  float sector_resolution;
+  float sector_front_min_rad;
+  float sector_front_max_rad;
+  float sector_back_min_rad;
+  float sector_back_max_rad;
+  float angle_weight;
+  float distance_weight;
+};
 
 /**
 * Class to process incoming pointclouds into laserscans.
@@ -95,6 +116,21 @@ private:
     range_max_;
   bool use_inf_;
   double inf_epsilon_;
+
+  rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr forced_escape_heading_pub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr forced_escape_active_sub_;
+  ScanRoiConfig forced_escape_scan_roi;
+  bool active_forced_escape_ = false;
+  int roi_sector_front_count;
+  int roi_sector_back_count;
+
+  void findForcedEscapeTargetPoint(const std::unique_ptr<sensor_msgs::msg::LaserScan> &scan_msg);
+  void publishForcedEscapeHeadingMsg(float f_angle, float f_dist, float b_angle, float b_dist);
+#if DEBUG_MODE
+  // debug
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
+  void publishDebugPoint(float x, float y, float z);
+#endif
 };
 
 }  // namespace pointcloud_to_laserscan
