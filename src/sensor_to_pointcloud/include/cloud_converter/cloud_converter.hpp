@@ -3,13 +3,7 @@
 #include <memory>
 
 #include "rclcpp/rclcpp.hpp"
-
 #include "sensor_msgs/msg/point_cloud2.hpp"
-
-#include "vision_msgs/msg/bounding_box2_d_array.hpp"
-#include "robot_custom_msgs/msg/tof_data.hpp"
-#include "robot_custom_msgs/msg/camera_data.hpp"
-#include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "yaml-cpp/yaml.h"
 
 #include "utils/common_struct.hpp"
@@ -62,12 +56,9 @@ public:
 
 private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
-    sensor_msgs::msg::PointCloud2 generateTofMonoPointCloudMsg(const robot_custom_msgs::msg::TofData* input_msg, tPose &robot_pose);
 
     bool use_tof_mono_ = true;
     tPose sensor_frame_pose_ = tPose(tPoint(0.0942, 0.0, 0.56513),tOrientation(0.0, -DEG2RAD(39.0), 0.0));
-    double tof_mono_sensor_frame_pitch_cosine;
-    double tof_mono_sensor_frame_pitch_sine;
 };
 
 /**
@@ -80,7 +71,6 @@ public:
 
 private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
-    vision_msgs::msg::BoundingBox2DArray generateObjectBBoxArray(const robot_custom_msgs::msg::CameraDataArray* msg, tPose &robot_pose,std::map<int, int> class_id_confidence_th, bool direction, double object_max_distance);
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
     bool use_camera_ = true;
