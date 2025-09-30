@@ -12,7 +12,7 @@ def generate_launch_description():
     params_declare = DeclareLaunchArgument(
         'params_file',
         default_value=os.path.join(
-            get_package_share_directory('sensor_to_pointcloud'),
+            get_package_share_directory('sensor_manager'),
             'config',
             'sensor_param.yaml'
         ),
@@ -20,7 +20,7 @@ def generate_launch_description():
     )
 
     param_manager_launch = os.path.join(
-        get_package_share_directory('sensor_to_pointcloud'),
+        get_package_share_directory('sensor_manager'),
         'launch',
         'param_manager.launch.py'
     )
@@ -28,9 +28,9 @@ def generate_launch_description():
     return LaunchDescription([
         params_declare,
         Node(
-            name='sensor_to_pointcloud',
-            package='sensor_to_pointcloud',
-            executable='sensor_to_pointcloud',
+            name='sensor_manager_node',
+            package='sensor_manager',
+            executable='sensor_manager',
             output='screen',
             parameters=[parameter_file],
         ),

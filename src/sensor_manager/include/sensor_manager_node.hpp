@@ -11,14 +11,14 @@
 #include "cloud_converter/cloud_converter.hpp"
 #include "cloud_converter/cloud_converter_factory.hpp"
 
-namespace sensor_to_pointcloud {
+namespace sensor_manager {
 
 using PC2PublisherPtr = rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr;
 
-class SensorToPointcloudNode : public rclcpp::Node
+class SensorManagerNode : public rclcpp::Node
 {
 public:
-    SensorToPointcloudNode();
+    SensorManagerNode();
     void init();
     std::string getTargetFrame() const { return node_target_frame_; }
 
@@ -37,7 +37,7 @@ private:
 
     std::unordered_map<std::string, CloudConverterPtr> converters_;
 
-    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sensor_to_pointcloud_cmd_sub_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sensor_manager_cmd_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
 
@@ -57,4 +57,4 @@ private:
     tSensorBuffer<robot_custom_msgs::msg::CameraDataArray> camera_buffer_;
 };
 
-} // namespace sensor_to_pointcloud
+} // namespace sensor_manager

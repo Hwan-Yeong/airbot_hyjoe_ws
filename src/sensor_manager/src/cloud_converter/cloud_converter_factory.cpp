@@ -1,9 +1,9 @@
 #include "cloud_converter/cloud_converter_factory.hpp"
 #include "cloud_converter/cloud_converter.hpp"
 
-namespace sensor_to_pointcloud {
+namespace sensor_manager {
 
-CloudConverterPtr CloudConverterFactory::create(std::shared_ptr<SensorToPointcloudNode> node_ptr, const std::string& type, const YAML::Node& config)
+CloudConverterPtr CloudConverterFactory::create(std::shared_ptr<SensorManagerNode> node_ptr, const std::string& type, const YAML::Node& config)
 {
     if (type == "tof_mono")
     {
@@ -43,7 +43,7 @@ CloudConverterPtr CloudConverterFactory::create(std::shared_ptr<SensorToPointclo
     }
 }
 
-CloudConverterPtr CloudConverterFactory::create(std::shared_ptr<SensorToPointcloudNode> node_ptr, const YAML::Node& config)
+CloudConverterPtr CloudConverterFactory::create(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config)
 {
     if (!config.IsMap() || config.size() != 1)
     {

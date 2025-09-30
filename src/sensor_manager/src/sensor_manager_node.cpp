@@ -1,10 +1,10 @@
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
-#include "sensor_to_pointcloud_node.hpp"
+#include "sensor_manager_node.hpp"
 
-namespace sensor_to_pointcloud {
+namespace sensor_manager {
 
-SensorToPointcloudNode::SensorToPointcloudNode() : Node("sensor_to_pointcloud_node")
+SensorManagerNode::SensorManagerNode() : Node("sensor_manager_node")
 {
     this->loadConfig();
     this->declare_parameter("target_frame", "map");
@@ -12,12 +12,12 @@ SensorToPointcloudNode::SensorToPointcloudNode() : Node("sensor_to_pointcloud_no
     RCLCPP_INFO(this->get_logger(), "  Target Frame: '%s'", node_target_frame_.c_str());
 
     // Sensor Manager On/Off Cmd Subscriber
-    sensor_to_pointcloud_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+    sensor_manager_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
         "cmd_sensor_manager",
         rclcpp::QoS(3).reliable(),
         [this](std_msgs::msg::Bool::SharedPtr msg) {
             if (!msg) {
-                RCLCPP_ERROR(this->get_logger(), "cmd_sensor_to_pointcloud topic is a nullptr message.");
+                RCLCPP_ERROR(this->get_logger(), "cmd_sensor_manager topic is a nullptr message.");
                 return;
             }
 
@@ -68,7 +68,7 @@ SensorToPointcloudNode::SensorToPointcloudNode() : Node("sensor_to_pointcloud_no
     // PointCloud Publish Timer
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(10),
-        std::bind(&SensorToPointcloudNode::publishPointcloudTimer, this)
+        std::bind(&SensorManagerNode::publishPointcloudTimer, this)
     );
 
     // Dynamic Parameter Handler
@@ -90,25 +90,25 @@ SensorToPointcloudNode::SensorToPointcloudNode() : Node("sensor_to_pointcloud_no
     );
 }
 
-void SensorToPointcloudNode::loadConfig()
+void SensorManagerNode::loadConfig()
 {
     std::string node_params{};
     try
     {
-        std::string package_share_directory = ament_index_cpp::get_package_share_directory("sensor_to_pointcloud");
+        std::string package_share_directory = ament_index_cpp::get_package_share_directory("sensor_manager");
         std::string full_path = package_share_directory + "/config/sensor_param.yaml";
-        this->config_ = YAML::LoadFile(full_path)["sensor_to_pointcloud"]["ros__parameters"];
+        this->config_ = YAML::LoadFile(full_path)["sensor_manager"]["ros__parameters"];
     }
     catch (const std::exception& e)
     {
         // fallback (ament_index_cpp::get_package_share_directory()가 제대로 작동하지 않을 경우)
         RCLCPP_ERROR(this->get_logger(), "Failed to load config file: %s", e.what());
-        std::string fallback_path = "install/sensor_to_pointcloud/share/sensor_to_pointcloud/config/sensor_param.yaml";
-        this->config_ = YAML::LoadFile(fallback_path)["sensor_to_pointcloud"]["ros__parameters"];
+        std::string fallback_path = "install/sensor_manager/share/sensor_manager/config/sensor_param.yaml";
+        this->config_ = YAML::LoadFile(fallback_path)["sensor_manager"]["ros__parameters"];
     }
 }
 
-void SensorToPointcloudNode::init()
+void SensorManagerNode::init()
 {
     initializeRuntime();
     initPublisher(this->config_);
@@ -116,7 +116,7 @@ void SensorToPointcloudNode::init()
     initConverters(this->config_["sensors"]);
 }
 
-void SensorToPointcloudNode::initPublisher(const YAML::Node& config)
+void SensorManagerNode::initPublisher(const YAML::Node& config)
 {
     std::string topic_prefix;
     if (config["output_topic_prefix"] && config["output_topic_prefix"].IsScalar()) {
@@ -188,7 +188,7 @@ void SensorToPointcloudNode::initPublisher(const YAML::Node& config)
     );
 }
 
-void SensorToPointcloudNode::initPublishingRates(const YAML::Node& config)
+void SensorManagerNode::initPublishingRates(const YAML::Node& config)
 {
     if (!config.IsMap()) {
         auto s = YAML::Dump(config);
@@ -213,25 +213,25 @@ void SensorToPointcloudNode::initPublishingRates(const YAML::Node& config)
     RCLCPP_INFO(this->get_logger(), "%s", oss.str().c_str());
 }
 
-void SensorToPointcloudNode::initConverters(const YAML::Node& config)
+void SensorManagerNode::initConverters(const YAML::Node& config)
 {
-    auto pnode = std::dynamic_pointer_cast<SensorToPointcloudNode>(this->shared_from_this());
+    auto pnode = std::dynamic_pointer_cast<SensorManagerNode>(this->shared_from_this());
 
     for (const auto& sensor : config) {
         std::string sensor_name = sensor.first.as<std::string>();
         const YAML::Node& sensor_config = sensor.second;
-        this->converters_[sensor_name] = sensor_to_pointcloud::CloudConverterFactory::create(pnode, sensor_name, sensor_config);
+        this->converters_[sensor_name] = sensor_manager::CloudConverterFactory::create(pnode, sensor_name, sensor_config);
     }
 }
 
-void SensorToPointcloudNode::initializeRuntime()
+void SensorManagerNode::initializeRuntime()
 {
     this->node_active_cmd_ = false;
     this->tof_buffer_.reset();
     this->camera_buffer_.reset();
 }
 
-void SensorToPointcloudNode::publishPointcloudTimer()
+void SensorManagerNode::publishPointcloudTimer()
 {
     if (!this->node_active_cmd_) {
         return;
@@ -280,7 +280,7 @@ void SensorToPointcloudNode::publishPointcloudTimer()
  * @param topic_key: 발행할 토픽명 (string)
  * @param msg_copy: 변환할 센서 raw data
  */
-void SensorToPointcloudNode::publishPointcloud(const std::string& converter_key, const std::string& topic_key, const std::shared_ptr<void> msg_copy)
+void SensorManagerNode::publishPointcloud(const std::string& converter_key, const std::string& topic_key, const std::shared_ptr<void> msg_copy)
 {
     auto it = converters_.find(converter_key);
     if (it == converters_.end() || !it->second) {
@@ -304,7 +304,7 @@ void SensorToPointcloudNode::publishPointcloud(const std::string& converter_key,
     }
 }
 
-void SensorToPointcloudNode::publishEmptyMsg()
+void SensorManagerNode::publishEmptyMsg()
 {
     auto it = converters_.find("empty");
     if (it == converters_.end() || !it->second) {
@@ -323,4 +323,4 @@ void SensorToPointcloudNode::publishEmptyMsg()
     RCLCPP_INFO(this->get_logger(), "All Active Publisher publish empty_cloud msgs!");
 }
 
-} // namespace sensor_to_pointcloud
+} // namespace sensor_manager

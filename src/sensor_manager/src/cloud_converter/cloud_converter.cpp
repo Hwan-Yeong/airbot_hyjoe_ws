@@ -1,21 +1,21 @@
 #include "cloud_converter/cloud_converter.hpp"
 
 #include "cloud_converter/cloud_converter_factory.hpp"
-#include "sensor_to_pointcloud_node.hpp"
+#include "sensor_manager_node.hpp"
 
-namespace sensor_to_pointcloud {
+namespace sensor_manager {
 
-CloudConverterStrategy::CloudConverterStrategy(std::shared_ptr<SensorToPointcloudNode> node_ptr_) : node_ptr(node_ptr_)
+CloudConverterStrategy::CloudConverterStrategy(std::shared_ptr<SensorManagerNode> node_ptr_) : node_ptr(node_ptr_)
 {
     this->target_frame_ = node_ptr->getTargetFrame();
 }
 
-std::shared_ptr<SensorToPointcloudNode> CloudConverterStrategy::getNodePtr() const
+std::shared_ptr<SensorManagerNode> CloudConverterStrategy::getNodePtr() const
 {
     return node_ptr;
 }
 
-TofMonoCloudConverter::TofMonoCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node &config)
+TofMonoCloudConverter::TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
     : CloudConverterStrategy(node_ptr_)
 {
     // Load Config
@@ -84,7 +84,7 @@ sensor_msgs::msg::PointCloud2 TofMonoCloudConverter::pc_convert(const void *sens
     return ret;
 }
 
-CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node &config)
+CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
     : CloudConverterStrategy(node_ptr_)
 {
     // Load Config
@@ -158,7 +158,7 @@ sensor_msgs::msg::PointCloud2 CameraCloudConverter::pc_convert(const void *senso
     return ret;
 }
 
-CollisionCloudConverter::CollisionCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node &config)
+CollisionCloudConverter::CollisionCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
     : CloudConverterStrategy(node_ptr_)
 {
     // Load Config
@@ -216,7 +216,7 @@ sensor_msgs::msg::PointCloud2 CollisionCloudConverter::pc_convert(const void *se
     return ret;
 }
 
-EmptyCloudConverter::EmptyCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node& config)
+EmptyCloudConverter::EmptyCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config)
     : CloudConverterStrategy(node_ptr_)
 {
     // Load Config
@@ -248,4 +248,4 @@ sensor_msgs::msg::PointCloud2 EmptyCloudConverter::pc_convert(const void *sensor
     return ret;
 }
 
-} // namespace sensor_to_pointcloud
+} // namespace sensor_manager

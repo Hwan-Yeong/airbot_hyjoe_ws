@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(sensor_to_pointcloud)
+project(sensor_manager)
 
 set(CMAKE_BUILD_TYPE Release) #set(CMAKE_BUILD_TYPE Debug)
 
@@ -32,16 +32,16 @@ link_directories(${PCL_LIBRARY_DIRS} ${YAML_CPP_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 ################################
-##### SENSOR_TO_POINTCLOUD #####
-add_executable(sensor_to_pointcloud
+######## sensor_manager ########
+add_executable(sensor_manager
   src/utils/pointcloud_generator.cpp
   src/utils/frame_converter.cpp
   src/cloud_converter/cloud_converter_factory.cpp
   src/cloud_converter/cloud_converter.cpp
-  src/sensor_to_pointcloud_node.cpp
+  src/sensor_manager_node.cpp
   src/main.cpp
 )
-ament_target_dependencies(sensor_to_pointcloud
+ament_target_dependencies(sensor_manager
   rclcpp
   std_msgs
   sensor_msgs
@@ -55,8 +55,8 @@ ament_target_dependencies(sensor_to_pointcloud
   PCL
   yaml-cpp
 )
-target_link_libraries(sensor_to_pointcloud yaml-cpp)
-install(TARGETS sensor_to_pointcloud
+target_link_libraries(sensor_manager yaml-cpp)
+install(TARGETS sensor_manager
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -11,9 +11,9 @@
 #include "utils/pointcloud_generator.hpp"
 
 
-namespace sensor_to_pointcloud {
+namespace sensor_manager {
 
-class SensorToPointcloudNode;
+class SensorManagerNode;
 
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 
@@ -24,21 +24,21 @@ using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 class CloudConverterStrategy
 {
 public:
-    CloudConverterStrategy(std::shared_ptr<SensorToPointcloudNode> node_ptr_);
+    CloudConverterStrategy(std::shared_ptr<SensorManagerNode> node_ptr_);
 
     virtual ~CloudConverterStrategy() = default;
 
     virtual PointCloudMsg pc_convert(const void* sensor_msg) = 0;
 
     /**
-     * @brief 필터가 참조하는 SensorToPointcloudNode 스마트 포인터를 반환합니다.
+     * @brief 필터가 참조하는 SensorManagerNode 스마트 포인터를 반환합니다.
      *
-     * @return std::shared_ptr<SensorToPointcloudNode> SensorToPointcloudNode 스마트 포인터
+     * @return std::shared_ptr<SensorManagerNode> SensorManagerNode 스마트 포인터
      */
-    std::shared_ptr<SensorToPointcloudNode> getNodePtr() const;
+    std::shared_ptr<SensorManagerNode> getNodePtr() const;
 
 protected:
-    std::shared_ptr<SensorToPointcloudNode> node_ptr{};
+    std::shared_ptr<SensorManagerNode> node_ptr{};
     std::string target_frame_;
 
     FrameConverter frame_converter_;
@@ -52,7 +52,7 @@ using CloudConverterPtr = std::shared_ptr<CloudConverterStrategy>;
 class TofMonoCloudConverter : public CloudConverterStrategy
 {
 public:
-    TofMonoCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node& config);
+    TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
 private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
@@ -67,7 +67,7 @@ private:
 class CameraCloudConverter : public CloudConverterStrategy
 {
 public:
-    CameraCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node& config);
+    CameraCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
 private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
@@ -87,7 +87,7 @@ private:
 class CollisionCloudConverter : public CloudConverterStrategy
 {
 public:
-    CollisionCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node& config);
+    CollisionCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
 private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
@@ -103,7 +103,7 @@ private:
 class EmptyCloudConverter : public CloudConverterStrategy
 {
 public:
-    EmptyCloudConverter(std::shared_ptr<SensorToPointcloudNode> node_ptr_, const YAML::Node& config);
+    EmptyCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
 private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
@@ -112,4 +112,4 @@ private:
     bool use_empty_msg_ = true;
 };
 
-} // namespace sensor_to_pointcloud
+} // namespace sensor_manager
