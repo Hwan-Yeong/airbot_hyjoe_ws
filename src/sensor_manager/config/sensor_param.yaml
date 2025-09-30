@@ -151,12 +151,19 @@ sensor_manager:
           distance: 0.15 # distance from robot center
           angle: 50 # deg to next ir sensor
 
-      collision:
+      collision_front:
         use: true
-        topic: "collision"
+        topic: "collision/front"
         publish_rate_ms: 10
         extrinsics:
           distance: 0.19 # forward point offset
+
+      collision_rear:
+        use: true
+        topic: "collision/rear"
+        publish_rate_ms: 10
+        extrinsics:
+          distance: 0.19 # backward point offset
 
       empty:
         use: true

@@ -40,6 +40,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sensor_manager_cmd_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
+    rclcpp::Subscription<robot_custom_msgs::msg::AbnormalEventData>::SharedPtr collision_sub_;
 
     std::unordered_map<std::string, PC2PublisherPtr> pointcloud_pubs_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr node_active_cmd_response_pub_;
@@ -55,6 +56,7 @@ private:
 
     tSensorBuffer<robot_custom_msgs::msg::TofData> tof_buffer_;
     tSensorBuffer<robot_custom_msgs::msg::CameraDataArray> camera_buffer_;
+    tSensorBuffer<robot_custom_msgs::msg::AbnormalEventData> collision_buffer_;
 };
 
 } // namespace sensor_manager

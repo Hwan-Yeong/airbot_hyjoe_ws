@@ -65,6 +65,17 @@ SensorManagerNode::SensorManagerNode() : Node("sensor_manager_node")
         }
     );
 
+    // Collision Msg Subscriber
+    collision_sub_ = this->create_subscription<robot_custom_msgs::msg::AbnormalEventData>(
+        "/collision_detected",
+        rclcpp::QoS(10).reliable(),
+        [this](robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg) {
+            std::lock_guard<std::mutex> lock(collision_buffer_.mtx);
+            collision_buffer_.latest_msg = msg;
+            collision_buffer_.updated.store(true);
+        }
+    );
+
     // PointCloud Publish Timer
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(10),
@@ -229,6 +240,7 @@ void SensorManagerNode::initializeRuntime()
     this->node_active_cmd_ = false;
     this->tof_buffer_.reset();
     this->camera_buffer_.reset();
+    this->collision_buffer_.reset();
 }
 
 void SensorManagerNode::publishPointcloudTimer()
@@ -246,6 +258,9 @@ void SensorManagerNode::publishPointcloudTimer()
             tof_msg_copy = tof_buffer_.latest_msg;
             tof_buffer_.latest_msg.reset();
             tof_buffer_.updated.store(false);
+        }
+        if (!tof_msg_copy) {
+            return;
         }
         if (tof_buffer_.publishing_cnt_map["tof_mono"] >= pointcloud_publishing_rate_map_["tof_mono"]) {
             publishPointcloud("tof_mono", "tof/mono", tof_msg_copy);
@@ -271,6 +286,31 @@ void SensorManagerNode::publishPointcloudTimer()
         }
         publishPointcloud("camera", "camera_object", camera_msg_copy);
         camera_buffer_.publishing_cnt = 0;
+    }
+
+    collision_buffer_.publishing_cnt_map["collision_front"] += 10;
+    collision_buffer_.publishing_cnt_map["collision_rear"] += 10;
+    if (collision_buffer_.updated.load()) {
+        robot_custom_msgs::msg::AbnormalEventData::SharedPtr collision_msg_copy;
+        {
+            std::lock_guard<std::mutex> lock(collision_buffer_.mtx);
+            collision_msg_copy = collision_buffer_.latest_msg;
+            collision_buffer_.latest_msg.reset();
+            collision_buffer_.updated.store(false);
+        }
+        if (!collision_msg_copy) {
+            return;
+        }
+        if (collision_buffer_.publishing_cnt_map["collision_front"] >= pointcloud_publishing_rate_map_["collision_front"]
+            && collision_msg_copy->event_trigger == 1) {
+            publishPointcloud("collision_front", "collision/front", collision_msg_copy);
+            collision_buffer_.publishing_cnt_map["collision"] = 0;
+        }
+        if (collision_buffer_.publishing_cnt_map["collision_rear"] >= pointcloud_publishing_rate_map_["collision_rear"]
+            && collision_msg_copy->event_trigger == -1) {
+            publishPointcloud("collision_rear", "collision/rear", collision_msg_copy);
+            collision_buffer_.publishing_cnt_map["collision_rear"] = 0;
+        }
     }
 }
 

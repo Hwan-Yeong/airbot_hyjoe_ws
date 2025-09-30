@@ -29,7 +29,7 @@ CloudConverterPtr CloudConverterFactory::create(std::shared_ptr<SensorManagerNod
     {
         return nullptr;
     }
-    else if (type == "collision")
+    else if (type == "collision_front" || type == "collision_rear")
     {
         return std::make_shared<CollisionCloudConverter>(node_ptr, config);
     }
