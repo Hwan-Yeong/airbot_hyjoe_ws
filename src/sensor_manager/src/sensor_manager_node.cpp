@@ -178,6 +178,8 @@ void SensorManagerNode::initPublisher(const YAML::Node& config)
         const YAML::Node& left_node = config["sensors"]["tof_multi_left"];
         const YAML::Node& right_node = config["sensors"]["tof_multi_right"];
 
+        multi_tof_left_sub_cell_idx_array_.clear();
+        multi_tof_right_sub_cell_idx_array_.clear();
 
         if (left_node && left_node["use"] && left_node["sub_cell_idx_array"] && left_node["sub_cell_idx_array"].IsSequence()) {
             bool use_left = false;
@@ -187,6 +189,7 @@ void SensorManagerNode::initPublisher(const YAML::Node& config)
                 for (const auto& idx_node : left_node["sub_cell_idx_array"]) {
                     int index = idx_node.as<int>();
                     pointcloud_pubs_[topic_idx + std::to_string(index)] = create_pc_pub(topic_idx + std::to_string(index));
+                    multi_tof_left_sub_cell_idx_array_.push_back(index);
                 }
             }
         }
@@ -199,6 +202,7 @@ void SensorManagerNode::initPublisher(const YAML::Node& config)
                 for (const auto& idx_node : right_node["sub_cell_idx_array"]) {
                     int index = idx_node.as<int>();
                     pointcloud_pubs_[topic_idx + std::to_string(index)] = create_pc_pub(topic_idx + std::to_string(index));
+                    multi_tof_right_sub_cell_idx_array_.push_back(index);
                 }
             }
         }
@@ -279,7 +283,8 @@ void SensorManagerNode::publishPointcloudTimer()
             tof_buffer_.publishing_cnt_map["tof_mono"] = 0;
         }
         if (tof_buffer_.publishing_cnt_map["tof_multi"] >= pointcloud_publishing_rate_map_["tof_multi"]) {
-            publishPointcloud("tof_multi", "tof/multi", tof_msg_copy);
+            publishPointcloud("tof_multi_left", "tof/multi/left", tof_msg_copy);
+            publishPointcloud("tof_multi_right", "tof/multi/right", tof_msg_copy);
             tof_buffer_.publishing_cnt_map["tof_multi"] = 0;
         }
     }
@@ -359,11 +364,17 @@ void SensorManagerNode::publishPointcloud(const std::string& converter_key, cons
         return;
     }
 
-    auto pc2_msg = it->second->pc_convert(static_cast<const void*>(msg_copy.get()));
+    auto clouds = it->second->pc_convert(static_cast<const void*>(msg_copy.get()));
 
     auto pub_it = pointcloud_pubs_.find(topic_key);
     if (pub_it != pointcloud_pubs_.end() && pub_it->second) {
-        pub_it->second->publish(pc2_msg);
+        if (topic_key == "tof/multi/left" || topic_key == "tof/multi/right") { // Multi ToF의 경우 idx 별로 퍼블리싱 하기 때문에 별도 처리
+            this->publishMultiTofIdxPointcloud(clouds, topic_key);
+        } else { // 일반 케이스
+            for (auto& cloud : clouds) {
+                pub_it->second->publish(cloud);
+            }
+        }
     } else {
         RCLCPP_WARN(this->get_logger(),
             "Publisher for topic key '%s' not found. Skipping publish.",
@@ -384,11 +395,31 @@ void SensorManagerNode::publishEmptyMsg()
 
     for (auto& [name, pub] : pointcloud_pubs_) {
         if (pub && pub->get_subscription_count() > 0) {
-            pub->publish(empty_msg);
+            pub->publish(empty_msg[0]);
         }
     }
 
     RCLCPP_INFO(this->get_logger(), "All Active Publisher publish empty_cloud msgs!");
+}
+
+void SensorManagerNode::publishMultiTofIdxPointcloud(const PointCloudMsgVector& clouds, const std::string& topic_key)
+{
+    std::vector<int> std_sub_cell_idx = (topic_key == "multi/tof/left") ? multi_tof_left_sub_cell_idx_array_ : multi_tof_right_sub_cell_idx_array_;
+
+    size_t cloud_idx = 0;
+    for (auto& idx : std_sub_cell_idx) {
+        std::string pub_key = topic_key + "/idx_" + std::to_string(idx);
+
+        auto pub_it = pointcloud_pubs_.find(pub_key);
+        if (pub_it != pointcloud_pubs_.end() && pub_it->second) {
+            if (cloud_idx < clouds.size()) {
+                pub_it->second->publish(clouds[cloud_idx]);
+            } else {
+                RCLCPP_WARN(this->get_logger(), "No cloud[%zu] available for '%s'", cloud_idx, pub_key.c_str());
+            }
+        }
+        cloud_idx++;
+    }
 }
 
 } // namespace sensor_manager

@@ -96,7 +96,7 @@ sensor_manager:
         extrinsics:
           translation:
             x: 0.14316
-            y: 0.075446
+            y: -0.075446
             z: 0.03
           rotation: # deg
             roll: 0.0

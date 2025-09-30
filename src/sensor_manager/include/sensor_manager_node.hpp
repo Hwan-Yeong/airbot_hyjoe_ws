@@ -31,6 +31,7 @@ private:
     void publishPointcloudTimer();
     void publishPointcloud(const std::string& converter_key, const std::string& topic_key, const std::shared_ptr<void> msg_copy);
     void publishEmptyMsg();
+    void publishMultiTofIdxPointcloud(const PointCloudMsgVector& clouds, const std::string& topic_key);
 
     YAML::Node config_;
     std::string node_target_frame_;
@@ -54,6 +55,9 @@ private:
     bool node_active_cmd_;
 
     std::unordered_map<std::string, unsigned int> pointcloud_publishing_rate_map_;
+
+    std::vector<int> multi_tof_left_sub_cell_idx_array_;
+    std::vector<int> multi_tof_right_sub_cell_idx_array_;
 
     tSensorBuffer<robot_custom_msgs::msg::TofData> tof_buffer_;
     tSensorBuffer<robot_custom_msgs::msg::CameraDataArray> camera_buffer_;

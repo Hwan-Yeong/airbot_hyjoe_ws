@@ -56,9 +56,9 @@ TofMonoCloudConverter::TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> 
     RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
 }
 
-sensor_msgs::msg::PointCloud2 TofMonoCloudConverter::pc_convert(const void *sensor_msg)
+PointCloudMsgVector TofMonoCloudConverter::pc_convert(const void *sensor_msg)
 {
-    sensor_msgs::msg::PointCloud2 ret;
+    PointCloudMsg cloud;
 
     if (this->use_tof_mono_)
     {
@@ -73,15 +73,15 @@ sensor_msgs::msg::PointCloud2 TofMonoCloudConverter::pc_convert(const void *sens
 
         if (this->target_frame_ == "map") {
             std::vector<tPoint> point_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame({point_on_robot_frame}, robot_pose);
-            ret = this->pointcloud_generator_.generatePointCloud2Message(point_on_map_frame, this->target_frame_);
+            cloud = this->pointcloud_generator_.generatePointCloud2Message(point_on_map_frame, this->target_frame_);
         } else if (this->target_frame_ == "base_link") {
-            ret = this->pointcloud_generator_.generatePointCloud2Message({point_on_robot_frame}, this->target_frame_);
+            cloud = this->pointcloud_generator_.generatePointCloud2Message({point_on_robot_frame}, this->target_frame_);
         } else {
             RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
         }
     }
 
-    return ret;
+    return {cloud};
 }
 
 CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
@@ -132,9 +132,9 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> no
     RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
 }
 
-sensor_msgs::msg::PointCloud2 CameraCloudConverter::pc_convert(const void *sensor_msg)
+PointCloudMsgVector CameraCloudConverter::pc_convert(const void *sensor_msg)
 {
-    sensor_msgs::msg::PointCloud2 ret;
+    PointCloudMsg cloud;
 
     if (this->use_camera_)
     {
@@ -150,12 +150,10 @@ sensor_msgs::msg::PointCloud2 CameraCloudConverter::pc_convert(const void *senso
 
         bbox_array.header.stamp = this->node_ptr->get_clock()->now();
 
-        sensor_msgs::msg::PointCloud2 pc_msg = this->pointcloud_generator_.generateCameraPointCloud2Message(bbox_array, this->pointcloud_resolution_);
-
-        ret = pc_msg;
+        cloud = this->pointcloud_generator_.generateCameraPointCloud2Message(bbox_array, this->pointcloud_resolution_);
     }
 
-    return ret;
+    return {cloud};
 }
 
 BottomIrCloudConverter::BottomIrCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
@@ -183,9 +181,9 @@ BottomIrCloudConverter::BottomIrCloudConverter(std::shared_ptr<SensorManagerNode
     RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
 }
 
-sensor_msgs::msg::PointCloud2 BottomIrCloudConverter::pc_convert(const void *sensor_msg)
+PointCloudMsgVector BottomIrCloudConverter::pc_convert(const void *sensor_msg)
 {
-    sensor_msgs::msg::PointCloud2 ret;
+    PointCloudMsg cloud;
 
     if (this->use_bottom_ir_)
     {
@@ -200,15 +198,15 @@ sensor_msgs::msg::PointCloud2 BottomIrCloudConverter::pc_convert(const void *sen
 
         if (this->target_frame_ == "map") {
             std::vector<tPoint> point_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame(point_on_robot_frame, robot_pose);
-            ret = this->pointcloud_generator_.generatePointCloud2Message(point_on_map_frame, this->target_frame_);
+            cloud = this->pointcloud_generator_.generatePointCloud2Message(point_on_map_frame, this->target_frame_);
         } else if (this->target_frame_ == "base_link") {
-            ret = this->pointcloud_generator_.generatePointCloud2Message({point_on_robot_frame}, this->target_frame_);
+            cloud = this->pointcloud_generator_.generatePointCloud2Message({point_on_robot_frame}, this->target_frame_);
         } else {
             RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
         }
     }
 
-    return ret;
+    return {cloud};
 }
 
 CollisionCloudConverter::CollisionCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
@@ -241,9 +239,9 @@ CollisionCloudConverter::CollisionCloudConverter(std::shared_ptr<SensorManagerNo
     RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
 }
 
-sensor_msgs::msg::PointCloud2 CollisionCloudConverter::pc_convert(const void *sensor_msg)
+PointCloudMsgVector CollisionCloudConverter::pc_convert(const void *sensor_msg)
 {
-    sensor_msgs::msg::PointCloud2 ret;
+    PointCloudMsg cloud;
 
     if (this->use_collision_)
     {
@@ -258,15 +256,15 @@ sensor_msgs::msg::PointCloud2 CollisionCloudConverter::pc_convert(const void *se
 
         if (this->target_frame_ == "map") {
             std::vector<tPoint> point_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame({point_on_robot_frame}, robot_pose);
-            ret = this->pointcloud_generator_.generatePointCloud2Message(point_on_map_frame, this->target_frame_);
+            cloud = this->pointcloud_generator_.generatePointCloud2Message(point_on_map_frame, this->target_frame_);
         } else if (this->target_frame_ == "base_link") {
-            ret = this->pointcloud_generator_.generatePointCloud2Message({point_on_robot_frame}, this->target_frame_);
+            cloud = this->pointcloud_generator_.generatePointCloud2Message({point_on_robot_frame}, this->target_frame_);
         } else {
             RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
         }
     }
 
-    return ret;
+    return {cloud};
 }
 
 EmptyCloudConverter::EmptyCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config)
@@ -290,15 +288,15 @@ EmptyCloudConverter::EmptyCloudConverter(std::shared_ptr<SensorManagerNode> node
     RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
 }
 
-sensor_msgs::msg::PointCloud2 EmptyCloudConverter::pc_convert(const void *sensor_msg)
+PointCloudMsgVector EmptyCloudConverter::pc_convert(const void *sensor_msg)
 {
-    sensor_msgs::msg::PointCloud2 ret;
+    PointCloudMsg cloud;
 
     if (sensor_msg == nullptr && this->use_empty_msg_) {
-        ret = this->pointcloud_generator_.generateEmptyPointCloud2Message(this->target_frame_);
+        cloud = this->pointcloud_generator_.generateEmptyPointCloud2Message(this->target_frame_);
     }
 
-    return ret;
+    return {cloud};
 }
 
 } // namespace sensor_manager
