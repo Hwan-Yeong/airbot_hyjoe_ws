@@ -55,7 +55,7 @@ public:
      * @param[in] sensor_positions base_link 기준으로 미리 변환된 데이터를 전달 (센서 위치는 변하지 않으므로 실행될 때 마다 동일한 연산을 수행하지 않게 하기 위함)
      * @return 변환된 로봇좌표계(base_link) 기준 좌표 데이터
      */
-    std::vector<tPoint> tfCliffSensor2RobotFrame(robot_custom_msgs::msg::BottomIrData::SharedPtr cliff_msg, std::vector<tPoint> &sensor_positions);
+    std::vector<tPoint> tfBottomIrSensor2RobotFrame(const robot_custom_msgs::msg::BottomIrData* cliff_msg, double distance_center_to_front_ir_sensor, double angle_to_next_ir_sensor);
 
     /**
      * @brief Collision 이벤트 발생 시 장애물을 생성할 Robot좌표계 기준 좌표 데이터 변환
@@ -77,6 +77,10 @@ private:
     bool tof_mono_extrinsics_updated = false;
     double tof_mono_sensor_frame_pitch_cosine = 0.0;
     double tof_mono_sensor_frame_pitch_sine = 0.0;
+
+    // bottom ir
+    bool bottom_ir_extrinsics_updated = false;
+    std::vector<tPoint> bottom_ir_sensor_positions;
 };
 
 #endif // FRAME_CONVERTER

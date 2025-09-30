@@ -43,8 +43,8 @@ TofMonoCloudConverter::TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> 
     std::ostringstream oss;
     oss << "\n[1D TOF POINTCLOUD CONVERTER PARAMETERS]\n";
     oss << std::boolalpha;
-    oss << "  use_tof_mono_          : " << this->use_tof_mono_ << "\n";
-    oss << "  sensor_frame_pose      : position [m] = ("
+    oss << "  use_tof_mono_      : " << this->use_tof_mono_ << "\n";
+    oss << "  sensor_frame_pose  : position [m] = ("
         << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.x << ", "
         << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.y << ", "
         << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.z << "), "
@@ -116,15 +116,15 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> no
     std::ostringstream oss;
     oss << "\n[CAMERA POINTCLOUD CONVERTER PARAMETERS]\n";
     oss << std::boolalpha;
-    oss << "  use_camera_            : " << this->use_camera_ << "\n";
-    oss << "  object_direction_      : " << this->object_direction_ << "\n";
-    oss << "  pointcloud_resolution_ : " << std::fixed << std::setprecision(2) << this->pointcloud_resolution_ << "\n";
-    oss << "  object_max_dist_       : " << std::fixed << std::setprecision(2) << this->object_max_dist_ << " m\n";
-    oss << "  sensor_frame_pose      : position [m] = ("
+    oss << "  use_camera_             : " << this->use_camera_ << "\n";
+    oss << "  object_direction_       : " << this->object_direction_ << "\n";
+    oss << "  pointcloud_resolution_  : " << std::fixed << std::setprecision(2) << this->pointcloud_resolution_ << "\n";
+    oss << "  object_max_dist_        : " << std::fixed << std::setprecision(2) << this->object_max_dist_ << " m\n";
+    oss << "  sensor_frame_pose       : position [m] = ("
         << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.x << ", "
         << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.y << ", "
         << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.z << ")\n";
-    oss << "  class_id_confidence_th :\n";
+    oss << "  class_id_confidence_th  :\n";
     for (const auto& [class_id, confidence_th] : this->camera_class_id_confidence_th_) {
         oss << "    - { id: " << class_id << ", th: " << confidence_th << " }\n";
     }
@@ -158,6 +158,59 @@ sensor_msgs::msg::PointCloud2 CameraCloudConverter::pc_convert(const void *senso
     return ret;
 }
 
+BottomIrCloudConverter::BottomIrCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
+    : CloudConverterStrategy(node_ptr_)
+{
+    // Load Config
+    if (!config.IsMap())
+    {
+        auto s = YAML::Dump(config);
+        throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
+    }
+
+    this->use_bottom_ir_ = config["use"].as<bool>();
+    this->ir_dist_center_to_sensor = config["extrinsics"]["distance"].as<double>();
+    this->ir_angle_sensor_to_next_sensor = config["extrinsics"]["angle"].as<double>();
+
+    // Print Config
+    std::ostringstream oss;
+    oss << "\n[BOTTOM IR POINTCLOUD CONVERTER PARAMETERS]\n";
+    oss << std::boolalpha;
+    oss << "  use_bottom_ir_                        : " << this->use_bottom_ir_ << "\n";
+    oss << "  ir_dist_center_to_sensor [m]          : " << this->ir_dist_center_to_sensor << "\n";
+    oss << "  ir_angle_sensor_to_next_sensor [deg]  : " << this->ir_angle_sensor_to_next_sensor <<" \n";
+    oss << "----------------------------------------------------";
+    RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
+}
+
+sensor_msgs::msg::PointCloud2 BottomIrCloudConverter::pc_convert(const void *sensor_msg)
+{
+    sensor_msgs::msg::PointCloud2 ret;
+
+    if (this->use_bottom_ir_)
+    {
+        auto msg = static_cast<const robot_custom_msgs::msg::BottomIrData*>(sensor_msg);
+
+        tPose robot_pose;
+        robot_pose.position.x = msg->robot_x;
+        robot_pose.position.y = msg->robot_y;
+        robot_pose.orientation.yaw = msg->robot_angle;
+
+        std::vector<tPoint> point_on_robot_frame = this->frame_converter_.tfBottomIrSensor2RobotFrame(msg, this->ir_dist_center_to_sensor, this->ir_angle_sensor_to_next_sensor);
+
+        if (this->target_frame_ == "map") {
+            std::vector<tPoint> point_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame(point_on_robot_frame, robot_pose);
+            ret = this->pointcloud_generator_.generatePointCloud2Message(point_on_map_frame, this->target_frame_);
+        } else if (this->target_frame_ == "base_link") {
+            ret = this->pointcloud_generator_.generatePointCloud2Message({point_on_robot_frame}, this->target_frame_);
+        } else {
+            RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
+        }
+    }
+
+    return ret;
+}
+
 CollisionCloudConverter::CollisionCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
     : CloudConverterStrategy(node_ptr_)
 {
@@ -179,8 +232,8 @@ CollisionCloudConverter::CollisionCloudConverter(std::shared_ptr<SensorManagerNo
     std::ostringstream oss;
     oss << "\n[COLLISION POINTCLOUD CONVERTER PARAMETERS]\n";
     oss << std::boolalpha;
-    oss << "  use_collision_         : " << this->use_collision_ << "\n";
-    oss << "  sensor_frame_pose      : position [m] = ("
+    oss << "  use_collision_     : " << this->use_collision_ << "\n";
+    oss << "  sensor_frame_pose  : position [m] = ("
         << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.x << ", "
         << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.y << ", "
         << std::fixed << std::setprecision(5) << this->sensor_frame_pose_.position.z << ")\n";
@@ -232,7 +285,7 @@ EmptyCloudConverter::EmptyCloudConverter(std::shared_ptr<SensorManagerNode> node
     std::ostringstream oss;
     oss << "\n[EMPTY POINTCLOUD PARAMETERS]\n";
     oss << std::boolalpha;
-    oss << "  use_empty_: " << this->use_empty_msg_ << "\n";
+    oss << "  use_empty_  : " << this->use_empty_msg_ << "\n";
     oss << "----------------------------------------------------";
     RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
 }

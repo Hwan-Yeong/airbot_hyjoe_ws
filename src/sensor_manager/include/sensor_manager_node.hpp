@@ -39,6 +39,7 @@ private:
 
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sensor_manager_cmd_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
+    rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr bottom_ir_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::AbnormalEventData>::SharedPtr collision_sub_;
 
@@ -56,6 +57,7 @@ private:
 
     tSensorBuffer<robot_custom_msgs::msg::TofData> tof_buffer_;
     tSensorBuffer<robot_custom_msgs::msg::CameraDataArray> camera_buffer_;
+    tSensorBuffer<robot_custom_msgs::msg::BottomIrData> bottom_ir_buffer_;
     tSensorBuffer<robot_custom_msgs::msg::AbnormalEventData> collision_buffer_;
 };
 

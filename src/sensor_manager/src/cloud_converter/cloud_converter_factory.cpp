@@ -25,9 +25,9 @@ CloudConverterPtr CloudConverterFactory::create(std::shared_ptr<SensorManagerNod
     {
         return std::make_shared<CameraCloudConverter>(node_ptr, config);
     }
-    else if (type == "cliff")
+    else if (type == "bottom_ir")
     {
-        return nullptr;
+        return std::make_shared<BottomIrCloudConverter>(node_ptr, config);
     }
     else if (type == "collision_front" || type == "collision_rear")
     {

@@ -65,6 +65,17 @@ SensorManagerNode::SensorManagerNode() : Node("sensor_manager_node")
         }
     );
 
+    // Bottom IR Msg Subscriber
+    bottom_ir_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
+        "/bottom_ir_data",
+        rclcpp::SensorDataQoS(),
+        [this](robot_custom_msgs::msg::BottomIrData::SharedPtr msg) {
+            std::lock_guard<std::mutex> lock(bottom_ir_buffer_.mtx);
+            bottom_ir_buffer_.latest_msg = msg;
+            bottom_ir_buffer_.updated.store(true);
+        }
+    );
+
     // Collision Msg Subscriber
     collision_sub_ = this->create_subscription<robot_custom_msgs::msg::AbnormalEventData>(
         "/collision_detected",
@@ -82,7 +93,7 @@ SensorManagerNode::SensorManagerNode() : Node("sensor_manager_node")
         std::bind(&SensorManagerNode::publishPointcloudTimer, this)
     );
 
-    // Dynamic Parameter Handler
+    // Dynamic Parameter Handler (for changing parameters in run-time)
     param_handler_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
     target_frame_callback_handle_ = param_handler_->add_parameter_callback(
         "target_frame",
@@ -240,6 +251,7 @@ void SensorManagerNode::initializeRuntime()
     this->node_active_cmd_ = false;
     this->tof_buffer_.reset();
     this->camera_buffer_.reset();
+    this->bottom_ir_buffer_.reset();
     this->collision_buffer_.reset();
 }
 
@@ -286,6 +298,22 @@ void SensorManagerNode::publishPointcloudTimer()
         }
         publishPointcloud("camera", "camera_object", camera_msg_copy);
         camera_buffer_.publishing_cnt = 0;
+    }
+
+    bottom_ir_buffer_.publishing_cnt += 10;
+    if (bottom_ir_buffer_.updated.load() && (bottom_ir_buffer_.publishing_cnt >= pointcloud_publishing_rate_map_["bottom_ir"])) {
+        robot_custom_msgs::msg::BottomIrData::SharedPtr bottom_ir_msg_copy;
+        {
+            std::lock_guard<std::mutex> lock(bottom_ir_buffer_.mtx);
+            bottom_ir_msg_copy = bottom_ir_buffer_.latest_msg;
+            bottom_ir_buffer_.latest_msg.reset();
+            bottom_ir_buffer_.updated.store(false);
+        }
+        if (!bottom_ir_msg_copy) {
+            return;
+        }
+        publishPointcloud("bottom_ir", "bottom_ir", bottom_ir_msg_copy);
+        bottom_ir_buffer_.publishing_cnt = 0;
     }
 
     collision_buffer_.publishing_cnt_map["collision_front"] += 10;

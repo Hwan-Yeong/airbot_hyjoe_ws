@@ -143,13 +143,13 @@ sensor_manager:
           margin:
             distance_diff: 1.0
 
-      cliff:
+      bottom_ir:
         use: true
-        topic: "cliff"
+        topic: "bottom_ir"
         publish_rate_ms: 10
         extrinsics:
           distance: 0.15 # distance from robot center
-          angle: 50 # deg to next ir sensor
+          angle: 50.0 # deg to next ir sensor (CW)
 
       collision_front:
         use: true

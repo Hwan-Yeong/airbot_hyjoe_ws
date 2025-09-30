@@ -23,7 +23,7 @@ using PointCloudMsg = sensor_msgs::msg::PointCloud2;
  */
 class CloudConverterStrategy
 {
-public:
+  public:
     CloudConverterStrategy(std::shared_ptr<SensorManagerNode> node_ptr_);
 
     virtual ~CloudConverterStrategy() = default;
@@ -37,7 +37,7 @@ public:
      */
     std::shared_ptr<SensorManagerNode> getNodePtr() const;
 
-protected:
+  protected:
     std::shared_ptr<SensorManagerNode> node_ptr{};
     std::string target_frame_;
 
@@ -51,10 +51,10 @@ using CloudConverterPtr = std::shared_ptr<CloudConverterStrategy>;
  */
 class TofMonoCloudConverter : public CloudConverterStrategy
 {
-public:
+  public:
     TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
-private:
+  private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
 
     bool use_tof_mono_ = true;
@@ -66,10 +66,10 @@ private:
  */
 class CameraCloudConverter : public CloudConverterStrategy
 {
-public:
+  public:
     CameraCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
-private:
+  private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
@@ -82,14 +82,31 @@ private:
 };
 
 /**
+ * @brief Bottom IR 센서 데이터 -> PointCloud2 변환
+ */
+class BottomIrCloudConverter : public CloudConverterStrategy
+{
+  public:
+    BottomIrCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
+
+  private:
+    PointCloudMsg pc_convert(const void* sensor_msg) override;
+
+    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
+    bool use_bottom_ir_ = true;
+    double ir_dist_center_to_sensor = 0.15;
+    double ir_angle_sensor_to_next_sensor = 50.0;
+};
+
+/**
  * @brief Collision 이벤트 발생 -> PointCloud2 변환
  */
 class CollisionCloudConverter : public CloudConverterStrategy
 {
-public:
+  public:
     CollisionCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
-private:
+  private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
@@ -102,10 +119,10 @@ private:
  */
 class EmptyCloudConverter : public CloudConverterStrategy
 {
-public:
+  public:
     EmptyCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
-private:
+  private:
     PointCloudMsg pc_convert(const void* sensor_msg) override;
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여

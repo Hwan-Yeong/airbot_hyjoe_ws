@@ -144,16 +144,38 @@ vision_msgs::msg::BoundingBox2DArray FrameConverter::tfCameraSensor2RobotFrameBB
     return bbox_array;
 }
 
-std::vector<tPoint> FrameConverter::tfCliffSensor2RobotFrame(robot_custom_msgs::msg::BottomIrData::SharedPtr cliff_msg, std::vector<tPoint> &sensor_positions)
+std::vector<tPoint> FrameConverter::tfBottomIrSensor2RobotFrame(const robot_custom_msgs::msg::BottomIrData* cliff_msg, double distance_center_to_front_ir_sensor, double angle_to_next_ir_sensor)
 {
     std::vector<tPoint> active_sensor_points;
 
-    if (cliff_msg->ff) active_sensor_points.push_back(sensor_positions[0]);
-    if (cliff_msg->fl) active_sensor_points.push_back(sensor_positions[1]);
-    if (cliff_msg->bl) active_sensor_points.push_back(sensor_positions[2]);
-    if (cliff_msg->bb) active_sensor_points.push_back(sensor_positions[3]);
-    if (cliff_msg->br) active_sensor_points.push_back(sensor_positions[4]);
-    if (cliff_msg->fr) active_sensor_points.push_back(sensor_positions[5]);
+    if (!bottom_ir_extrinsics_updated) {
+
+        double d = distance_center_to_front_ir_sensor;
+        double deg_1 = 0;
+        double deg_2 = angle_to_next_ir_sensor;
+        double deg_3 = 180 - angle_to_next_ir_sensor;
+        double deg_4 = 180;
+        double deg_5 = 180 + angle_to_next_ir_sensor;
+        double deg_6 = 360 - angle_to_next_ir_sensor;
+
+        tPoint ir_1_position_ = tPoint(d*std::cos(deg_1 * M_PI/180), d*std::sin(deg_1 * M_PI/180), 0.0);
+        tPoint ir_2_position_ = tPoint(d*std::cos(deg_2 * M_PI/180), d*std::sin(deg_2 * M_PI/180), 0.0);
+        tPoint ir_3_position_ = tPoint(d*std::cos(deg_3 * M_PI/180), d*std::sin(deg_3 * M_PI/180), 0.0);
+        tPoint ir_4_position_ = tPoint(d*std::cos(deg_4 * M_PI/180), d*std::sin(deg_4 * M_PI/180), 0.0);
+        tPoint ir_5_position_ = tPoint(d*std::cos(deg_5 * M_PI/180), d*std::sin(deg_5 * M_PI/180), 0.0);
+        tPoint ir_6_position_ = tPoint(d*std::cos(deg_6 * M_PI/180), d*std::sin(deg_6 * M_PI/180), 0.0);
+
+        bottom_ir_sensor_positions = {ir_1_position_, ir_2_position_, ir_3_position_, ir_4_position_, ir_5_position_, ir_6_position_};
+
+        bottom_ir_extrinsics_updated = true;
+    }
+
+    if (cliff_msg->ff) active_sensor_points.push_back(bottom_ir_sensor_positions[0]);
+    if (cliff_msg->fl) active_sensor_points.push_back(bottom_ir_sensor_positions[1]);
+    if (cliff_msg->bl) active_sensor_points.push_back(bottom_ir_sensor_positions[2]);
+    if (cliff_msg->bb) active_sensor_points.push_back(bottom_ir_sensor_positions[3]);
+    if (cliff_msg->br) active_sensor_points.push_back(bottom_ir_sensor_positions[4]);
+    if (cliff_msg->fr) active_sensor_points.push_back(bottom_ir_sensor_positions[5]);
 
     return active_sensor_points;
 }
