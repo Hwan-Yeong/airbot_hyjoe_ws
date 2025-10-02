@@ -9,6 +9,7 @@
 #include "utils/common_struct.hpp"
 #include "utils/frame_converter.hpp"
 #include "utils/pointcloud_generator.hpp"
+#include "utils/tof_utils.hpp"
 
 
 namespace sensor_manager {
@@ -71,8 +72,9 @@ class TofMultiLeftCloudConverter : public CloudConverterStrategy
     TofMultiLeftCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
   private:
+    tof_utils::TofUtils tof_utils_;
+
     PointCloudMsgVector pc_convert(const void* sensor_msg) override;
-    void updateSubCellIndexArray(std::vector<double> &y_tan_out, std::vector<double> &z_tan_out);
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
     bool use_tof_multi_left_ = true;
@@ -83,22 +85,27 @@ class TofMultiLeftCloudConverter : public CloudConverterStrategy
     std::vector<double> tof_multi_left_z_tan_array_;
 };
 
-// /**
-//  * @brief Multi ToF Right 센서 데이터 -> PointCloud2 변환
-//  */
-// class TofMultiRightCloudConverter : public CloudConverterStrategy
-// {
-//   public:
-//     TofMultiRightCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
+/**
+ * @brief Multi ToF Right 센서 데이터 -> PointCloud2 변환
+ */
+class TofMultiRightCloudConverter : public CloudConverterStrategy
+{
+  public:
+    TofMultiRightCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
-//   private:
-//     PointCloudMsgVector pc_convert(const void* sensor_msg) override;
+  private:
+    tof_utils::TofUtils tof_utils_;
 
-//     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
-//     bool use_tof_multi_right_ = true;
-//     tPose tof_multi_right_sensor_frame_pose_ = tPose(tPoint(0.14316, -0.075446, 0.03),tOrientation(0.0, -DEG2RAD(5.0), -DEG2RAD(15.0)));
-//     // ...
-// };
+    PointCloudMsgVector pc_convert(const void* sensor_msg) override;
+
+    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
+    bool use_tof_multi_right_ = true;
+    double tof_multi_right_fov_ = DEG2RAD(45.0);
+    tPose tof_multi_right_sensor_frame_pose_ = tPose(tPoint(0.14316, -0.075446, 0.03),tOrientation(0.0, -DEG2RAD(5.0), -DEG2RAD(15.0)));
+    std::vector<int> tof_multi_right_sub_cell_idx_array_;
+    std::vector<double> tof_multi_right_y_tan_array_;
+    std::vector<double> tof_multi_right_z_tan_array_;
+};
 
 /**
  * @brief Camera 센서 데이터 -> PointCloud2 변환

@@ -19,8 +19,7 @@ CloudConverterPtr CloudConverterFactory::create(std::shared_ptr<SensorManagerNod
     }
     else if (type == "tof_multi_right")
     {
-        // return std::make_shared<TofMultiRightCloudConverter>(node_ptr, config);
-        return nullptr;
+        return std::make_shared<TofMultiRightCloudConverter>(node_ptr, config);
     }
     else if (type == "camera")
     {

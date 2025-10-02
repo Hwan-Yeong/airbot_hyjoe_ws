@@ -135,7 +135,13 @@ TofMultiLeftCloudConverter::TofMultiLeftCloudConverter(std::shared_ptr<SensorMan
     RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
 
     // Init Calculation
-    updateSubCellIndexArray(this->tof_multi_left_y_tan_array_, this->tof_multi_left_z_tan_array_);
+    tof_utils_.updateSubCellIndexArray(
+        this->tof_multi_left_sub_cell_idx_array_,
+        this->tof_multi_left_fov_,
+        this->tof_multi_left_y_tan_array_,
+        this->tof_multi_left_z_tan_array_,
+        this->node_ptr->get_logger()
+    );
 }
 
 PointCloudMsgVector TofMultiLeftCloudConverter::pc_convert(const void *sensor_msg)
@@ -176,73 +182,102 @@ PointCloudMsgVector TofMultiLeftCloudConverter::pc_convert(const void *sensor_ms
     return clouds;
 }
 
-void TofMultiLeftCloudConverter::updateSubCellIndexArray(std::vector<double> &y_tan_out, std::vector<double> &z_tan_out)
+TofMultiRightCloudConverter::TofMultiRightCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
+    : CloudConverterStrategy(node_ptr_)
 {
-    // =========== 사용자 입력 기반으로 사용할 8x8 마스킹 Mat 만들기 ===========
-    bool masked_mat[8][8] = {false};
+    // Load Config
+    if (!config.IsMap())
+    {
+        auto s = YAML::Dump(config);
+        throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
+    }
 
-    // =========== Input sub cell 인덱스 로깅 ===========
+    this->use_tof_multi_right_ = config["use"].as<bool>();
+    this->tof_multi_right_fov_ = DEG2RAD(config["extrinsics"]["fov"].as<double>());
+    this->tof_multi_right_sensor_frame_pose_ = tPose(
+        tPoint(
+            config["extrinsics"]["translation"]["x"].as<double>(),
+            config["extrinsics"]["translation"]["y"].as<double>(),
+            config["extrinsics"]["translation"]["z"].as<double>()
+        ),
+        tOrientation(
+            DEG2RAD(config["extrinsics"]["rotation"]["roll"].as<double>()),
+            DEG2RAD(config["extrinsics"]["rotation"]["pitch"].as<double>()),
+            DEG2RAD(config["extrinsics"]["rotation"]["yaw"].as<double>())
+        )
+    );
+    for (auto idx : config["sub_cell_idx_array"]) {
+        this->tof_multi_right_sub_cell_idx_array_.push_back(idx.as<int>());
+    }
+
+    // Print Config
     std::ostringstream oss;
-    oss << "==== Input sub_cell_idx_array ====\n";
-    for (int r=0; r<4; ++r) {
-        for (int c=0; c<4; ++c) {
-            oss << this->tof_multi_left_sub_cell_idx_array_[r * 4 + c] << " ";
-        }
-        oss << "\n";
+    oss << "\n[MULTI TOF (Right) POINTCLOUD CONVERTER PARAMETERS]\n";
+    oss << std::boolalpha;
+    oss << "  use_tof_multi_right_  : " << this->use_tof_multi_right_ << "\n";
+    oss << "  fov [deg]            : " << RAD2DEG(this->tof_multi_right_fov_) << "\n";
+    oss << "  sensor_frame_pose    : position [m] = ("
+        << std::fixed << std::setprecision(5) << this->tof_multi_right_sensor_frame_pose_.position.x << ", "
+        << std::fixed << std::setprecision(5) << this->tof_multi_right_sensor_frame_pose_.position.y << ", "
+        << std::fixed << std::setprecision(5) << this->tof_multi_right_sensor_frame_pose_.position.z << "), "
+        << "orientation [deg] = ("
+        << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_multi_right_sensor_frame_pose_.orientation.roll)  << ", "
+        << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_multi_right_sensor_frame_pose_.orientation.pitch) << ", "
+        << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_multi_right_sensor_frame_pose_.orientation.yaw)   << ")\n";
+    oss << "  sub_cell_idx_array   : ";
+    for (auto idx : this->tof_multi_right_sub_cell_idx_array_) {
+        oss << idx << " ";
     }
-    RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
-    oss.str("");
-    oss.clear();
-
-    for (int idx : this->tof_multi_left_sub_cell_idx_array_) {
-        if (idx >= 0 && idx <64) {
-            int row = idx / 8;
-            int col = idx % 8;
-            masked_mat[row][col] = true;
-        } else {
-            RCLCPP_WARN(this->node_ptr->get_logger(),
-                "Each value in sub_cell_idx_array must be between 0 and 63. Invalid input idx: %d",
-                idx
-            );
-        }
-    }
-
-    // =========== Masked 행렬 로깅 ===========
-    RCLCPP_INFO(this->node_ptr->get_logger(), "==== Masked 8x8 Matrix ====");
-    for (int i = 0; i < 8; ++i) {
-        for (int j = 0; j < 8; ++j) {
-            oss << (masked_mat[i][j] ? "1 " : "0 ");
-        }
-        oss << "\n";
-    }
+    oss << "\n";
+    oss << "----------------------------------------------------";
     RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
 
-    // =========== true인 거 기반으로 y_tan, z_tan 만들기 ===========
-    std::vector<std::pair<int, int>> true_indices;
-    y_tan_out.clear();
-    z_tan_out.clear();
+    // Init Calculation
+    tof_utils_.updateSubCellIndexArray(
+        this->tof_multi_right_sub_cell_idx_array_,
+        this->tof_multi_right_fov_,
+        this->tof_multi_right_y_tan_array_,
+        this->tof_multi_right_z_tan_array_,
+        this->node_ptr->get_logger()
+    );
+}
 
-    for (int i = 0; i < 8; ++i) {
-        for (int j = 0; j < 8; ++j) {
-            if (masked_mat[i][j]) {
-                true_indices.emplace_back(i, j);
+PointCloudMsgVector TofMultiRightCloudConverter::pc_convert(const void *sensor_msg)
+{
+    PointCloudMsgVector clouds;
+
+    if (this->use_tof_multi_right_)
+    {
+        auto msg = static_cast<const robot_custom_msgs::msg::TofData*>(sensor_msg);
+
+        tPose robot_pose;
+        robot_pose.position.x = msg->robot_x;
+        robot_pose.position.y = msg->robot_y;
+        robot_pose.orientation.yaw = msg->robot_angle;
+
+        std::vector<double> right_dists(msg->bot_right.begin(), msg->bot_right.end());
+        std::vector<tPoint> points_on_robot_frame = this->frame_converter_.tfMultiTofSensor2RobotFrame(
+            right_dists,
+            this->tof_multi_right_y_tan_array_,
+            this->tof_multi_right_z_tan_array_,
+            true,
+            this->tof_multi_right_sensor_frame_pose_);
+
+        if (this->target_frame_ == "map") {
+            std::vector<tPoint> points_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame(points_on_robot_frame, robot_pose);
+            for (const auto& point : points_on_map_frame) {
+                clouds.push_back(this->pointcloud_generator_.generatePointCloud2Message(point, this->target_frame_));
             }
+        } else if (this->target_frame_ == "base_link") {
+            for (const auto& point : points_on_robot_frame) {
+                clouds.push_back(this->pointcloud_generator_.generatePointCloud2Message(point, this->target_frame_));
+            }
+        } else {
+            RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
         }
     }
 
-    if (true_indices.size() != 16) {
-        RCLCPP_INFO(this->node_ptr->get_logger(),
-            "Expected 16 true values in mask, but got %zu",
-            true_indices.size()
-        );
-    } else {
-        for (const auto& [i, j] : true_indices) {
-            double y = std::tan(this->tof_multi_left_fov_*((7 - 2*j)/16.0));
-            double z = std::tan(this->tof_multi_left_fov_*((7 - 2*i)/16.0));
-            y_tan_out.emplace_back(y);
-            z_tan_out.emplace_back(z);
-        }
-    }
+    return clouds;
 }
 
 CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
@@ -287,7 +322,7 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> no
         << std::fixed << std::setprecision(5) << this->camera_sensor_frame_pose_.position.z << ")\n";
     oss << "  class_id_confidence_th  :\n";
     for (const auto& [class_id, confidence_th] : this->camera_class_id_confidence_th_) {
-        oss << "    - { id: " << class_id << ", th: " << confidence_th << " }\n";
+        oss << "    - { id: " << std::setw(2) << std::setfill('0') << class_id << ", th: " << confidence_th << " }\n";
     }
     oss << "----------------------------------------------------";
     RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());

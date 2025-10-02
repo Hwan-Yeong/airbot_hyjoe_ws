@@ -36,6 +36,7 @@ add_definitions(${PCL_DEFINITIONS})
 add_executable(sensor_manager
   src/utils/pointcloud_generator.cpp
   src/utils/frame_converter.cpp
+  src/utils/tof_utils.cpp
   src/cloud_converter/cloud_converter_factory.cpp
   src/cloud_converter/cloud_converter.cpp
   src/sensor_manager_node.cpp

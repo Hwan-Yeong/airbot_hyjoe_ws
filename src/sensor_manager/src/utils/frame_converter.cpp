@@ -38,10 +38,10 @@ std::vector<tPoint> FrameConverter::tfMultiTofSensor2RobotFrame(
     if (tof_dists.size() != y_tan.size() || tof_dists.size() != z_tan.size()) return points;
 
     if (!tof_multi_extrinsics_updated) {
-        multi_tof_sensor_frame_yaw_cosine   = std::cos(multi_tof_sensor_frame_pose.orientation.yaw*M_PI/180);
-        multi_tof_sensor_frame_yaw_sine     = std::sin(multi_tof_sensor_frame_pose.orientation.yaw*M_PI/180);
-        multi_tof_sensor_frame_pitch_cosine = std::cos(multi_tof_sensor_frame_pose.orientation.pitch*M_PI/180);
-        multi_tof_sensor_frame_pitch_sine   = std::sin(multi_tof_sensor_frame_pose.orientation.pitch*M_PI/180);
+        multi_tof_sensor_frame_yaw_cosine   = std::cos(multi_tof_sensor_frame_pose.orientation.yaw);
+        multi_tof_sensor_frame_yaw_sine     = std::sin(multi_tof_sensor_frame_pose.orientation.yaw);
+        multi_tof_sensor_frame_pitch_cosine = std::cos(multi_tof_sensor_frame_pose.orientation.pitch);
+        multi_tof_sensor_frame_pitch_sine   = std::sin(multi_tof_sensor_frame_pose.orientation.pitch);
         tof_multi_extrinsics_updated = true;
     }
 

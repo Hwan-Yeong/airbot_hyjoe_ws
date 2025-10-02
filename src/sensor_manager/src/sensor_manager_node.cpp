@@ -284,7 +284,7 @@ void SensorManagerNode::publishPointcloudTimer()
         }
         if (tof_buffer_.publishing_cnt_map["tof_multi"] >= pointcloud_publishing_rate_map_["tof_multi"]) {
             publishPointcloud("tof_multi_left", "tof/multi/left", tof_msg_copy);
-            // publishPointcloud("tof_multi_right", "tof/multi/right", tof_msg_copy);
+            publishPointcloud("tof_multi_right", "tof/multi/right", tof_msg_copy);
             tof_buffer_.publishing_cnt_map["tof_multi"] = 0;
         }
     }
