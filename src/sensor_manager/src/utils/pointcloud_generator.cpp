@@ -65,6 +65,11 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(co
     return msg;
 }
 
+sensor_msgs::msg::PointCloud2 PointCloudGenerator::generatePointCloud2Message(const tPoint &point, std::string frame)
+{
+    return generatePointCloud2Message(std::vector<tPoint>{point}, frame);
+}
+
 sensor_msgs::msg::PointCloud2 PointCloudGenerator::generateEmptyPointCloud2Message(const std::string &frame)
 {
     sensor_msgs::msg::PointCloud2 msg;

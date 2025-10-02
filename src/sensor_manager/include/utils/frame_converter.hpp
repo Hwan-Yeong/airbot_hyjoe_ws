@@ -35,7 +35,12 @@ public:
      * @param[in] multi_tof_sensor_frame_pose base_link 기준 센서 frame 위치 정보
      * @return 변환된 로봇좌표계(base_link) 기준 좌표 데이터
      */
-    std::vector<tPoint> tfMultiTofSensor2RobotFrame(const std::vector<tPoint> &input_points, bool isLeft, tPose multi_tof_sensor_frame_pose);
+    std::vector<tPoint> tfMultiTofSensor2RobotFrame(
+        const std::vector<double>& tof_dists,
+        const std::vector<double>& y_tan,
+        const std::vector<double>& z_tan,
+        bool is_left,
+        const tPose& multi_tof_sensor_frame_pose);
 
     /**
      * @brief Camera 센서 좌표 데이터를 Robot 좌표계 기준 bbox msg로 변환
@@ -47,7 +52,13 @@ public:
      * @return 변환된 로봇좌표계(base_link) 기준 bounding box array 데이터
      */
     vision_msgs::msg::BoundingBox2DArray tfCameraSensor2RobotFrameBBoxArray(
-        const robot_custom_msgs::msg::CameraDataArray* camera_msg, tPose &robot_pose, std::map<int, int> class_id_confidence_th, bool direction, double object_max_distance, std::string camera_target_frame, tPose camera_sensor_frame_pose);
+        const robot_custom_msgs::msg::CameraDataArray* camera_msg,
+        tPose &robot_pose,
+        std::map<int, int> class_id_confidence_th,
+        bool direction,
+        double object_max_distance,
+        std::string camera_target_frame,
+        tPose camera_sensor_frame_pose);
 
     /**
      * @brief Cliff 센서 좌표 데이터를 Robot 좌표계로 변환
@@ -72,11 +83,19 @@ public:
      * @return 변환된 글로벌(map) 기준 좌표 데이터
      */
     std::vector<tPoint> tfRobot2GlobalFrame(const std::vector<tPoint> &input_points_on_robot_frame, tPose robot_pose);
+    std::vector<tPoint> tfRobot2GlobalFrame(const tPoint &input_point_on_robot_frame, tPose robot_pose);
 private:
     // tof mono
     bool tof_mono_extrinsics_updated = false;
     double tof_mono_sensor_frame_pitch_cosine = 0.0;
     double tof_mono_sensor_frame_pitch_sine = 0.0;
+
+    // tof multi
+    bool tof_multi_extrinsics_updated = false;
+    double multi_tof_sensor_frame_yaw_cosine = 0.0;
+    double multi_tof_sensor_frame_yaw_sine = 0.0;
+    double multi_tof_sensor_frame_pitch_cosine = 0.0;
+    double multi_tof_sensor_frame_pitch_sine = 0.0;
 
     // bottom ir
     bool bottom_ir_extrinsics_updated = false;

@@ -26,29 +26,51 @@ tPoint FrameConverter::tfMonoTofSensor2RobotFrame(const double input_dist, tPose
     return point;
 }
 
-std::vector<tPoint> FrameConverter::tfMultiTofSensor2RobotFrame(const std::vector<tPoint> &input_points, bool isLeft, tPose multi_tof_sensor_frame_pose)
+std::vector<tPoint> FrameConverter::tfMultiTofSensor2RobotFrame(
+    const std::vector<double>& tof_dists,
+    const std::vector<double>& y_tan,
+    const std::vector<double>& z_tan,
+    bool is_left,
+    const tPose& multi_tof_sensor_frame_pose)
 {
     std::vector<tPoint> points;
-    tPoint p;
 
-    const double cosine_yaw = std::cos(multi_tof_sensor_frame_pose.orientation.yaw*M_PI/180);
-    const double sine_yaw = std::sin(multi_tof_sensor_frame_pose.orientation.yaw*M_PI/180);
-    const double cosine_pitch = std::cos(multi_tof_sensor_frame_pose.orientation.pitch*M_PI/180);
-    const double sine_pitch = std::sin(multi_tof_sensor_frame_pose.orientation.pitch*M_PI/180);
+    if (tof_dists.size() != y_tan.size() || tof_dists.size() != z_tan.size()) return points;
 
-    for (const auto& point : input_points) {
-        double x_yaw = point.x * cosine_yaw - point.y * sine_yaw;
-        double y_yaw = point.x * sine_yaw + point.y * cosine_yaw;
-        double z_yaw = point.z;
-        if (isLeft) {
-            p.x = x_yaw * cosine_pitch + z_yaw * sine_pitch + multi_tof_sensor_frame_pose.position.x;
-            p.y = y_yaw + multi_tof_sensor_frame_pose.position.y;
-            p.z = -x_yaw * sine_pitch + z_yaw * cosine_pitch + multi_tof_sensor_frame_pose.position.z;
-        } else {
-            p.x = x_yaw * cosine_pitch + z_yaw * sine_pitch + multi_tof_sensor_frame_pose.position.x;
-            p.y = y_yaw - multi_tof_sensor_frame_pose.position.y;
-            p.z = -x_yaw * sine_pitch + z_yaw * cosine_pitch + multi_tof_sensor_frame_pose.position.z;
+    if (!tof_multi_extrinsics_updated) {
+        multi_tof_sensor_frame_yaw_cosine   = std::cos(multi_tof_sensor_frame_pose.orientation.yaw*M_PI/180);
+        multi_tof_sensor_frame_yaw_sine     = std::sin(multi_tof_sensor_frame_pose.orientation.yaw*M_PI/180);
+        multi_tof_sensor_frame_pitch_cosine = std::cos(multi_tof_sensor_frame_pose.orientation.pitch*M_PI/180);
+        multi_tof_sensor_frame_pitch_sine   = std::sin(multi_tof_sensor_frame_pose.orientation.pitch*M_PI/180);
+        tof_multi_extrinsics_updated = true;
+    }
+
+    for (size_t i = 0; i < tof_dists.size(); ++i) {
+        double dist = tof_dists[i];
+
+        if (dist <= 1e-6) { // tof 거리값 0인 수들 NaN으로 처리 (추후 변환시 필터링)
+            tPoint zero_p;
+            zero_p.x = std::numeric_limits<double>::quiet_NaN();
+            zero_p.y = std::numeric_limits<double>::quiet_NaN();
+            zero_p.z = std::numeric_limits<double>::quiet_NaN();
+            points.push_back(zero_p);
+            continue;
         }
+
+        tPoint p_sensor;
+        p_sensor.x = dist;
+        p_sensor.y = dist * y_tan[i];
+        p_sensor.z = dist * z_tan[i];
+
+        double x_yaw = p_sensor.x * multi_tof_sensor_frame_yaw_cosine - p_sensor.y * multi_tof_sensor_frame_yaw_sine;
+        double y_yaw = p_sensor.x * multi_tof_sensor_frame_yaw_sine + p_sensor.y * multi_tof_sensor_frame_yaw_cosine;
+        double z_yaw = p_sensor.z;
+
+        tPoint p;
+        p.x = x_yaw * multi_tof_sensor_frame_pitch_cosine + z_yaw * multi_tof_sensor_frame_pitch_sine + multi_tof_sensor_frame_pose.position.x;
+        p.y = y_yaw + (is_left ? 1 : -1) * multi_tof_sensor_frame_pose.position.y;
+        p.z = -x_yaw * multi_tof_sensor_frame_pitch_sine + z_yaw * multi_tof_sensor_frame_pitch_cosine + multi_tof_sensor_frame_pose.position.z;
+
         points.push_back(p);
     }
 
@@ -56,7 +78,13 @@ std::vector<tPoint> FrameConverter::tfMultiTofSensor2RobotFrame(const std::vecto
 }
 
 vision_msgs::msg::BoundingBox2DArray FrameConverter::tfCameraSensor2RobotFrameBBoxArray(
-    const robot_custom_msgs::msg::CameraDataArray* camera_msg, tPose &robot_pose, std::map<int, int> class_id_confidence_th, bool direction, double object_max_distance, std::string camera_target_frame, tPose camera_sensor_frame_pose)
+    const robot_custom_msgs::msg::CameraDataArray* camera_msg,
+    tPose &robot_pose,
+    std::map<int, int> class_id_confidence_th,
+    bool direction,
+    double object_max_distance,
+    std::string camera_target_frame,
+    tPose camera_sensor_frame_pose)
 {
     auto bbox_array = vision_msgs::msg::BoundingBox2DArray();
 
@@ -210,4 +238,9 @@ std::vector<tPoint> FrameConverter::tfRobot2GlobalFrame(const std::vector<tPoint
     }
 
     return global_points;
+}
+
+std::vector<tPoint> FrameConverter::tfRobot2GlobalFrame(const tPoint &input_point_on_robot_frame, tPose robot_pose)
+{
+    return tfRobot2GlobalFrame(std::vector<tPoint>{input_point_on_robot_frame}, robot_pose);
 }

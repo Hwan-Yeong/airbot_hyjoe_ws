@@ -284,7 +284,7 @@ void SensorManagerNode::publishPointcloudTimer()
         }
         if (tof_buffer_.publishing_cnt_map["tof_multi"] >= pointcloud_publishing_rate_map_["tof_multi"]) {
             publishPointcloud("tof_multi_left", "tof/multi/left", tof_msg_copy);
-            publishPointcloud("tof_multi_right", "tof/multi/right", tof_msg_copy);
+            // publishPointcloud("tof_multi_right", "tof/multi/right", tof_msg_copy);
             tof_buffer_.publishing_cnt_map["tof_multi"] = 0;
         }
     }
@@ -404,7 +404,7 @@ void SensorManagerNode::publishEmptyMsg()
 
 void SensorManagerNode::publishMultiTofIdxPointcloud(const PointCloudMsgVector& clouds, const std::string& topic_key)
 {
-    std::vector<int> std_sub_cell_idx = (topic_key == "multi/tof/left") ? multi_tof_left_sub_cell_idx_array_ : multi_tof_right_sub_cell_idx_array_;
+    std::vector<int> std_sub_cell_idx = (topic_key == "tof/multi/left") ? multi_tof_left_sub_cell_idx_array_ : multi_tof_right_sub_cell_idx_array_;
 
     size_t cloud_idx = 0;
     for (auto& idx : std_sub_cell_idx) {

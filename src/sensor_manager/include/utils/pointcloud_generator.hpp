@@ -35,6 +35,7 @@ public:
      * @return 결과 sensor_msgs::msg::PointCloud2 메시지
      */
     sensor_msgs::msg::PointCloud2 generatePointCloud2Message(const std::vector<tPoint> &points, std::string frame);
+    sensor_msgs::msg::PointCloud2 generatePointCloud2Message(const tPoint &point, std::string frame);
 
     /**
      * @brief "카메라 센서" 위치 데이터로부터 PointCloud2 데이터를 생성하는 함수

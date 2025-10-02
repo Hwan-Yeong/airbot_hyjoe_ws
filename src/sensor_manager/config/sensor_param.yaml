@@ -24,44 +24,38 @@ sensor_manager:
         topic: "tof/multi"
         publish_rate_ms: 100
         enable_8x8: true # 8x8 인덱스 사용 여부
-        extrinsics:
-          fov: 45.0 # deg
-          translation:
-            x: 0.14316
-            y: 0.075446
-            z: 0.03
-        filter:
-          moving_average:
-            use: false
-            enabled_4x4_idx: [
-              8, 9, 10, 11,
-              12, 13, 14, 15
-            ]
-            window_size: 3
-            max_distance_th: 0.7
-          low_pass:
-            use: false
-            enabled_4x4_idx: [
-              0, 1, 2, 3,
-              4, 5, 6, 7,
-              8, 9, 10, 11,
-              12, 13, 14, 15
-            ]
-            alpha: 0.8
-            # a*raw + (1-a)*estimated
-          complementary:
-            use: false
-            enabled_4x4_idx: [
-              8, 9, 10, 11,
-              12, 13, 14, 15
-            ]
-            alpha: 0.9
-            # a*lpf + (1-a)*maf
+        # filter:
+        #   moving_average:
+        #     use: false
+        #     enabled_4x4_idx: [
+        #       8, 9, 10, 11,
+        #       12, 13, 14, 15
+        #     ]
+        #     window_size: 3
+        #     max_distance_th: 0.7
+        #   low_pass:
+        #     use: false
+        #     enabled_4x4_idx: [
+        #       0, 1, 2, 3,
+        #       4, 5, 6, 7,
+        #       8, 9, 10, 11,
+        #       12, 13, 14, 15
+        #     ]
+        #     alpha: 0.8
+        #     # a*raw + (1-a)*estimated
+        #   complementary:
+        #     use: false
+        #     enabled_4x4_idx: [
+        #       8, 9, 10, 11,
+        #       12, 13, 14, 15
+        #     ]
+        #     alpha: 0.9
+        #     # a*lpf + (1-a)*maf
 
       tof_multi_left:
         use: true
+        topic: "tof/multi/left"
         topic_idx: "tof/multi/left/idx_"
-        topic_row: "tof/multi/left/row_"
         sub_cell_idx_array: [
           0, 3, 6,
           17, 20, 23,
@@ -71,6 +65,7 @@ sensor_manager:
           57, 60, 63
         ]
         extrinsics:
+          fov: 45.0 # deg
           translation:
             x: 0.14316
             y: 0.075446
@@ -82,8 +77,8 @@ sensor_manager:
 
       tof_multi_right:
         use: true
+        topic: "tof/multi/right"
         topic_idx: "tof/multi/right/idx_"
-        topic_row: "tof/multi/right/row_"
         pitch_angle_deg: -5.0 # (-)가 들리는 방향
         sub_cell_idx_array: [
           1, 4, 7,
@@ -94,6 +89,7 @@ sensor_manager:
           56, 59, 62
         ]
         extrinsics:
+          fov: 45.0 # deg
           translation:
             x: 0.14316
             y: -0.075446

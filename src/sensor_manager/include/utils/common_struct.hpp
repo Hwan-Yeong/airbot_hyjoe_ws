@@ -76,7 +76,6 @@ struct tSensor {
     bool use = false;
     std::string topic;
     std::string topic_idx;
-    std::string topic_row;
     int publish_rate = 0;
     // tof
     double pitch_angle_deg = 0.0;

@@ -59,40 +59,44 @@ class TofMonoCloudConverter : public CloudConverterStrategy
     PointCloudMsgVector pc_convert(const void* sensor_msg) override;
 
     bool use_tof_mono_ = true;
-    tPose sensor_frame_pose_ = tPose(tPoint(0.0942, 0.0, 0.56513),tOrientation(0.0, -DEG2RAD(39.0), 0.0));
+    tPose tof_mono_sensor_frame_pose_ = tPose(tPoint(0.0942, 0.0, 0.56513),tOrientation(0.0, -DEG2RAD(39.0), 0.0));
 };
 
-// /**
-//  * @brief Multi ToF Left 센서 데이터 -> PointCloud2 변환
-//  */
-// class MultiTofLeftCloudConverter : public CloudConverterStrategy
-// {
-//   public:
-//     MultiTofLeftCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
+/**
+ * @brief Multi ToF Left 센서 데이터 -> PointCloud2 변환
+ */
+class TofMultiLeftCloudConverter : public CloudConverterStrategy
+{
+  public:
+    TofMultiLeftCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
-//   private:
-//     PointCloudMsgVector pc_convert(const void* sensor_msg) override;
+  private:
+    PointCloudMsgVector pc_convert(const void* sensor_msg) override;
+    void updateSubCellIndexArray(std::vector<double> &y_tan_out, std::vector<double> &z_tan_out);
 
-//     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
-//     bool use_multi_tof_left_ = true;
-//     tPose m_t_left_sensor_frame_pose_ = tPose(tPoint(0.14316, 0.075446, 0.03),tOrientation(0.0, -DEG2RAD(5.0), DEG2RAD(15.0)));
-//     // ...
-// };
+    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
+    bool use_tof_multi_left_ = true;
+    double tof_multi_left_fov_ = DEG2RAD(45.0);
+    tPose tof_multi_left_sensor_frame_pose_ = tPose(tPoint(0.14316, 0.075446, 0.03),tOrientation(0.0, -DEG2RAD(5.0), DEG2RAD(15.0)));
+    std::vector<int> tof_multi_left_sub_cell_idx_array_;
+    std::vector<double> tof_multi_left_y_tan_array_;
+    std::vector<double> tof_multi_left_z_tan_array_;
+};
 
 // /**
 //  * @brief Multi ToF Right 센서 데이터 -> PointCloud2 변환
 //  */
-// class MultiTofRightCloudConverter : public CloudConverterStrategy
+// class TofMultiRightCloudConverter : public CloudConverterStrategy
 // {
 //   public:
-//     MultiTofRightCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
+//     TofMultiRightCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
 //   private:
 //     PointCloudMsgVector pc_convert(const void* sensor_msg) override;
 
 //     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
-//     bool use_multi_tof_right_ = true;
-//     tPose m_t_right_sensor_frame_pose_ = tPose(tPoint(0.14316, -0.075446, 0.03),tOrientation(0.0, -DEG2RAD(5.0), -DEG2RAD(15.0)));
+//     bool use_tof_multi_right_ = true;
+//     tPose tof_multi_right_sensor_frame_pose_ = tPose(tPoint(0.14316, -0.075446, 0.03),tOrientation(0.0, -DEG2RAD(5.0), -DEG2RAD(15.0)));
 //     // ...
 // };
 
@@ -112,7 +116,7 @@ class CameraCloudConverter : public CloudConverterStrategy
     bool object_direction_ = true;
     double pointcloud_resolution_ = 0.05;
     double object_max_dist_ = 1.5;
-    tPose sensor_frame_pose_ = tPose(tPoint(0.15473, 0.0, 0.5331),tOrientation(0.0, 0.0, 0.0));
+    tPose camera_sensor_frame_pose_ = tPose(tPoint(0.15473, 0.0, 0.5331),tOrientation(0.0, 0.0, 0.0));
     std::map<int, int> camera_class_id_confidence_th_ = {};
 };
 
@@ -146,7 +150,7 @@ class CollisionCloudConverter : public CloudConverterStrategy
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
     bool use_collision_ = true;
-    tPose sensor_frame_pose_ = tPose(tPoint(0.19, 0.0, 0.0),tOrientation(0.0, 0.0, 0.0));
+    tPose collision_sensor_frame_pose_ = tPose(tPoint(0.19, 0.0, 0.0),tOrientation(0.0, 0.0, 0.0));
 };
 
 /**
