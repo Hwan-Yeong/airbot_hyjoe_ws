@@ -1,5 +1,6 @@
 A1_maneuver:
   ros__parameters:
+    use_1d_back: false
     velocity_scaling_factor: 0.06
     time_ms:
       timer: 10
@@ -16,7 +17,7 @@ A1_maneuver:
         global_plan_timeout_sec: 3.0
         timeout_sec: 5.0          # float
       escape:
-        value: 90
+        value: 85
         release_value: 70
         sampling_threshold: 150 
         time_multiplier_for_dist: 7500
@@ -25,6 +26,8 @@ A1_maneuver:
           threshold: 70
           min_dist: 0.05
           max_dist: 0.3
+      force:
+        timeout_sec: 5
     lidar:
       escape:
         front:

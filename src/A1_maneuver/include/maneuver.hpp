@@ -33,6 +33,7 @@
 #include <robot_custom_msgs/msg/bottom_ir_data.hpp>
 #include <robot_custom_msgs/msg/motor_status.hpp>
 #include <robot_custom_msgs/msg/navi_state.hpp>
+#include <robot_custom_msgs/msg/robot_state.hpp>
 #include <robot_custom_msgs/msg/tof_data.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -64,10 +65,11 @@ class ManeuverNode : public rclcpp::Node
     MAIN_STATE main_state_;
     SUB_STATE sub_state_;
     NAVI_STATE navi_state_;
-    MAPPING_STATE explore_state_;
+    ROBOT_STATE robot_status_;
     MotorStatus motor_status_{};
 
     bool use_maneuver_action_{false};
+    bool use_1d_back{false};
     bool current_maneuver_state{false};
 
     double current_velocity_;
@@ -121,6 +123,7 @@ class ManeuverNode : public rclcpp::Node
 
     double force_escape_target_angle_;
     double force_escape_given_yaw_;
+    int32_t force_escape_timeout_sec_;
     std::chrono::steady_clock::time_point force_escape_start_time_;
 
     Position robot_pose_{};
@@ -136,11 +139,7 @@ class ManeuverNode : public rclcpp::Node
     std::chrono::steady_clock::time_point action_start_time_;
     std::chrono::milliseconds action_process_time_;
     std::chrono::steady_clock::time_point escape_start_time;
-    // rclcpp::Time action_start_time_;
-    // rclcpp::Duration action_process_time_{rclcpp::Duration::from_seconds(0)};
-    // rclcpp::Time escape_start_time;
     std::unordered_map<std::string, std::any> subscribers{};
-    // std::unordered_map<std::string, rclcpp::Time> logTimeMap{};
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> logTimeMap;
 
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
@@ -156,7 +155,6 @@ class ManeuverNode : public rclcpp::Node
 
     // 작업이 있는 callback, 단순 callback은 inline function
     void navi_state_callback(const robot_custom_msgs::msg::NaviState::SharedPtr msg);
-    // void explore_status_callback(const std_msgs::msg::UInt8::SharedPtr msg);
     void bottom_ir_callback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
     void action_stop_callback(const std_msgs::msg::Int8::SharedPtr msg);
     void cmd_vel_nav_callback(const geometry_msgs::msg::Twist::SharedPtr msg);
@@ -175,7 +173,6 @@ class ManeuverNode : public rclcpp::Node
     // 상태값 확인 함수
     bool is_main_idle(void);
     bool is_sub_idle(void);
-    // bool is_processing(rclcpp::Time current_time);
     bool is_processing(std::chrono::steady_clock::time_point current_time);
 
     // costmap escape

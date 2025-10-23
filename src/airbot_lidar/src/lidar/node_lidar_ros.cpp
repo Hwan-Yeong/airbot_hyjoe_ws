@@ -293,15 +293,19 @@ int main(int argc, char **argv)
 					scan_msg->intensities = filtered_intensities;
 
 					last_scan_msg = scan_msg;
-
-					state_msg->data = true;
-					scan_state_pub->publish(*state_msg);
+					if(bLidarCmd){
+						state_msg->data = true;
+						scan_state_pub->publish(*state_msg);
+					}
 				}
 				scan_msg->header.stamp = node->now();
 				scan_pub->publish(*scan_msg);
 			}
 			else if (!bLidarCmd && bLidarRun)
 			{
+				state_msg->data = false;
+				scan_state_pub->publish(*state_msg);
+				
 				// 라이다 STOP
 				RCLCPP_INFO(node->get_logger(), "LiDAR STOP");
 				node_lidar.lidar_status.lidar_ready = false;

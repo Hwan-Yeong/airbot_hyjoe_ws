@@ -36,8 +36,8 @@ void ManeuverNode::init_params(void)
 {
     this->main_state_ = MAIN_STATE::IDLE;
     this->navi_state_ = NAVI_STATE::IDLE;
+    this->robot_status_ = ROBOT_STATE::IDLE;
     this->sub_state_ = SUB_STATE::IDLE;
-    this->explore_state_ = MAPPING_STATE::PREPARATION_STATE;
     this->costmap_escape_sampling_ = 0;
 
     this->back_object_detect_ = false;
@@ -47,6 +47,7 @@ void ManeuverNode::init_params(void)
     this->declare_parameter("time_ms.wait.drop_off", 2000);
     this->declare_parameter("time_ms.back.1d", 1500);
     this->declare_parameter("time_ms.back.collision", 1500);
+    this->declare_parameter("use_1d_back", false);
 
     this->declare_parameter("costmap.escape.value", 90);
     this->declare_parameter("costmap.escape.release_value", 70);
@@ -60,6 +61,7 @@ void ManeuverNode::init_params(void)
     this->declare_parameter("costmap.no_plan.release_degree", 30.0);
     this->declare_parameter("costmap.no_plan.global_plan_timeout_sec", 2.0);
     this->declare_parameter("costmap.no_plan.timeout_sec", 5.0);
+    this->declare_parameter("costmap.force.timeout_sec", 5);
 
     this->declare_parameter("lidar.escape.front.diagonal_distance", 0.25);
     this->declare_parameter("lidar.escape.front.min_distance", 0.25);
@@ -83,6 +85,8 @@ void ManeuverNode::init_params(void)
     this->get_parameter("time_ms.back.1d", this->back_ms_1d_);
     this->get_parameter("time_ms.back.collision", this->back_ms_collision_);
 
+    this->get_parameter("use_1d_back", this->use_1d_back);
+
     this->get_parameter("costmap.escape.value", this->costmap_escape_value_);
     this->get_parameter("costmap.escape.release_value", this->costmap_escape_release_value_);
     this->get_parameter("costmap.escape.sampling_threshold", this->costmap_escape_sampling_threshold_);
@@ -96,6 +100,7 @@ void ManeuverNode::init_params(void)
     this->get_parameter("costmap.no_plan.release_degree", this->no_plan_release_degree_);
     this->get_parameter("costmap.no_plan.global_plan_timeout_sec", this->no_plan_global_timeout_sec_);
     this->get_parameter("costmap.no_plan.timeout_sec", this->no_plan_timeout_sec_);
+    this->get_parameter("costmap.force.timeout_sec", this->force_escape_timeout_sec_);
 
     this->get_parameter("lidar.escape.front.diagonal_distance", this->lidar_front_escape_diagonal_dist_);
     this->get_parameter("lidar.escape.front.min_distance", this->lidar_front_escape_min_dist_);
@@ -122,17 +127,12 @@ void ManeuverNode::init_subs(void)
 {
     rclcpp::QoS qos_profile(rclcpp::KeepLast(1));
     qos_profile.best_effort();
-    rclcpp::QoS wm_qos_profile = rclcpp::QoS(1).reliable().transient_local();
 
-    this->subscribers["explore_status"] = this->create_subscription<std_msgs::msg::UInt8>(
-        "/explore_status",
-        wm_qos_profile,
-        [this](const std_msgs::msg::UInt8::SharedPtr msg)
-        {
-            if (!this->use_maneuver_action_)
-                return;
-            this->explore_state_ = static_cast<MAPPING_STATE>(msg->data);
-        });
+    this->subscribers["robot_status"] = this->create_subscription<robot_custom_msgs::msg::RobotState>(
+        "/state_datas",
+        qos_profile,
+        [this](const robot_custom_msgs::msg::RobotState::SharedPtr msg)
+        { this->robot_status_ = static_cast<ROBOT_STATE>(msg->state); });
 
     this->subscribers["navi_state"] = this->create_subscription<robot_custom_msgs::msg::NaviState>(
         "/navi_datas", qos_profile, std::bind(&ManeuverNode::navi_state_callback, this, std::placeholders::_1));
@@ -438,8 +438,6 @@ void ManeuverNode::cmd_vel_nav_callback(const geometry_msgs::msg::Twist::SharedP
  */
 void ManeuverNode::navi_state_callback(const robot_custom_msgs::msg::NaviState::SharedPtr msg)
 {
-    if (!this->use_maneuver_action_)
-        return;
     this->navi_state_ = static_cast<NAVI_STATE>(msg->state);
 }
 
@@ -817,13 +815,22 @@ void ManeuverNode::timer_callback()
         {
             if (this->sub_state_ == SUB_STATE::ONE_D_TOF)
             {
-                if (this->log_time_diff("timer_1d_tof_move_back", 1000))
+                if (this->use_1d_back)
                 {
-                    RCLCPP_INFO(this->get_logger(), "[1D ToF] 1D detect. Go to back.");
+                    if (this->log_time_diff("timer_1d_tof_move_back", 1000))
+                    {
+                        RCLCPP_INFO(this->get_logger(), "[1D ToF] 1D detect. Go to back.");
+                    }
+                    this->state_log(MAIN_STATE::BACK, SUB_STATE::ONE_D_TOF);
+                    this->robot_state(this->back_ms_1d_, MAIN_STATE::BACK);
+                    this->sub_state_ = SUB_STATE::ONE_D_TOF;
                 }
-                this->state_log(MAIN_STATE::BACK, SUB_STATE::ONE_D_TOF);
-                this->robot_state(this->back_ms_1d_, MAIN_STATE::BACK);
-                this->sub_state_ = SUB_STATE::ONE_D_TOF;
+                else
+                {
+                    this->state_log(MAIN_STATE::WAIT, SUB_STATE::ONE_D_TOF);
+                    this->robot_state(500, MAIN_STATE::WAIT);
+                    RCLCPP_INFO(this->get_logger(), "[1D ToF] 1D detect. stop.");
+                }
             }
             else if (this->sub_state_ == SUB_STATE::DROP_OFF)
             {
@@ -919,9 +926,8 @@ void ManeuverNode::timer_callback()
 
         /**
         2025-06-20, hjkim(everybot)
-        자동매핑 상태에서 NAVI_STATE 상태가 없어 로컬 플랜 동작하지 않는 문제를 해결하기 위해
-        explore_state 가 running 인 경우 로컬플랜 동작하도록 수정
-        @See A1_maneuver/include/states.hpp MAPPING_STATES
+        robot_status_ 참조
+        @See state_manager/utils/state_defines.hpp ROBOT_STATE
 
         # No valid trajectories out of 420!
         1. 코스트맵에 갇힌 상태가 아니다
@@ -929,8 +935,7 @@ void ManeuverNode::timer_callback()
         3. /plan (global plan)의 경로 상태가 있을 경우
         4. /local_plan의 poses가 [] 즉 empty 상태면 위에 나타난 상태임
         */
-        if ((this->navi_state_ == NAVI_STATE::MOVE_GOAL || this->explore_state_ == MAPPING_STATE::EXPLORING_STATE ||
-             this->explore_state_ == MAPPING_STATE::COMPLETE_STATE) &&
+        if ((this->navi_state_ == NAVI_STATE::MOVE_GOAL || this->robot_status_ == ROBOT_STATE::AUTO_MAPPING) &&
             is_main_idle())
         {
             this->check_no_local_plan();
@@ -1287,21 +1292,20 @@ void ManeuverNode::resolve_no_local_plan()
  */
 void ManeuverNode::pub_states()
 {
+    std_msgs::msg::String msg;
+    std_msgs::msg::Int8MultiArray int_msg;
     std::ostringstream formatted;
     formatted << "Use:" << (use_maneuver_action_ ? "True" : "False") << "/";
     formatted << "Main:" << enumToString(main_state_).c_str() << "/";
     formatted << "Sub:" << enumToString(sub_state_).c_str() << "/";
     formatted << "Navi:" << enumToString(navi_state_).c_str() << "/";
-    formatted << "Mapping:" << enumToString(explore_state_).c_str() << "/";
-    std_msgs::msg::String msg;
-    msg.data = formatted.str();
-    std_msgs::msg::Int8MultiArray int_msg;
-    int_msg.data = {
+    formatted << "Robot:" << enumToString(robot_status_).c_str();
+    std::vector<signed char> data = {
         static_cast<signed char>(use_maneuver_action_ ? 1 : 0),
         static_cast<signed char>(main_state_),
         static_cast<signed char>(sub_state_),
         static_cast<signed char>(navi_state_),
-        static_cast<signed char>(explore_state_)};
+        static_cast<signed char>(robot_status_)};
     if (this->current_maneuver_state != this->use_maneuver_action_)
     {
         RCLCPP_INFO(
@@ -1310,6 +1314,9 @@ void ManeuverNode::pub_states()
             this->use_maneuver_action_ ? "True" : "False");
         this->current_maneuver_state = this->use_maneuver_action_;
     }
+
+    int_msg.data = data;
+    msg.data = formatted.str();
     this->state_str_pub_->publish(msg);
     this->state_int_pub_->publish(int_msg);
 }
@@ -1446,7 +1453,7 @@ void ManeuverNode::current_postion_costmap_check(void)
                 this->get_logger(), "[Costmap check] Robots(%.2f, %.2f) cost(%d), static(%d)", x, y, cost, static_cost);
         }
     }
-    if (cost > this->costmap_escape_value_ || static_cost == -1)
+    if (cost >= this->costmap_escape_value_ || static_cost == -1)
     {
         if ((this->main_state_ == MAIN_STATE::IDLE) || (this->sub_state_ == SUB_STATE::NO_LOCAL_PLAN))
         {
@@ -1510,9 +1517,10 @@ void ManeuverNode::current_postion_costmap_check(void)
         this->sub_state_ == SUB_STATE::FORCE_ESCAPE_MOVE)
     {
         auto current_time = std::chrono::steady_clock::now();
-        if (current_time - this->force_escape_start_time_ > std::chrono::seconds(30))
+        if (current_time - this->force_escape_start_time_ > std::chrono::seconds(this->force_escape_timeout_sec_))
         {
-            RCLCPP_INFO(this->get_logger(), "[Force escape] force escape timeout(30s) !! ");
+            RCLCPP_INFO(
+                this->get_logger(), "[Force escape] force escape timeout(%ds) !! ", this->force_escape_timeout_sec_);
             this->state_log(MAIN_STATE::WAIT, SUB_STATE::IDLE);
             this->robot_state(500, MAIN_STATE::WAIT);
             this->sub_state_ = SUB_STATE::IDLE;
@@ -1589,16 +1597,28 @@ void ManeuverNode::lethal_escape_process(void)
     }
     else
     {
-        std_msgs::msg::Bool msg;
-        msg.data = true;
-        this->force_escape_pub_->publish(msg);
-        this->state_log(MAIN_STATE::STOP, SUB_STATE::FORCE_ESCAPE_WAIT);
-        this->main_state_ = MAIN_STATE::STOP;
-        this->sub_state_ = SUB_STATE::FORCE_ESCAPE_WAIT;
-        this->force_escape_start_time_ = std::chrono::steady_clock::now();
-        if (this->log_time_diff("escape_impossible_log", 1000))
+        if (this->robot_status_ == ROBOT_STATE::AUTO_MAPPING)
         {
-            RCLCPP_ERROR(this->get_logger(), "[Costmap escape] No available candidate for escape.");
+            if (this->log_time_diff("escape_impossible_log", 1000))
+            {
+                RCLCPP_ERROR(this->get_logger(), "[Costmap escape] No available candidate for escape.");
+            }
+        }
+        else
+        {
+            std_msgs::msg::Bool msg;
+            msg.data = true;
+            this->force_escape_pub_->publish(msg);
+            this->state_log(MAIN_STATE::STOP, SUB_STATE::FORCE_ESCAPE_WAIT);
+            this->main_state_ = MAIN_STATE::STOP;
+            this->sub_state_ = SUB_STATE::FORCE_ESCAPE_WAIT;
+            this->force_escape_start_time_ = std::chrono::steady_clock::now();
+            if (this->log_time_diff("force_escape_log", 1000))
+            {
+                RCLCPP_INFO(
+                    this->get_logger(),
+                    "[Force escape] No available candidate for escape. Enter to force escape state.");
+            }
         }
     }
 }

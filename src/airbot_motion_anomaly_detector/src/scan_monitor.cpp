@@ -162,11 +162,13 @@ void ScanMonitorNode::checkScanHz()
             RCLCPP_INFO(this->get_logger(), "[checkScanHz] scan state is front[%s], back[%s]", 
             scan_front_state_ ? "ON" : "OFF", scan_back_state_ ? "ON" : "OFF" );
         }
+        publishScanHzState(isScanHzOk);
         return;
     }
 
     if (prev_scan_time_.time_since_epoch().count() == 0 || last_scan_time_.time_since_epoch().count() == 0) {
         RCLCPP_INFO(this->get_logger(), "[checkScanHz] wait for two times scan received.");
+        publishScanHzState(isScanHzOk);
         return;
     }
 
@@ -179,7 +181,9 @@ void ScanMonitorNode::checkScanHz()
         }else{
             isScanHzOk = false;
         }
-        RCLCPP_INFO(this->get_logger(),"[checkScanHz] scan interval too small  interval(%.2f)ms, count[%u], isScanHzOk[%s]",interval_ms,hz_check_count_,isScanHzOk? "TRUE" : "FALSE");
+        RCLCPP_INFO(this->get_logger(),"[checkScanHz] scan interval too small  interval(%.2f)ms, count[%u], isScanHzOk[%s]"
+                    ,interval_ms,hz_check_count_,isScanHzOk? "TRUE" : "FALSE");
+        publishScanHzState(isScanHzOk);
         return;
     }
 
@@ -190,13 +194,15 @@ void ScanMonitorNode::checkScanHz()
         }else{
             isScanHzOk = false;
         }
-        RCLCPP_INFO(this->get_logger(),"[checkScanHz] scan hz not in expected range interval(%.2f)ms hz(%.2f) count[%u] isScanHzOk[%s]",interval_ms, hz,hz_check_count_,isScanHzOk? "TRUE" : "FALSE");
+        RCLCPP_INFO(this->get_logger(),"[checkScanHz] scan hz not in expected range interval(%.2f)ms hz(%.2f) count[%u] isScanHzOk[%s]"
+                    ,interval_ms, hz,hz_check_count_,isScanHzOk? "TRUE" : "FALSE");
     }else{
         if(hz_check_count_ >= 3){
             isScanHzOk = true;
         }else{
             hz_check_count_++;
-            RCLCPP_INFO(this->get_logger(),"[checkScanHz] scan is good... interval(%.2f)ms hz(%.2f) count[%u] isScanHzOk[%s]",interval_ms, hz,hz_check_count_,isScanHzOk? "TRUE" : "FALSE"); 
+            RCLCPP_INFO(this->get_logger(),"[checkScanHz] scan is good... interval(%.2f)ms hz(%.2f) count[%u] isScanHzOk[%s]"
+                        ,interval_ms, hz,hz_check_count_,isScanHzOk? "TRUE" : "FALSE"); 
         }
     }
     publishScanHzState(isScanHzOk);

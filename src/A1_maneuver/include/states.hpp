@@ -29,15 +29,15 @@ enum class SUB_STATE
     FORCE_ESCAPE_MOVE,
 };
 
-enum class MAPPING_STATE
-{
-    PREPARATION_STATE = 0,
-    WAIT_START_COMMAND_STATE = 1,
-    STOP_STATE = 2,
-    EXPLORING_STATE = 3,
-    COMPLETE_STATE = 4,
-    ERROR_STATE = 5
-};
+// enum class MAPPING_STATE
+// {
+//     PREPARATION_STATE = 0,
+//     WAIT_START_COMMAND_STATE = 1,
+//     STOP_STATE = 2,
+//     EXPLORING_STATE = 3,
+//     COMPLETE_STATE = 4,
+//     ERROR_STATE = 5
+// };
 
 inline std::string enumToString(MAIN_STATE in)
 {
@@ -117,30 +117,30 @@ inline std::string enumToString(SUB_STATE in)
     return out;
 };
 
-inline std::string enumToString(MAPPING_STATE in)
-{
-    std::string out;
-    switch (in)
-    {
-        case MAPPING_STATE::PREPARATION_STATE:
-            out = std::string("PREPARATION_STATE");
-            break;
-        case MAPPING_STATE::WAIT_START_COMMAND_STATE:
-            out = std::string("WAIT_START_COMMAND_STATE");
-            break;
-        case MAPPING_STATE::STOP_STATE:
-            out = std::string("STOP_STATE");
-            break;
-        case MAPPING_STATE::EXPLORING_STATE:
-            out = std::string("EXPLORING_STATE");
-            break;
-        case MAPPING_STATE::COMPLETE_STATE:
-            out = std::string("COMPLETE_STATE");
-            break;
-        case MAPPING_STATE::ERROR_STATE:
-            out = std::string("ERROR_STATE");
-            break;
-    }
-    return out;
-};
+// inline std::string enumToString(MAPPING_STATE in)
+// {
+//     std::string out;
+//     switch (in)
+//     {
+//         case MAPPING_STATE::PREPARATION_STATE:
+//             out = std::string("PREPARATION_STATE");
+//             break;
+//         case MAPPING_STATE::WAIT_START_COMMAND_STATE:
+//             out = std::string("WAIT_START_COMMAND_STATE");
+//             break;
+//         case MAPPING_STATE::STOP_STATE:
+//             out = std::string("STOP_STATE");
+//             break;
+//         case MAPPING_STATE::EXPLORING_STATE:
+//             out = std::string("EXPLORING_STATE");
+//             break;
+//         case MAPPING_STATE::COMPLETE_STATE:
+//             out = std::string("COMPLETE_STATE");
+//             break;
+//         case MAPPING_STATE::ERROR_STATE:
+//             out = std::string("ERROR_STATE");
+//             break;
+//     }
+//     return out;
+// };
 #endif
