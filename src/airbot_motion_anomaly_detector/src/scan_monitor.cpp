@@ -1,5 +1,6 @@
 #include "scan_monitor.hpp"
 
+bool bEnableScanMonitor = false;
 ScanMonitorNode::ScanMonitorNode()
 : Node("scan_monitor_node")
 {
@@ -66,6 +67,7 @@ void ScanMonitorNode::lidar_cmd_callback(const std_msgs::msg::Bool::SharedPtr ms
     isScanHzOk = false;
     hz_check_count_ = 0;
     last_scan_time_ = {};
+    bEnableScanMonitor = true;
 }
 #else
 void ScanMonitorNode::cmdCallback(const std_msgs::msg::Bool::SharedPtr msg)
@@ -114,8 +116,10 @@ void ScanMonitorNode::scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr 
 #if USE_LIDAR_STATE_CHECK > 0
 void ScanMonitorNode::checkScanHealth()
 {
-    checkScanState();
-    checkScanHz();
+    if(bEnableScanMonitor){
+        checkScanState();
+        checkScanHz();
+    }
 }
 
 void ScanMonitorNode::checkScanState()

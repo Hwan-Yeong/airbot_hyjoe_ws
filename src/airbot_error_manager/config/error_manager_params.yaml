@@ -29,11 +29,11 @@ airbot_error_monitor:
         battery_percentage_th: 10
         duration_sec: 30.0
 
-    # board_overheat_error:
-    #   monitoring_rate_ms: 1000
-    #   occure:
-    #     temperature_th_c: 70.0
-    #     duration_sec: 30.0
+    board_overheat_error:
+      monitoring_rate_ms: 1000
+      occure:
+        temperature_th_c: 85.0
+        duration_sec: 30.0
 
     charging_error:
       monitoring_rate_ms: 1000

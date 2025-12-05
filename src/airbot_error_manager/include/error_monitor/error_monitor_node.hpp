@@ -56,6 +56,7 @@ private:
     void aiVerCallback(const std_msgs::msg::String::SharedPtr msg);
     // void cameraCallback(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
     void aiTemperatureCallback(const robot_custom_msgs::msg::AiTemperature::SharedPtr msg);
+    void apTemperatureCallback(const robot_custom_msgs::msg::ApTemperature::SharedPtr msg);
     void checkMemoryUsage();
 
     bool update_battery_status_low_battery, update_battery_status_battery_discharging, update_battery_status_charging,
@@ -66,19 +67,23 @@ private:
         update_odom_data_cliff_detection,
         update_tof_one_d_detection,
         update_ai_version, update_ai_temperature_data, update_station_data_for_ir_lift;
+    bool pre_board_overheat_error_ = false;
+    bool update_ap_temperature_data = false;
     // bool update_camera_data;
     int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_,
         publish_cnt_battery_discharge_error_,
         publish_cnt_charging_error_, publish_cnt_lift_error_,
         publish_cnt_cliff_detection_error_,
         publish_cnt_tof_detection_error_,
-        publish_cnt_ai_commnucation_error_;
+        publish_cnt_ai_commnucation_error_,
+        publish_cnt_board_overheat_error_;
     int publish_cnt_low_battery_error_rate_, publish_cnt_fall_down_error_rate_,
         publish_cnt_battery_discharge_error_rate_,
         publish_cnt_charging_error_rate_, publish_cnt_lift_error_rate_,
         publish_cnt_cliff_detection_error_rate_,
         publish_cnt_tof_detection_error_rate_,
-        publish_cnt_ai_commnucation_error_rate_;
+        publish_cnt_ai_commnucation_error_rate_,
+        publish_cnt_board_overheat_error_rate_;
 
     // bool ai_version_sub_removed_ = false;
     // bool camera_sub_removed_ = false;
@@ -90,6 +95,7 @@ private:
     robot_custom_msgs::msg::RobotState robot_state;
     nav_msgs::msg::Odometry odom_data;
     robot_custom_msgs::msg::TofData tof_data;
+    robot_custom_msgs::msg::ApTemperature ap_temperature_data;
 
     rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr bottom_ir_data_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
@@ -101,12 +107,13 @@ private:
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr ai_version_sub_;
     // rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::AiTemperature>::SharedPtr ai_temperature_sub_;
+    rclcpp::Subscription<robot_custom_msgs::msg::ApTemperature>::SharedPtr ap_temperature_sub_;
 
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
         low_battery_error_pub_, fall_down_error_pub_,
         battery_discharge_error_pub_,
         charging_error_pub_, lift_error_pub_, cliff_detection_error_pub_,
-        one_d_tof_detection_error_pub_, ai_communication_error_pub_;
+        one_d_tof_detection_error_pub_, ai_communication_error_pub_, board_overheat_error_pub_;
 
     std::unordered_map<std::type_index, std::shared_ptr<void>> monitors_;
 

@@ -19,7 +19,7 @@ def generate_launch_description():
         output='screen',
         parameters=[parameter_file],
         respawn=True,
-        respawn_delay=2.0
+        respawn_delay=1.0
     )
 
     error_manager_node = TimerAction(
@@ -31,7 +31,7 @@ def generate_launch_description():
                 name='airbot_error_manager',
                 output='screen',
                 respawn=True,
-                respawn_delay=2.0
+                respawn_delay=1.0
             )
         ]
     )

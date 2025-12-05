@@ -39,11 +39,14 @@ ErrorMonitorNode::ErrorMonitorNode()
     ai_temperature_sub_ = this->create_subscription<robot_custom_msgs::msg::AiTemperature>(
         "/aitemperature_data", 10, std::bind(&ErrorMonitorNode::aiTemperatureCallback, this, std::placeholders::_1)
     );
+    ap_temperature_sub_ = this->create_subscription<robot_custom_msgs::msg::ApTemperature>(
+        "/ap_temperature_data", 10, std::bind(&ErrorMonitorNode::apTemperatureCallback, this, std::placeholders::_1)
+    );
 
     // Publisher
     fall_down_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/fall_down", 20);
     low_battery_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/low_battery", 10);
-    // board_battery_overheat_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/board_battery_overheat", 10);
+    board_overheat_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/board_battery_overheat", 10);
     battery_discharge_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/discharging_battery", 10);
     charging_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/e_code/charging", 10);
     lift_error_pub_ = this->create_publisher<std_msgs::msg::Bool>("error/s_code/lifted", 10);
@@ -67,7 +70,7 @@ void ErrorMonitorNode::init()
 {
     addMonitor<LowBatteryErrorMonitor>(std::make_shared<LowBatteryErrorMonitor>());
     addMonitor<FallDownErrorMonitor>(std::make_shared<FallDownErrorMonitor>());
-    // addMonitor<BoardOverheatErrorMonitor>(std::make_shared<BoardOverheatErrorMonitor>());
+    addMonitor<BoardOverheatErrorMonitor>(std::make_shared<BoardOverheatErrorMonitor>());
     addMonitor<BatteryDischargingErrorMonitor>(std::make_shared<BatteryDischargingErrorMonitor>());
     addMonitor<ChargingErrorMonitor>(std::make_shared<ChargingErrorMonitor>());
     addMonitor<LiftErrorMonitor>(std::make_shared<LiftErrorMonitor>());
@@ -96,12 +99,13 @@ void ErrorMonitorNode::initVariables()
     update_ai_version = false;
     // update_camera_data = false;
     update_ai_temperature_data = false;
+    update_ap_temperature_data = false;
     update_station_data_for_ir_lift = false;
     // update_battery_status_overheat = false;
 
     publish_cnt_low_battery_error_ = 0;
     publish_cnt_fall_down_error_ = 0;
-    // publish_cnt_board_overheat_error_ = 0;
+    publish_cnt_board_overheat_error_ = 0;
     publish_cnt_battery_discharge_error_ = 0;
     publish_cnt_charging_error_ = 0;
     publish_cnt_lift_error_ = 0;
@@ -115,13 +119,14 @@ void ErrorMonitorNode::initVariables()
     station_data = robot_custom_msgs::msg::StationData();
     odom_data = nav_msgs::msg::Odometry();
     tof_data = robot_custom_msgs::msg::TofData();
+    ap_temperature_data = robot_custom_msgs::msg::ApTemperature();
 }
 
 void ErrorMonitorNode::setParams()
 {
     this->declare_parameter<int>("low_battery_error.monitoring_rate_ms", 1000);
     this->declare_parameter<int>("discharging_error.monitoring_rate_ms", 1000);
-    // this->declare_parameter<int>("board_overheat_error.monitoring_rate_ms", 1000);
+    this->declare_parameter<int>("board_overheat_error.monitoring_rate_ms", 1000);
     this->declare_parameter<int>("charging_error.monitoring_rate_ms", 1000);
     this->declare_parameter<int>("fall_down_error.monitoring_rate_ms", 1000);
     this->declare_parameter<int>("lift_error.monitoring_rate_ms", 10);
@@ -132,7 +137,7 @@ void ErrorMonitorNode::setParams()
 
     this->get_parameter("low_battery_error.monitoring_rate_ms", publish_cnt_low_battery_error_rate_);
     this->get_parameter("discharging_error.monitoring_rate_ms", publish_cnt_battery_discharge_error_rate_);
-    // this->get_parameter("board_overheat_error.monitoring_rate_ms", publish_cnt_board_overheat_error_rate_);
+    this->get_parameter("board_overheat_error.monitoring_rate_ms", publish_cnt_board_overheat_error_rate_);
     this->get_parameter("charging_error.monitoring_rate_ms", publish_cnt_charging_error_rate_);
     this->get_parameter("fall_down_error.monitoring_rate_ms", publish_cnt_fall_down_error_rate_);
     this->get_parameter("lift_error.monitoring_rate_ms", publish_cnt_lift_error_rate_);
@@ -143,7 +148,7 @@ void ErrorMonitorNode::setParams()
     RCLCPP_INFO(this->get_logger(), "=================== ERROR MONITOR PARAMETER ===================");
     RCLCPP_INFO(this->get_logger(), "Low Battery Rate: %d ms", publish_cnt_low_battery_error_rate_);
     RCLCPP_INFO(this->get_logger(), "Fall Down Rate: %d ms", publish_cnt_fall_down_error_rate_);
-    // RCLCPP_INFO(this->get_logger(), "Board Overheat Rate: %d ms", publish_cnt_board_overheat_error_rate_);
+    RCLCPP_INFO(this->get_logger(), "Board Overheat Rate: %d ms", publish_cnt_board_overheat_error_rate_);
     RCLCPP_INFO(this->get_logger(), "Battery Discharge Rate: %d ms", publish_cnt_battery_discharge_error_rate_);
     RCLCPP_INFO(this->get_logger(), "Charging Rate: %d ms", publish_cnt_charging_error_rate_);
     RCLCPP_INFO(this->get_logger(), "Lift Error Rate: %d ms", publish_cnt_lift_error_rate_);
@@ -159,7 +164,7 @@ void ErrorMonitorNode::errorMonitor()
 
     publish_cnt_low_battery_error_ +=10;
     publish_cnt_fall_down_error_ +=10;
-    // publish_cnt_board_overheat_error_ +=10;
+    publish_cnt_board_overheat_error_ +=10;
     publish_cnt_battery_discharge_error_ += 10;
     publish_cnt_charging_error_ += 10;
     publish_cnt_lift_error_ += 10;
@@ -202,23 +207,20 @@ void ErrorMonitorNode::errorMonitor()
     }
 
     // board & battery overheat monitor
-    /*
-    if (update_battery_status_overheat && ( publish_cnt_board_overheat_error_ >= publish_cnt_board_overheat_error_rate_ )) {
-        bool board_overheat_error = this->runMonitor<BoardOverheatErrorMonitor>(std::nullptr_t());
-        bool battery_overheat_error = this->runMonitor<BatteryOverheatErrorMonitor>(std::make_pair(battery_data, station_data));
-        if (board_overheat_error || battery_overheat_error) {
-            // RCLCPP_INFO(this->get_logger(), "board_overheat_error : %s", board_overheat_error ? "true" : "false");
-            //error_msg.data = true;
-            //board_battery_overheat_error_pub_->publish(error_msg);
-        } else {
-            // icbaek, 2025.03.19 : false 여도 publish하지 않게 하였음.
-            //error_msg.data = false;
-            //board_battery_overheat_error_pub_->publish(error_msg);
+    if (update_ap_temperature_data && ( publish_cnt_board_overheat_error_ >= publish_cnt_board_overheat_error_rate_ )) {
+        bool board_overheat_error = this->runMonitor<BoardOverheatErrorMonitor>(ap_temperature_data);
+        // bool battery_overheat_error = this->runMonitor<BatteryOverheatErrorMonitor>(std::make_pair(battery_data, station_data));
+        if (board_overheat_error != pre_board_overheat_error_) {
+            RCLCPP_INFO(this->get_logger(), "Board overheat error state changed to: %s", board_overheat_error ? "true" : "false");
+            error_msg.data = board_overheat_error;
+            board_overheat_error_pub_->publish(error_msg);
         }
+        pre_board_overheat_error_ = board_overheat_error;
+
         publish_cnt_board_overheat_error_ = 0;
-        update_battery_status_overheat = false;
+        update_ap_temperature_data = false;
+        // update_battery_status_overheat = false;
     }
-    */
 
     // battery discharging monitor
     if (update_station_data_discharging && update_battery_status_battery_discharging
@@ -352,7 +354,7 @@ void ErrorMonitorNode::errorMonitor()
     // publish_cnt_* 변수 오버플로우 방지
     if (publish_cnt_low_battery_error_ >= 100000) publish_cnt_low_battery_error_ = 0;
     if (publish_cnt_fall_down_error_ >= 100000) publish_cnt_fall_down_error_ = 0;
-    // if (publish_cnt_board_overheat_error_ >= 100000) publish_cnt_board_overheat_error_ = 0;
+    if (publish_cnt_board_overheat_error_ >= 100000) publish_cnt_board_overheat_error_ = 0;
     if (publish_cnt_battery_discharge_error_ >= 100000) publish_cnt_battery_discharge_error_ = 0;
     if (publish_cnt_charging_error_ >= 100000) publish_cnt_charging_error_ = 0;
     if (publish_cnt_lift_error_ >= 100000) publish_cnt_lift_error_ = 0;
@@ -425,6 +427,12 @@ void ErrorMonitorNode::cameraCallback(const robot_custom_msgs::msg::CameraDataAr
 void ErrorMonitorNode::aiTemperatureCallback(const robot_custom_msgs::msg::AiTemperature::SharedPtr)
 {
     update_ai_temperature_data = true;
+}
+
+void ErrorMonitorNode::apTemperatureCallback(const robot_custom_msgs::msg::ApTemperature::SharedPtr msg)
+{
+    ap_temperature_data = *msg;
+    update_ap_temperature_data = true;
 }
 
 void ErrorMonitorNode::checkMemoryUsage() {

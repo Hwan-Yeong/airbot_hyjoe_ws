@@ -14,26 +14,34 @@ def generate_launch_description():
             name="collision_detector",
             parameters=[config_path],  # Use absolute path
             output="screen",
+            respawn=True,
+            respawn_delay=1.0
         ),
 
         Node(
-        package=package_name,
-        executable="odom_monitor",
-        name="odom_monitor",
-        output="screen",
+            package=package_name,
+            executable="odom_monitor",
+            name="odom_monitor",
+            output="screen",
+            respawn=True,
+            respawn_delay=1.0
         ),
 
         Node(
-        package=package_name,
-        executable="tf_monitor",
-        name="tf_monitor",
-        output="screen",
+            package=package_name,
+            executable="tf_monitor",
+            name="tf_monitor",
+            output="screen",
+            respawn=True,
+            respawn_delay=1.0
         ),
 
         Node(
-        package=package_name,
-        executable="scan_monitor",
-        name="scan_monitor",
-        output="screen",
+            package=package_name,
+            executable="scan_monitor",
+            name="scan_monitor",
+            output="screen",
+            respawn=True,
+            respawn_delay=1.0
         ),
     ])

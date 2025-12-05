@@ -31,7 +31,9 @@ def generate_launch_description():
             ('/scan_error', '/error/f_code/scan_front'),  # '/scan'을 '/scan2'로 remap
             ('/scan_state', '/scan_state_front'),
             ('/scan_dirty', '/error/e_code/scan_dirty_front')
-        ]
+        ],
+        respawn=True,
+        respawn_delay=1.0
     )
 
     scan_back_node = Node(
@@ -47,7 +49,9 @@ def generate_launch_description():
             ('/scan_error', '/error/f_code/scan_back'),  # '/scan'을 '/scan2'로 remap
             ('/scan_state', '/scan_state_back'),
             ('/scan_dirty', '/error/e_code/scan_dirty_back')
-        ]
+        ],
+        respawn=True,
+        respawn_delay=1.0
     )
 
     return LaunchDescription([

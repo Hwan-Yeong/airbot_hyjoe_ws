@@ -20,13 +20,15 @@ def generate_launch_description():
             parameters=[param_file],
             output='screen',
             respawn=True,
-            respawn_delay=2,
+            respawn_delay=1.0,
         ),
 
         launch_ros.actions.Node(
             name='airbot_pointcloud_to_laserscan',
             package='airbot_lidar',
             executable='pointcloud_to_laserscan_node',
-            parameters=[param_file]
+            parameters=[param_file],
+            respawn=True,
+            respawn_delay=1.0
         )
     ])

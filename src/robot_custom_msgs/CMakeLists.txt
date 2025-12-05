@@ -35,6 +35,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RobotState.msg"
   "msg/NaviState.msg"
   "msg/MoveNRotation.msg"
+  "msg/ApTemperature.msg"
   "action/ManageNode.action"
   DEPENDENCIES std_msgs
 )

@@ -14,6 +14,7 @@
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "robot_custom_msgs/msg/camera_data.hpp"
 #include "robot_custom_msgs/msg/ai_temperature.hpp"
+#include "robot_custom_msgs/msg/ap_temperature.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "error_monitor/error_monitor_node.hpp"
 
@@ -202,11 +203,11 @@ private:
     unsigned int errorCount = 0;
     bool errorState = false;
 };
-/*
-class BoardOverheatErrorMonitor : public BaseErrorMonitor<std::nullptr_t>
+
+class BoardOverheatErrorMonitor : public BaseErrorMonitor<robot_custom_msgs::msg::ApTemperature>
 {
 public:
-    using InputType = std::nullptr_t;
+    using InputType = robot_custom_msgs::msg::ApTemperature;
 
     struct tParams {
         double temperature_th;
@@ -220,7 +221,7 @@ public:
     void loadParams(const std::string& ns) override {
         if (!node_ptr_) return;
 
-        node_ptr_->declare_parameter<double>(ns + ".occure.temperature_th_c", 70.0);
+        node_ptr_->declare_parameter<double>(ns + ".occure.temperature_th_c", 85.0);
         node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 30.0);
 
         node_ptr_->get_parameter(ns + ".occure.temperature_th_c", params.temperature_th);
@@ -229,25 +230,10 @@ public:
 
 private:
     bool error_state = false;
-    //board_overheat
-    float total_temp;
-    int valid_reads ;
-    double avg_temp;
-    std::unordered_map<std::string, double> warning_files_;
-    std::unordered_map<std::string, double> error_files_;
-    std::unordered_map<std::string, double> overheat_occured_times_;
-    std::unordered_map<std::string, bool> overheat_logged_;
-    std::vector<std::string> temp_files = {
-        "/sys/class/thermal/thermal_zone0/temp",
-        "/sys/class/thermal/thermal_zone1/temp",
-        "/sys/class/thermal/thermal_zone2/temp",
-        "/sys/class/thermal/thermal_zone3/temp",
-        "/sys/class/thermal/thermal_zone4/temp",
-        "/sys/class/thermal/thermal_zone5/temp",
-        "/sys/class/thermal/thermal_zone6/temp"
-    };
+    std::unordered_map<std::string, float> overheat_occured_times_;
+    std::unordered_map<std::string, float> overheat_release_start_times_;
 };
-*/
+
 class ChargingErrorMonitor : public BaseErrorMonitor<std::tuple<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData, robot_custom_msgs::msg::RobotState>>
 {
 public:

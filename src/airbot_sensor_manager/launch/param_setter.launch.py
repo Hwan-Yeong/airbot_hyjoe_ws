@@ -10,6 +10,6 @@ def generate_launch_description():
             executable='param_setter',
             output='screen',
             respawn=True,
-            respawn_delay=2.0
+            respawn_delay=1.0
         )
     ])
