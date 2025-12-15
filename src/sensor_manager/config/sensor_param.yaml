@@ -24,33 +24,6 @@ sensor_manager:
         topic: "tof/multi"
         publish_rate_ms: 100
         enable_8x8: true # 8x8 인덱스 사용 여부
-        # filter:
-        #   moving_average:
-        #     use: false
-        #     enabled_4x4_idx: [
-        #       8, 9, 10, 11,
-        #       12, 13, 14, 15
-        #     ]
-        #     window_size: 3
-        #     max_distance_th: 0.7
-        #   low_pass:
-        #     use: false
-        #     enabled_4x4_idx: [
-        #       0, 1, 2, 3,
-        #       4, 5, 6, 7,
-        #       8, 9, 10, 11,
-        #       12, 13, 14, 15
-        #     ]
-        #     alpha: 0.8
-        #     # a*raw + (1-a)*estimated
-        #   complementary:
-        #     use: false
-        #     enabled_4x4_idx: [
-        #       8, 9, 10, 11,
-        #       12, 13, 14, 15
-        #     ]
-        #     alpha: 0.9
-        #     # a*lpf + (1-a)*maf
 
       tof_multi_left:
         use: true

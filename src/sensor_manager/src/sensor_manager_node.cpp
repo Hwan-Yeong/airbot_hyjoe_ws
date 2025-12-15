@@ -156,7 +156,7 @@ void SensorManagerNode::initPublisher(const YAML::Node& config)
         std::string sensor_name = sensor_pair.first.as<std::string>();
         YAML::Node sensor_config = sensor_pair.second;
 
-        bool is_not_used_publihser = (sensor_name == "empty");
+        bool is_not_used_publihser = (sensor_name == "empty") || (sensor_name == "tof_multi_left") || (sensor_name == "tof_multi_right");
         if (is_not_used_publihser) continue;
 
         if (sensor_config.IsMap()) {
@@ -268,80 +268,80 @@ void SensorManagerNode::publishPointcloudTimer()
     tof_buffer_.publishing_cnt_map["tof_mono"] += 10;
     tof_buffer_.publishing_cnt_map["tof_multi"] += 10;
     if (tof_buffer_.updated.load()) {
-        robot_custom_msgs::msg::TofData::SharedPtr tof_msg_copy;
+        robot_custom_msgs::msg::TofData::SharedPtr tof_msg_copied;
         {
             std::lock_guard<std::mutex> lock(tof_buffer_.mtx);
-            tof_msg_copy = tof_buffer_.latest_msg;
+            tof_msg_copied = tof_buffer_.latest_msg;
             tof_buffer_.latest_msg.reset();
             tof_buffer_.updated.store(false);
         }
-        if (!tof_msg_copy) {
+        if (!tof_msg_copied) {
             return;
         }
         if (tof_buffer_.publishing_cnt_map["tof_mono"] >= pointcloud_publishing_rate_map_["tof_mono"]) {
-            publishPointcloud("tof_mono", "tof/mono", tof_msg_copy);
+            publishPointcloud("tof_mono", "tof/mono", tof_msg_copied);
             tof_buffer_.publishing_cnt_map["tof_mono"] = 0;
         }
         if (tof_buffer_.publishing_cnt_map["tof_multi"] >= pointcloud_publishing_rate_map_["tof_multi"]) {
-            publishPointcloud("tof_multi_left", "tof/multi/left", tof_msg_copy);
-            publishPointcloud("tof_multi_right", "tof/multi/right", tof_msg_copy);
+            publishPointcloud("tof_multi_left", "tof/multi/left", tof_msg_copied);
+            publishPointcloud("tof_multi_right", "tof/multi/right", tof_msg_copied);
             tof_buffer_.publishing_cnt_map["tof_multi"] = 0;
         }
     }
 
     camera_buffer_.publishing_cnt += 10;
     if (camera_buffer_.updated.load() && (camera_buffer_.publishing_cnt >= pointcloud_publishing_rate_map_["camera"])) {
-        robot_custom_msgs::msg::CameraDataArray::SharedPtr camera_msg_copy;
+        robot_custom_msgs::msg::CameraDataArray::SharedPtr camera_msg_copied;
         {
             std::lock_guard<std::mutex> lock(camera_buffer_.mtx);
-            camera_msg_copy = camera_buffer_.latest_msg;
+            camera_msg_copied = camera_buffer_.latest_msg;
             camera_buffer_.latest_msg.reset();
             camera_buffer_.updated.store(false);
         }
-        if (!camera_msg_copy) {
+        if (!camera_msg_copied) {
             return;
         }
-        publishPointcloud("camera", "camera_object", camera_msg_copy);
+        publishPointcloud("camera", "camera_object", camera_msg_copied);
         camera_buffer_.publishing_cnt = 0;
     }
 
     bottom_ir_buffer_.publishing_cnt += 10;
     if (bottom_ir_buffer_.updated.load() && (bottom_ir_buffer_.publishing_cnt >= pointcloud_publishing_rate_map_["bottom_ir"])) {
-        robot_custom_msgs::msg::BottomIrData::SharedPtr bottom_ir_msg_copy;
+        robot_custom_msgs::msg::BottomIrData::SharedPtr bottom_ir_msg_copied;
         {
             std::lock_guard<std::mutex> lock(bottom_ir_buffer_.mtx);
-            bottom_ir_msg_copy = bottom_ir_buffer_.latest_msg;
+            bottom_ir_msg_copied = bottom_ir_buffer_.latest_msg;
             bottom_ir_buffer_.latest_msg.reset();
             bottom_ir_buffer_.updated.store(false);
         }
-        if (!bottom_ir_msg_copy) {
+        if (!bottom_ir_msg_copied) {
             return;
         }
-        publishPointcloud("bottom_ir", "bottom_ir", bottom_ir_msg_copy);
+        publishPointcloud("bottom_ir", "bottom_ir", bottom_ir_msg_copied);
         bottom_ir_buffer_.publishing_cnt = 0;
     }
 
     collision_buffer_.publishing_cnt_map["collision_front"] += 10;
     collision_buffer_.publishing_cnt_map["collision_rear"] += 10;
     if (collision_buffer_.updated.load()) {
-        robot_custom_msgs::msg::AbnormalEventData::SharedPtr collision_msg_copy;
+        robot_custom_msgs::msg::AbnormalEventData::SharedPtr collision_msg_copied;
         {
             std::lock_guard<std::mutex> lock(collision_buffer_.mtx);
-            collision_msg_copy = collision_buffer_.latest_msg;
+            collision_msg_copied = collision_buffer_.latest_msg;
             collision_buffer_.latest_msg.reset();
             collision_buffer_.updated.store(false);
         }
-        if (!collision_msg_copy) {
+        if (!collision_msg_copied) {
             return;
         }
         if (collision_buffer_.publishing_cnt_map["collision_front"] >= pointcloud_publishing_rate_map_["collision_front"]
-            && collision_msg_copy->event_trigger == 1) {
-            publishPointcloud("collision_front", "collision/front", collision_msg_copy);
+            && collision_msg_copied->event_trigger == 1) {
+            publishPointcloud("collision_front", "collision/front", collision_msg_copied);
             collision_buffer_.publishing_cnt_map["collision"] = 0;
         }
         if (collision_buffer_.publishing_cnt_map["collision_rear"] >= pointcloud_publishing_rate_map_["collision_rear"]
-            && collision_msg_copy->event_trigger == -1) {
-            publishPointcloud("collision_rear", "collision/rear", collision_msg_copy);
+            && collision_msg_copied->event_trigger == -1) {
+            publishPointcloud("collision_rear", "collision/rear", collision_msg_copied);
             collision_buffer_.publishing_cnt_map["collision_rear"] = 0;
         }
     }
@@ -351,9 +351,9 @@ void SensorManagerNode::publishPointcloudTimer()
  * @brief 센서 데이터 변환 후 메시지 퍼블리싱하는 함수
  * @param converter_key: pointcloud 변환기 식별 기 (string)
  * @param topic_key: 발행할 토픽명 (string)
- * @param msg_copy: 변환할 센서 raw data
+ * @param msg_copied: 변환할 센서 raw data
  */
-void SensorManagerNode::publishPointcloud(const std::string& converter_key, const std::string& topic_key, const std::shared_ptr<void> msg_copy)
+void SensorManagerNode::publishPointcloud(const std::string& converter_key, const std::string& topic_key, const std::shared_ptr<void> msg_copied)
 {
     auto it = converters_.find(converter_key);
     if (it == converters_.end() || !it->second) {
@@ -364,16 +364,17 @@ void SensorManagerNode::publishPointcloud(const std::string& converter_key, cons
         return;
     }
 
-    auto clouds = it->second->pc_convert(static_cast<const void*>(msg_copy.get()));
+    auto clouds = it->second->pc_convert(static_cast<const void*>(msg_copied.get()));
+
+    if (topic_key == "tof/multi/left" || topic_key == "tof/multi/right") { 
+        this->publishMultiTofIdxPointcloud(clouds, topic_key);
+        return;
+    }
 
     auto pub_it = pointcloud_pubs_.find(topic_key);
     if (pub_it != pointcloud_pubs_.end() && pub_it->second) {
-        if (topic_key == "tof/multi/left" || topic_key == "tof/multi/right") { // Multi ToF의 경우 idx 별로 퍼블리싱 하기 때문에 별도 처리
-            this->publishMultiTofIdxPointcloud(clouds, topic_key);
-        } else { // 일반 케이스
-            for (auto& cloud : clouds) {
-                pub_it->second->publish(cloud);
-            }
+        for (auto& cloud : clouds) {
+            pub_it->second->publish(cloud);
         }
     } else {
         RCLCPP_WARN(this->get_logger(),
