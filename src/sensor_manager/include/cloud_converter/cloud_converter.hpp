@@ -4,6 +4,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
+#include "std_msgs/msg/float32_multi_array.hpp"
 #include "yaml-cpp/yaml.h"
 
 #include "utils/common_struct.hpp"
@@ -31,6 +32,13 @@ class CloudConverterStrategy
     virtual ~CloudConverterStrategy() = default;
 
     virtual PointCloudMsgVector pc_convert(const void* sensor_msg) = 0;
+
+    // 캘리브레이션 전용 가상 함수 (기본 구현 제공), 이 함수는 오버라이드 하지 않으면 이 기본 동작을 상속받습니다.
+    virtual std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg)
+    {
+      throw std::runtime_error("This converter does not support calibration_convert.");
+      return std_msgs::msg::Float32MultiArray{};
+    }
 
     /**
      * @brief 필터가 참조하는 SensorManagerNode 스마트 포인터를 반환합니다.
@@ -75,6 +83,7 @@ class TofMultiLeftCloudConverter : public CloudConverterStrategy
     tof_utils::TofUtils tof_utils_;
 
     PointCloudMsgVector pc_convert(const void* sensor_msg) override;
+    std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg) override;
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
     bool use_tof_multi_left_ = true;
@@ -97,6 +106,7 @@ class TofMultiRightCloudConverter : public CloudConverterStrategy
     tof_utils::TofUtils tof_utils_;
 
     PointCloudMsgVector pc_convert(const void* sensor_msg) override;
+    std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg) override;
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
     bool use_tof_multi_right_ = true;

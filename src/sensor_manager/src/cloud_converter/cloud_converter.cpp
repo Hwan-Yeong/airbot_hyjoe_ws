@@ -182,6 +182,47 @@ PointCloudMsgVector TofMultiLeftCloudConverter::pc_convert(const void *sensor_ms
     return clouds;
 }
 
+std_msgs::msg::Float32MultiArray TofMultiLeftCloudConverter::calibration_convert(const void* sensor_msg)
+{
+    std_msgs::msg::Float32MultiArray ret;
+
+    auto msg = static_cast<const robot_custom_msgs::msg::TofData*>(sensor_msg);
+
+    const size_t INDEX_SIZE = 16;
+
+    std::vector<double> left_dists(msg->bot_left.begin(), msg->bot_left.end());
+    std::vector<tPoint> robot_pts = this->frame_converter_.tfMultiTofSensor2RobotFrame(
+        left_dists,
+        this->tof_multi_left_y_tan_array_,
+        this->tof_multi_left_z_tan_array_,
+        true,
+        this->tof_multi_left_sensor_frame_pose_);
+
+
+    if (robot_pts.size() != INDEX_SIZE) {
+        RCLCPP_WARN(rclcpp::get_logger("PointCloudTof"),
+            "Expected %zu robot points, but got %zu.",
+            INDEX_SIZE, robot_pts.size()
+        );
+    }
+
+    size_t idx_num = 3; // 왼쪽 3개([13], [14], [15]) 캘리브레이션 진행 하여 3으로 설정
+    if (robot_pts.size() >= idx_num) {
+        const size_t n = robot_pts.size();
+        ret.data.reserve(idx_num);
+        for (size_t i = n - idx_num; i < n; ++i) { // 뒤에서부터 3개 인덱스 접근
+            ret.data.push_back(static_cast<float>(sqrt(robot_pts[i].x*robot_pts[i].x + robot_pts[i].y*robot_pts[i].y)));
+        }
+    } else {
+        RCLCPP_WARN(rclcpp::get_logger("PointCloudTof"),
+            "robot_pts has fewer than 3 points (size=%zu). Returning empty array.",
+            robot_pts.size()
+        );
+    }
+
+    return ret;
+}
+
 TofMultiRightCloudConverter::TofMultiRightCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
     : CloudConverterStrategy(node_ptr_)
 {
@@ -260,7 +301,7 @@ PointCloudMsgVector TofMultiRightCloudConverter::pc_convert(const void *sensor_m
             right_dists,
             this->tof_multi_right_y_tan_array_,
             this->tof_multi_right_z_tan_array_,
-            true,
+            false,
             this->tof_multi_right_sensor_frame_pose_);
 
         if (this->target_frame_ == "map") {
@@ -278,6 +319,47 @@ PointCloudMsgVector TofMultiRightCloudConverter::pc_convert(const void *sensor_m
     }
 
     return clouds;
+}
+
+std_msgs::msg::Float32MultiArray TofMultiRightCloudConverter::calibration_convert(const void* sensor_msg)
+{
+    std_msgs::msg::Float32MultiArray ret;
+
+    auto msg = static_cast<const robot_custom_msgs::msg::TofData*>(sensor_msg);
+
+    const size_t INDEX_SIZE = 16;
+
+    std::vector<double> right_dists(msg->bot_right.begin(), msg->bot_right.end());
+    std::vector<tPoint> robot_pts = this->frame_converter_.tfMultiTofSensor2RobotFrame(
+        right_dists,
+        this->tof_multi_right_y_tan_array_,
+        this->tof_multi_right_z_tan_array_,
+        false,
+        this->tof_multi_right_sensor_frame_pose_);
+
+
+    if (robot_pts.size() != INDEX_SIZE) {
+        RCLCPP_WARN(rclcpp::get_logger("PointCloudTof"),
+            "Expected %zu robot points, but got %zu.",
+            INDEX_SIZE, robot_pts.size()
+        );
+    }
+
+    size_t idx_num = 3; // 오른쪽 3개([13], [14], [15]) 캘리브레이션 진행 하여 3으로 설정
+    if (robot_pts.size() >= idx_num) {
+        const size_t n = robot_pts.size();
+        ret.data.reserve(idx_num);
+        for (size_t i = n - idx_num; i < n; ++i) { // 뒤에서부터 3개 인덱스 접근
+            ret.data.push_back(static_cast<float>(sqrt(robot_pts[i].x*robot_pts[i].x + robot_pts[i].y*robot_pts[i].y)));
+        }
+    } else {
+        RCLCPP_WARN(rclcpp::get_logger("PointCloudTof"),
+            "robot_pts has fewer than 3 points (size=%zu). Returning empty array.",
+            robot_pts.size()
+        );
+    }
+
+    return ret;
 }
 
 CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
