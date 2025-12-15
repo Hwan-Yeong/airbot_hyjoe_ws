@@ -271,8 +271,7 @@ void SensorManagerNode::publishPointcloudTimer()
         robot_custom_msgs::msg::TofData::SharedPtr tof_msg_copied;
         {
             std::lock_guard<std::mutex> lock(tof_buffer_.mtx);
-            tof_msg_copied = tof_buffer_.latest_msg;
-            tof_buffer_.latest_msg.reset();
+            tof_msg_copied = std::move(tof_buffer_.latest_msg); // 참조카운트 변경 X, 소유권 이동
             tof_buffer_.updated.store(false);
         }
         if (!tof_msg_copied) {
@@ -294,8 +293,7 @@ void SensorManagerNode::publishPointcloudTimer()
         robot_custom_msgs::msg::CameraDataArray::SharedPtr camera_msg_copied;
         {
             std::lock_guard<std::mutex> lock(camera_buffer_.mtx);
-            camera_msg_copied = camera_buffer_.latest_msg;
-            camera_buffer_.latest_msg.reset();
+            camera_msg_copied = std::move(camera_buffer_.latest_msg);
             camera_buffer_.updated.store(false);
         }
         if (!camera_msg_copied) {
@@ -310,8 +308,7 @@ void SensorManagerNode::publishPointcloudTimer()
         robot_custom_msgs::msg::BottomIrData::SharedPtr bottom_ir_msg_copied;
         {
             std::lock_guard<std::mutex> lock(bottom_ir_buffer_.mtx);
-            bottom_ir_msg_copied = bottom_ir_buffer_.latest_msg;
-            bottom_ir_buffer_.latest_msg.reset();
+            bottom_ir_msg_copied = std::move(bottom_ir_buffer_.latest_msg);
             bottom_ir_buffer_.updated.store(false);
         }
         if (!bottom_ir_msg_copied) {
@@ -327,8 +324,7 @@ void SensorManagerNode::publishPointcloudTimer()
         robot_custom_msgs::msg::AbnormalEventData::SharedPtr collision_msg_copied;
         {
             std::lock_guard<std::mutex> lock(collision_buffer_.mtx);
-            collision_msg_copied = collision_buffer_.latest_msg;
-            collision_buffer_.latest_msg.reset();
+            collision_msg_copied = std::move(collision_buffer_.latest_msg);
             collision_buffer_.updated.store(false);
         }
         if (!collision_msg_copied) {
