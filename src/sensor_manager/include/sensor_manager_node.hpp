@@ -3,8 +3,14 @@
 #include <memory>
 #include <unordered_map>
 
+#include <deque>
+#include <ctime>
+#include <iomanip>
+#include "utils/json.hpp"
+
 #include <rclcpp/rclcpp.hpp>
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/u_int8.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
 
@@ -14,6 +20,7 @@
 namespace sensor_manager {
 
 using PC2PublisherPtr = rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr;
+using json = nlohmann::ordered_json;
 
 class SensorManagerNode : public rclcpp::Node
 {
@@ -32,6 +39,18 @@ private:
     void publishPointcloud(const std::string& converter_key, const std::string& topic_key, const std::shared_ptr<void> msg_copy);
     void publishEmptyMsg();
     void publishMultiTofIdxPointcloud(const PointCloudMsgVector& clouds, const std::string& topic_key);
+
+    // Multizone ToF Calibration
+    void runMultizoneToFCalibration(robot_custom_msgs::msg::TofData::SharedPtr tof_msg);
+    MTOF_CALIB_RESULT handleCalibrationSide(MTOF_CALIB_DATA& calib_result, const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side, bool &side_calib_set);
+    MTOF_CALIB_RESULT multiToFCalibration(MTOF_CALIB_DATA& result, const robot_custom_msgs::msg::TofData::SharedPtr msg);
+    uint8_t make_mtof_state(TOF_SIDE side, MTOF_CALIB_RESULT state);
+    tTofCalibrationParam load_mtof_calibration_params_();
+    void writeSelfTestCalibFile(TOF_SIDE side, MTOF_CALIB_RESULT resultCode);
+    bool checkFileExist(std::string path, std::deque<std::string> &buffer);
+    void createJsonData(json &j, TOF_SIDE side, MTOF_CALIB_RESULT resultCode);
+    void writeDataFile(const std::string& path, const std::deque<std::string>& buffer, const json& output_data);
+    double truncate_to_n(double value, int n);
 
     YAML::Node config_;
     std::string node_target_frame_;
@@ -63,6 +82,19 @@ private:
     tSensorBuffer<robot_custom_msgs::msg::CameraDataArray> camera_buffer_;
     tSensorBuffer<robot_custom_msgs::msg::BottomIrData> bottom_ir_buffer_;
     tSensorBuffer<robot_custom_msgs::msg::AbnormalEventData> collision_buffer_;
+
+    // Multizone ToF Calibration
+    rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr mtof_calibration_cmd_sub_;
+
+    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr mtof_calibration_complete_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr mtof_calibration_data_pub_;
+    rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr mtof_calibration_state_pub_;
+
+    MTOF_CALIB_STATE isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
+    bool bLeftMToFCalibrationSet = false;
+    bool bRightMToFCalibrationSet = false;
+    tMToFCalibSession calib_session_;
+    std::array<float, 6> mtof_calib_result_array_{};
 };
 
 } // namespace sensor_manager
