@@ -6,8 +6,9 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
 add_executable(teleop_velocity_smoother_node
-  src/teleop_velocity_smoother_node.cpp
   src/main.cpp
+  src/teleop_velocity_smoother_node.cpp
+  src/s_curve_profile.cpp
 )
 
 target_include_directories(teleop_velocity_smoother_node PUBLIC

@@ -14,7 +14,7 @@ def generate_launch_description():
         Node(
             package='airbot_teleop_velocity_smoother',
             executable='teleop_velocity_smoother_node',
-            name='teleop_velocity_smoother_node',
+            name='airbot_teleop_velocity_smoother_node',
             parameters=[config],
             output='screen'
         )
