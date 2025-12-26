@@ -12,7 +12,7 @@ TeleopVelocitySmoother::TeleopVelocitySmoother()
     declare_parameter("linear.max_accel", 0.6);
     declare_parameter("linear.max_jerk", 2.0);
 
-    declare_parameter("angular.max_vel", 1.57);
+    declare_parameter("angular.max_vel", 0.785398);
     declare_parameter("angular.max_accel", 2.5);
     declare_parameter("angular.max_jerk", 8.0);
 

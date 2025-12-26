@@ -7,6 +7,6 @@ teleop_velocity_smoother_node:
       max_accel: 0.6
       max_jerk: 2.0
     angular:
-      max_vel: 1.57
+      max_vel: 0.785398
       max_accel: 2.5
       max_jerk: 8.0
