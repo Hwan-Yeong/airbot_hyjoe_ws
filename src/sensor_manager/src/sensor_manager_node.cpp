@@ -12,10 +12,9 @@ SensorManagerNode::SensorManagerNode() : Node("sensor_manager_node")
     RCLCPP_INFO(this->get_logger(), "  Target Frame: '%s'", node_target_frame_.c_str());
 
     // Initialize Multizone ToF Calibrator
-    tTofCalibrationParam mtof_calib_param = this->loadMultizoneTofCalibrationParams();
     mtof_calibrator_ = std::make_unique<MultizoneTofCalibrator>(
         this->get_logger(),
-        calib_param
+        this->loadMultizoneTofCalibrationParams()
     );
     RCLCPP_INFO(this->get_logger(), "MultizoneTofCalibrator Initialized.");
 
@@ -100,16 +99,34 @@ SensorManagerNode::SensorManagerNode() : Node("sensor_manager_node")
         "start_tofcalib",
         rclcpp::QoS(10).reliable(),
         [this](std_msgs::msg::UInt8::SharedPtr msg) {
-            mtof_calibrator_->setCalibrationState(static_cast<MTOF_CALIB_STATE>(msg->data));
-            if (mtof_calibrator_->getClibrationState() == MTOF_CALIB_STATE::ACTIVE_LEFT) {
-                mtof_calibrator_->setCalibrationDone(TOF_SIDE::LEFT, false);
-            } else if (mtof_calibrator_->getClibrationState() == MTOF_CALIB_STATE::ACTIVE_RIGHT) {
-                mtof_calibrator_->setCalibrationDone(TOF_SIDE::RIGHT, false);
+            auto calib_cmd_state = static_cast<MTOF_CALIB_STATE>(msg->data);
+            mtof_calibrator_->setCalibrationState(calib_cmd_state);
+
+            if (calib_cmd_state == MTOF_CALIB_STATE::ACTIVE_LEFT || calib_cmd_state == MTOF_CALIB_STATE::ACTIVE_RIGHT) {
+                std::string key = (calib_cmd_state == MTOF_CALIB_STATE::ACTIVE_LEFT) ? "tof_multi_left" : "tof_multi_right";
+                TOF_SIDE side = (calib_cmd_state == MTOF_CALIB_STATE::ACTIVE_LEFT) ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT;
+
+                auto it = converters_.find(key);
+                if (it != converters_.end() && it->second) {
+                    mtof_calibrator_->setConverter(it->second);
+                    mtof_calibrator_->setCalibrationDone(side, false);
+                } else {
+                    RCLCPP_WARN(this->get_logger(), "Failed to find converter for calibration: %s", key.c_str());
+                    mtof_calibrator_->setCalibrationState(MTOF_CALIB_STATE::INACTIVE);
+                    mtof_calibrator_->setConverter(nullptr);
+                }
             } else {
                 mtof_calibrator_->setCalibrationState(MTOF_CALIB_STATE::INACTIVE);
-                RCLCPP_INFO(this->get_logger(), "multi-ToF Calibration Wrong Cmd : [%d], Set State => [%s]", msg->data, enumToString(isActiveMToFCalibration).c_str());
+                RCLCPP_INFO(this->get_logger(),
+                    "multi-ToF Calibration Wrong Cmd : [%d], Set State => [%s]",
+                    msg->data, enumToString(mtof_calibrator_->getCalibrationState()).c_str()
+                );
             }
-            RCLCPP_INFO(this->get_logger(), "multi-ToF Calibration Cmd : [%s]", enumToString(mtof_calibrator_->getClibrationState()).c_str());
+
+            RCLCPP_INFO(this->get_logger(),
+                "multi-ToF Calibration Cmd : [%s]",
+                enumToString(mtof_calibrator_->getCalibrationState()).c_str()
+            );
         }
     );
 
@@ -158,7 +175,7 @@ void SensorManagerNode::loadConfig()
 
 void SensorManagerNode::init()
 {
-    isActiveMToFCalibration = MTOF_CALIB_STATE::INACTIVE;
+    mtof_calibrator_->setCalibrationState(MTOF_CALIB_STATE::INACTIVE);
     initializeRuntime();
     initPublisher(this->config_);
     initPublishingRates(this->config_["sensors"]);
@@ -301,7 +318,7 @@ void SensorManagerNode::initializeRuntime()
 
 void SensorManagerNode::publishPointcloudTimer()
 {
-    if ((!this->node_active_cmd_) && (isActiveMToFCalibration == MTOF_CALIB_STATE::INACTIVE)) {
+    if ((!this->node_active_cmd_) && (mtof_calibrator_->getCalibrationState() == MTOF_CALIB_STATE::INACTIVE)) {
         return;
     }
 
@@ -319,7 +336,7 @@ void SensorManagerNode::publishPointcloudTimer()
         }
 
         // --- Calibration Interrupt ---
-        if (mtof_calibrator_->getClibrationState() != MTOF_CALIB_STATE::INACTIVE) {
+        if (mtof_calibrator_->getCalibrationState() != MTOF_CALIB_STATE::INACTIVE) {
             this->runMultizoneToFCalibration(tof_msg_copied);
             return;
         }
@@ -469,42 +486,32 @@ void SensorManagerNode::publishMultiTofIdxPointcloud(const PointCloudMsgVector& 
 
 void SensorManagerNode::runMultizoneToFCalibration(robot_custom_msgs::msg::TofData::SharedPtr tof_msg)
 {
-    MTOF_CALIB_RESULT left_result = MTOF_CALIB_RESULT::INACTIVE;
-    MTOF_CALIB_RESULT right_result = MTOF_CALIB_RESULT::INACTIVE;
+    MTOF_CALIB_RESULT result = MTOF_CALIB_RESULT::INACTIVE;
+    MTOF_CALIB_STATE state = mtof_calibrator_->getCalibrationState();
+    TOF_SIDE side = (state == MTOF_CALIB_STATE::ACTIVE_LEFT) ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT;
     MTOF_CALIB_DATA result_data = MTOF_CALIB_DATA();
 
-    if ((!mtof_calibrator_->isCalibrationDone(TOF_SIDE::LEFT) || !mtof_calibrator_->isCalibrationDone(TOF_SIDE::RIGHT)) &&
-        (mtof_calibrator_->getClibrationState() == MTOF_CALIB_STATE::ACTIVE_LEFT || mtof_calibrator_->getClibrationState() == MTOF_CALIB_STATE::ACTIVE_RIGHT)) {
-
-        if (mtof_calibrator_->getClibrationState() == MTOF_CALIB_STATE::ACTIVE_LEFT && !mtof_calibrator_->isCalibrationDone(TOF_SIDE::LEFT)) {
-            left_result = mtof_calibrator_->update(result_data, tof_msg, TOF_SIDE::LEFT);
-            std_msgs::msg::UInt8 calib_state_msg;
-            calib_state_msg.data = mtof_calibrator_->makeMTofState(TOF_SIDE::LEFT, left_result);
-            mtof_calibration_state_pub_->publish(calib_state_msg);
+    if (state != MTOF_CALIB_STATE::INACTIVE && !mtof_calibrator_->isCalibrationDone(side)) {
+        result = mtof_calibrator_->update(result_data, tof_msg, side);
+        if (result == MTOF_CALIB_RESULT::PASS) {
+            mtof_calibrator_->setCalibrationDone(side, true);
         }
+        std_msgs::msg::UInt8 calib_state_msg;
+        calib_state_msg.data = mtof_calibrator_->makeMTofState(side, result);
+        mtof_calibration_state_pub_->publish(calib_state_msg);
 
-        if (mtof_calibrator_->getClibrationState() == MTOF_CALIB_STATE::ACTIVE_RIGHT && !bRightMToFCalibrationSet) {
-            right_result = mtof_calibrator_->update(result_data, tof_msg, TOF_SIDE::RIGHT);
-            std_msgs::msg::UInt8 calib_state_msg;
-            calib_state_msg.data = mtof_calibrator_->makeMTofState(TOF_SIDE::RIGHT, right_result);
-            mtof_calibration_state_pub_->publish(calib_state_msg);
-        }
-
-        if ((left_result >= MTOF_CALIB_RESULT::FAIL_OUT_OF_RANGE) ||
-            ((left_result == MTOF_CALIB_RESULT::PASS) && (right_result >= MTOF_CALIB_RESULT::PASS))) {
-            std_msgs::msg::Float32MultiArray left_msg_arr;
-            result_data.setResult(TOF_SIDE::LEFT, static_cast<float>(left_result));
-            result_data.setPublishValue(TOF_SIDE::LEFT);
-            left_msg_arr.data.assign(result_data.left.pub_data.begin(), result_data.left.pub_data.end());
-            RCLCPP_INFO(this->get_logger(), "[Publish Data L] : "); /////////////////////////////
-            mtof_calibration_data_pub_->publish(left_msg_arr);
-
-            std_msgs::msg::Float32MultiArray right_msg_arr;
-            result_data.setResult(TOF_SIDE::RIGHT, static_cast<float>(right_result));
-            result_data.setPublishValue(TOF_SIDE::RIGHT);
-            right_msg_arr.data.assign(result_data.right.pub_data.begin(), result_data.right.pub_data.end());
-            RCLCPP_INFO(this->get_logger(), "[Publish Data R] : "); /////////////////////////////
-            mtof_calibration_data_pub_->publish(right_msg_arr);
+        if ((side == TOF_SIDE::LEFT && result >= MTOF_CALIB_RESULT::FAIL_OUT_OF_RANGE) ||
+            (side == TOF_SIDE::RIGHT && mtof_calibrator_->isCalibrationDone(TOF_SIDE::LEFT) && result >= MTOF_CALIB_RESULT::PASS)) {
+            std_msgs::msg::Float32MultiArray msg_arr;
+            result_data.setResult(side, static_cast<float>(result));
+            result_data.setPublishValue(side);
+            if (side == TOF_SIDE::LEFT) {
+                msg_arr.data.assign(result_data.left.pub_data.begin(), result_data.left.pub_data.end());
+            } else if (side == TOF_SIDE::RIGHT) {
+                msg_arr.data.assign(result_data.right.pub_data.begin(), result_data.right.pub_data.end());
+            }
+            RCLCPP_INFO(this->get_logger(), "[Publish Data %s] : ", enumToString(side).c_str());
+            mtof_calibration_data_pub_->publish(msg_arr);
         }
 
         if (mtof_calibrator_->isCalibrationDone(TOF_SIDE::LEFT) && mtof_calibrator_->isCalibrationDone(TOF_SIDE::RIGHT)) {

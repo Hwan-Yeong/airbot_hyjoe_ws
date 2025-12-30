@@ -13,6 +13,7 @@
 
 #include "utils/common_struct.hpp"
 
+namespace sensor_manager {
 
 class FrameConverter
 {
@@ -101,5 +102,7 @@ private:
     bool bottom_ir_extrinsics_updated = false;
     std::vector<tPoint> bottom_ir_sensor_positions;
 };
+
+} // namespace sensor_manager
 
 #endif // FRAME_CONVERTER

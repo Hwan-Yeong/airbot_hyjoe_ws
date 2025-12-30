@@ -1,7 +1,7 @@
 #include "utils/tof_utils.hpp"
 #include <sstream>
 
-namespace tof_utils
+namespace sensor_manager
 {
 
 TofUtils::TofUtils() {}
@@ -87,4 +87,4 @@ void TofUtils::updateSubCellIndexArray(
     }
 }
 
-} // namespace tof_utils
+} // namespace sensor_manager

@@ -1,5 +1,6 @@
 #include "utils/frame_converter.hpp"
 
+namespace sensor_manager {
 
 FrameConverter::FrameConverter()
 {
@@ -244,3 +245,5 @@ std::vector<tPoint> FrameConverter::tfRobot2GlobalFrame(const tPoint &input_poin
 {
     return tfRobot2GlobalFrame(std::vector<tPoint>{input_point_on_robot_frame}, robot_pose);
 }
+
+} // namespace sensor_manager

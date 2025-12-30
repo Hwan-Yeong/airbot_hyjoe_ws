@@ -81,7 +81,7 @@ class TofMultiLeftCloudConverter : public CloudConverterStrategy
     TofMultiLeftCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
   private:
-    tof_utils::TofUtils tof_utils_;
+    sensor_manager::TofUtils tof_utils_;
 
     PointCloudMsgVector pc_convert(const void* sensor_msg) override;
     std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg) override;
@@ -104,7 +104,7 @@ class TofMultiRightCloudConverter : public CloudConverterStrategy
     TofMultiRightCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
 
   private:
-    tof_utils::TofUtils tof_utils_;
+    sensor_manager::TofUtils tof_utils_;
 
     PointCloudMsgVector pc_convert(const void* sensor_msg) override;
     std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg) override;

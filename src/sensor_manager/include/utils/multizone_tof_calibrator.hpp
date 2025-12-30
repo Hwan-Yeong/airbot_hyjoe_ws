@@ -12,7 +12,9 @@
 
 #include "utils/json.hpp"
 #include "utils/common_struct.hpp"
+#include "cloud_converter/cloud_converter.hpp"
 
+namespace sensor_manager {
 
 using json = nlohmann::ordered_json;
 
@@ -25,6 +27,7 @@ class MultizoneTofCalibrator {
     bool isCalibrationDone(TOF_SIDE side) const;
     void setCalibrationState(MTOF_CALIB_STATE state);
     MTOF_CALIB_STATE getCalibrationState() const;
+    void setConverter(CloudConverterPtr converter);
     uint8_t makeMTofState(TOF_SIDE side, MTOF_CALIB_RESULT state);
     void reset();
     MTOF_CALIB_RESULT update(MTOF_CALIB_DATA& calib_result,
@@ -44,6 +47,7 @@ class MultizoneTofCalibrator {
 
     rclcpp::Logger logger_;
     tTofCalibrationParam mtof_calib_cfg_;
+    CloudConverterPtr converter_ = nullptr;
 
     MTOF_CALIB_STATE calib_state_ = MTOF_CALIB_STATE::INACTIVE; //isActiveMToFCalibration
     bool is_left_done_ = false; //bLeftMToFCalibrationSet
@@ -51,3 +55,5 @@ class MultizoneTofCalibrator {
     tMToFCalibSession calib_session_;
     std::array<float, 6> mtof_calib_result_array_{};
 };
+
+} // namespace sensor_manager

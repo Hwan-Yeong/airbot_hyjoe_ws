@@ -1,5 +1,6 @@
 #include "utils/pointcloud_generator.hpp"
 
+namespace sensor_manager {
 
 PointCloudGenerator::PointCloudGenerator()
 {
@@ -219,3 +220,5 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::mergePointCloud2Vector(const 
 
     return output_msg;
 }
+
+} // namespace sensor_manager

@@ -1,5 +1,7 @@
 #include "utils/multizone_tof_calibrator.hpp"
 
+namespace sensor_manager {
+
 MultizoneTofCalibrator::MultizoneTofCalibrator(rclcpp::Logger logger, const tTofCalibrationParam& param)
     : logger_(logger)
     , mtof_calib_cfg_(param)
@@ -30,6 +32,11 @@ void MultizoneTofCalibrator::setCalibrationState(MTOF_CALIB_STATE state)
 MTOF_CALIB_STATE MultizoneTofCalibrator::getCalibrationState() const
 {
     return calib_state_;
+}
+
+void MultizoneTofCalibrator::setConverter(CloudConverterPtr converter)
+{
+    converter_ = converter;
 }
 
 void MultizoneTofCalibrator::reset()
@@ -74,21 +81,9 @@ MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& ca
     MTOF_CALIB_RESULT ret = MTOF_CALIB_RESULT::RUNNING;
 
     TOF_SIDE side;
-    std::string calib_converter_key;
 
-    if (calib_state_ == MTOF_CALIB_STATE::ACTIVE_LEFT) {
-        side = TOF_SIDE::LEFT;
-        calib_converter_key = "tof_multi_left";
-    } else if (calib_state_ == MTOF_CALIB_STATE::ACTIVE_RIGHT) {
-        side = TOF_SIDE::RIGHT;
-        calib_converter_key = "tof_multi_right";
-    } else {
-        return MTOF_CALIB_RESULT::FAIL_UNKNOWN;
-    }
-
-    auto calib_converter = converters_.find(calib_converter_key);
-    if (calib_converter == converters_.end() || !calib_converter->second) {
-        RCLCPP_WARN(logger_, "[Calib] No converter found for: %s", calib_converter_key.c_str());
+    if (converter_ == nullptr) {
+        RCLCPP_ERROR(logger_, "[MultizoneTofCalibrator] Converter is not set-up yet!");
         return MTOF_CALIB_RESULT::FAIL_UNKNOWN;
     }
 
@@ -106,20 +101,20 @@ MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& ca
     fill_tof_msg(pnp_min_msg, mtof_calib_cfg_.pass_min_value);
     fill_tof_msg(pnp_max_msg, mtof_calib_cfg_.pass_max_value);
 
-    auto min_th_arr = calib_converter->second->calibration_convert(static_cast<const void*>(pnp_min_msg.get()));
-    auto max_th_arr = calib_converter->second->calibration_convert(static_cast<const void*>(pnp_max_msg.get()));
+    auto min_th_arr = converter_->calibration_convert(static_cast<const void*>(pnp_min_msg.get()));
+    auto max_th_arr = converter_->calibration_convert(static_cast<const void*>(pnp_max_msg.get()));
 
     // 2. 입력 데이터 TF 변환
-    auto current_data_arr = calib_converter->second->calibration_convert(static_cast<const void*>(msg.get()));
+    auto current_data_arr = converter_->calibration_convert(static_cast<const void*>(msg.get()));
 
     if (current_data_arr.data.size() < 3 || min_th_arr.data.size() < 3) {
-        RCLCPP_ERROR(logger_, "[Calib] Data size mismatch!");
+        RCLCPP_ERROR(logger_, "[MultizoneTofCalibrator] Data size mismatch!");
         return MTOF_CALIB_RESULT::FAIL_UNKNOWN;
     }
 
     // 3. 세션 초기화 및 데이터 갱신 체크
     if (calib_session_.sample_count == 0) {
-        RCLCPP_INFO(logger_, "[Calib] Starting session for %s. Method: %s, Target Samples: %d", 
+        RCLCPP_INFO(logger_, "[MultizoneTofCalibrator] Starting session for %s. Method: %s, Target Samples: %d", 
                     (side == TOF_SIDE::LEFT ? "LEFT" : "RIGHT"), mtof_calib_cfg_.method.c_str(), mtof_calib_cfg_.sampling_count);
         calib_session_.reset();
     }
@@ -137,7 +132,7 @@ MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& ca
         }
 
         if (calib_session_.non_renewal_counts[i] > mtof_calib_cfg_.data_non_renewal_count) {
-            RCLCPP_ERROR(logger_, "[Calib] FAIL: Data not renewing on idx %d", target_idx);
+            RCLCPP_ERROR(logger_, "[MultizoneTofCalibrator] FAIL: Data not renewing on idx %d", target_idx);
             return MTOF_CALIB_RESULT::FAIL_DATA_NON_RENEWAL;
         }
 
@@ -148,7 +143,7 @@ MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& ca
     calib_session_.sample_count++;
 
     if (calib_session_.sample_count % 100 == 0) {
-        RCLCPP_INFO(logger_, "[Calib] Progress: %d/%d...", calib_session_.sample_count, mtof_calib_cfg_.sampling_count);
+        RCLCPP_INFO(logger_, "[MultizoneTofCalibrator] Progress: %d/%d...", calib_session_.sample_count, mtof_calib_cfg_.sampling_count);
     }
 
     // 4. 결과 판정
@@ -397,3 +392,5 @@ double MultizoneTofCalibrator::truncate_to_n(double value, int n)
     double scale = std::pow(10.0, n);
     return std::round(value * scale) / scale;
 }
+
+} // namespace sensor_manager

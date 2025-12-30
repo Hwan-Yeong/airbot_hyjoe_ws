@@ -15,6 +15,7 @@
 
 #include "cloud_converter/cloud_converter.hpp"
 #include "cloud_converter/cloud_converter_factory.hpp"
+#include "utils/multizone_tof_calibrator.hpp"
 
 namespace sensor_manager {
 
