@@ -1,0 +1,53 @@
+#pragma once
+
+#include <memory>
+
+#include <deque>
+#include <ctime>
+#include <iomanip>
+
+#include <rclcpp/rclcpp.hpp>
+#include "std_msgs/msg/u_int8.hpp"
+#include "robot_custom_msgs/msg/tof_data.hpp"
+
+#include "utils/json.hpp"
+#include "utils/common_struct.hpp"
+
+
+using json = nlohmann::ordered_json;
+
+class MultizoneTofCalibrator {
+  public:
+    MultizoneTofCalibrator(rclcpp::Logger logger, const tTofCalibrationParam& param);
+
+    std::array<float, 6> getResultArray() const { return mtof_calib_result_array_; }
+    void setCalibrationDone(TOF_SIDE side, bool is_done);
+    bool isCalibrationDone(TOF_SIDE side) const;
+    void setCalibrationState(MTOF_CALIB_STATE state);
+    MTOF_CALIB_STATE getCalibrationState() const;
+    uint8_t makeMTofState(TOF_SIDE side, MTOF_CALIB_RESULT state);
+    void reset();
+    MTOF_CALIB_RESULT update(MTOF_CALIB_DATA& calib_result,
+        const robot_custom_msgs::msg::TofData::SharedPtr msg,
+        TOF_SIDE side);
+
+  private:
+    MTOF_CALIB_RESULT processCalibration(MTOF_CALIB_DATA& calib_result,
+                                         const robot_custom_msgs::msg::TofData::SharedPtr msg);
+
+    void writeSelfTestCalibFile(TOF_SIDE side, MTOF_CALIB_RESULT resultCode);
+    bool checkFileExist(std::string path, std::deque<std::string> &buffer);
+    void createJsonData(json &j, TOF_SIDE side, MTOF_CALIB_RESULT resultCode);
+    void writeDataFile(const std::string& path, const std::deque<std::string>& buffer, const json& output_data);
+
+    double truncate_to_n(double value, int n);
+
+    rclcpp::Logger logger_;
+    tTofCalibrationParam mtof_calib_cfg_;
+
+    MTOF_CALIB_STATE calib_state_ = MTOF_CALIB_STATE::INACTIVE; //isActiveMToFCalibration
+    bool is_left_done_ = false; //bLeftMToFCalibrationSet
+    bool is_right_done_ = false; //bRightMToFCalibrationSet
+    tMToFCalibSession calib_session_;
+    std::array<float, 6> mtof_calib_result_array_{};
+};
