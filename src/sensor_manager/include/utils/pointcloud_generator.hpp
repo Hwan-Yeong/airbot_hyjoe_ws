@@ -14,6 +14,8 @@
 #include "pcl/point_types.h"
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 
+namespace sensor_manager {
+
 class PointCloudGenerator
 {
 public:
@@ -53,5 +55,7 @@ public:
     sensor_msgs::msg::PointCloud2 generateEmptyPointCloud2Message(const std::string &frame);
 private:
 };
+
+} // namespace sensor_manager
 
 #endif // POINTCLOUD_GENERATOR

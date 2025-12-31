@@ -6,7 +6,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "utils/common_struct.hpp"
 
-namespace tof_utils {
+namespace sensor_manager {
 
 class TofUtils
 {
@@ -34,6 +34,6 @@ public:
 private:
 };
 
-} // namespace tof_utils
+} // namespace sensor_manager
 
 #endif // TOF_UTILS

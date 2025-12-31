@@ -484,7 +484,7 @@ PointCloudMsgVector BottomIrCloudConverter::pc_convert(const void *sensor_msg)
             std::vector<tPoint> points_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame(points_on_robot_frame, robot_pose);
             cloud = this->pointcloud_generator_.generatePointCloud2Message(points_on_map_frame, this->target_frame_);
         } else if (this->target_frame_ == "base_link") {
-            cloud = this->pointcloud_generator_.generatePointCloud2Message({points_on_robot_frame}, this->target_frame_);
+            cloud = this->pointcloud_generator_.generatePointCloud2Message(points_on_robot_frame, this->target_frame_);
         } else {
             RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
         }
@@ -542,7 +542,7 @@ PointCloudMsgVector CollisionCloudConverter::pc_convert(const void *sensor_msg)
             std::vector<tPoint> points_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame(point_on_robot_frame, robot_pose);
             cloud = this->pointcloud_generator_.generatePointCloud2Message(points_on_map_frame, this->target_frame_);
         } else if (this->target_frame_ == "base_link") {
-            cloud = this->pointcloud_generator_.generatePointCloud2Message({point_on_robot_frame}, this->target_frame_);
+            cloud = this->pointcloud_generator_.generatePointCloud2Message(point_on_robot_frame, this->target_frame_);
         } else {
             RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
         }

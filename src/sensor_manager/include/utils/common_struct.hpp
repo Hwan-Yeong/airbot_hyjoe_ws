@@ -161,6 +161,15 @@ enum class TOF_SIDE
     BOTH
 };
 
+inline std::string enumToString(TOF_SIDE state) {
+    switch (state) {
+        case TOF_SIDE::LEFT:        return "LEFT";
+        case TOF_SIDE::RIGHT:       return "RIGHT";
+        case TOF_SIDE::BOTH:        return "BOTH";
+        default:                    return "UNKNOWN";
+    }
+}
+
 enum class MTOF_CALIB_STATE {
     INACTIVE        = 0,
     ACTIVE_LEFT     = 1,
