@@ -49,7 +49,7 @@ void MultizoneTofCalibrator::reset()
 
 MTOF_CALIB_RESULT MultizoneTofCalibrator::update(MTOF_CALIB_DATA& calib_result, const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side)
 {
-    MTOF_CALIB_RESULT ret = processCalibration(calib_result, msg);
+    MTOF_CALIB_RESULT ret = processCalibration(calib_result, msg, side);
 
     if (ret != MTOF_CALIB_RESULT::RUNNING) {
         RCLCPP_INFO(logger_,
@@ -76,11 +76,9 @@ MTOF_CALIB_RESULT MultizoneTofCalibrator::update(MTOF_CALIB_DATA& calib_result, 
     return ret;
 }
 
-MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& calib_result, const robot_custom_msgs::msg::TofData::SharedPtr msg)
+MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& calib_result, const robot_custom_msgs::msg::TofData::SharedPtr msg, TOF_SIDE side)
 {
     MTOF_CALIB_RESULT ret = MTOF_CALIB_RESULT::RUNNING;
-
-    TOF_SIDE side;
 
     if (converter_ == nullptr) {
         RCLCPP_ERROR(logger_, "[MultizoneTofCalibrator] Converter is not set-up yet!");
@@ -124,6 +122,11 @@ MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& ca
         int target_idx = calib_session_.TARGET_INDICES[i]; // 13, 14, 15
         float raw_val = (side == TOF_SIDE::LEFT) ? msg->bot_left[target_idx] : msg->bot_right[target_idx];
 
+        // 0.0 혹은 nan 데이터는 아예 세션에 넣지 않고 스킵
+        if (raw_val <= 1e-6 || std::isnan(raw_val)) {
+            return MTOF_CALIB_RESULT::RUNNING;
+        }
+
         // 데이터 갱신 여부 확인
         if (!calib_session_.origins[i].empty() && std::abs(calib_session_.origins[i].back() - raw_val) < 1e-6f) {
             calib_session_.non_renewal_counts[i]++;
@@ -163,6 +166,14 @@ MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& ca
         float min_val = *std::min_element(calib_session_.samples[1].begin(), calib_session_.samples[1].end());
         float max_val = *std::max_element(calib_session_.samples[1].begin(), calib_session_.samples[1].end());
         float diff = max_val - min_val;
+
+        // Udp 전송용 데이터 세팅
+        if (mtof_calib_cfg_.method == "Max") {
+            calib_result.setMinValue(side, min_val, min_th_arr.data[1]);
+            calib_result.setMaxValue(side, max_val, max_th_arr.data[1]);
+        } else if (mtof_calib_cfg_.method == "Median") {
+            calib_result.setMedianValue(side, calib_session_.stats[1]);
+        }
 
         // 결과 로깅 (심플 스타일)
         RCLCPP_INFO(

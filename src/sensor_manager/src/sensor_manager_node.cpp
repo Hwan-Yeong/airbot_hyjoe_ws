@@ -328,7 +328,7 @@ void SensorManagerNode::publishPointcloudTimer()
         robot_custom_msgs::msg::TofData::SharedPtr tof_msg_copied;
         {
             std::lock_guard<std::mutex> lock(tof_buffer_.mtx);
-            tof_msg_copied = std::move(tof_buffer_.latest_msg); // 참조카운트 변경 X, 소유권 이동
+            tof_msg_copied = std::move(tof_buffer_.latest_msg);
             tof_buffer_.updated.store(false);
         }
         if (!tof_msg_copied) {
@@ -500,8 +500,8 @@ void SensorManagerNode::runMultizoneToFCalibration(robot_custom_msgs::msg::TofDa
         calib_state_msg.data = mtof_calibrator_->makeMTofState(side, result);
         mtof_calibration_state_pub_->publish(calib_state_msg);
 
-        if ((side == TOF_SIDE::LEFT && result >= MTOF_CALIB_RESULT::FAIL_OUT_OF_RANGE) ||
-            (side == TOF_SIDE::RIGHT && mtof_calibrator_->isCalibrationDone(TOF_SIDE::LEFT) && result >= MTOF_CALIB_RESULT::PASS)) {
+        // Send Calib result data to udp_interface (Quber SoC)
+        if (result >= MTOF_CALIB_RESULT::PASS) {
             std_msgs::msg::Float32MultiArray msg_arr;
             result_data.setResult(side, static_cast<float>(result));
             result_data.setPublishValue(side);
@@ -514,9 +514,11 @@ void SensorManagerNode::runMultizoneToFCalibration(robot_custom_msgs::msg::TofDa
             mtof_calibration_data_pub_->publish(msg_arr);
         }
 
+        // Send Calib Full-result data to A1_perception (for updating calibration.yaml file)
         if (mtof_calibrator_->isCalibrationDone(TOF_SIDE::LEFT) && mtof_calibrator_->isCalibrationDone(TOF_SIDE::RIGHT)) {
             std_msgs::msg::Float32MultiArray msg_arr;
-            msg_arr.data.assign(mtof_calibrator_->getResultArray().begin(), mtof_calibrator_->getResultArray().end());
+            const auto& results = mtof_calibrator_->getResultArray();
+            msg_arr.data.assign(results.begin(), results.end());
             mtof_calibration_complete_pub_->publish(msg_arr);
             RCLCPP_INFO(this->get_logger(), "[Calibration Result: PASS] Publish m-ToF Calibration Data to A1_Perception");
             mtof_calibrator_->setCalibrationDone(TOF_SIDE::LEFT, false);

@@ -22,7 +22,7 @@ class MultizoneTofCalibrator {
   public:
     MultizoneTofCalibrator(rclcpp::Logger logger, const tTofCalibrationParam& param);
 
-    std::array<float, 6> getResultArray() const { return mtof_calib_result_array_; }
+    const std::array<float, 6>& getResultArray() const { return mtof_calib_result_array_; } //Left,Right 모두 완료되었을 때만 호출해야 함
     void setCalibrationDone(TOF_SIDE side, bool is_done);
     bool isCalibrationDone(TOF_SIDE side) const;
     void setCalibrationState(MTOF_CALIB_STATE state);
@@ -31,12 +31,13 @@ class MultizoneTofCalibrator {
     uint8_t makeMTofState(TOF_SIDE side, MTOF_CALIB_RESULT state);
     void reset();
     MTOF_CALIB_RESULT update(MTOF_CALIB_DATA& calib_result,
-        const robot_custom_msgs::msg::TofData::SharedPtr msg,
-        TOF_SIDE side);
+      const robot_custom_msgs::msg::TofData::SharedPtr msg,
+      TOF_SIDE side);
 
   private:
     MTOF_CALIB_RESULT processCalibration(MTOF_CALIB_DATA& calib_result,
-                                         const robot_custom_msgs::msg::TofData::SharedPtr msg);
+      const robot_custom_msgs::msg::TofData::SharedPtr msg,
+      TOF_SIDE side);
 
     void writeSelfTestCalibFile(TOF_SIDE side, MTOF_CALIB_RESULT resultCode);
     bool checkFileExist(std::string path, std::deque<std::string> &buffer);
@@ -52,7 +53,7 @@ class MultizoneTofCalibrator {
     MTOF_CALIB_STATE calib_state_ = MTOF_CALIB_STATE::INACTIVE; //isActiveMToFCalibration
     bool is_left_done_ = false; //bLeftMToFCalibrationSet
     bool is_right_done_ = false; //bRightMToFCalibrationSet
-    tMToFCalibSession calib_session_;
+    tMToFCalibSession calib_session_; //샘플링cnt, raw데이터, 변환데이터, 결과데이터 등 주요 변수 저장 멤버변수
     std::array<float, 6> mtof_calib_result_array_{};
 };
 
