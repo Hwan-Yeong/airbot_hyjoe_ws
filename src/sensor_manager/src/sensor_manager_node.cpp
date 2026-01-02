@@ -178,7 +178,6 @@ void SensorManagerNode::init()
     mtof_calibrator_->setCalibrationState(MTOF_CALIB_STATE::INACTIVE);
     initializeRuntime();
     initPublisher(this->config_);
-    initPublishingRates(this->config_["sensors"]);
     initConverters(this->config_["sensors"]);
 }
 
@@ -195,6 +194,9 @@ void SensorManagerNode::initPublisher(const YAML::Node& config)
         );
     };
 
+    std::ostringstream oss;
+    oss << "\n[POINTCLOUD PUBLISHING RATES]\n";
+
     const YAML::Node& sensor_config = config["sensors"];
     for(const auto& sensor_pair : sensor_config) {
         std::string sensor_name = sensor_pair.first.as<std::string>();
@@ -203,6 +205,16 @@ void SensorManagerNode::initPublisher(const YAML::Node& config)
         bool is_not_used_publihser = (sensor_name == "empty") || (sensor_name == "tof_multi_left") || (sensor_name == "tof_multi_right");
         if (is_not_used_publihser) continue;
 
+        // init publishing rate
+        unsigned int rate_ms = 0;
+        if (sensor_config["publish_rate_ms"]) {
+            const std::string sensor_name = sensor_pair.first.as<std::string>();
+            rate_ms = sensor_config["publish_rate_ms"].as<unsigned int>();
+            pointcloud_publishing_rate_map_[sensor_name] = rate_ms;
+            oss << "  " << sensor_name << " : " << rate_ms << " ms\n";
+        }
+
+        // init publisher
         if (sensor_config.IsMap()) {
             bool is_use = sensor_config["use"] ? sensor_config["use"].as<bool>() : false;
 
@@ -216,6 +228,8 @@ void SensorManagerNode::initPublisher(const YAML::Node& config)
             }
         }
     }
+    oss << "----------------------------------------------------";
+    RCLCPP_INFO(this->get_logger(), "%s", oss.str().c_str());
 
     bool is_enable_8x8 = sensor_config["tof_multi"]["enable_8x8"] ? sensor_config["tof_multi"]["enable_8x8"].as<bool>() : false;
     if (is_enable_8x8) {
@@ -269,31 +283,6 @@ void SensorManagerNode::initPublisher(const YAML::Node& config)
     mtof_calibration_data_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>(
         "tof_calib_data", 10
     );
-}
-
-void SensorManagerNode::initPublishingRates(const YAML::Node& config)
-{
-    if (!config.IsMap()) {
-        auto s = YAML::Dump(config);
-        throw std::runtime_error("Invalid sensor config format.");
-        return;
-    }
-
-    std::ostringstream oss;
-    oss << "\n[POINTCLOUD PUBLISHING RATES]\n";
-
-    for (const auto& sensor_pair : config) {
-        unsigned int rate_ms = 0;
-        const YAML::Node& sensor_node = sensor_pair.second;
-        if (sensor_node["publish_rate_ms"]) {
-            const std::string sensor_name = sensor_pair.first.as<std::string>();
-            rate_ms = sensor_node["publish_rate_ms"].as<unsigned int>();
-            pointcloud_publishing_rate_map_[sensor_name] = rate_ms;
-            oss << "  " << sensor_name << " : " << rate_ms << " ms\n";
-        }
-    }
-    oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->get_logger(), "%s", oss.str().c_str());
 }
 
 void SensorManagerNode::initConverters(const YAML::Node& config)
@@ -408,12 +397,6 @@ void SensorManagerNode::publishPointcloudTimer()
     }
 }
 
-/**
- * @brief 센서 데이터 변환 후 메시지 퍼블리싱하는 함수
- * @param converter_key: pointcloud 변환기 식별 기 (string)
- * @param topic_key: 발행할 토픽명 (string)
- * @param msg_copied: 변환할 센서 raw data
- */
 void SensorManagerNode::publishPointcloud(const std::string& converter_key, const std::string& topic_key, const std::shared_ptr<void> msg_copied)
 {
     auto it = converters_.find(converter_key);
@@ -484,49 +467,6 @@ void SensorManagerNode::publishMultiTofIdxPointcloud(const PointCloudMsgVector& 
     }
 }
 
-void SensorManagerNode::runMultizoneToFCalibration(robot_custom_msgs::msg::TofData::SharedPtr tof_msg)
-{
-    MTOF_CALIB_RESULT result = MTOF_CALIB_RESULT::INACTIVE;
-    MTOF_CALIB_STATE state = mtof_calibrator_->getCalibrationState();
-    TOF_SIDE side = (state == MTOF_CALIB_STATE::ACTIVE_LEFT) ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT;
-    MTOF_CALIB_DATA result_data = MTOF_CALIB_DATA();
-
-    if (state != MTOF_CALIB_STATE::INACTIVE && !mtof_calibrator_->isCalibrationDone(side)) {
-        result = mtof_calibrator_->update(result_data, tof_msg, side);
-        if (result == MTOF_CALIB_RESULT::PASS) {
-            mtof_calibrator_->setCalibrationDone(side, true);
-        }
-        std_msgs::msg::UInt8 calib_state_msg;
-        calib_state_msg.data = mtof_calibrator_->makeMTofState(side, result);
-        mtof_calibration_state_pub_->publish(calib_state_msg);
-
-        // Send Calib result data to udp_interface (Quber SoC)
-        if (result >= MTOF_CALIB_RESULT::PASS) {
-            std_msgs::msg::Float32MultiArray msg_arr;
-            result_data.setResult(side, static_cast<float>(result));
-            result_data.setPublishValue(side);
-            if (side == TOF_SIDE::LEFT) {
-                msg_arr.data.assign(result_data.left.pub_data.begin(), result_data.left.pub_data.end());
-            } else if (side == TOF_SIDE::RIGHT) {
-                msg_arr.data.assign(result_data.right.pub_data.begin(), result_data.right.pub_data.end());
-            }
-            RCLCPP_INFO(this->get_logger(), "[Publish Data %s] : ", enumToString(side).c_str());
-            mtof_calibration_data_pub_->publish(msg_arr);
-        }
-
-        // Send Calib Full-result data to A1_perception (for updating calibration.yaml file)
-        if (mtof_calibrator_->isCalibrationDone(TOF_SIDE::LEFT) && mtof_calibrator_->isCalibrationDone(TOF_SIDE::RIGHT)) {
-            std_msgs::msg::Float32MultiArray msg_arr;
-            const auto& results = mtof_calibrator_->getResultArray();
-            msg_arr.data.assign(results.begin(), results.end());
-            mtof_calibration_complete_pub_->publish(msg_arr);
-            RCLCPP_INFO(this->get_logger(), "[Calibration Result: PASS] Publish m-ToF Calibration Data to A1_Perception");
-            mtof_calibrator_->setCalibrationDone(TOF_SIDE::LEFT, false);
-            mtof_calibrator_->setCalibrationDone(TOF_SIDE::RIGHT, false);
-        }
-    }
-}
-
 tTofCalibrationParam SensorManagerNode::loadMultizoneTofCalibrationParams()
 {
     tTofCalibrationParam cfg; // 기본값으로 초기화된 구조체 생성
@@ -570,6 +510,49 @@ tTofCalibrationParam SensorManagerNode::loadMultizoneTofCalibrationParams()
     }
 
     return cfg;
+}
+
+void SensorManagerNode::runMultizoneToFCalibration(robot_custom_msgs::msg::TofData::SharedPtr tof_msg)
+{
+    MTOF_CALIB_RESULT result = MTOF_CALIB_RESULT::INACTIVE;
+    MTOF_CALIB_STATE state = mtof_calibrator_->getCalibrationState();
+    TOF_SIDE side = (state == MTOF_CALIB_STATE::ACTIVE_LEFT) ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT;
+    MTOF_CALIB_DATA result_data = MTOF_CALIB_DATA();
+
+    if (state != MTOF_CALIB_STATE::INACTIVE && !mtof_calibrator_->isCalibrationDone(side)) {
+        result = mtof_calibrator_->update(result_data, tof_msg, side);
+        if (result == MTOF_CALIB_RESULT::PASS) {
+            mtof_calibrator_->setCalibrationDone(side, true);
+        }
+        std_msgs::msg::UInt8 calib_state_msg;
+        calib_state_msg.data = mtof_calibrator_->makeMTofState(side, result);
+        mtof_calibration_state_pub_->publish(calib_state_msg);
+
+        // Send Calib result data to udp_interface (Quber SoC)
+        if (result >= MTOF_CALIB_RESULT::PASS) {
+            std_msgs::msg::Float32MultiArray msg_arr;
+            result_data.setResult(side, static_cast<float>(result));
+            result_data.setPublishValue(side);
+            if (side == TOF_SIDE::LEFT) {
+                msg_arr.data.assign(result_data.left.pub_data.begin(), result_data.left.pub_data.end());
+            } else if (side == TOF_SIDE::RIGHT) {
+                msg_arr.data.assign(result_data.right.pub_data.begin(), result_data.right.pub_data.end());
+            }
+            RCLCPP_INFO(this->get_logger(), "[Publish Data %s] : ", enumToString(side).c_str());
+            mtof_calibration_data_pub_->publish(msg_arr);
+        }
+
+        // Send Calib Full-result data to A1_perception (for updating calibration.yaml file)
+        if (mtof_calibrator_->isCalibrationDone(TOF_SIDE::LEFT) && mtof_calibrator_->isCalibrationDone(TOF_SIDE::RIGHT)) {
+            std_msgs::msg::Float32MultiArray msg_arr;
+            const auto& results = mtof_calibrator_->getResultArray();
+            msg_arr.data.assign(results.begin(), results.end());
+            mtof_calibration_complete_pub_->publish(msg_arr);
+            RCLCPP_INFO(this->get_logger(), "[Calibration Result: PASS] Publish m-ToF Calibration Data to A1_Perception");
+            mtof_calibrator_->setCalibrationDone(TOF_SIDE::LEFT, false);
+            mtof_calibrator_->setCalibrationDone(TOF_SIDE::RIGHT, false);
+        }
+    }
 }
 
 } // namespace sensor_manager

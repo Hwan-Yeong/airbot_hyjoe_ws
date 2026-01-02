@@ -258,12 +258,6 @@ uint8_t MultizoneTofCalibrator::makeMTofState(TOF_SIDE side, MTOF_CALIB_RESULT s
     return value;
 }
 
-/**
-  * @brief Save tof self test calibration data in json format
-  *
-  * @param side enum Class, Left or Right
-  * @param resultCode uint8_t, tof calibration result
-  */
 void MultizoneTofCalibrator::writeSelfTestCalibFile(TOF_SIDE side, MTOF_CALIB_RESULT resultCode)
 {
     std::deque<std::string> buffer;
@@ -279,14 +273,6 @@ void MultizoneTofCalibrator::writeSelfTestCalibFile(TOF_SIDE side, MTOF_CALIB_RE
     writeDataFile(tof_calib_file_path, buffer, j);
 }
 
-/**
- * @brief Check file exist, and save exist data in buffer
- *
- * @param path Json file path
- * @param buffer exist data in file
- * @return true, File open success
- * @return false, Fail to open file or fail to create file
- */
 bool MultizoneTofCalibrator::checkFileExist(std::string path, std::deque<std::string> &buffer)
 {
     std::ifstream read_file(path);
@@ -319,12 +305,6 @@ bool MultizoneTofCalibrator::checkFileExist(std::string path, std::deque<std::st
     return true;
 }
 
-/**
- * @brief Create json data.
- * Format : {"time": "YY-MM-DD HH:MM:SS", "side": "Left"/"Right", "result": "PASS"/"FAILE", "failCode": "0xXX", "data": [x.xxx, x.xxx, x.xxx]}
- *
- * @param j nlohmann::ordered_json
- */
 void MultizoneTofCalibrator::createJsonData(json &j, TOF_SIDE side, MTOF_CALIB_RESULT resultCode)
 {
     json tof_data;
@@ -357,13 +337,6 @@ void MultizoneTofCalibrator::createJsonData(json &j, TOF_SIDE side, MTOF_CALIB_R
     }
 }
 
-/**
- * @brief Save json data to file
- *
- * @param path json file path
- * @param buffer exist data in json file
- * @param output_data new data to wirte file
- */
 void MultizoneTofCalibrator::writeDataFile(const std::string& path, const std::deque<std::string>& buffer, const json& output_data)
 {
     std::ofstream output_file(path);
@@ -391,13 +364,6 @@ void MultizoneTofCalibrator::writeDataFile(const std::string& path, const std::d
     RCLCPP_INFO(logger_, "File write success.");
 }
 
-/**
- * @brief 소수점 n자리 이하 버림
- *
- * @param value double, 원본 실수값
- * @param n int, n자리 이하 버림값
- * @return double, n자리 이하 버려진 실수값
- */
 double MultizoneTofCalibrator::truncate_to_n(double value, int n)
 {
     double scale = std::pow(10.0, n);

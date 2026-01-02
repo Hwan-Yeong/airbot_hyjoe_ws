@@ -31,9 +31,16 @@ class CloudConverterStrategy
 
     virtual ~CloudConverterStrategy() = default;
 
+    /**
+     * @brief PointCloud2 데이터 변환 함수 인터페이스
+     */
     virtual PointCloudMsgVector pc_convert(const void* sensor_msg) = 0;
 
-    // 캘리브레이션 전용 가상 함수 (기본 구현 제공), 이 함수는 오버라이드 하지 않으면 이 기본 동작을 상속받습니다.
+    /**
+     * @brief Multizone ToF 캘리브레이션 전용 가상 함수 (기본 구현 제공)
+     * 
+     * @note 이 함수는 오버라이드 하지 않으면 이 기본 동작을 상속받습니다.
+     */
     virtual std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg)
     {
       (void)sensor_msg;
@@ -46,7 +53,7 @@ class CloudConverterStrategy
      *
      * @return std::shared_ptr<SensorManagerNode> SensorManagerNode 스마트 포인터
      */
-    std::shared_ptr<SensorManagerNode> getNodePtr() const;
+    std::shared_ptr<SensorManagerNode> get_node_ptr() const;
 
   protected:
     std::shared_ptr<SensorManagerNode> node_ptr{};
@@ -73,7 +80,7 @@ class TofMonoCloudConverter : public CloudConverterStrategy
 };
 
 /**
- * @brief Multi ToF Left 센서 데이터 -> PointCloud2 변환
+ * @brief Multi ToF Left 센서 데이터 -> PointCloud2 변환, Calibration 좌표 변환
  */
 class TofMultiLeftCloudConverter : public CloudConverterStrategy
 {
@@ -96,7 +103,7 @@ class TofMultiLeftCloudConverter : public CloudConverterStrategy
 };
 
 /**
- * @brief Multi ToF Right 센서 데이터 -> PointCloud2 변환
+ * @brief Multi ToF Right 센서 데이터 -> PointCloud2 변환, Calibration 좌표 변환
  */
 class TofMultiRightCloudConverter : public CloudConverterStrategy
 {

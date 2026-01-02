@@ -23,6 +23,7 @@ public:
 
     /**
      * @brief Mono ToF 센서 좌표 데이터를 Robot 좌표계로 변환
+     * 
      * @param[in] input_dist 센서 좌표계 기준 1D ToF 거리 데이터
      * @param[in] mono_tof_sensor_frame_pose base_link 기준 센서 frame 위치 정보
      * @return 변환된 로봇좌표계(base_link) 기준 좌표 데이터
@@ -31,6 +32,7 @@ public:
 
     /**
      * @brief Multi ToF 센서 좌표 데이터를 Robot 좌표계로 변환
+     * 
      * @param[in] input_points 센서 좌표계 기준 좌표데이터
      * @param[in] isLeft Left Tof 인지 Right Tof 인지 구분 (Left: true / Right: false)
      * @param[in] multi_tof_sensor_frame_pose base_link 기준 센서 frame 위치 정보
@@ -45,6 +47,7 @@ public:
 
     /**
      * @brief Camera 센서 좌표 데이터를 Robot 좌표계 기준 bbox msg로 변환
+     * 
      * @param[in] camera_msg camera 센서 데이터
      * @param[in] robot_pose 현재 robot 위치 좌표
      * @param[in] class_id_confidence_th 객체 id 및 confidence threshold 매칭 데이터 <map type> (객체별 장애물 처리 차별화를 위해)
@@ -63,6 +66,7 @@ public:
 
     /**
      * @brief Cliff 센서 좌표 데이터를 Robot 좌표계로 변환
+     * 
      * @param[in] cliff_msg IR 센서 데이터 정보 (On 된 센서에 대해서만 좌표 변환 실행하기 위함)
      * @param[in] sensor_positions base_link 기준으로 미리 변환된 데이터를 전달 (센서 위치는 변하지 않으므로 실행될 때 마다 동일한 연산을 수행하지 않게 하기 위함)
      * @return 변환된 로봇좌표계(base_link) 기준 좌표 데이터
@@ -71,6 +75,7 @@ public:
 
     /**
      * @brief Collision 이벤트 발생 시 장애물을 생성할 Robot좌표계 기준 좌표 데이터 변환
+     * 
      * @param[in] collision_msg Collision 이벤트 데이터 정보
      * @param[in] offset_m 로봇 base_link 기준 해당 거리 전방에 장애물로 쓰일 point 1개 생성 [m]
      * @return 변환된 로봇좌표계(base_link) 기준 좌표 데이터
@@ -79,6 +84,7 @@ public:
 
     /**
      * @brief 로봇좌표계 -> 글로벌좌표계 변환 함수
+     * 
      * @param[in] input_points_on_robot_frame 로봇좌표계 기준 좌표 데이터
      * @param[in] robot_pose 로봇의 현재 위치 데이터
      * @return 변환된 글로벌(map) 기준 좌표 데이터

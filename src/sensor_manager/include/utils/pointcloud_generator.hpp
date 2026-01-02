@@ -24,6 +24,7 @@ public:
 
     /**
      * @brief PointCloud2 데이터 여러개를 (vector<PC2>) 하나의 메시지로 통합하는 함수
+     * 
      * @param[in] pc_msgs PointCloud2 메시지의 벡터
      * @param[in] frame target_frame <string>
      * @return 합쳐진 결과 sensor_msgs::msg::PointCloud2 메시지
@@ -32,6 +33,7 @@ public:
 
     /**
      * @brief "일반적인 센서" 위치 데이터로부터 PointCloud2 데이터를 생성하는 함수
+     * 
      * @param[in] points PointCloud2로 변환하고자 하는 위치 데이터의 벡터
      * @param[in] frame target_frame <string>
      * @return 결과 sensor_msgs::msg::PointCloud2 메시지
@@ -41,6 +43,7 @@ public:
 
     /**
      * @brief "카메라 센서" 위치 데이터로부터 PointCloud2 데이터를 생성하는 함수
+     * 
      * @param[in] input_bbox_array PointCloud2로 변환하고자 하는 bounding box의 array 집합
      * @param[in] resolution PointCloud2 데이터의 분해능
      * @return 결과 sensor_msgs::msg::PointCloud2 메시지
@@ -49,6 +52,7 @@ public:
 
     /**
      * @brief "비어있는" PointCloud2 데이터를 생성하는 함수 (초기화 및 clear 용도)
+     * 
      * @param[in] frame: target_frame <string>
      * @return 비어있는 sensor_msgs::msg::PointCloud2 메시지
      */

@@ -29,17 +29,64 @@ public:
     std::string getTargetFrame() const { return node_target_frame_; }
 
 private:
+    /**
+     * @brief yaml 파일 내용을 config_ 멤버변수에 저장하는 함수
+     */
     void loadConfig();
+
+    /**
+     * @brief 노드 실행 중 초기화 할 변수 모아둔 함수
+     */
     void initializeRuntime();
+
+    /**
+     * @brief 퍼블리셔 초기화 함수
+     */
     void initPublisher(const YAML::Node& config);
-    void initPublishingRates(const YAML::Node &config);
+
+    /**
+     * @brief Converter 초기화 함수
+     */
     void initConverters(const YAML::Node &config);
+
+    /**
+     * @brief pointcloud 퍼블리싱을 주기적으로 수행하는 노드의 메인 타이머
+     */
     void publishPointcloudTimer();
+
+    /**
+     * @brief 센서 데이터 변환 후 메시지 퍼블리싱하는 함수
+     * 
+     * @param converter_key: pointcloud 변환기 식별 기 (string)
+     * @param topic_key: 발행할 토픽명 (string)
+     * @param msg_copied: 변환할 센서 raw data
+     */
     void publishPointcloud(const std::string& converter_key, const std::string& topic_key, const std::shared_ptr<void> msg_copy);
+
+    /**
+     * @brief 모든 converter 토픽들의 empty pointcloud 발행 함수
+     * 
+     * @note 노드 비활성화 시점의 마지막 pointcloud 가 다음 활성화 후 주행 costmap에 영향을 끼치지 않게 하기 위한 안전장치
+     */
     void publishEmptyMsg();
+
+    /**
+     * @brief Multizone ToF의 index 별 토픽 발행을 위한 함수
+     * 
+     * @param clouds: 발행할 pointCloud2의 벡터 집합 (std::vector<sensor_msgs::msg::PointCloud2>)
+     * @param topic_key: 발행할 토픽명 (string)
+     */
     void publishMultiTofIdxPointcloud(const PointCloudMsgVector& clouds, const std::string& topic_key);
-    void runMultizoneToFCalibration(robot_custom_msgs::msg::TofData::SharedPtr tof_msg);
+
+    /**
+     * @brief Multizone ToF 보정(Calibration)에 사용되는 파라미터 로딩 함수
+     */
     tTofCalibrationParam loadMultizoneTofCalibrationParams();
+
+    /**
+     * @brief Multizone ToF의 보정(Calibration) 기능 동작 함수
+     */
+    void runMultizoneToFCalibration(robot_custom_msgs::msg::TofData::SharedPtr tof_msg);
 
     YAML::Node config_;
     std::string node_target_frame_;
@@ -67,18 +114,21 @@ private:
     std::vector<int> multi_tof_left_sub_cell_idx_array_;
     std::vector<int> multi_tof_right_sub_cell_idx_array_;
 
+    /*
+      Sensor Data Buffers
+    */
     tSensorBuffer<robot_custom_msgs::msg::TofData> tof_buffer_;
     tSensorBuffer<robot_custom_msgs::msg::CameraDataArray> camera_buffer_;
     tSensorBuffer<robot_custom_msgs::msg::BottomIrData> bottom_ir_buffer_;
     tSensorBuffer<robot_custom_msgs::msg::AbnormalEventData> collision_buffer_;
 
-    // Multizone ToF Calibration
+    /*
+      Multizone ToF Calibration
+    */
     rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr mtof_calibration_cmd_sub_;
-
     rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr mtof_calibration_complete_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr mtof_calibration_data_pub_;
     rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr mtof_calibration_state_pub_;
-
     std::unique_ptr<MultizoneTofCalibrator> mtof_calibrator_;
 };
 

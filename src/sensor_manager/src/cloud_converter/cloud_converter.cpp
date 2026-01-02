@@ -10,7 +10,7 @@ CloudConverterStrategy::CloudConverterStrategy(std::shared_ptr<SensorManagerNode
     this->target_frame_ = node_ptr->getTargetFrame();
 }
 
-std::shared_ptr<SensorManagerNode> CloudConverterStrategy::getNodePtr() const
+std::shared_ptr<SensorManagerNode> CloudConverterStrategy::get_node_ptr() const
 {
     return node_ptr;
 }
@@ -200,7 +200,7 @@ std_msgs::msg::Float32MultiArray TofMultiLeftCloudConverter::calibration_convert
 
 
     if (robot_pts.size() != INDEX_SIZE) {
-        RCLCPP_WARN(rclcpp::get_logger("PointCloudTof"),
+        RCLCPP_WARN(this->node_ptr->get_logger(),
             "Expected %zu robot points, but got %zu.",
             INDEX_SIZE, robot_pts.size()
         );
@@ -214,7 +214,7 @@ std_msgs::msg::Float32MultiArray TofMultiLeftCloudConverter::calibration_convert
             ret.data.push_back(static_cast<float>(sqrt(robot_pts[i].x*robot_pts[i].x + robot_pts[i].y*robot_pts[i].y)));
         }
     } else {
-        RCLCPP_WARN(rclcpp::get_logger("PointCloudTof"),
+        RCLCPP_WARN(this->node_ptr->get_logger(),
             "robot_pts has fewer than 3 points (size=%zu). Returning empty array.",
             robot_pts.size()
         );
@@ -339,7 +339,7 @@ std_msgs::msg::Float32MultiArray TofMultiRightCloudConverter::calibration_conver
 
 
     if (robot_pts.size() != INDEX_SIZE) {
-        RCLCPP_WARN(rclcpp::get_logger("PointCloudTof"),
+        RCLCPP_WARN(this->node_ptr->get_logger(),
             "Expected %zu robot points, but got %zu.",
             INDEX_SIZE, robot_pts.size()
         );
@@ -353,7 +353,7 @@ std_msgs::msg::Float32MultiArray TofMultiRightCloudConverter::calibration_conver
             ret.data.push_back(static_cast<float>(sqrt(robot_pts[i].x*robot_pts[i].x + robot_pts[i].y*robot_pts[i].y)));
         }
     } else {
-        RCLCPP_WARN(rclcpp::get_logger("PointCloudTof"),
+        RCLCPP_WARN(this->node_ptr->get_logger(),
             "robot_pts has fewer than 3 points (size=%zu). Returning empty array.",
             robot_pts.size()
         );

@@ -16,6 +16,7 @@ public:
 
     /**
      * @brief ToF 좌표 계산에 사용되는 tan 계산 함수
+     * 
      * @param[in] sub_cell_idx_array 8x8 Multi ToF의  타겟 cell index
      * @param[in] fov Multi ToF FOV [rad]
      * @param[in] y_tan_out 업데이트 될 y축 tan array
