@@ -3,6 +3,9 @@
 #include <memory>
 
 #include "rclcpp/rclcpp.hpp"
+#include "tf2/LinearMath/Matrix3x3.h"
+#include "tf2/LinearMath/Quaternion.h"
+#include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "std_msgs/msg/float32_multi_array.hpp"
 #include "yaml-cpp/yaml.h"
@@ -136,11 +139,17 @@ class CameraCloudConverter : public CloudConverterStrategy
   private:
     PointCloudMsgVector pc_convert(const void* sensor_msg) override;
 
+    // 경사로 감지 시 Camera 데이터 변환을 수행하지 않기 위해 추가된 플래그
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
+    bool is_ramp_detection_ = false;
+    int ramp_release_cnt = 0;
+
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
     bool use_camera_ = true;
     bool object_direction_ = true;
     double pointcloud_resolution_ = 0.05;
     double object_max_dist_ = 1.5;
+    double object_ignore_pitch_th_ = 3.0;
     tPose camera_sensor_frame_pose_ = tPose(tPoint(0.15473, 0.0, 0.5331),tOrientation(0.0, 0.0, 0.0));
     std::map<int, int> camera_class_id_confidence_th_ = {};
 };

@@ -376,6 +376,7 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> no
     this->object_direction_ = config["object_direction"].as<bool>();
     this->pointcloud_resolution_ = config["pointcloud_resolution"].as<double>();
     this->object_max_dist_ = config["object_max_distance_m"].as<double>();
+    this->object_ignore_pitch_th_ = DEG2RAD(config["object_ignore_pitch_th_deg"].as<double>());
     for (const auto& class_id: config["class_id_confidence_th"]) {
         auto item = class_id.as<std::string>();
         std::istringstream ss(item);
@@ -398,6 +399,7 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> no
     oss << "  object_direction_       : " << this->object_direction_ << "\n";
     oss << "  pointcloud_resolution_  : " << std::fixed << std::setprecision(2) << this->pointcloud_resolution_ << "\n";
     oss << "  object_max_dist_        : " << std::fixed << std::setprecision(2) << this->object_max_dist_ << " m\n";
+    oss << "  object_ignore_pitch_th_ : " << std::fixed << std::setprecision(2) << RAD2DEG(this->object_ignore_pitch_th_) << " deg\n";
     oss << "  sensor_frame_pose       : position [m] = ("
         << std::fixed << std::setprecision(5) << this->camera_sensor_frame_pose_.position.x << ", "
         << std::fixed << std::setprecision(5) << this->camera_sensor_frame_pose_.position.y << ", "
@@ -408,13 +410,36 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> no
     }
     oss << "----------------------------------------------------";
     RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
+
+    // IMU Msg Subscriber
+    imu_sub_ = node_ptr_->create_subscription<sensor_msgs::msg::Imu>(
+        "/imu_data",
+        rclcpp::QoS(10).reliable(),
+        [this](sensor_msgs::msg::Imu::SharedPtr msg) {
+            double roll, pitch, yaw;
+            tf2::Quaternion quaternion(msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w);
+            tf2::Matrix3x3(quaternion).getRPY(roll, pitch, yaw);
+            if (abs(roll) >= this->object_ignore_pitch_th_ || abs(pitch) >= this->object_ignore_pitch_th_) {
+                is_ramp_detection_ = true;
+                ramp_release_cnt = 0;
+            } else {
+                if (is_ramp_detection_) {
+                    ramp_release_cnt++;
+                    if (ramp_release_cnt > 10) { // 1 sec
+                        is_ramp_detection_ = false;
+                        ramp_release_cnt = 0;
+                    }
+                }
+            }
+        }
+    );
 }
 
 PointCloudMsgVector CameraCloudConverter::pc_convert(const void *sensor_msg)
 {
     PointCloudMsg cloud;
 
-    if (this->use_camera_)
+    if (this->use_camera_ && !this->is_ramp_detection_)
     {
         auto msg = static_cast<const robot_custom_msgs::msg::CameraDataArray*>(sensor_msg);
 
