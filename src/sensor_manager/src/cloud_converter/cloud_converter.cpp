@@ -5,18 +5,51 @@
 
 namespace sensor_manager {
 
-CloudConverterStrategy::CloudConverterStrategy(std::shared_ptr<SensorManagerNode> node_ptr_) : node_ptr(node_ptr_)
+CloudConverterStrategy::CloudConverterStrategy(std::shared_ptr<SensorManagerNode> node_ptr, double timeout_sec = 30.0)
+    : node_ptr_(node_ptr), timeout_limit_sec_(timeout_sec)
 {
-    this->target_frame_ = node_ptr->getTargetFrame();
+    last_call_time_ = std::chrono::steady_clock::now();
+    this->target_frame_ = node_ptr_->getTargetFrame();
+}
+
+PointCloudMsgVector CloudConverterStrategy::pc_convert(const void* sensor_msg) {
+    auto now = std::chrono::steady_clock::now();
+
+    if (timeout_limit_sec_ > 0.0) {
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - last_call_time_);
+    double duration_sec = duration.count();
+
+    /**
+     * @brief Converter 내부 변수 자동 초기화 기능
+     * 
+     * @details 변수 자동 초기화는 크게 2가지 경우에 발생
+     * 1) sensor_manager 노드 "on -> off -(over timeout)-> on" 시
+     * 2) 센서 데이터 "수신 -> 미수신 -(over timeout)-> 수신" 시
+    */
+    if ((duration_sec >= timeout_limit_sec_)) {
+        if (!is_already_reset_) {
+        RCLCPP_WARN(this->node_ptr_->get_logger(),
+                    "[%s] Data gap (%.1fs) exceeded reset timeout (%.1fs). Resetting...",
+                    typeid(*this).name(), duration_sec, timeout_limit_sec_);
+        reset_internal_variables();
+        is_already_reset_ = true;
+        }
+    } else {
+        is_already_reset_ = false;
+    }
+    }
+
+    last_call_time_ = now;
+    return pc_convert_impl(sensor_msg);
 }
 
 std::shared_ptr<SensorManagerNode> CloudConverterStrategy::get_node_ptr() const
 {
-    return node_ptr;
+    return node_ptr_;
 }
 
-TofMonoCloudConverter::TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
-    : CloudConverterStrategy(node_ptr_)
+TofMonoCloudConverter::TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node &config)
+    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0)
 {
     // Load Config
     if (!config.IsMap())
@@ -44,6 +77,7 @@ TofMonoCloudConverter::TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> 
     oss << "\n[1D TOF POINTCLOUD CONVERTER PARAMETERS]\n";
     oss << std::boolalpha;
     oss << "  use_tof_mono_      : " << this->use_tof_mono_ << "\n";
+    oss << "  reset_timeout_sec  : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
     oss << "  sensor_frame_pose  : position [m] = ("
         << std::fixed << std::setprecision(5) << this->tof_mono_sensor_frame_pose_.position.x << ", "
         << std::fixed << std::setprecision(5) << this->tof_mono_sensor_frame_pose_.position.y << ", "
@@ -53,10 +87,10 @@ TofMonoCloudConverter::TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> 
         << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_mono_sensor_frame_pose_.orientation.pitch) << ", "
         << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_mono_sensor_frame_pose_.orientation.yaw)   << ")\n";
     oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
 }
 
-PointCloudMsgVector TofMonoCloudConverter::pc_convert(const void *sensor_msg)
+PointCloudMsgVector TofMonoCloudConverter::pc_convert_impl(const void *sensor_msg)
 {
     PointCloudMsg cloud;
 
@@ -77,15 +111,15 @@ PointCloudMsgVector TofMonoCloudConverter::pc_convert(const void *sensor_msg)
         } else if (this->target_frame_ == "base_link") {
             cloud = this->pointcloud_generator_.generatePointCloud2Message({point_on_robot_frame}, this->target_frame_);
         } else {
-            RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
+            RCLCPP_INFO(this->node_ptr_->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
         }
     }
 
     return {cloud};
 }
 
-TofMultiLeftCloudConverter::TofMultiLeftCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
-    : CloudConverterStrategy(node_ptr_)
+TofMultiLeftCloudConverter::TofMultiLeftCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node &config)
+    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0)
 {
     // Load Config
     if (!config.IsMap())
@@ -117,6 +151,7 @@ TofMultiLeftCloudConverter::TofMultiLeftCloudConverter(std::shared_ptr<SensorMan
     oss << "\n[MULTI TOF (Left) POINTCLOUD CONVERTER PARAMETERS]\n";
     oss << std::boolalpha;
     oss << "  use_tof_multi_left_  : " << this->use_tof_multi_left_ << "\n";
+    oss << "  reset_timeout_sec    : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
     oss << "  fov [deg]            : " << RAD2DEG(this->tof_multi_left_fov_) << "\n";
     oss << "  sensor_frame_pose    : position [m] = ("
         << std::fixed << std::setprecision(5) << this->tof_multi_left_sensor_frame_pose_.position.x << ", "
@@ -132,7 +167,7 @@ TofMultiLeftCloudConverter::TofMultiLeftCloudConverter(std::shared_ptr<SensorMan
     }
     oss << "\n";
     oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
 
     // Init Calculation
     tof_utils_.updateSubCellIndexArray(
@@ -140,11 +175,11 @@ TofMultiLeftCloudConverter::TofMultiLeftCloudConverter(std::shared_ptr<SensorMan
         this->tof_multi_left_fov_,
         this->tof_multi_left_y_tan_array_,
         this->tof_multi_left_z_tan_array_,
-        this->node_ptr->get_logger()
+        this->node_ptr_->get_logger()
     );
 }
 
-PointCloudMsgVector TofMultiLeftCloudConverter::pc_convert(const void *sensor_msg)
+PointCloudMsgVector TofMultiLeftCloudConverter::pc_convert_impl(const void *sensor_msg)
 {
     PointCloudMsgVector clouds;
 
@@ -175,7 +210,7 @@ PointCloudMsgVector TofMultiLeftCloudConverter::pc_convert(const void *sensor_ms
                 clouds.push_back(this->pointcloud_generator_.generatePointCloud2Message(point, this->target_frame_));
             }
         } else {
-            RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
+            RCLCPP_INFO(this->node_ptr_->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
         }
     }
 
@@ -200,7 +235,7 @@ std_msgs::msg::Float32MultiArray TofMultiLeftCloudConverter::calibration_convert
 
 
     if (robot_pts.size() != INDEX_SIZE) {
-        RCLCPP_WARN(this->node_ptr->get_logger(),
+        RCLCPP_WARN(this->node_ptr_->get_logger(),
             "Expected %zu robot points, but got %zu.",
             INDEX_SIZE, robot_pts.size()
         );
@@ -214,7 +249,7 @@ std_msgs::msg::Float32MultiArray TofMultiLeftCloudConverter::calibration_convert
             ret.data.push_back(static_cast<float>(sqrt(robot_pts[i].x*robot_pts[i].x + robot_pts[i].y*robot_pts[i].y)));
         }
     } else {
-        RCLCPP_WARN(this->node_ptr->get_logger(),
+        RCLCPP_WARN(this->node_ptr_->get_logger(),
             "robot_pts has fewer than 3 points (size=%zu). Returning empty array.",
             robot_pts.size()
         );
@@ -223,8 +258,8 @@ std_msgs::msg::Float32MultiArray TofMultiLeftCloudConverter::calibration_convert
     return ret;
 }
 
-TofMultiRightCloudConverter::TofMultiRightCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
-    : CloudConverterStrategy(node_ptr_)
+TofMultiRightCloudConverter::TofMultiRightCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node &config)
+    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0)
 {
     // Load Config
     if (!config.IsMap())
@@ -255,7 +290,8 @@ TofMultiRightCloudConverter::TofMultiRightCloudConverter(std::shared_ptr<SensorM
     std::ostringstream oss;
     oss << "\n[MULTI TOF (Right) POINTCLOUD CONVERTER PARAMETERS]\n";
     oss << std::boolalpha;
-    oss << "  use_tof_multi_right_  : " << this->use_tof_multi_right_ << "\n";
+    oss << "  use_tof_multi_right_ : " << this->use_tof_multi_right_ << "\n";
+    oss << "  reset_timeout_sec    : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
     oss << "  fov [deg]            : " << RAD2DEG(this->tof_multi_right_fov_) << "\n";
     oss << "  sensor_frame_pose    : position [m] = ("
         << std::fixed << std::setprecision(5) << this->tof_multi_right_sensor_frame_pose_.position.x << ", "
@@ -271,7 +307,7 @@ TofMultiRightCloudConverter::TofMultiRightCloudConverter(std::shared_ptr<SensorM
     }
     oss << "\n";
     oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
 
     // Init Calculation
     tof_utils_.updateSubCellIndexArray(
@@ -279,11 +315,11 @@ TofMultiRightCloudConverter::TofMultiRightCloudConverter(std::shared_ptr<SensorM
         this->tof_multi_right_fov_,
         this->tof_multi_right_y_tan_array_,
         this->tof_multi_right_z_tan_array_,
-        this->node_ptr->get_logger()
+        this->node_ptr_->get_logger()
     );
 }
 
-PointCloudMsgVector TofMultiRightCloudConverter::pc_convert(const void *sensor_msg)
+PointCloudMsgVector TofMultiRightCloudConverter::pc_convert_impl(const void *sensor_msg)
 {
     PointCloudMsgVector clouds;
 
@@ -314,7 +350,7 @@ PointCloudMsgVector TofMultiRightCloudConverter::pc_convert(const void *sensor_m
                 clouds.push_back(this->pointcloud_generator_.generatePointCloud2Message(point, this->target_frame_));
             }
         } else {
-            RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
+            RCLCPP_INFO(this->node_ptr_->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
         }
     }
 
@@ -339,7 +375,7 @@ std_msgs::msg::Float32MultiArray TofMultiRightCloudConverter::calibration_conver
 
 
     if (robot_pts.size() != INDEX_SIZE) {
-        RCLCPP_WARN(this->node_ptr->get_logger(),
+        RCLCPP_WARN(this->node_ptr_->get_logger(),
             "Expected %zu robot points, but got %zu.",
             INDEX_SIZE, robot_pts.size()
         );
@@ -353,7 +389,7 @@ std_msgs::msg::Float32MultiArray TofMultiRightCloudConverter::calibration_conver
             ret.data.push_back(static_cast<float>(sqrt(robot_pts[i].x*robot_pts[i].x + robot_pts[i].y*robot_pts[i].y)));
         }
     } else {
-        RCLCPP_WARN(this->node_ptr->get_logger(),
+        RCLCPP_WARN(this->node_ptr_->get_logger(),
             "robot_pts has fewer than 3 points (size=%zu). Returning empty array.",
             robot_pts.size()
         );
@@ -362,8 +398,8 @@ std_msgs::msg::Float32MultiArray TofMultiRightCloudConverter::calibration_conver
     return ret;
 }
 
-CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
-    : CloudConverterStrategy(node_ptr_)
+CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node &config)
+    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0)
 {
     // Load Config
     if (!config.IsMap())
@@ -396,6 +432,7 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> no
     oss << "\n[CAMERA POINTCLOUD CONVERTER PARAMETERS]\n";
     oss << std::boolalpha;
     oss << "  use_camera_             : " << this->use_camera_ << "\n";
+    oss << "  reset_timeout_sec       : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
     oss << "  object_direction_       : " << this->object_direction_ << "\n";
     oss << "  pointcloud_resolution_  : " << std::fixed << std::setprecision(2) << this->pointcloud_resolution_ << "\n";
     oss << "  object_max_dist_        : " << std::fixed << std::setprecision(2) << this->object_max_dist_ << " m\n";
@@ -409,7 +446,7 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> no
         oss << "    - { id: " << std::setw(2) << std::setfill('0') << class_id << ", th: " << confidence_th << " }\n";
     }
     oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
 
     // IMU Msg Subscriber
     imu_sub_ = node_ptr_->create_subscription<sensor_msgs::msg::Imu>(
@@ -435,7 +472,7 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> no
     );
 }
 
-PointCloudMsgVector CameraCloudConverter::pc_convert(const void *sensor_msg)
+PointCloudMsgVector CameraCloudConverter::pc_convert_impl(const void *sensor_msg)
 {
     PointCloudMsg cloud;
 
@@ -457,7 +494,7 @@ PointCloudMsgVector CameraCloudConverter::pc_convert(const void *sensor_msg)
             this->target_frame_,
             this->camera_sensor_frame_pose_);
 
-        bbox_array.header.stamp = this->node_ptr->get_clock()->now();
+        bbox_array.header.stamp = this->node_ptr_->get_clock()->now();
 
         cloud = this->pointcloud_generator_.generateCameraPointCloud2Message(bbox_array, this->pointcloud_resolution_);
     }
@@ -465,8 +502,8 @@ PointCloudMsgVector CameraCloudConverter::pc_convert(const void *sensor_msg)
     return {cloud};
 }
 
-BottomIrCloudConverter::BottomIrCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
-    : CloudConverterStrategy(node_ptr_)
+BottomIrCloudConverter::BottomIrCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node &config)
+    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0)
 {
     // Load Config
     if (!config.IsMap())
@@ -484,13 +521,14 @@ BottomIrCloudConverter::BottomIrCloudConverter(std::shared_ptr<SensorManagerNode
     oss << "\n[BOTTOM IR POINTCLOUD CONVERTER PARAMETERS]\n";
     oss << std::boolalpha;
     oss << "  use_bottom_ir_                        : " << this->use_bottom_ir_ << "\n";
+    oss << "  reset_timeout_sec                     : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
     oss << "  ir_dist_center_to_sensor [m]          : " << this->ir_dist_center_to_sensor << "\n";
     oss << "  ir_angle_sensor_to_next_sensor [deg]  : " << this->ir_angle_sensor_to_next_sensor <<" \n";
     oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
 }
 
-PointCloudMsgVector BottomIrCloudConverter::pc_convert(const void *sensor_msg)
+PointCloudMsgVector BottomIrCloudConverter::pc_convert_impl(const void *sensor_msg)
 {
     PointCloudMsg cloud;
 
@@ -511,15 +549,15 @@ PointCloudMsgVector BottomIrCloudConverter::pc_convert(const void *sensor_msg)
         } else if (this->target_frame_ == "base_link") {
             cloud = this->pointcloud_generator_.generatePointCloud2Message(points_on_robot_frame, this->target_frame_);
         } else {
-            RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
+            RCLCPP_INFO(this->node_ptr_->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
         }
     }
 
     return {cloud};
 }
 
-CollisionCloudConverter::CollisionCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node &config)
-    : CloudConverterStrategy(node_ptr_)
+CollisionCloudConverter::CollisionCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node &config)
+    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0)
 {
     // Load Config
     if (!config.IsMap())
@@ -540,15 +578,16 @@ CollisionCloudConverter::CollisionCloudConverter(std::shared_ptr<SensorManagerNo
     oss << "\n[COLLISION POINTCLOUD CONVERTER PARAMETERS]\n";
     oss << std::boolalpha;
     oss << "  use_collision_     : " << this->use_collision_ << "\n";
+    oss << "  reset_timeout_sec  : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
     oss << "  sensor_frame_pose  : position [m] = ("
         << std::fixed << std::setprecision(5) << this->collision_sensor_frame_pose_.position.x << ", "
         << std::fixed << std::setprecision(5) << this->collision_sensor_frame_pose_.position.y << ", "
         << std::fixed << std::setprecision(5) << this->collision_sensor_frame_pose_.position.z << ")\n";
     oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
 }
 
-PointCloudMsgVector CollisionCloudConverter::pc_convert(const void *sensor_msg)
+PointCloudMsgVector CollisionCloudConverter::pc_convert_impl(const void *sensor_msg)
 {
     PointCloudMsg cloud;
 
@@ -569,15 +608,15 @@ PointCloudMsgVector CollisionCloudConverter::pc_convert(const void *sensor_msg)
         } else if (this->target_frame_ == "base_link") {
             cloud = this->pointcloud_generator_.generatePointCloud2Message(point_on_robot_frame, this->target_frame_);
         } else {
-            RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
+            RCLCPP_INFO(this->node_ptr_->get_logger(), "Select Wrong Target Frame: %s", this->target_frame_.c_str());
         }
     }
 
     return {cloud};
 }
 
-EmptyCloudConverter::EmptyCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config)
-    : CloudConverterStrategy(node_ptr_)
+EmptyCloudConverter::EmptyCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config)
+    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : -1.0)
 {
     // Load Config
     if (!config.IsMap())
@@ -592,12 +631,13 @@ EmptyCloudConverter::EmptyCloudConverter(std::shared_ptr<SensorManagerNode> node
     std::ostringstream oss;
     oss << "\n[EMPTY POINTCLOUD PARAMETERS]\n";
     oss << std::boolalpha;
-    oss << "  use_empty_  : " << this->use_empty_msg_ << "\n";
+    oss << "  use_empty_         : " << this->use_empty_msg_ << "\n";
+    oss << "  reset_timeout_sec  : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : -1.0) << "\n";
     oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr->get_logger(), "%s", oss.str().c_str());
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
 }
 
-PointCloudMsgVector EmptyCloudConverter::pc_convert(const void *sensor_msg)
+PointCloudMsgVector EmptyCloudConverter::pc_convert_impl(const void *sensor_msg)
 {
     PointCloudMsg cloud;
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <chrono>
 
 #include "rclcpp/rclcpp.hpp"
 #include "tf2/LinearMath/Matrix3x3.h"
@@ -18,7 +19,7 @@
 
 namespace sensor_manager {
 
-class SensorManagerNode;
+class SensorManagerNode; // forward declaration
 
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 using PointCloudMsgVector = std::vector<PointCloudMsg>;
@@ -30,14 +31,18 @@ using PointCloudMsgVector = std::vector<PointCloudMsg>;
 class CloudConverterStrategy
 {
   public:
-    CloudConverterStrategy(std::shared_ptr<SensorManagerNode> node_ptr_);
+    CloudConverterStrategy(std::shared_ptr<SensorManagerNode> node_ptr, double timeout_sec);
 
     virtual ~CloudConverterStrategy() = default;
 
     /**
-     * @brief PointCloud2 데이터 변환 함수 인터페이스
+     * @brief 사용자에게 공개되는 pointcloud convert 인터페이스
+     * 
+     * @note 변환이 주기적이로 이루어지지 않았을 때 (함수 호출 연속성이 훼손되었을 때),
+     *       converter 독립적으로 상태를 깔끔하게 유지하기 위하여 내부 변수를 모두 초기화
+     *       초기화 기능 비활성화 : reset_timeout_sec 파라미터 -1.0 으로 설정
      */
-    virtual PointCloudMsgVector pc_convert(const void* sensor_msg) = 0;
+    PointCloudMsgVector pc_convert(const void* sensor_msg);
 
     /**
      * @brief Multizone ToF 캘리브레이션 전용 가상 함수 (기본 구현 제공)
@@ -59,7 +64,20 @@ class CloudConverterStrategy
     std::shared_ptr<SensorManagerNode> get_node_ptr() const;
 
   protected:
-    std::shared_ptr<SensorManagerNode> node_ptr{};
+    /**
+     * @brief 자식들이 각자의 변수를 초기화할 수 있도록 제공한 순수 가상 함수
+     */
+    virtual void reset_internal_variables() = 0;
+
+    /**
+     * @brief PointCloud2 데이터 변환 함수 인터페이스
+     */
+    virtual PointCloudMsgVector pc_convert_impl(const void* sensor_msg) = 0;
+
+    std::shared_ptr<SensorManagerNode> node_ptr_{};
+    std::chrono::steady_clock::time_point last_call_time_;
+    double timeout_limit_sec_; // 자식 클래스마다 다르게 가질 converter 초기화 타임아웃 시간 (default: 30 sec)
+    bool is_already_reset_ = true;
     std::string target_frame_;
 
     FrameConverter frame_converter_;
@@ -73,10 +91,13 @@ using CloudConverterPtr = std::shared_ptr<CloudConverterStrategy>;
 class TofMonoCloudConverter : public CloudConverterStrategy
 {
   public:
-    TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
+    TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config);
 
   private:
-    PointCloudMsgVector pc_convert(const void* sensor_msg) override;
+    void reset_internal_variables() override {
+      // Do nothing
+    }
+    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
 
     bool use_tof_mono_ = true;
     tPose tof_mono_sensor_frame_pose_ = tPose(tPoint(0.0942, 0.0, 0.56513),tOrientation(0.0, -DEG2RAD(39.0), 0.0));
@@ -88,12 +109,15 @@ class TofMonoCloudConverter : public CloudConverterStrategy
 class TofMultiLeftCloudConverter : public CloudConverterStrategy
 {
   public:
-    TofMultiLeftCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
+    TofMultiLeftCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config);
 
   private:
     sensor_manager::TofUtils tof_utils_;
 
-    PointCloudMsgVector pc_convert(const void* sensor_msg) override;
+    void reset_internal_variables() override {
+      // Do nothing
+    }
+    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
     std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg) override;
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
@@ -111,12 +135,15 @@ class TofMultiLeftCloudConverter : public CloudConverterStrategy
 class TofMultiRightCloudConverter : public CloudConverterStrategy
 {
   public:
-    TofMultiRightCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
+    TofMultiRightCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config);
 
   private:
     sensor_manager::TofUtils tof_utils_;
 
-    PointCloudMsgVector pc_convert(const void* sensor_msg) override;
+    void reset_internal_variables() override {
+      // Do nothing
+    }
+    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
     std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg) override;
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
@@ -134,10 +161,14 @@ class TofMultiRightCloudConverter : public CloudConverterStrategy
 class CameraCloudConverter : public CloudConverterStrategy
 {
   public:
-    CameraCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
+    CameraCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config);
 
   private:
-    PointCloudMsgVector pc_convert(const void* sensor_msg) override;
+    void reset_internal_variables() override {
+      is_ramp_detection_ = false;
+      ramp_release_cnt = 0;
+    }
+    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
 
     // 경사로 감지 시 Camera 데이터 변환을 수행하지 않기 위해 추가된 플래그
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
@@ -160,10 +191,13 @@ class CameraCloudConverter : public CloudConverterStrategy
 class BottomIrCloudConverter : public CloudConverterStrategy
 {
   public:
-    BottomIrCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
+    BottomIrCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config);
 
   private:
-    PointCloudMsgVector pc_convert(const void* sensor_msg) override;
+    void reset_internal_variables() override {
+      // Do nothing
+    }
+    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
     bool use_bottom_ir_ = true;
@@ -177,10 +211,13 @@ class BottomIrCloudConverter : public CloudConverterStrategy
 class CollisionCloudConverter : public CloudConverterStrategy
 {
   public:
-    CollisionCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
+    CollisionCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config);
 
   private:
-    PointCloudMsgVector pc_convert(const void* sensor_msg) override;
+    void reset_internal_variables() override {
+      // Do nothing
+    }
+    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
     bool use_collision_ = true;
@@ -193,10 +230,13 @@ class CollisionCloudConverter : public CloudConverterStrategy
 class EmptyCloudConverter : public CloudConverterStrategy
 {
   public:
-    EmptyCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr_, const YAML::Node& config);
+    EmptyCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config);
 
   private:
-    PointCloudMsgVector pc_convert(const void* sensor_msg) override;
+    void reset_internal_variables() override {
+      // Do nothing
+    }
+    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
     bool use_empty_msg_ = true;
