@@ -31,7 +31,6 @@ std::vector<tPoint> FrameConverter::tfMultiTofSensor2RobotFrame(
     const std::vector<double>& tof_dists,
     const std::vector<double>& y_tan,
     const std::vector<double>& z_tan,
-    bool is_left,
     const tPose& multi_tof_sensor_frame_pose)
 {
     std::vector<tPoint> points;
@@ -69,7 +68,7 @@ std::vector<tPoint> FrameConverter::tfMultiTofSensor2RobotFrame(
 
         tPoint p;
         p.x = x_yaw * multi_tof_sensor_frame_pitch_cosine + z_yaw * multi_tof_sensor_frame_pitch_sine + multi_tof_sensor_frame_pose.position.x;
-        p.y = y_yaw + (is_left ? 1 : -1) * multi_tof_sensor_frame_pose.position.y;
+        p.y = y_yaw + multi_tof_sensor_frame_pose.position.y;
         p.z = -x_yaw * multi_tof_sensor_frame_pitch_sine + z_yaw * multi_tof_sensor_frame_pitch_cosine + multi_tof_sensor_frame_pose.position.z;
 
         points.push_back(p);

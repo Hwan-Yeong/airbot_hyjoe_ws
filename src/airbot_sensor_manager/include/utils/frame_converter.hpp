@@ -34,7 +34,6 @@ public:
      * @brief Multi ToF 센서 좌표 데이터를 Robot 좌표계로 변환
      * 
      * @param[in] input_points 센서 좌표계 기준 좌표데이터
-     * @param[in] isLeft Left Tof 인지 Right Tof 인지 구분 (Left: true / Right: false)
      * @param[in] multi_tof_sensor_frame_pose base_link 기준 센서 frame 위치 정보
      * @return 변환된 로봇좌표계(base_link) 기준 좌표 데이터
      */
@@ -42,7 +41,6 @@ public:
         const std::vector<double>& tof_dists,
         const std::vector<double>& y_tan,
         const std::vector<double>& z_tan,
-        bool is_left,
         const tPose& multi_tof_sensor_frame_pose);
 
     /**

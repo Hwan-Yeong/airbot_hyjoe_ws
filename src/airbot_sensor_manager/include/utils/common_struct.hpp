@@ -135,7 +135,9 @@ struct tSensorBuffer {
 struct tMToFCalibSession {
     static constexpr int TARGET_INDICES[3] = {13, 14, 15}; // 수집할 데이터 인덱스 (13, 14, 15)
 
+    bool is_finish_sampling = true;
     int sample_count = 0;
+    int attempt_count = 0; // 시도 횟수 count
 
     std::vector<float> samples[3];      // TF 변환 후 데이터 (samples[0]은 13번, samples[1]은 14번...)
     std::vector<float> origins[3];      // Raw 데이터 (갱신 체크용)
@@ -144,7 +146,9 @@ struct tMToFCalibSession {
     std::array<float, 3> stats{-1.0f, -1.0f, -1.0f}; // 최종 통계값
 
     void reset() { // 초기화 함수 한 번에 처리
+        is_finish_sampling = false;
         sample_count = 0;
+        attempt_count = 0;
         for (int i = 0; i < 3; ++i) {
             samples[i].clear();
             origins[i].clear();

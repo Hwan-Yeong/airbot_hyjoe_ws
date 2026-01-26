@@ -5,8 +5,8 @@ from launch_ros.actions import Node
 def generate_launch_description():
     return LaunchDescription([
         Node(
-            name='param_manager_node',
-            package='sensor_manager',
+            name='airbot_param_setter',
+            package='airbot_sensor_manager',
             executable='param_setter',
             output='screen',
         )

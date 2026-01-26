@@ -4,7 +4,7 @@
 
 namespace sensor_manager {
 
-SensorManagerNode::SensorManagerNode() : Node("sensor_manager_node")
+SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud")
 {
     this->loadConfig();
     this->declare_parameter("target_frame", "map");
@@ -160,16 +160,16 @@ void SensorManagerNode::loadConfig()
     std::string node_params{};
     try
     {
-        std::string package_share_directory = ament_index_cpp::get_package_share_directory("sensor_manager");
+        std::string package_share_directory = ament_index_cpp::get_package_share_directory("airbot_sensor_manager");
         std::string full_path = package_share_directory + "/config/sensor_param.yaml";
-        this->config_ = YAML::LoadFile(full_path)["sensor_manager"]["ros__parameters"];
+        this->config_ = YAML::LoadFile(full_path)["airbot_sensor_manager"]["ros__parameters"];
     }
     catch (const std::exception& e)
     {
         // fallback (ament_index_cpp::get_package_share_directory()가 제대로 작동하지 않을 경우)
         RCLCPP_ERROR(this->get_logger(), "Failed to load config file: %s", e.what());
-        std::string fallback_path = "install/sensor_manager/share/sensor_manager/config/sensor_param.yaml";
-        this->config_ = YAML::LoadFile(fallback_path)["sensor_manager"]["ros__parameters"];
+        std::string fallback_path = "install/airbot_sensor_manager/share/airbot_sensor_manager/config/sensor_param.yaml";
+        this->config_ = YAML::LoadFile(fallback_path)["airbot_sensor_manager"]["ros__parameters"];
     }
 }
 

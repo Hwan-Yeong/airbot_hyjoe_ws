@@ -81,7 +81,10 @@ MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& ca
     MTOF_CALIB_RESULT ret = MTOF_CALIB_RESULT::RUNNING;
 
     if (converter_ == nullptr) {
-        RCLCPP_ERROR(logger_, "[MultizoneTofCalibrator] Converter is not set-up yet!");
+        RCLCPP_ERROR(
+            logger_,
+            "[MultizoneTofCalibrator] Converter is not set-up yet!"
+        );
         return MTOF_CALIB_RESULT::FAIL_UNKNOWN;
     }
 
@@ -106,15 +109,53 @@ MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& ca
     auto current_data_arr = converter_->calibration_convert(static_cast<const void*>(msg.get()));
 
     if (current_data_arr.data.size() < 3 || min_th_arr.data.size() < 3) {
-        RCLCPP_ERROR(logger_, "[MultizoneTofCalibrator] Data size mismatch!");
+        RCLCPP_ERROR(
+            logger_,
+            "[MultizoneTofCalibrator] Data size mismatch!"
+        );
         return MTOF_CALIB_RESULT::FAIL_UNKNOWN;
     }
 
     // 3. 세션 초기화 및 데이터 갱신 체크
-    if (calib_session_.sample_count == 0) {
-        RCLCPP_INFO(logger_, "[MultizoneTofCalibrator] Starting session for %s. Method: %s, Target Samples: %d", 
-                    (side == TOF_SIDE::LEFT ? "LEFT" : "RIGHT"), mtof_calib_cfg_.method.c_str(), mtof_calib_cfg_.sampling_count);
+    if (calib_session_.is_finish_sampling && calib_session_.sample_count != 0) {
         calib_session_.reset();
+        RCLCPP_INFO(
+            logger_,
+            "[MultizoneTofCalibrator] Starting session for %s. Method: %s, Target Samples: %d",
+            (side == TOF_SIDE::LEFT ? "LEFT" : "RIGHT"),
+            mtof_calib_cfg_.method.c_str(),
+            mtof_calib_cfg_.sampling_count
+        );
+    }
+
+    // 시도 횟수 증가 (유효/무효 상관 없이)
+    calib_session_.attempt_count++;
+
+    bool any_valid = false;
+    for (int i = 0; i < 3; ++i) {
+        int idx = calib_session_.TARGET_INDICES[i];
+        float raw_val = (side == TOF_SIDE::LEFT)
+                            ? msg->bot_left[idx]
+                            : msg->bot_right[idx];
+
+        if (raw_val > 1e-6 && !std::isnan(raw_val)) {
+            any_valid = true;
+            break;
+        }
+    }
+
+    // ★ 모든 값이 무효인 상태가 지속되면 FAIL
+    if (!any_valid) {
+        if (calib_session_.attempt_count > 64) {
+            RCLCPP_ERROR(
+                logger_,
+                "[MultizoneTofCalibrator] FAIL: No valid TOF data. attempts=%d, calib result: FAIL_DATA_NON_RENEWAL",
+                calib_session_.attempt_count
+            );
+            calib_session_.is_finish_sampling = true;
+            return MTOF_CALIB_RESULT::FAIL_DATA_NON_RENEWAL;
+        }
+        return MTOF_CALIB_RESULT::RUNNING;
     }
 
     // 갱신 체크 및 데이터 축적 (for 루프로 통합)
@@ -135,7 +176,11 @@ MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& ca
         }
 
         if (calib_session_.non_renewal_counts[i] > mtof_calib_cfg_.data_non_renewal_count) {
-            RCLCPP_ERROR(logger_, "[MultizoneTofCalibrator] FAIL: Data not renewing on idx %d", target_idx);
+            RCLCPP_ERROR(
+                logger_,
+                "[MultizoneTofCalibrator] FAIL: Data not renewing on idx %d",
+                target_idx
+            );
             return MTOF_CALIB_RESULT::FAIL_DATA_NON_RENEWAL;
         }
 
@@ -146,17 +191,22 @@ MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& ca
     calib_session_.sample_count++;
 
     if (calib_session_.sample_count % 100 == 0) {
-        RCLCPP_INFO(logger_, "[MultizoneTofCalibrator] Progress: %d/%d...", calib_session_.sample_count, mtof_calib_cfg_.sampling_count);
+        RCLCPP_INFO(
+            logger_,
+            "[MultizoneTofCalibrator] Progress: %d/%d...",
+            calib_session_.sample_count,
+            mtof_calib_cfg_.sampling_count
+        );
     }
 
     // 4. 결과 판정
     if (calib_session_.sample_count >= mtof_calib_cfg_.sampling_count) {
         // 통계값 계산 (Max / Median)
         for (int i = 0; i < 3; ++i) {
+            auto& v = calib_session_.samples[i];
             if (mtof_calib_cfg_.method == "Max") {
-                calib_session_.stats[i] = *std::max_element(calib_session_.samples[i].begin(), calib_session_.samples[i].end());
+                calib_session_.stats[i] = *std::max_element(v.begin(), v.end());
             } else {
-                auto& v = calib_session_.samples[i];
                 std::nth_element(v.begin(), v.begin() + v.size() / 2, v.end());
                 calib_session_.stats[i] = v[v.size() / 2];
             }
@@ -209,11 +259,20 @@ MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& ca
             ret = MTOF_CALIB_RESULT::FAIL_OUT_OF_RANGE;
         }
         else if (diff > mtof_calib_cfg_.pass_diff_th) {
-            RCLCPP_INFO(logger_, "[Calibration: FAIL_UNSTABLE_RANGE] Diff: %.4f (Th: %.4f)", diff, mtof_calib_cfg_.pass_diff_th);
+            RCLCPP_INFO(
+                logger_,
+                "[Calibration: FAIL_UNSTABLE_RANGE] Diff: %.4f (Th: %.4f)",
+                diff,
+                mtof_calib_cfg_.pass_diff_th
+            );
             ret = MTOF_CALIB_RESULT::FAIL_UNSTABLE_RANGE;
         }
         else {
-            RCLCPP_INFO(logger_, "[Calibration: PASS] Side %s successfully calibrated.", (side == TOF_SIDE::LEFT ? "LEFT" : "RIGHT"));
+            RCLCPP_INFO(
+                logger_,
+                "[Calibration: PASS] Side %s successfully calibrated.",
+                (side == TOF_SIDE::LEFT ? "LEFT" : "RIGHT")
+            );
             ret = MTOF_CALIB_RESULT::PASS;
 
             // 결과 데이터 저장
@@ -223,7 +282,8 @@ MTOF_CALIB_RESULT MultizoneTofCalibrator::processCalibration(MTOF_CALIB_DATA& ca
             }
             calib_result.setCalibValue(side, calib_session_.stats[0], calib_session_.stats[1], calib_session_.stats[2]);
         }
-        calib_session_.sample_count = 0;
+        // calib_session_.sample_count = 0;
+        calib_session_.is_finish_sampling = true;
     }
 
     return ret;

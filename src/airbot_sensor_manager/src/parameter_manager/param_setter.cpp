@@ -1,10 +1,10 @@
 #include "parameter_manager/param_setter.hpp"
 
-ParamSetterNode::ParamSetterNode() : Node("param_manager_node") {
-    parameters_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "/sensor_manager_node");
+ParamSetterNode::ParamSetterNode() : Node("airbot_param_setter") {
+    parameters_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "/airbot_sensor_to_pointcloud");
 
     while (!parameters_client_->wait_for_service(std::chrono::seconds(2))) {
-        RCLCPP_WARN(this->get_logger(), "Waiting for parameter server... please check 'sensor_manager' node is alive");
+        RCLCPP_WARN(this->get_logger(), "Waiting for parameter server... please check 'airbot_sensor_to_pointcloud' node is alive");
     }
 
     subscription_ = this->create_subscription<std_msgs::msg::UInt8>(

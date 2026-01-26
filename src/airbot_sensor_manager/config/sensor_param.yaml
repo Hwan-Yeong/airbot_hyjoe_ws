@@ -1,8 +1,8 @@
-sensor_manager:
+airbot_sensor_manager:
   ros__parameters:
 
     target_frame: "map" # "map" or "base_link"
-    output_topic_prefix: "pointcloud/"
+    output_topic_prefix: "sensor_to_pointcloud/"
 
     sensors:
       tof_mono:

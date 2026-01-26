@@ -197,7 +197,6 @@ PointCloudMsgVector TofMultiLeftCloudConverter::pc_convert_impl(const void *sens
             left_dists,
             this->tof_multi_left_y_tan_array_,
             this->tof_multi_left_z_tan_array_,
-            true,
             this->tof_multi_left_sensor_frame_pose_);
 
         if (this->target_frame_ == "map") {
@@ -230,7 +229,6 @@ std_msgs::msg::Float32MultiArray TofMultiLeftCloudConverter::calibration_convert
         left_dists,
         this->tof_multi_left_y_tan_array_,
         this->tof_multi_left_z_tan_array_,
-        true,
         this->tof_multi_left_sensor_frame_pose_);
 
 
@@ -337,7 +335,6 @@ PointCloudMsgVector TofMultiRightCloudConverter::pc_convert_impl(const void *sen
             right_dists,
             this->tof_multi_right_y_tan_array_,
             this->tof_multi_right_z_tan_array_,
-            false,
             this->tof_multi_right_sensor_frame_pose_);
 
         if (this->target_frame_ == "map") {
@@ -370,7 +367,6 @@ std_msgs::msg::Float32MultiArray TofMultiRightCloudConverter::calibration_conver
         right_dists,
         this->tof_multi_right_y_tan_array_,
         this->tof_multi_right_z_tan_array_,
-        false,
         this->tof_multi_right_sensor_frame_pose_);
 
 
