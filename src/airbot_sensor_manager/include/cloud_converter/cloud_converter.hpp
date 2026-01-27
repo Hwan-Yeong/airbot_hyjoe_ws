@@ -167,6 +167,7 @@ class CameraCloudConverter : public CloudConverterStrategy
     void reset_internal_variables() override {
       is_ramp_detection_ = false;
       ramp_release_cnt = 0;
+      frame_converter_.loggedObjectInfoClear();
     }
     PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
 
@@ -178,9 +179,11 @@ class CameraCloudConverter : public CloudConverterStrategy
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
     bool use_camera_ = true;
     bool object_direction_ = true;
+    bool use_object_logger_ = true;
     double pointcloud_resolution_ = 0.05;
     double object_max_dist_ = 1.5;
     double object_ignore_pitch_th_ = 3.0;
+    double object_logger_margin_distance_diff_m_ = 1.0;
     tPose camera_sensor_frame_pose_ = tPose(tPoint(0.15473, 0.0, 0.5331),tOrientation(0.0, 0.0, 0.0));
     std::map<int, int> camera_class_id_confidence_th_ = {};
 };

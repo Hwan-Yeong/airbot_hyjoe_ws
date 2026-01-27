@@ -122,7 +122,7 @@ airbot_sensor_manager:
         logger:
           use: true
           margin:
-            distance_diff: 1.0
+            distance_diff_m: 1.0
 
       bottom_ir:
         use: true

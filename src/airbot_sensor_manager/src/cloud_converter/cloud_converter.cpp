@@ -16,27 +16,27 @@ PointCloudMsgVector CloudConverterStrategy::pc_convert(const void* sensor_msg) {
     auto now = std::chrono::steady_clock::now();
 
     if (timeout_limit_sec_ > 0.0) {
-    auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - last_call_time_);
-    double duration_sec = duration.count();
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - last_call_time_);
+        double duration_sec = duration.count();
 
-    /**
-     * @brief Converter 내부 변수 자동 초기화 기능
-     * 
-     * @details 변수 자동 초기화는 크게 2가지 경우에 발생
-     * 1) sensor_manager 노드 "on -> off -(over timeout)-> on" 시
-     * 2) 센서 데이터 "수신 -> 미수신 -(over timeout)-> 수신" 시
-    */
-    if ((duration_sec >= timeout_limit_sec_)) {
-        if (!is_already_reset_) {
-        RCLCPP_WARN(this->node_ptr_->get_logger(),
-                    "[%s] Data gap (%.1fs) exceeded reset timeout (%.1fs). Resetting...",
-                    typeid(*this).name(), duration_sec, timeout_limit_sec_);
-        reset_internal_variables();
-        is_already_reset_ = true;
+        /**
+         * @brief Converter 내부 변수 자동 초기화 기능
+         * 
+         * @details 변수 자동 초기화는 크게 2가지 경우에 발생
+         * 1) sensor_manager 노드 "on -> off -(over timeout)-> on" 시
+         * 2) 센서 데이터 "수신 -> 미수신 -(over timeout)-> 수신" 시
+        */
+        if ((duration_sec >= timeout_limit_sec_)) {
+            if (!is_already_reset_) {
+            RCLCPP_WARN(this->node_ptr_->get_logger(),
+                        "[%s] Data gap (%.1fs) exceeded reset timeout (%.1fs). Resetting...",
+                        typeid(*this).name(), duration_sec, timeout_limit_sec_);
+            reset_internal_variables();
+            is_already_reset_ = true;
+            }
+        } else {
+            is_already_reset_ = false;
         }
-    } else {
-        is_already_reset_ = false;
-    }
     }
 
     last_call_time_ = now;
@@ -422,6 +422,8 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> no
         config["extrinsics"]["translation"]["y"].as<double>(),
         config["extrinsics"]["translation"]["z"].as<double>()
     );
+    this->use_object_logger_ = config["logger"]["use"].as<bool>();
+    this->object_logger_margin_distance_diff_m_ = config["logger"]["margin"]["distance_diff_m"].as<double>();
 
     // Print Config
     std::ostringstream oss;
@@ -441,6 +443,8 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> no
     for (const auto& [class_id, confidence_th] : this->camera_class_id_confidence_th_) {
         oss << "    - { id: " << std::setw(2) << std::setfill('0') << class_id << ", th: " << confidence_th << " }\n";
     }
+    oss << "  use_logger_             : " << this->use_object_logger_ << "\n";
+    oss << "  log_margin_dist_diff_m_ : " << std::fixed << std::setprecision(2) << this->object_logger_margin_distance_diff_m_ << "\n";
     oss << "----------------------------------------------------";
     RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
 
@@ -488,7 +492,10 @@ PointCloudMsgVector CameraCloudConverter::pc_convert_impl(const void *sensor_msg
             this->object_direction_,
             this->object_max_dist_,
             this->target_frame_,
-            this->camera_sensor_frame_pose_);
+            this->camera_sensor_frame_pose_,
+            this->use_object_logger_,
+            this->object_logger_margin_distance_diff_m_,
+            this->node_ptr_->get_logger());
 
         bbox_array.header.stamp = this->node_ptr_->get_clock()->now();
 

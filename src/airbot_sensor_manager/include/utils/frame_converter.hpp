@@ -4,6 +4,10 @@
 #include <cmath>
 #include <vector>
 #include <map>
+
+#include "rclcpp/rclcpp.hpp"
+
+#include "vision_msgs/msg/bounding_box2_d.hpp"
 #include "vision_msgs/msg/bounding_box2_d_array.hpp"
 #include "robot_custom_msgs/msg/tof_data.hpp"
 #include "robot_custom_msgs/msg/bottom_ir_data.hpp"
@@ -51,6 +55,8 @@ public:
      * @param[in] class_id_confidence_th 객체 id 및 confidence threshold 매칭 데이터 <map type> (객체별 장애물 처리 차별화를 위해)
      * @param[in] direction [legacy code] 좌표계 CCW/CW(+) 정책 변경에 대비하여 (개발기간 발생한 소통 오류로 인해 추가된 기능. 현재는 true로 고정)
      * @param[in] object_max_distance 장애물 최대 거리 제한 (filtering)
+     * @param[in] use_object_logger 객체인식 로깅 기능 사용 여부 (true: 사용 / false: 미사용)
+     * @param[in] logger_dist_margin 해당 거리 이내의 객체 장애물 정보만 로깅 하도록 제한
      * @return 변환된 로봇좌표계(base_link) 기준 bounding box array 데이터
      */
     vision_msgs::msg::BoundingBox2DArray tfCameraSensor2RobotFrameBBoxArray(
@@ -60,7 +66,10 @@ public:
         bool direction,
         double object_max_distance,
         std::string camera_target_frame,
-        tPose camera_sensor_frame_pose);
+        tPose camera_sensor_frame_pose,
+        bool use_object_logger,
+        double logger_dist_margin,
+        rclcpp::Logger logger);
 
     /**
      * @brief Cliff 센서 좌표 데이터를 Robot 좌표계로 변환
@@ -89,6 +98,11 @@ public:
      */
     std::vector<tPoint> tfRobot2GlobalFrame(const std::vector<tPoint> &input_points_on_robot_frame, tPose robot_pose);
     std::vector<tPoint> tfRobot2GlobalFrame(const tPoint &input_point_on_robot_frame, tPose robot_pose);
+
+    /**
+     * @brief 카메라 객체 logging 정보 이력 초기화 함수
+     */
+    void loggedObjectInfoClear() { logged_objects_.clear(); };
 private:
     // tof mono
     bool tof_mono_extrinsics_updated = false;
@@ -101,6 +115,9 @@ private:
     double multi_tof_sensor_frame_yaw_sine = 0.0;
     double multi_tof_sensor_frame_pitch_cosine = 0.0;
     double multi_tof_sensor_frame_pitch_sine = 0.0;
+
+    // camera
+    std::map<int, std::vector<vision_msgs::msg::BoundingBox2D>> logged_objects_;
 
     // bottom ir
     bool bottom_ir_extrinsics_updated = false;

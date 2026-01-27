@@ -84,7 +84,10 @@ vision_msgs::msg::BoundingBox2DArray FrameConverter::tfCameraSensor2RobotFrameBB
     bool direction,
     double object_max_distance,
     std::string camera_target_frame,
-    tPose camera_sensor_frame_pose)
+    tPose camera_sensor_frame_pose,
+    bool use_object_logger,
+    double logger_dist_margin,
+    rclcpp::Logger logger)
 {
     auto bbox_array = vision_msgs::msg::BoundingBox2DArray();
 
@@ -95,77 +98,107 @@ vision_msgs::msg::BoundingBox2DArray FrameConverter::tfCameraSensor2RobotFrameBB
     bbox_array.header.frame_id = camera_target_frame;
     // bbox_array.header.stamp = rclcpp::Clock().now(); // 함수 호출부에서 찍도록 변경
 
-    std::vector<robot_custom_msgs::msg::CameraData> objects(camera_msg->data_array.begin(), camera_msg->data_array.end());
-
-    for (const auto &obj : objects)
+    for (const auto &obj : camera_msg->data_array)
     {
         if (obj.distance > object_max_distance) continue; // 객체인식 장애물 최대 거리 제한
+
+        //! [26.01.07] MR3 차 이후부터 confidencd score -> follow me 기능을 위한 tracked id 로 변경, score 파라미터 사용하지 말것!
         auto it = class_id_confidence_th.find(obj.id);
-        if (it != class_id_confidence_th.end() && static_cast<int>(obj.score) >= it->second) { // data filtering with "class id", "confidencd score"
-            if (obj.height >= 0.0 && obj.width >= 0.0) {
-                auto bbox = vision_msgs::msg::BoundingBox2D();
-                tPoint point_on_sensor_frame, point_on_robot_frame;
+        if (it == class_id_confidence_th.end()) continue;
 
-                /*
-                    객체의 너비(가로폭)가 30cm 이하인 경우, 높이를 너비와 동일한 -> 정사각형 객체로 가공
-                    객체의 너비(가로폭)가 30cm 이상인 경우, 높이를 30cm로 고정
-                */
-                double height = std::min(static_cast<double>(obj.width), 0.3);
+        if (obj.height >= 0.0 && obj.width >= 0.0) {
+            auto bbox = vision_msgs::msg::BoundingBox2D();
+            tPoint point_on_sensor_frame, point_on_robot_frame;
 
-                if (direction) {
-                    point_on_sensor_frame.x = obj.distance * std::cos(obj.theta) + height/2;
-                    point_on_sensor_frame.y = obj.distance * std::sin(obj.theta);
-                } else {
-                    point_on_sensor_frame.x = obj.distance * std::cos(-obj.theta) + height/2;
-                    point_on_sensor_frame.y = obj.distance * std::sin(-obj.theta);
-                }
+            /*
+                객체의 너비(가로폭)가 30cm 이하인 경우, 높이를 너비와 동일한 -> 정사각형 객체로 가공
+                객체의 너비(가로폭)가 30cm 이상인 경우, 높이를 30cm로 고정
+            */
+            double calculated_height = std::min(static_cast<double>(obj.width), 0.3);
 
-                point_on_robot_frame.x = point_on_sensor_frame.x + camera_sensor_frame_pose.position.x;
-                point_on_robot_frame.y = point_on_sensor_frame.y + camera_sensor_frame_pose.position.y;
+            // sensor frame
+            double theta_val = direction ? obj.theta : -obj.theta;
+            point_on_sensor_frame.x = obj.distance * std::cos(theta_val) + calculated_height/2;
+            point_on_sensor_frame.y = obj.distance * std::sin(theta_val);
 
-                if (camera_target_frame == "map") {
-                    double robot_cos = std::cos(robot_pose.orientation.yaw);
-                    double robot_sin = std::sin(robot_pose.orientation.yaw);
-                    bbox.center.position.x = point_on_robot_frame.x*robot_cos - point_on_robot_frame.y*robot_sin + robot_pose.position.x;
-                    bbox.center.position.y = point_on_robot_frame.x*robot_sin + point_on_robot_frame.y*robot_cos + robot_pose.position.y;
-                } else if (camera_target_frame == "base_link") {
-                    bbox.center.position.x = point_on_robot_frame.x;
-                    bbox.center.position.y = point_on_robot_frame.y;
-                } else {
-                    // RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", target_frame_.c_str());
-                }
+            // robot frame
+            point_on_robot_frame.x = point_on_sensor_frame.x + camera_sensor_frame_pose.position.x;
+            point_on_robot_frame.y = point_on_sensor_frame.y + camera_sensor_frame_pose.position.y;
 
-                bbox.center.theta = 0.0;
-                bbox.size_x = height;
-
-                /*
-                    pole (의자 다리) 객체의 경우,
-                    객체의 너비(가로폭)가 50cm 이하인 경우, 너비를 50cm로 고정
-                    객체의 너비(가로폭)가 50cm 이상인 경우, 인식된 너비 그대로 사용
-                */
-                // if (obj.id == 12) { // pole
-                //     bbox.size_y = obj.width < 0.5 ? 0.5 : obj.width;
-                // } else {
-                //     bbox.size_y = obj.width;
-                // }
-
-                /*
-                    bed (침대) 객체의 경우,
-                    객체의 최대 너비(가로폭)를 55cm로 제한
-                */
-                if (obj.id == 17) { // bed
-                    bbox.size_y = std::min(obj.width, 0.55);
-                } else {
-                    bbox.size_y = obj.width;
-                }
-
-                bbox_array.boxes.push_back(bbox);
+            // target frame
+            if (camera_target_frame == "map") {
+                double robot_cos = std::cos(robot_pose.orientation.yaw);
+                double robot_sin = std::sin(robot_pose.orientation.yaw);
+                bbox.center.position.x = point_on_robot_frame.x*robot_cos - point_on_robot_frame.y*robot_sin + robot_pose.position.x;
+                bbox.center.position.y = point_on_robot_frame.x*robot_sin + point_on_robot_frame.y*robot_cos + robot_pose.position.y;
+            } else if (camera_target_frame == "base_link") {
+                bbox.center.position.x = point_on_robot_frame.x;
+                bbox.center.position.y = point_on_robot_frame.y;
+            } else {
+                // RCLCPP_INFO(this->node_ptr->get_logger(), "Select Wrong Target Frame: %s", target_frame_.c_str());
             }
-        } else {
-            // RCLCPP_INFO(this->node_ptr->get_logger(),
-            //     "[Camera Filtered Data] ID: %d, SCORE: %d",
-            //     static_cast<int>(obj.id), static_cast<int>(obj.score)
-            // );
+
+            bbox.center.theta = 0.0;
+            bbox.size_x = calculated_height;
+
+            /*
+                pole (의자 다리) 객체의 경우,
+                객체의 너비(가로폭)가 50cm 이하인 경우, 너비를 50cm로 고정
+                객체의 너비(가로폭)가 50cm 이상인 경우, 인식된 너비 그대로 사용
+            */
+            // if (obj.id == 12) { // pole
+            //     bbox.size_y = obj.width < 0.5 ? 0.5 : obj.width;
+            // } else {
+            //     bbox.size_y = obj.width;
+            // }
+
+            /*
+                bed (침대) 객체의 경우,
+                객체의 최대 너비(가로폭)를 55cm로 제한
+            */
+            if (obj.id == 17) { // bed
+                bbox.size_y = std::min(obj.width, 0.55);
+            } else {
+                bbox.size_y = obj.width;
+            }
+
+            /*
+                Object Logger 기능
+                새로운 객체 인식 될 경우 그 객체만 로깅
+                    sensor_params.yaml 관련 파라미터
+                    1. logger 기능 사용 여부 선택 가능 -> logger.use
+                    2. 로깅 할 객체 최대 거리 제한 가능 -> logger.margin.distance_diff_m
+            */
+            if (use_object_logger) {
+                bool is_new_object = true;
+                if (logged_objects_.find(obj.id) != logged_objects_.end()) {
+                    for (const auto& old_obj : logged_objects_[obj.id]) {
+                        double dist = std::sqrt(std::pow(bbox.center.position.x - old_obj.center.position.x, 2) +
+                                                std::pow(bbox.center.position.y - old_obj.center.position.y, 2));
+                        if (dist <= logger_dist_margin) {
+                            is_new_object = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (is_new_object) {
+                    logged_objects_[obj.id].push_back(bbox);
+                    RCLCPP_INFO(logger,
+                        "================ [UPDATE] ================"
+                    );
+                    RCLCPP_INFO(logger, 
+                        "[ID]: %u, [Position (X, Y): (%.3f, %.3f)], [Size (W, H): (%.3f, %.3f)]",
+                        obj.id,
+                        bbox.center.position.x,
+                        bbox.center.position.y,
+                        bbox.size_y,
+                        bbox.size_x
+                    );
+                }
+            }
+
+            bbox_array.boxes.push_back(bbox);
         }
     }
 
