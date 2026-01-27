@@ -1,0 +1,130 @@
+@startuml
+' --- General Configuration ---
+skinparam classAttributeIconSize 0
+skinparam monochrome false
+skinparam shadowing true
+
+' --- Class Definitions ---
+
+' [System Manager & Controller]
+class SensorManagerNode {
+    -initConverters()
+    -timer_callback()
+    -pointcloud_pubs_ : unordered_map
+    -buffers_ : tSensorBuffer
+    .. Responsibility ..
+    Manages ROS 2 comms,
+    sensor data buffering,
+    and periodic conversion loop.
+}
+
+' [Object Creation Encapsulation]
+class CloudConverterFactory {
+    +static create(type, config) : CloudConverterPtr
+}
+
+' [Abstraction Interface - Base Class]
+interface CloudConverterStrategy {
+    #node_ptr_
+    +convert(sensor_msg)
+    +pc_convert_impl(sensor_msg)*
+    .. Responsibility ..
+    Abstracts conversion logic.
+    Defines interface for sensor-specific
+    implementation via pc_convert_impl.
+}
+
+class MonoTofCloudConverter {
+    -pc_convert_impl()
+}
+class MultiTofCloudConverter {
+    -pc_convert_impl()
+}
+class CameraCloudConverter {
+    -pc_convert_impl()
+}
+class BottomIrCloudConverter {
+    -pc_convert_impl()
+}
+class CollisionCloudConverter {
+    -pc_convert_impl()
+}
+class EmptyCloudConverter {
+    -pc_convert_impl()
+}
+
+' [Spatial Transformation Utility]
+class FrameConverter {
+    +tfSensor2RobotFrame()
+    .. Responsibility ..
+    Handles mathematical operations
+    for Sensor -> Robot -> Global frame.
+}
+
+' [Message Builder & Serializer]
+class PointCloudGenerator {
+    +generatePointCloud2Message()
+    +mergePointCloud2Vector()
+    .. Responsibility ..
+    Serializes calculated points into
+    standard ROS 2 PointCloud2 format.
+}
+
+' --- Relationships & Notes ---
+
+' [1] Dependency: Separation of creation responsibility
+SensorManagerNode ..> CloudConverterFactory : uses
+note bottom of CloudConverterFactory
+  **Factory Pattern**
+  Decouples Node from concrete types.
+  Creates objects based on runtime config.
+end note
+
+' [2] Composition: Lifecycle management
+SensorManagerNode "1" *-- "many" CloudConverterStrategy : owns
+note on link
+  **Composition**
+  Node manages lifecycle of all converters.
+  Converters are destroyed with the Node.
+end note
+
+' [3] Creation: Dynamic polymorphism
+CloudConverterFactory ..> CloudConverterStrategy : instantiates
+note right of CloudConverterFactory
+  **Polymorphism**
+  Returns concrete strategy objects
+  as abstract interface types.
+end note
+
+' [4] Inheritance: Strategy Pattern implementation
+CloudConverterStrategy <|-- MonoTofCloudConverter
+CloudConverterStrategy <|-- MultiTofCloudConverter
+CloudConverterStrategy <|-- CameraCloudConverter
+CloudConverterStrategy <|-- BottomIrCloudConverter
+CloudConverterStrategy <|-- CollisionCloudConverter
+CloudConverterStrategy <|-- EmptyCloudConverter
+note top of CloudConverterStrategy
+  **Strategy Pattern**
+  Decouples conversion behavior from
+  specific sensor hardware algorithms.
+end note
+
+' [5] Association: Delegation of utility functions
+CloudConverterStrategy --> FrameConverter : delegates TF
+CloudConverterStrategy --> PointCloudGenerator : delegates PC2
+note bottom of FrameConverter
+  **Separation of Concerns**
+  Isolates TF math and msg serialization
+  to enhance reusability.
+end note
+
+' --- Summary of Pros & Cons (Technical Assessment) ---
+legend right
+  |= Pros |= Cons |
+  | 1. Scalability: Minimal Node modification | 1. Slight overhead due to virtual calls |
+  | 2. Flexibility: Runtime YAML configuration | 2. Increased architectural complexity |
+  |<back:lightskyblue>**Performance Countermeasure**</back>| Modern compilers use Devirtualization. |
+  | | Processing bottleneck is math, not calls. |
+end legend
+
+@endum
