@@ -102,10 +102,11 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud")
             auto calib_cmd_state = static_cast<MTOF_CALIB_STATE>(msg->data);
             mtof_calibrator_->setCalibrationState(calib_cmd_state);
 
-            if (calib_cmd_state == MTOF_CALIB_STATE::ACTIVE_LEFT || calib_cmd_state == MTOF_CALIB_STATE::ACTIVE_RIGHT) {
+            switch (calib_cmd_state) {
+            case MTOF_CALIB_STATE::ACTIVE_LEFT:
+            case MTOF_CALIB_STATE::ACTIVE_RIGHT: {
                 std::string key = (calib_cmd_state == MTOF_CALIB_STATE::ACTIVE_LEFT) ? "tof_multi_left" : "tof_multi_right";
                 TOF_SIDE side = (calib_cmd_state == MTOF_CALIB_STATE::ACTIVE_LEFT) ? TOF_SIDE::LEFT : TOF_SIDE::RIGHT;
-
                 auto it = converters_.find(key);
                 if (it != converters_.end() && it->second) {
                     mtof_calibrator_->setConverter(it->second);
@@ -115,14 +116,17 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud")
                     mtof_calibrator_->setCalibrationState(MTOF_CALIB_STATE::INACTIVE);
                     mtof_calibrator_->setConverter(nullptr);
                 }
-            } else {
+                break; }
+            case MTOF_CALIB_STATE::INACTIVE:
                 mtof_calibrator_->setCalibrationState(MTOF_CALIB_STATE::INACTIVE);
                 RCLCPP_INFO(this->get_logger(),
                     "multi-ToF Calibration Wrong Cmd : [%d], Set State => [%s]",
                     msg->data, enumToString(mtof_calibrator_->getCalibrationState()).c_str()
                 );
+                break;
+            default:
+                break;
             }
-
             RCLCPP_INFO(this->get_logger(),
                 "multi-ToF Calibration Cmd : [%s]",
                 enumToString(mtof_calibrator_->getCalibrationState()).c_str()
@@ -136,7 +140,7 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud")
         std::bind(&SensorManagerNode::publishPointcloudTimer, this)
     );
 
-    // Dynamic Parameter Handler (for changing parameters in run-time)
+    // Dynamic Parameter Handler (for changing parameters at runtime)
     param_handler_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
     target_frame_callback_handle_ = param_handler_->add_parameter_callback(
         "target_frame",
@@ -311,19 +315,20 @@ void SensorManagerNode::publishPointcloudTimer()
         return;
     }
 
+    auto process_buffer = [&](auto& buffer, auto& msg_copied_out) -> bool {
+        if (buffer.updated.load()) {
+            std::lock_guard<std::mutex> lock(buffer.mtx);
+            msg_copied_out = std::move(buffer.latest_msg);
+            buffer.updated.store(false);
+            return (msg_copied_out != nullptr);
+        }
+        return false;
+    };
+
     tof_buffer_.publishing_cnt_map["tof_mono"] += 10;
     tof_buffer_.publishing_cnt_map["tof_multi"] += 10;
-    if (tof_buffer_.updated.load()) {
-        robot_custom_msgs::msg::TofData::SharedPtr tof_msg_copied;
-        {
-            std::lock_guard<std::mutex> lock(tof_buffer_.mtx);
-            tof_msg_copied = std::move(tof_buffer_.latest_msg);
-            tof_buffer_.updated.store(false);
-        }
-        if (!tof_msg_copied) {
-            return;
-        }
-
+    robot_custom_msgs::msg::TofData::SharedPtr tof_msg_copied;
+    if (process_buffer(tof_buffer_, tof_msg_copied)) {
         // --- Calibration Interrupt ---
         if (mtof_calibrator_->getCalibrationState() != MTOF_CALIB_STATE::INACTIVE) {
             this->runMultizoneToFCalibration(tof_msg_copied);
@@ -343,47 +348,25 @@ void SensorManagerNode::publishPointcloudTimer()
     }
 
     camera_buffer_.publishing_cnt += 10;
-    if (camera_buffer_.updated.load() && (camera_buffer_.publishing_cnt >= pointcloud_publishing_rate_map_["camera"])) {
-        robot_custom_msgs::msg::CameraDataArray::SharedPtr camera_msg_copied;
-        {
-            std::lock_guard<std::mutex> lock(camera_buffer_.mtx);
-            camera_msg_copied = std::move(camera_buffer_.latest_msg);
-            camera_buffer_.updated.store(false);
-        }
-        if (!camera_msg_copied) {
-            return;
-        }
+    robot_custom_msgs::msg::CameraDataArray::SharedPtr camera_msg_copied;
+    if (process_buffer(camera_buffer_, camera_msg_copied) &&
+        (camera_buffer_.publishing_cnt >= pointcloud_publishing_rate_map_["camera"])) {
         publishPointcloud("camera", "camera_object", camera_msg_copied);
         camera_buffer_.publishing_cnt = 0;
     }
 
     bottom_ir_buffer_.publishing_cnt += 10;
-    if (bottom_ir_buffer_.updated.load() && (bottom_ir_buffer_.publishing_cnt >= pointcloud_publishing_rate_map_["bottom_ir"])) {
-        robot_custom_msgs::msg::BottomIrData::SharedPtr bottom_ir_msg_copied;
-        {
-            std::lock_guard<std::mutex> lock(bottom_ir_buffer_.mtx);
-            bottom_ir_msg_copied = std::move(bottom_ir_buffer_.latest_msg);
-            bottom_ir_buffer_.updated.store(false);
-        }
-        if (!bottom_ir_msg_copied) {
-            return;
-        }
+    robot_custom_msgs::msg::BottomIrData::SharedPtr bottom_ir_msg_copied;
+    if (process_buffer(bottom_ir_buffer_, bottom_ir_msg_copied) &&
+        (bottom_ir_buffer_.publishing_cnt >= pointcloud_publishing_rate_map_["bottom_ir"])) {
         publishPointcloud("bottom_ir", "bottom_ir", bottom_ir_msg_copied);
         bottom_ir_buffer_.publishing_cnt = 0;
     }
 
     collision_buffer_.publishing_cnt_map["collision_front"] += 10;
     collision_buffer_.publishing_cnt_map["collision_rear"] += 10;
-    if (collision_buffer_.updated.load()) {
-        robot_custom_msgs::msg::AbnormalEventData::SharedPtr collision_msg_copied;
-        {
-            std::lock_guard<std::mutex> lock(collision_buffer_.mtx);
-            collision_msg_copied = std::move(collision_buffer_.latest_msg);
-            collision_buffer_.updated.store(false);
-        }
-        if (!collision_msg_copied) {
-            return;
-        }
+    robot_custom_msgs::msg::AbnormalEventData::SharedPtr collision_msg_copied;
+    if (process_buffer(collision_buffer_, collision_msg_copied)) {
         if (collision_buffer_.publishing_cnt_map["collision_front"] >= pointcloud_publishing_rate_map_["collision_front"]
             && collision_msg_copied->event_trigger == 1) {
             publishPointcloud("collision_front", "collision/front", collision_msg_copied);
