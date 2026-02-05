@@ -6,10 +6,13 @@
 #include "rclcpp/rclcpp.hpp"
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "tf2/LinearMath/Quaternion.h"
+#include "yaml-cpp/yaml.h"
+
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "std_msgs/msg/float32_multi_array.hpp"
-#include "yaml-cpp/yaml.h"
+#include "geometry_msgs/msg/transform_stamped.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 #include "utils/common_struct.hpp"
 #include "utils/frame_converter.hpp"
@@ -57,6 +60,11 @@ class CloudConverterStrategy
     }
 
     /**
+     * @brief 각 센서의 TF 를 제공하기 위한 가상 함수 (default : tf 없음 - nullptr)
+     */
+    virtual std::optional<geometry_msgs::msg::TransformStamped> get_static_tf();
+
+    /**
      * @brief 필터가 참조하는 SensorManagerNode 스마트 포인터를 반환합니다.
      *
      * @return std::shared_ptr<SensorManagerNode> SensorManagerNode 스마트 포인터
@@ -78,7 +86,12 @@ class CloudConverterStrategy
     std::chrono::steady_clock::time_point last_call_time_;
     double timeout_limit_sec_; // 자식 클래스마다 다르게 가질 converter 초기화 타임아웃 시간 (default: 30 sec)
     bool is_already_reset_ = true;
+    bool use_converter_ = true;
+    bool use_tf_ = false;
     std::string target_frame_;
+    std::string parent_frame_ = "base_link";
+    std::string child_frame_ = "";
+    tPose sensor_extrinsic_;
 
     FrameConverter frame_converter_;
     PointCloudGenerator pointcloud_generator_;
@@ -98,9 +111,6 @@ class TofMonoCloudConverter : public CloudConverterStrategy
       // Do nothing
     }
     PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
-
-    bool use_tof_mono_ = true;
-    tPose tof_mono_sensor_frame_pose_ = tPose(tPoint(0.0942, 0.0, 0.56513),tOrientation(0.0, -DEG2RAD(39.0), 0.0));
 };
 
 /**
@@ -121,9 +131,7 @@ class TofMultiLeftCloudConverter : public CloudConverterStrategy
     std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg) override;
 
     // set default: yaml 파일이 정상이 아닌 경우를 대비하여
-    bool use_tof_multi_left_ = true;
     double tof_multi_left_fov_ = DEG2RAD(45.0);
-    tPose tof_multi_left_sensor_frame_pose_ = tPose(tPoint(0.14316, 0.075446, 0.03),tOrientation(0.0, -DEG2RAD(5.0), DEG2RAD(15.0)));
     std::vector<int> tof_multi_left_sub_cell_idx_array_;
     std::vector<double> tof_multi_left_y_tan_array_;
     std::vector<double> tof_multi_left_z_tan_array_;

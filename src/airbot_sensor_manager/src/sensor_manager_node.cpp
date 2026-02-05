@@ -293,10 +293,27 @@ void SensorManagerNode::initConverters(const YAML::Node& config)
 {
     auto pnode = std::dynamic_pointer_cast<SensorManagerNode>(this->shared_from_this());
 
+    static_tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
+    std::vector<geometry_msgs::msg::TransformStamped> static_transforms;
+
     for (const auto& sensor : config) {
         std::string sensor_name = sensor.first.as<std::string>();
         const YAML::Node& sensor_config = sensor.second;
-        this->converters_[sensor_name] = sensor_manager::CloudConverterFactory::create(pnode, sensor_name, sensor_config);
+
+        auto converter = sensor_manager::CloudConverterFactory::create(pnode, sensor_name, sensor_config);
+        this->converters_[sensor_name] = converter;
+
+        if (converter != nullptr) {
+            auto tf_opt = converter->get_static_tf();
+            if (tf_opt.has_value()) {
+                static_transforms.push_back(tf_opt.value());
+            }
+        }
+    }
+
+    if (!static_transforms.empty()) {
+        static_tf_broadcaster_->sendTransform(static_transforms); // vector type 을 인자로 받음
+        RCLCPP_INFO(this->get_logger(), "[initConverters] Broadcasted %zu static TFs for sensors.", static_transforms.size());
     }
 }
 
@@ -413,6 +430,7 @@ void SensorManagerNode::publishPointcloud(const std::string& converter_key, cons
 
 void SensorManagerNode::publishEmptyMsg()
 {
+    // use_tf2 = false 에서만 정상 작동
     auto it = converters_.find("empty");
     if (it == converters_.end() || !it->second) {
         RCLCPP_INFO(this->get_logger(), "No converter for empty msg");

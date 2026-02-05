@@ -12,7 +12,8 @@ CloudConverterStrategy::CloudConverterStrategy(std::shared_ptr<SensorManagerNode
     this->target_frame_ = node_ptr_->getTargetFrame();
 }
 
-PointCloudMsgVector CloudConverterStrategy::pc_convert(const void* sensor_msg) {
+PointCloudMsgVector CloudConverterStrategy::pc_convert(const void* sensor_msg)
+{
     auto now = std::chrono::steady_clock::now();
 
     if (timeout_limit_sec_ > 0.0) {
@@ -43,6 +44,28 @@ PointCloudMsgVector CloudConverterStrategy::pc_convert(const void* sensor_msg) {
     return pc_convert_impl(sensor_msg);
 }
 
+std::optional<geometry_msgs::msg::TransformStamped> CloudConverterStrategy::get_static_tf()
+{
+    if (!use_tf_ || parent_frame_.empty() || child_frame_.empty()) return std::nullopt;
+
+    geometry_msgs::msg::TransformStamped tfs;
+    tfs.header.stamp = node_ptr_->get_clock()->now();
+    tfs.header.frame_id = this->parent_frame_;
+    tfs.child_frame_id = this->child_frame_;
+
+    tfs.transform.translation.x = this->sensor_extrinsic_.position.x;
+    tfs.transform.translation.y = this->sensor_extrinsic_.position.y;
+    tfs.transform.translation.z = this->sensor_extrinsic_.position.z;
+
+    tf2::Quaternion q;
+    q.setRPY(this->sensor_extrinsic_.orientation.roll, 
+             this->sensor_extrinsic_.orientation.pitch, 
+             this->sensor_extrinsic_.orientation.yaw);
+    tfs.transform.rotation = tf2::toMsg(q);
+
+    return tfs;
+}
+
 std::shared_ptr<SensorManagerNode> CloudConverterStrategy::get_node_ptr() const
 {
     return node_ptr_;
@@ -58,8 +81,11 @@ TofMonoCloudConverter::TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> 
         throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
     }
 
-    this->use_tof_mono_ = config["use"].as<bool>();
-    this->tof_mono_sensor_frame_pose_ = tPose(
+    this->use_converter_ = config["use"].as<bool>();
+    this->use_tf_ = config["use_tf2"].as<bool>();
+    this->parent_frame_ = config["extrinsics"]["tf_frame"]["parent"].as<std::string>();
+    this->child_frame_ = config["extrinsics"]["tf_frame"]["child"].as<std::string>();
+    this->sensor_extrinsic_ = tPose(
         tPoint(
             config["extrinsics"]["translation"]["x"].as<double>(),
             config["extrinsics"]["translation"]["y"].as<double>(),
@@ -76,25 +102,35 @@ TofMonoCloudConverter::TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> 
     std::ostringstream oss;
     oss << "\n[1D TOF POINTCLOUD CONVERTER PARAMETERS]\n";
     oss << std::boolalpha;
-    oss << "  use_tof_mono_      : " << this->use_tof_mono_ << "\n";
+    oss << "  use_converter_      : " << this->use_converter_ << "\n";
+    oss << "  use_tf2_           : " << this->use_tf_ << "\n";
     oss << "  reset_timeout_sec  : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
+    oss << "  tf frame (parent)  : " << this->parent_frame_ << "\n";
+    oss << "  tf frame (child)   : " << this->child_frame_ << "\n";
     oss << "  sensor_frame_pose  : position [m] = ("
-        << std::fixed << std::setprecision(5) << this->tof_mono_sensor_frame_pose_.position.x << ", "
-        << std::fixed << std::setprecision(5) << this->tof_mono_sensor_frame_pose_.position.y << ", "
-        << std::fixed << std::setprecision(5) << this->tof_mono_sensor_frame_pose_.position.z << "), "
+        << std::fixed << std::setprecision(5) << this->sensor_extrinsic_.position.x << ", "
+        << std::fixed << std::setprecision(5) << this->sensor_extrinsic_.position.y << ", "
+        << std::fixed << std::setprecision(5) << this->sensor_extrinsic_.position.z << "), "
         << "orientation [deg] = ("
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_mono_sensor_frame_pose_.orientation.roll)  << ", "
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_mono_sensor_frame_pose_.orientation.pitch) << ", "
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_mono_sensor_frame_pose_.orientation.yaw)   << ")\n";
+        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_extrinsic_.orientation.roll)  << ", "
+        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_extrinsic_.orientation.pitch) << ", "
+        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_extrinsic_.orientation.yaw)   << ")\n";
     oss << "----------------------------------------------------";
     RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
+
+    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
+    this->use_converter_ = true;
+    this->use_tf_ = true;
+    this->sensor_extrinsic_ = tPose(tPoint(0.0942, 0.0, 0.56513),tOrientation(0.0, -DEG2RAD(39.0), 0.0));
+    this->parent_frame_ = "base_link";
+    this->child_frame_ = "tof_mono_link";
 }
 
 PointCloudMsgVector TofMonoCloudConverter::pc_convert_impl(const void *sensor_msg)
 {
     PointCloudMsg cloud;
 
-    if (this->use_tof_mono_)
+    if (this->use_converter_)
     {
         auto msg = static_cast<const robot_custom_msgs::msg::TofData*>(sensor_msg);
 
@@ -103,7 +139,7 @@ PointCloudMsgVector TofMonoCloudConverter::pc_convert_impl(const void *sensor_ms
         robot_pose.position.y = msg->robot_y;
         robot_pose.orientation.yaw = msg->robot_angle;
 
-        tPoint point_on_robot_frame = this->frame_converter_.tfMonoTofSensor2RobotFrame(msg->top, this->tof_mono_sensor_frame_pose_);
+        tPoint point_on_robot_frame = this->frame_converter_.tfMonoTofSensor2RobotFrame(msg->top, this->sensor_extrinsic_);
 
         if (this->target_frame_ == "map") {
             std::vector<tPoint> points_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame(point_on_robot_frame, robot_pose);
@@ -128,9 +164,12 @@ TofMultiLeftCloudConverter::TofMultiLeftCloudConverter(std::shared_ptr<SensorMan
         throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
     }
 
-    this->use_tof_multi_left_ = config["use"].as<bool>();
+    this->use_converter_ = config["use"].as<bool>();
+    this->use_tf_ = config["use_tf2"].as<bool>();
+    this->parent_frame_ = config["extrinsics"]["tf_frame"]["parent"].as<std::string>();
+    this->child_frame_ = config["extrinsics"]["tf_frame"]["child"].as<std::string>();
     this->tof_multi_left_fov_ = DEG2RAD(config["extrinsics"]["fov"].as<double>());
-    this->tof_multi_left_sensor_frame_pose_ = tPose(
+    this->sensor_extrinsic_ = tPose(
         tPoint(
             config["extrinsics"]["translation"]["x"].as<double>(),
             config["extrinsics"]["translation"]["y"].as<double>(),
@@ -145,22 +184,24 @@ TofMultiLeftCloudConverter::TofMultiLeftCloudConverter(std::shared_ptr<SensorMan
     for (auto idx : config["sub_cell_idx_array"]) {
         this->tof_multi_left_sub_cell_idx_array_.push_back(idx.as<int>());
     }
-
     // Print Config
     std::ostringstream oss;
     oss << "\n[MULTI TOF (Left) POINTCLOUD CONVERTER PARAMETERS]\n";
     oss << std::boolalpha;
-    oss << "  use_tof_multi_left_  : " << this->use_tof_multi_left_ << "\n";
+    oss << "  use_converter_       : " << this->use_converter_ << "\n";
+    oss << "  use_tf2_             : " << this->use_tf_ << "\n";
     oss << "  reset_timeout_sec    : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
+    oss << "  tf frame (parent)    : " << this->parent_frame_ << "\n";
+    oss << "  tf frame (child)     : " << this->child_frame_ << "\n";
     oss << "  fov [deg]            : " << RAD2DEG(this->tof_multi_left_fov_) << "\n";
     oss << "  sensor_frame_pose    : position [m] = ("
-        << std::fixed << std::setprecision(5) << this->tof_multi_left_sensor_frame_pose_.position.x << ", "
-        << std::fixed << std::setprecision(5) << this->tof_multi_left_sensor_frame_pose_.position.y << ", "
-        << std::fixed << std::setprecision(5) << this->tof_multi_left_sensor_frame_pose_.position.z << "), "
+        << std::fixed << std::setprecision(5) << this->sensor_extrinsic_.position.x << ", "
+        << std::fixed << std::setprecision(5) << this->sensor_extrinsic_.position.y << ", "
+        << std::fixed << std::setprecision(5) << this->sensor_extrinsic_.position.z << "), "
         << "orientation [deg] = ("
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_multi_left_sensor_frame_pose_.orientation.roll)  << ", "
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_multi_left_sensor_frame_pose_.orientation.pitch) << ", "
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_multi_left_sensor_frame_pose_.orientation.yaw)   << ")\n";
+        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_extrinsic_.orientation.roll)  << ", "
+        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_extrinsic_.orientation.pitch) << ", "
+        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_extrinsic_.orientation.yaw)   << ")\n";
     oss << "  sub_cell_idx_array   : ";
     for (auto idx : this->tof_multi_left_sub_cell_idx_array_) {
         oss << idx << " ";
@@ -168,6 +209,13 @@ TofMultiLeftCloudConverter::TofMultiLeftCloudConverter(std::shared_ptr<SensorMan
     oss << "\n";
     oss << "----------------------------------------------------";
     RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
+
+    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
+    this->use_converter_ = true;
+    this->use_tf_ = true;
+    this->sensor_extrinsic_ = tPose(tPoint(0.14316, 0.075446, 0.03),tOrientation(0.0, -DEG2RAD(5.0), DEG2RAD(15.0)));
+    this->parent_frame_ = "base_link";
+    this->child_frame_ = "tof_multi_left_link";
 
     // Init Calculation
     tof_utils_.updateSubCellIndexArray(
@@ -183,7 +231,7 @@ PointCloudMsgVector TofMultiLeftCloudConverter::pc_convert_impl(const void *sens
 {
     PointCloudMsgVector clouds;
 
-    if (this->use_tof_multi_left_)
+    if (this->use_converter_)
     {
         auto msg = static_cast<const robot_custom_msgs::msg::TofData*>(sensor_msg);
 
@@ -197,7 +245,7 @@ PointCloudMsgVector TofMultiLeftCloudConverter::pc_convert_impl(const void *sens
             left_dists,
             this->tof_multi_left_y_tan_array_,
             this->tof_multi_left_z_tan_array_,
-            this->tof_multi_left_sensor_frame_pose_);
+            this->sensor_extrinsic_);
 
         if (this->target_frame_ == "map") {
             std::vector<tPoint> points_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame(points_on_robot_frame, robot_pose);
@@ -229,7 +277,7 @@ std_msgs::msg::Float32MultiArray TofMultiLeftCloudConverter::calibration_convert
         left_dists,
         this->tof_multi_left_y_tan_array_,
         this->tof_multi_left_z_tan_array_,
-        this->tof_multi_left_sensor_frame_pose_);
+        this->sensor_extrinsic_);
 
 
     if (robot_pts.size() != INDEX_SIZE) {

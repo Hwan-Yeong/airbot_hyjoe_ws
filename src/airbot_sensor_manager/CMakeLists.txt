@@ -18,6 +18,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)
 find_package(PCL REQUIRED)
 find_package(pcl_conversions REQUIRED)
@@ -53,6 +54,7 @@ ament_target_dependencies(sensor_manager
   tf2_geometry_msgs
   vision_msgs
   visualization_msgs
+  geometry_msgs
   pcl_conversions
   PCL
   yaml-cpp

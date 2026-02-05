@@ -8,6 +8,7 @@
 #include <iomanip>
 
 #include <rclcpp/rclcpp.hpp>
+#include <tf2_ros/static_transform_broadcaster.h>
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/u_int8.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -101,6 +102,8 @@ private:
 
     std::unordered_map<std::string, PC2PublisherPtr> pointcloud_pubs_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr node_active_cmd_response_pub_;
+
+    std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_;
 
     std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> target_frame_callback_handle_;

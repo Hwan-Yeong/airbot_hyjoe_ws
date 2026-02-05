@@ -7,10 +7,14 @@ airbot_sensor_manager:
     sensors:
       tof_mono:
         use: true
+        use_tf2: true # true: enable broadcast tf2
         reset_timeout_sec: 30.0 # 마지막 데이터 수신 후 타임아웃으로 간주하고 내부 상태 리셋하는 기준 시간
         topic: "tof/mono"
         publish_rate_ms: 10
         extrinsics:
+          tf_frame:
+            parent: "base_link"
+            child: "tof_mono_link"
           translation:
             x: 0.0942
             y: 0.0
@@ -36,6 +40,7 @@ airbot_sensor_manager:
 
       tof_multi_left:
         use: true
+        use_tf2: true # true: enable broadcast tf2
         reset_timeout_sec: 30.0
         topic: "tof/multi/left"
         topic_idx: "tof/multi/left/idx_"
@@ -48,6 +53,9 @@ airbot_sensor_manager:
           57, 60, 63
         ]
         extrinsics:
+          tf_frame:
+            parent: "base_link"
+            child: "tof_multi_left_link"
           fov: 45.0 # deg
           translation:
             x: 0.14316
@@ -60,6 +68,7 @@ airbot_sensor_manager:
 
       tof_multi_right:
         use: true
+        use_tf2: true # true: enable broadcast tf2
         reset_timeout_sec: 30.0
         topic: "tof/multi/right"
         topic_idx: "tof/multi/right/idx_"
@@ -73,6 +82,9 @@ airbot_sensor_manager:
           56, 59, 62
         ]
         extrinsics:
+          tf_frame:
+            parent: "base_link"
+            child: "tof_multi_right_link"
           fov: 45.0 # deg
           translation:
             x: 0.14316
@@ -85,6 +97,7 @@ airbot_sensor_manager:
 
       camera:
         use: true
+        use_tf2: true # true: enable broadcast tf2
         reset_timeout_sec: 30.0
         topic: "camera_object"
         publish_rate_ms: 100
@@ -115,6 +128,9 @@ airbot_sensor_manager:
         object_max_distance_m: 1.5 # 최대 장애물 거리 (해당 거리 이내의 장애물 정보만 처리)
         object_ignore_pitch_th_deg: 3.0 # 객체인식 장애물 무시하는 pitch 각도 (절댓값)
         extrinsics:
+          tf_frame:
+            parent: "base_link"
+            child: "tof_camera_link"
           translation:
             x: 0.15473
             y: 0.0
@@ -126,6 +142,7 @@ airbot_sensor_manager:
 
       bottom_ir:
         use: true
+        use_tf2: false # true: enable broadcast tf2
         reset_timeout_sec: 30.0
         topic: "bottom_ir"
         publish_rate_ms: 10
@@ -135,6 +152,7 @@ airbot_sensor_manager:
 
       collision_front:
         use: true
+        use_tf2: false # true: enable broadcast tf2
         reset_timeout_sec: 30.0
         topic: "collision/front"
         publish_rate_ms: 10
@@ -143,14 +161,16 @@ airbot_sensor_manager:
 
       collision_rear:
         use: true
+        use_tf2: false # true: enable broadcast tf2
         reset_timeout_sec: 30.0
         topic: "collision/rear"
         publish_rate_ms: 10
         extrinsics:
           distance: 0.19 # backward point offset
 
-      empty:
+      empty: # use_tf2 = true 인 모드에서는 작동되지 않음
         use: true
+        use_tf2: false # true: enable broadcast tf2
         reset_timeout_sec: -1.0 # 비활성화
 
     use_sim_time: false
