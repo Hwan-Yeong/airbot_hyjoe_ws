@@ -34,13 +34,13 @@ using PointCloudMsgVector = std::vector<PointCloudMsg>;
 class CloudConverterStrategy
 {
   public:
-    CloudConverterStrategy(std::shared_ptr<SensorManagerNode> node_ptr, double timeout_sec);
+    CloudConverterStrategy(std::shared_ptr<SensorManagerNode> node_ptr);
 
     virtual ~CloudConverterStrategy() = default;
 
     /**
      * @brief 사용자에게 공개되는 pointcloud convert 인터페이스
-     * 
+     *
      * @note 변환이 주기적이로 이루어지지 않았을 때 (함수 호출 연속성이 훼손되었을 때),
      *       converter 독립적으로 상태를 깔끔하게 유지하기 위하여 내부 변수를 모두 초기화
      *       초기화 기능 비활성화 : reset_timeout_sec 파라미터 -1.0 으로 설정
@@ -49,7 +49,7 @@ class CloudConverterStrategy
 
     /**
      * @brief Multizone ToF 캘리브레이션 전용 가상 함수 (기본 구현 제공)
-     * 
+     *
      * @note 이 함수는 오버라이드 하지 않으면 이 기본 동작을 상속받습니다.
      */
     virtual std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg)
@@ -82,13 +82,28 @@ class CloudConverterStrategy
      */
     virtual PointCloudMsgVector pc_convert_impl(const void* sensor_msg) = 0;
 
+    /**
+     * @brief 자식 클래스들의 공통 config 파싱 함수
+     *
+     * @note 센서 모듈의 공통적인 extrinsic 및 기본 flag 등 / 파라미터 누락으로 인한 segfault 방지 로직 포함
+     */
+    void load_common_config(const YAML::Node& config);
+
+    /**
+     * @brief load 된 공통 config 변수 string 타입으로 전달받기 위한 함수
+     *
+     * @note converter 생성 시 공통 config 변수 및 converter 개별 변수 더하여 print
+     */
+    std::string get_common_config_info(const std::string& sensor_type);
+
     std::shared_ptr<SensorManagerNode> node_ptr_{};
     std::chrono::steady_clock::time_point last_call_time_;
-    double timeout_limit_sec_; // 자식 클래스마다 다르게 가질 converter 초기화 타임아웃 시간 (default: 30 sec)
+    double timeout_limit_sec_ = -1.0; // 자식 클래스마다 다르게 가질 converter 초기화 타임아웃 시간 (default: -1, 비활성화)
     bool is_already_reset_ = true;
     bool use_converter_ = true;
-    bool use_tf_ = false;
-    std::string target_frame_;
+    bool enable_target_frame_cloud_ = true;
+    bool enable_sensor_tf_cloud_ = false;
+    std::string target_frame_ = "map";
     std::string parent_frame_ = "base_link";
     std::string child_frame_ = "";
     tPose sensor_extrinsic_;
@@ -129,9 +144,7 @@ class TofMultiLeftCloudConverter : public CloudConverterStrategy
     }
     PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
     std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg) override;
-
-    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
-    double tof_multi_left_fov_ = DEG2RAD(45.0);
+    double tof_multi_left_fov_;
     std::vector<int> tof_multi_left_sub_cell_idx_array_;
     std::vector<double> tof_multi_left_y_tan_array_;
     std::vector<double> tof_multi_left_z_tan_array_;
@@ -154,10 +167,7 @@ class TofMultiRightCloudConverter : public CloudConverterStrategy
     PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
     std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg) override;
 
-    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
-    bool use_tof_multi_right_ = true;
-    double tof_multi_right_fov_ = DEG2RAD(45.0);
-    tPose tof_multi_right_sensor_frame_pose_ = tPose(tPoint(0.14316, -0.075446, 0.03),tOrientation(0.0, -DEG2RAD(5.0), -DEG2RAD(15.0)));
+    double tof_multi_right_fov_;
     std::vector<int> tof_multi_right_sub_cell_idx_array_;
     std::vector<double> tof_multi_right_y_tan_array_;
     std::vector<double> tof_multi_right_z_tan_array_;
@@ -180,19 +190,17 @@ class CameraCloudConverter : public CloudConverterStrategy
     PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
 
     // 경사로 감지 시 Camera 데이터 변환을 수행하지 않기 위해 추가된 플래그
+    void setup_imu_subscription();
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     bool is_ramp_detection_ = false;
     int ramp_release_cnt = 0;
 
-    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
-    bool use_camera_ = true;
-    bool object_direction_ = true;
-    bool use_object_logger_ = true;
-    double pointcloud_resolution_ = 0.05;
-    double object_max_dist_ = 1.5;
-    double object_ignore_pitch_th_ = 3.0;
-    double object_logger_margin_distance_diff_m_ = 1.0;
-    tPose camera_sensor_frame_pose_ = tPose(tPoint(0.15473, 0.0, 0.5331),tOrientation(0.0, 0.0, 0.0));
+    bool object_direction_;
+    bool use_object_logger_;
+    double pointcloud_resolution_;
+    double object_max_dist_;
+    double object_ignore_pitch_th_;
+    double object_logger_margin_distance_diff_m_;
     std::map<int, int> camera_class_id_confidence_th_ = {};
 };
 
@@ -210,10 +218,8 @@ class BottomIrCloudConverter : public CloudConverterStrategy
     }
     PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
 
-    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
-    bool use_bottom_ir_ = true;
-    double ir_dist_center_to_sensor = 0.15;
-    double ir_angle_sensor_to_next_sensor = 50.0;
+    double ir_dist_center_to_sensor_;
+    double ir_angle_sensor_to_next_sensor_;
 };
 
 /**
@@ -229,10 +235,6 @@ class CollisionCloudConverter : public CloudConverterStrategy
       // Do nothing
     }
     PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
-
-    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
-    bool use_collision_ = true;
-    tPose collision_sensor_frame_pose_ = tPose(tPoint(0.19, 0.0, 0.0),tOrientation(0.0, 0.0, 0.0));
 };
 
 /**
@@ -248,9 +250,6 @@ class EmptyCloudConverter : public CloudConverterStrategy
       // Do nothing
     }
     PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
-
-    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
-    bool use_empty_msg_ = true;
 };
 
 } // namespace sensor_manager

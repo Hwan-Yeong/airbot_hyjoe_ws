@@ -223,8 +223,8 @@ void SensorManagerNode::initPublisher(const YAML::Node& config)
             bool is_use = sensor_config["use"] ? sensor_config["use"].as<bool>() : false;
 
             if (is_use) {
-                if (sensor_config["topic"] && sensor_config["topic"].IsScalar()) {
-                    std::string topic_name = sensor_config["topic"].as<std::string>();
+                if (sensor_config["output_topic_suffix"] && sensor_config["output_topic_suffix"].IsScalar()) {
+                    std::string topic_name = sensor_config["output_topic_suffix"].as<std::string>();
                     pointcloud_pubs_[topic_name] = create_pc_pub(topic_name);
                 } else {
                     continue;
@@ -247,7 +247,7 @@ void SensorManagerNode::initPublisher(const YAML::Node& config)
             bool use_left = false;
             try { use_left = left_node["use"].as<bool>(); } catch(...) { use_left = false; }
             if (use_left) {
-                auto topic_idx = left_node["topic_idx"].as<std::string>();
+                auto topic_idx = left_node["output_idx_topic_suffix"].as<std::string>();
                 for (const auto& idx_node : left_node["sub_cell_idx_array"]) {
                     int index = idx_node.as<int>();
                     pointcloud_pubs_[topic_idx + std::to_string(index)] = create_pc_pub(topic_idx + std::to_string(index));
@@ -260,7 +260,7 @@ void SensorManagerNode::initPublisher(const YAML::Node& config)
             bool use_right = false;
             try { use_right = right_node["use"].as<bool>(); } catch(...) { use_right = false; }
             if (use_right) {
-                auto topic_idx = right_node["topic_idx"].as<std::string>();
+                auto topic_idx = right_node["output_idx_topic_suffix"].as<std::string>();
                 for (const auto& idx_node : right_node["sub_cell_idx_array"]) {
                     int index = idx_node.as<int>();
                     pointcloud_pubs_[topic_idx + std::to_string(index)] = create_pc_pub(topic_idx + std::to_string(index));

@@ -5,8 +5,8 @@
 
 namespace sensor_manager {
 
-CloudConverterStrategy::CloudConverterStrategy(std::shared_ptr<SensorManagerNode> node_ptr, double timeout_sec = 30.0)
-    : node_ptr_(node_ptr), timeout_limit_sec_(timeout_sec)
+CloudConverterStrategy::CloudConverterStrategy(std::shared_ptr<SensorManagerNode> node_ptr)
+    : node_ptr_(node_ptr)
 {
     last_call_time_ = std::chrono::steady_clock::now();
     this->target_frame_ = node_ptr_->getTargetFrame();
@@ -22,7 +22,7 @@ PointCloudMsgVector CloudConverterStrategy::pc_convert(const void* sensor_msg)
 
         /**
          * @brief Converter 내부 변수 자동 초기화 기능
-         * 
+         *
          * @details 변수 자동 초기화는 크게 2가지 경우에 발생
          * 1) sensor_manager 노드 "on -> off -(over timeout)-> on" 시
          * 2) 센서 데이터 "수신 -> 미수신 -(over timeout)-> 수신" 시
@@ -44,9 +44,63 @@ PointCloudMsgVector CloudConverterStrategy::pc_convert(const void* sensor_msg)
     return pc_convert_impl(sensor_msg);
 }
 
+void CloudConverterStrategy::load_common_config(const YAML::Node& config) {
+    if (!config.IsMap()) return;
+
+    this->use_converter_ = config["use"] ? config["use"].as<bool>() : true;
+    this->enable_target_frame_cloud_ = config["enable_target_frame_cloud"] ? config["enable_target_frame_cloud"].as<bool>() : false;
+    this->enable_sensor_tf_cloud_ = config["enable_sensor_tf_cloud"] ? config["enable_sensor_tf_cloud"].as<bool>() : false;
+    this->timeout_limit_sec_ = config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : -1.0;
+
+    try {
+        if (config["extrinsics"]) {
+            const auto& ext = config["extrinsics"];
+
+            if (ext["tf_frame"]) { // TF Frame 정보가 있을 때만 로드
+                this->parent_frame_ = ext["tf_frame"]["parent"] ? ext["tf_frame"]["parent"].as<std::string>() : "base_link";
+                this->child_frame_ = ext["tf_frame"]["child"] ? ext["tf_frame"]["child"].as<std::string>() : "";
+            }
+
+            if (ext["translation"]) {
+                this->sensor_extrinsic_.position.x = ext["translation"]["x"] ? ext["translation"]["x"].as<double>() : 0.0;
+                this->sensor_extrinsic_.position.y = ext["translation"]["y"] ? ext["translation"]["y"].as<double>() : 0.0;
+                this->sensor_extrinsic_.position.z = ext["translation"]["z"] ? ext["translation"]["z"].as<double>() : 0.0;
+            }
+
+            if (ext["rotation"]) {
+                this->sensor_extrinsic_.orientation.roll  = DEG2RAD(ext["rotation"]["roll"] ? ext["rotation"]["roll"].as<double>() : 0.0);
+                this->sensor_extrinsic_.orientation.pitch = DEG2RAD(ext["rotation"]["pitch"] ? ext["rotation"]["pitch"].as<double>() : 0.0);
+                this->sensor_extrinsic_.orientation.yaw   = DEG2RAD(ext["rotation"]["yaw"] ? ext["rotation"]["yaw"].as<double>() : 0.0);
+            }
+        }
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(node_ptr_->get_logger(), "Extrinsics parsing failed: %s", e.what());
+    }
+}
+
+std::string CloudConverterStrategy::get_common_config_info(const std::string& sensor_type) {
+    std::ostringstream oss;
+    oss << "\n[" << sensor_type << " CONVERTER PARAMETERS]\n" << std::boolalpha
+        << "  use_converter_            : " << this->use_converter_ << "\n"
+        << "  enable_target_cloud       : " << this->enable_target_frame_cloud_ << "\n"
+        << "  enable_sensor_tf          : " << this->enable_sensor_tf_cloud_ << "\n"
+        << "  reset_timeout_sec         : " << this->timeout_limit_sec_ << "\n"
+        << "  tf frame (Parent/Child)   : " << this->parent_frame_ << " / " << this->child_frame_ << "\n"
+        << "  sensor_extrinsic_pose     : translation [m] x/y/z = ("
+                                            << this->sensor_extrinsic_.position.x << ", "
+                                            << this->sensor_extrinsic_.position.y << ", "
+                                            << this->sensor_extrinsic_.position.z << ")\n"
+        << "   ->(from base_link)       : rotation [deg] r/p/y = ("
+                                            << RAD2DEG(this->sensor_extrinsic_.orientation.roll)  << ", "
+                                            << RAD2DEG(this->sensor_extrinsic_.orientation.pitch)  << ", "
+                                            << RAD2DEG(this->sensor_extrinsic_.orientation.yaw)  << ")\n";
+
+    return oss.str();
+}
+
 std::optional<geometry_msgs::msg::TransformStamped> CloudConverterStrategy::get_static_tf()
 {
-    if (!use_tf_ || parent_frame_.empty() || child_frame_.empty()) return std::nullopt;
+    if (!enable_sensor_tf_cloud_ || parent_frame_.empty() || child_frame_.empty()) return std::nullopt;
 
     geometry_msgs::msg::TransformStamped tfs;
     tfs.header.stamp = node_ptr_->get_clock()->now();
@@ -58,8 +112,8 @@ std::optional<geometry_msgs::msg::TransformStamped> CloudConverterStrategy::get_
     tfs.transform.translation.z = this->sensor_extrinsic_.position.z;
 
     tf2::Quaternion q;
-    q.setRPY(this->sensor_extrinsic_.orientation.roll, 
-             this->sensor_extrinsic_.orientation.pitch, 
+    q.setRPY(this->sensor_extrinsic_.orientation.roll,
+             this->sensor_extrinsic_.orientation.pitch,
              this->sensor_extrinsic_.orientation.yaw);
     tfs.transform.rotation = tf2::toMsg(q);
 
@@ -72,58 +126,25 @@ std::shared_ptr<SensorManagerNode> CloudConverterStrategy::get_node_ptr() const
 }
 
 TofMonoCloudConverter::TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node &config)
-    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0)
+    : CloudConverterStrategy(node_ptr)
 {
-    // Load Config
     if (!config.IsMap())
     {
         auto s = YAML::Dump(config);
         throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
     }
 
-    this->use_converter_ = config["use"].as<bool>();
-    this->use_tf_ = config["use_tf2"].as<bool>();
-    this->parent_frame_ = config["extrinsics"]["tf_frame"]["parent"].as<std::string>();
-    this->child_frame_ = config["extrinsics"]["tf_frame"]["child"].as<std::string>();
-    this->sensor_extrinsic_ = tPose(
-        tPoint(
-            config["extrinsics"]["translation"]["x"].as<double>(),
-            config["extrinsics"]["translation"]["y"].as<double>(),
-            config["extrinsics"]["translation"]["z"].as<double>()
-        ),
-        tOrientation(
-            DEG2RAD(config["extrinsics"]["rotation"]["roll"].as<double>()),
-            DEG2RAD(config["extrinsics"]["rotation"]["pitch"].as<double>()),
-            DEG2RAD(config["extrinsics"]["rotation"]["yaw"].as<double>())
-        )
-    );
+    // TODO: Set Default Config
+    //       => Yaml 파일이 깨질 경우를 대비하여 양산 시 확정된 사양의 기본값을 하드 코딩으로 채워넣기.
+
+    // Load Config
+    load_common_config(config);
 
     // Print Config
-    std::ostringstream oss;
-    oss << "\n[1D TOF POINTCLOUD CONVERTER PARAMETERS]\n";
-    oss << std::boolalpha;
-    oss << "  use_converter_      : " << this->use_converter_ << "\n";
-    oss << "  use_tf2_           : " << this->use_tf_ << "\n";
-    oss << "  reset_timeout_sec  : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
-    oss << "  tf frame (parent)  : " << this->parent_frame_ << "\n";
-    oss << "  tf frame (child)   : " << this->child_frame_ << "\n";
-    oss << "  sensor_frame_pose  : position [m] = ("
-        << std::fixed << std::setprecision(5) << this->sensor_extrinsic_.position.x << ", "
-        << std::fixed << std::setprecision(5) << this->sensor_extrinsic_.position.y << ", "
-        << std::fixed << std::setprecision(5) << this->sensor_extrinsic_.position.z << "), "
-        << "orientation [deg] = ("
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_extrinsic_.orientation.roll)  << ", "
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_extrinsic_.orientation.pitch) << ", "
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_extrinsic_.orientation.yaw)   << ")\n";
-    oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
-
-    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
-    this->use_converter_ = true;
-    this->use_tf_ = true;
-    this->sensor_extrinsic_ = tPose(tPoint(0.0942, 0.0, 0.56513),tOrientation(0.0, -DEG2RAD(39.0), 0.0));
-    this->parent_frame_ = "base_link";
-    this->child_frame_ = "tof_mono_link";
+    std::ostringstream oss_1dtof;
+    oss_1dtof << get_common_config_info("1D ToF");
+    oss_1dtof << "----------------------------------------------------";
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss_1dtof.str().c_str());
 }
 
 PointCloudMsgVector TofMonoCloudConverter::pc_convert_impl(const void *sensor_msg)
@@ -155,74 +176,49 @@ PointCloudMsgVector TofMonoCloudConverter::pc_convert_impl(const void *sensor_ms
 }
 
 TofMultiLeftCloudConverter::TofMultiLeftCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node &config)
-    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0)
+    : CloudConverterStrategy(node_ptr)
 {
-    // Load Config
     if (!config.IsMap())
     {
         auto s = YAML::Dump(config);
         throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
     }
 
-    this->use_converter_ = config["use"].as<bool>();
-    this->use_tf_ = config["use_tf2"].as<bool>();
-    this->parent_frame_ = config["extrinsics"]["tf_frame"]["parent"].as<std::string>();
-    this->child_frame_ = config["extrinsics"]["tf_frame"]["child"].as<std::string>();
+    // TODO: Set Default Config
+    //       => Yaml 파일이 깨질 경우를 대비하여 양산 시 확정된 사양의 기본값을 하드 코딩으로 채워넣기.
+
+    // Load Config
+    load_common_config(config);
     this->tof_multi_left_fov_ = DEG2RAD(config["extrinsics"]["fov"].as<double>());
-    this->sensor_extrinsic_ = tPose(
-        tPoint(
-            config["extrinsics"]["translation"]["x"].as<double>(),
-            config["extrinsics"]["translation"]["y"].as<double>(),
-            config["extrinsics"]["translation"]["z"].as<double>()
-        ),
-        tOrientation(
-            DEG2RAD(config["extrinsics"]["rotation"]["roll"].as<double>()),
-            DEG2RAD(config["extrinsics"]["rotation"]["pitch"].as<double>()),
-            DEG2RAD(config["extrinsics"]["rotation"]["yaw"].as<double>())
-        )
-    );
     for (auto idx : config["sub_cell_idx_array"]) {
         this->tof_multi_left_sub_cell_idx_array_.push_back(idx.as<int>());
     }
-    // Print Config
-    std::ostringstream oss;
-    oss << "\n[MULTI TOF (Left) POINTCLOUD CONVERTER PARAMETERS]\n";
-    oss << std::boolalpha;
-    oss << "  use_converter_       : " << this->use_converter_ << "\n";
-    oss << "  use_tf2_             : " << this->use_tf_ << "\n";
-    oss << "  reset_timeout_sec    : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
-    oss << "  tf frame (parent)    : " << this->parent_frame_ << "\n";
-    oss << "  tf frame (child)     : " << this->child_frame_ << "\n";
-    oss << "  fov [deg]            : " << RAD2DEG(this->tof_multi_left_fov_) << "\n";
-    oss << "  sensor_frame_pose    : position [m] = ("
-        << std::fixed << std::setprecision(5) << this->sensor_extrinsic_.position.x << ", "
-        << std::fixed << std::setprecision(5) << this->sensor_extrinsic_.position.y << ", "
-        << std::fixed << std::setprecision(5) << this->sensor_extrinsic_.position.z << "), "
-        << "orientation [deg] = ("
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_extrinsic_.orientation.roll)  << ", "
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_extrinsic_.orientation.pitch) << ", "
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->sensor_extrinsic_.orientation.yaw)   << ")\n";
-    oss << "  sub_cell_idx_array   : ";
-    for (auto idx : this->tof_multi_left_sub_cell_idx_array_) {
-        oss << idx << " ";
+    if (config["extrinsics"] && config["extrinsics"]["fov"]) {
+        this->tof_multi_left_fov_ = DEG2RAD(config["extrinsics"]["fov"].as<double>());
     }
-    oss << "\n";
-    oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
+    if (config["sub_cell_idx_array"]) {
+        this->tof_multi_left_sub_cell_idx_array_.clear();
+        for (auto idx : config["sub_cell_idx_array"]) {
+            this->tof_multi_left_sub_cell_idx_array_.push_back(idx.as<int>());
+        }
+    }
 
-    // set default: yaml 파일이 정상이 아닌 경우를 대비하여
-    this->use_converter_ = true;
-    this->use_tf_ = true;
-    this->sensor_extrinsic_ = tPose(tPoint(0.14316, 0.075446, 0.03),tOrientation(0.0, -DEG2RAD(5.0), DEG2RAD(15.0)));
-    this->parent_frame_ = "base_link";
-    this->child_frame_ = "tof_multi_left_link";
+    // Print Config
+    std::ostringstream oss_mtofLeft;
+    oss_mtofLeft << get_common_config_info("MULTI TOF (Left)");
+    oss_mtofLeft << "  fov [deg]            : " << RAD2DEG(this->tof_multi_left_fov_) << "\n";
+    oss_mtofLeft << "  sub_cell_idx_array   : ";
+    for (auto idx : this->tof_multi_left_sub_cell_idx_array_) { oss_mtofLeft << idx << " "; }
+    oss_mtofLeft << "\n";
+    oss_mtofLeft << "----------------------------------------------------";
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss_mtofLeft.str().c_str());
 
     // Init Calculation
     tof_utils_.updateSubCellIndexArray(
         this->tof_multi_left_sub_cell_idx_array_,
         this->tof_multi_left_fov_,
-        this->tof_multi_left_y_tan_array_,
-        this->tof_multi_left_z_tan_array_,
+        this->tof_multi_left_y_tan_array_, //output
+        this->tof_multi_left_z_tan_array_, //output
         this->node_ptr_->get_logger()
     );
 }
@@ -279,7 +275,6 @@ std_msgs::msg::Float32MultiArray TofMultiLeftCloudConverter::calibration_convert
         this->tof_multi_left_z_tan_array_,
         this->sensor_extrinsic_);
 
-
     if (robot_pts.size() != INDEX_SIZE) {
         RCLCPP_WARN(this->node_ptr_->get_logger(),
             "Expected %zu robot points, but got %zu.",
@@ -305,62 +300,49 @@ std_msgs::msg::Float32MultiArray TofMultiLeftCloudConverter::calibration_convert
 }
 
 TofMultiRightCloudConverter::TofMultiRightCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node &config)
-    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0)
+    : CloudConverterStrategy(node_ptr)
 {
-    // Load Config
     if (!config.IsMap())
     {
         auto s = YAML::Dump(config);
         throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
     }
 
-    this->use_tof_multi_right_ = config["use"].as<bool>();
+    // TODO: Set Default Config
+    //       => Yaml 파일이 깨질 경우를 대비하여 양산 시 확정된 사양의 기본값을 하드 코딩으로 채워넣기.
+
+    // Load Config
+    load_common_config(config);
     this->tof_multi_right_fov_ = DEG2RAD(config["extrinsics"]["fov"].as<double>());
-    this->tof_multi_right_sensor_frame_pose_ = tPose(
-        tPoint(
-            config["extrinsics"]["translation"]["x"].as<double>(),
-            config["extrinsics"]["translation"]["y"].as<double>(),
-            config["extrinsics"]["translation"]["z"].as<double>()
-        ),
-        tOrientation(
-            DEG2RAD(config["extrinsics"]["rotation"]["roll"].as<double>()),
-            DEG2RAD(config["extrinsics"]["rotation"]["pitch"].as<double>()),
-            DEG2RAD(config["extrinsics"]["rotation"]["yaw"].as<double>())
-        )
-    );
     for (auto idx : config["sub_cell_idx_array"]) {
         this->tof_multi_right_sub_cell_idx_array_.push_back(idx.as<int>());
     }
+    if (config["extrinsics"] && config["extrinsics"]["fov"]) {
+        this->tof_multi_right_fov_ = DEG2RAD(config["extrinsics"]["fov"].as<double>());
+    }
+    if (config["sub_cell_idx_array"]) {
+        this->tof_multi_right_sub_cell_idx_array_.clear();
+        for (auto idx : config["sub_cell_idx_array"]) {
+            this->tof_multi_right_sub_cell_idx_array_.push_back(idx.as<int>());
+        }
+    }
 
     // Print Config
-    std::ostringstream oss;
-    oss << "\n[MULTI TOF (Right) POINTCLOUD CONVERTER PARAMETERS]\n";
-    oss << std::boolalpha;
-    oss << "  use_tof_multi_right_ : " << this->use_tof_multi_right_ << "\n";
-    oss << "  reset_timeout_sec    : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
-    oss << "  fov [deg]            : " << RAD2DEG(this->tof_multi_right_fov_) << "\n";
-    oss << "  sensor_frame_pose    : position [m] = ("
-        << std::fixed << std::setprecision(5) << this->tof_multi_right_sensor_frame_pose_.position.x << ", "
-        << std::fixed << std::setprecision(5) << this->tof_multi_right_sensor_frame_pose_.position.y << ", "
-        << std::fixed << std::setprecision(5) << this->tof_multi_right_sensor_frame_pose_.position.z << "), "
-        << "orientation [deg] = ("
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_multi_right_sensor_frame_pose_.orientation.roll)  << ", "
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_multi_right_sensor_frame_pose_.orientation.pitch) << ", "
-        << std::fixed << std::setprecision(1) << RAD2DEG(this->tof_multi_right_sensor_frame_pose_.orientation.yaw)   << ")\n";
-    oss << "  sub_cell_idx_array   : ";
-    for (auto idx : this->tof_multi_right_sub_cell_idx_array_) {
-        oss << idx << " ";
-    }
-    oss << "\n";
-    oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
+    std::ostringstream oss_mtofRight;
+    oss_mtofRight << get_common_config_info("MULTI TOF (Right)");
+    oss_mtofRight << "  fov [deg]            : " << RAD2DEG(this->tof_multi_right_fov_) << "\n";
+    oss_mtofRight << "  sub_cell_idx_array   : ";
+    for (auto idx : this->tof_multi_right_sub_cell_idx_array_) { oss_mtofRight << idx << " "; }
+    oss_mtofRight << "\n";
+    oss_mtofRight << "----------------------------------------------------";
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss_mtofRight.str().c_str());
 
     // Init Calculation
     tof_utils_.updateSubCellIndexArray(
         this->tof_multi_right_sub_cell_idx_array_,
         this->tof_multi_right_fov_,
-        this->tof_multi_right_y_tan_array_,
-        this->tof_multi_right_z_tan_array_,
+        this->tof_multi_right_y_tan_array_, //output
+        this->tof_multi_right_z_tan_array_, //output
         this->node_ptr_->get_logger()
     );
 }
@@ -369,7 +351,7 @@ PointCloudMsgVector TofMultiRightCloudConverter::pc_convert_impl(const void *sen
 {
     PointCloudMsgVector clouds;
 
-    if (this->use_tof_multi_right_)
+    if (this->use_converter_)
     {
         auto msg = static_cast<const robot_custom_msgs::msg::TofData*>(sensor_msg);
 
@@ -383,7 +365,7 @@ PointCloudMsgVector TofMultiRightCloudConverter::pc_convert_impl(const void *sen
             right_dists,
             this->tof_multi_right_y_tan_array_,
             this->tof_multi_right_z_tan_array_,
-            this->tof_multi_right_sensor_frame_pose_);
+            this->sensor_extrinsic_);
 
         if (this->target_frame_ == "map") {
             std::vector<tPoint> points_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame(points_on_robot_frame, robot_pose);
@@ -415,8 +397,7 @@ std_msgs::msg::Float32MultiArray TofMultiRightCloudConverter::calibration_conver
         right_dists,
         this->tof_multi_right_y_tan_array_,
         this->tof_multi_right_z_tan_array_,
-        this->tof_multi_right_sensor_frame_pose_);
-
+        this->sensor_extrinsic_);
 
     if (robot_pts.size() != INDEX_SIZE) {
         RCLCPP_WARN(this->node_ptr_->get_logger(),
@@ -443,16 +424,19 @@ std_msgs::msg::Float32MultiArray TofMultiRightCloudConverter::calibration_conver
 }
 
 CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node &config)
-    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0)
+    : CloudConverterStrategy(node_ptr)
 {
-    // Load Config
     if (!config.IsMap())
     {
         auto s = YAML::Dump(config);
         throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
     }
 
-    this->use_camera_ = config["use"].as<bool>();
+    // TODO: Set Default Config
+    //       => Yaml 파일이 깨질 경우를 대비하여 양산 시 확정된 사양의 기본값을 하드 코딩으로 채워넣기.
+
+    // Load Config
+    load_common_config(config);
     this->object_direction_ = config["object_direction"].as<bool>();
     this->pointcloud_resolution_ = config["pointcloud_resolution"].as<double>();
     this->object_max_dist_ = config["object_max_distance_m"].as<double>();
@@ -465,41 +449,53 @@ CameraCloudConverter::CameraCloudConverter(std::shared_ptr<SensorManagerNode> no
             this->camera_class_id_confidence_th_[std::stoi(key)] = std::stoi(value);
         }
     }
-    this->camera_sensor_frame_pose_.position = tPoint(
-        config["extrinsics"]["translation"]["x"].as<double>(),
-        config["extrinsics"]["translation"]["y"].as<double>(),
-        config["extrinsics"]["translation"]["z"].as<double>()
-    );
+    this->object_direction_ = config["object_direction"] ? config["object_direction"].as<bool>() : true;
+    this->pointcloud_resolution_ = config["pointcloud_resolution"] ? config["pointcloud_resolution"].as<double>() : 0.05;
+    this->object_max_dist_ = config["object_max_distance_m"] ? config["object_max_distance_m"].as<double>() : 1.5;
+    this->object_ignore_pitch_th_ = DEG2RAD(config["object_ignore_pitch_th_deg"] ? config["object_ignore_pitch_th_deg"].as<double>() : 3.0);
+    if (config["class_id_confidence_th"]) {
+        for (const auto& class_id: config["class_id_confidence_th"]) {
+            auto item = class_id.as<std::string>();
+            std::istringstream ss(item);
+            std::string key, value;
+            if (std::getline(ss, key, ':') && std::getline(ss, value)) {
+                this->camera_class_id_confidence_th_[std::stoi(key)] = std::stoi(value);
+            }
+        }
+    }
     this->use_object_logger_ = config["logger"]["use"].as<bool>();
     this->object_logger_margin_distance_diff_m_ = config["logger"]["margin"]["distance_diff_m"].as<double>();
+    if (config["logger"]) {
+        this->use_object_logger_ = config["logger"]["use"] ? config["logger"]["use"].as<bool>() : true;
+        if (config["logger"]["margin"]) {
+            this->object_logger_margin_distance_diff_m_ = config["logger"]["margin"]["distance_diff_m"] ? config["logger"]["margin"]["distance_diff_m"].as<double>() : 1.0;
+        }
+    }
 
     // Print Config
-    std::ostringstream oss;
-    oss << "\n[CAMERA POINTCLOUD CONVERTER PARAMETERS]\n";
-    oss << std::boolalpha;
-    oss << "  use_camera_             : " << this->use_camera_ << "\n";
-    oss << "  reset_timeout_sec       : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
-    oss << "  object_direction_       : " << this->object_direction_ << "\n";
-    oss << "  pointcloud_resolution_  : " << std::fixed << std::setprecision(2) << this->pointcloud_resolution_ << "\n";
-    oss << "  object_max_dist_        : " << std::fixed << std::setprecision(2) << this->object_max_dist_ << " m\n";
-    oss << "  object_ignore_pitch_th_ : " << std::fixed << std::setprecision(2) << RAD2DEG(this->object_ignore_pitch_th_) << " deg\n";
-    oss << "  sensor_frame_pose       : position [m] = ("
-        << std::fixed << std::setprecision(5) << this->camera_sensor_frame_pose_.position.x << ", "
-        << std::fixed << std::setprecision(5) << this->camera_sensor_frame_pose_.position.y << ", "
-        << std::fixed << std::setprecision(5) << this->camera_sensor_frame_pose_.position.z << ")\n";
-    oss << "  class_id_confidence_th  :\n";
+    std::ostringstream oss_camera;
+    oss_camera << get_common_config_info("CAMERA");
+    oss_camera << "  object_direction_       : " << this->object_direction_ << "\n";
+    oss_camera << "  pointcloud_resolution_  : " << std::fixed << std::setprecision(2) << this->pointcloud_resolution_ << "\n";
+    oss_camera << "  object_max_dist_        : " << std::fixed << std::setprecision(2) << this->object_max_dist_ << " m\n";
+    oss_camera << "  object_ignore_pitch_th_ : " << std::fixed << std::setprecision(2) << RAD2DEG(this->object_ignore_pitch_th_) << " deg\n";
+    oss_camera << "  class_id_confidence_th  :\n";
     for (const auto& [class_id, confidence_th] : this->camera_class_id_confidence_th_) {
-        oss << "    - { id: " << std::setw(2) << std::setfill('0') << class_id << ", th: " << confidence_th << " }\n";
+        oss_camera << "    - { id: " << std::setw(2) << std::setfill('0') << class_id << ", th: " << confidence_th << " }\n";
     }
-    oss << "  use_logger_             : " << this->use_object_logger_ << "\n";
-    oss << "  log_margin_dist_diff_m_ : " << std::fixed << std::setprecision(2) << this->object_logger_margin_distance_diff_m_ << "\n";
-    oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
+    oss_camera << "  use_logger_             : " << this->use_object_logger_ << "\n";
+    oss_camera << "  log_margin_dist_diff_m_ : " << std::fixed << std::setprecision(2) << this->object_logger_margin_distance_diff_m_ << "\n";
+    oss_camera << "----------------------------------------------------";
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss_camera.str().c_str());
 
     // IMU Msg Subscriber
+    setup_imu_subscription();
+}
+
+void CameraCloudConverter::setup_imu_subscription()
+{
     imu_sub_ = node_ptr_->create_subscription<sensor_msgs::msg::Imu>(
-        "/imu_data",
-        rclcpp::QoS(10).reliable(),
+        "/imu_data", rclcpp::QoS(10).reliable(),
         [this](sensor_msgs::msg::Imu::SharedPtr msg) {
             double roll, pitch, yaw;
             tf2::Quaternion quaternion(msg->orientation.x, msg->orientation.y, msg->orientation.z, msg->orientation.w);
@@ -524,7 +520,7 @@ PointCloudMsgVector CameraCloudConverter::pc_convert_impl(const void *sensor_msg
 {
     PointCloudMsg cloud;
 
-    if (this->use_camera_ && !this->is_ramp_detection_)
+    if (this->use_converter_ && !this->is_ramp_detection_)
     {
         auto msg = static_cast<const robot_custom_msgs::msg::CameraDataArray*>(sensor_msg);
 
@@ -540,7 +536,7 @@ PointCloudMsgVector CameraCloudConverter::pc_convert_impl(const void *sensor_msg
             this->object_direction_,
             this->object_max_dist_,
             this->target_frame_,
-            this->camera_sensor_frame_pose_,
+            this->sensor_extrinsic_,
             this->use_object_logger_,
             this->object_logger_margin_distance_diff_m_,
             this->node_ptr_->get_logger());
@@ -554,36 +550,38 @@ PointCloudMsgVector CameraCloudConverter::pc_convert_impl(const void *sensor_msg
 }
 
 BottomIrCloudConverter::BottomIrCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node &config)
-    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0)
+    : CloudConverterStrategy(node_ptr)
 {
-    // Load Config
     if (!config.IsMap())
     {
         auto s = YAML::Dump(config);
         throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
     }
 
-    this->use_bottom_ir_ = config["use"].as<bool>();
-    this->ir_dist_center_to_sensor = config["extrinsics"]["distance"].as<double>();
-    this->ir_angle_sensor_to_next_sensor = config["extrinsics"]["angle"].as<double>();
+    // TODO: Set Default Config
+    //       => Yaml 파일이 깨질 경우를 대비하여 양산 시 확정된 사양의 기본값을 하드 코딩으로 채워넣기.
+
+    // Load Config
+    load_common_config(config);
+    if (config["extrinsics"]) {
+        this->ir_dist_center_to_sensor_ = config["extrinsics"]["distance"] ? config["extrinsics"]["distance"].as<double>() : 0.15;
+        this->ir_angle_sensor_to_next_sensor_ = config["extrinsics"]["angle"] ? config["extrinsics"]["angle"].as<double>() : 50.0;
+    }
 
     // Print Config
-    std::ostringstream oss;
-    oss << "\n[BOTTOM IR POINTCLOUD CONVERTER PARAMETERS]\n";
-    oss << std::boolalpha;
-    oss << "  use_bottom_ir_                        : " << this->use_bottom_ir_ << "\n";
-    oss << "  reset_timeout_sec                     : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
-    oss << "  ir_dist_center_to_sensor [m]          : " << this->ir_dist_center_to_sensor << "\n";
-    oss << "  ir_angle_sensor_to_next_sensor [deg]  : " << this->ir_angle_sensor_to_next_sensor <<" \n";
-    oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
+    std::ostringstream oss_bottomIr;
+    oss_bottomIr << get_common_config_info("BOTTOM IR");
+    oss_bottomIr << "  ir_dist_center_to_sensor_ [m]          : " << this->ir_dist_center_to_sensor_ << "\n";
+    oss_bottomIr << "  ir_angle_sensor_to_next_sensor_ [deg]  : " << this->ir_angle_sensor_to_next_sensor_ <<" \n";
+    oss_bottomIr << "----------------------------------------------------";
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss_bottomIr.str().c_str());
 }
 
 PointCloudMsgVector BottomIrCloudConverter::pc_convert_impl(const void *sensor_msg)
 {
     PointCloudMsg cloud;
 
-    if (this->use_bottom_ir_)
+    if (this->use_converter_)
     {
         auto msg = static_cast<const robot_custom_msgs::msg::BottomIrData*>(sensor_msg);
 
@@ -592,7 +590,7 @@ PointCloudMsgVector BottomIrCloudConverter::pc_convert_impl(const void *sensor_m
         robot_pose.position.y = msg->robot_y;
         robot_pose.orientation.yaw = msg->robot_angle;
 
-        std::vector<tPoint> points_on_robot_frame = this->frame_converter_.tfBottomIrSensor2RobotFrame(msg, this->ir_dist_center_to_sensor, this->ir_angle_sensor_to_next_sensor);
+        std::vector<tPoint> points_on_robot_frame = this->frame_converter_.tfBottomIrSensor2RobotFrame(msg, this->ir_dist_center_to_sensor_, this->ir_angle_sensor_to_next_sensor_);
 
         if (this->target_frame_ == "map") {
             std::vector<tPoint> points_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame(points_on_robot_frame, robot_pose);
@@ -608,41 +606,35 @@ PointCloudMsgVector BottomIrCloudConverter::pc_convert_impl(const void *sensor_m
 }
 
 CollisionCloudConverter::CollisionCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node &config)
-    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0)
+    : CloudConverterStrategy(node_ptr)
 {
-    // Load Config
     if (!config.IsMap())
     {
         auto s = YAML::Dump(config);
         throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
     }
 
-    this->use_collision_ = config["use"].as<bool>();
-    this->collision_sensor_frame_pose_.position = tPoint(
-        config["extrinsics"]["distance"].as<double>(),
-        0.0,
-        0.0
-    );
+    // TODO: Set Default Config
+    //       => Yaml 파일이 깨질 경우를 대비하여 양산 시 확정된 사양의 기본값을 하드 코딩으로 채워넣기.
+
+    // Load Config
+    load_common_config(config);
+    if (config["extrinsics"]) {
+        this->sensor_extrinsic_.position = tPoint(config["extrinsics"]["distance"].as<double>(), 0.0, 0.0);
+    }
 
     // Print Config
-    std::ostringstream oss;
-    oss << "\n[COLLISION POINTCLOUD CONVERTER PARAMETERS]\n";
-    oss << std::boolalpha;
-    oss << "  use_collision_     : " << this->use_collision_ << "\n";
-    oss << "  reset_timeout_sec  : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : 30.0) << "\n";
-    oss << "  sensor_frame_pose  : position [m] = ("
-        << std::fixed << std::setprecision(5) << this->collision_sensor_frame_pose_.position.x << ", "
-        << std::fixed << std::setprecision(5) << this->collision_sensor_frame_pose_.position.y << ", "
-        << std::fixed << std::setprecision(5) << this->collision_sensor_frame_pose_.position.z << ")\n";
-    oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
+    std::ostringstream oss_collision;
+    oss_collision << get_common_config_info("COLLISION");
+    oss_collision << "----------------------------------------------------";
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss_collision.str().c_str());
 }
 
 PointCloudMsgVector CollisionCloudConverter::pc_convert_impl(const void *sensor_msg)
 {
     PointCloudMsg cloud;
 
-    if (this->use_collision_)
+    if (this->use_converter_)
     {
         auto msg = static_cast<const robot_custom_msgs::msg::AbnormalEventData*>(sensor_msg);
 
@@ -651,7 +643,7 @@ PointCloudMsgVector CollisionCloudConverter::pc_convert_impl(const void *sensor_
         robot_pose.position.y = msg->robot_y;
         robot_pose.orientation.yaw = msg->robot_angle;
 
-        tPoint point_on_robot_frame = this->frame_converter_.tfCollisionData2RobotFrame(msg, this->collision_sensor_frame_pose_.position.x);
+        tPoint point_on_robot_frame = this->frame_converter_.tfCollisionData2RobotFrame(msg, this->sensor_extrinsic_.position.x);
 
         if (this->target_frame_ == "map") {
             std::vector<tPoint> points_on_map_frame = this->frame_converter_.tfRobot2GlobalFrame(point_on_robot_frame, robot_pose);
@@ -667,32 +659,29 @@ PointCloudMsgVector CollisionCloudConverter::pc_convert_impl(const void *sensor_
 }
 
 EmptyCloudConverter::EmptyCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config)
-    : CloudConverterStrategy(node_ptr, config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : -1.0)
+    : CloudConverterStrategy(node_ptr)
 {
-    // Load Config
     if (!config.IsMap())
     {
         auto s = YAML::Dump(config);
         throw std::runtime_error("Invalid filter config format (not a map):\n" + s);
     }
 
-    this->use_empty_msg_ = config["use"].as<bool>();
+    // Load Config
+    load_common_config(config);
 
     // Print Config
-    std::ostringstream oss;
-    oss << "\n[EMPTY POINTCLOUD PARAMETERS]\n";
-    oss << std::boolalpha;
-    oss << "  use_empty_         : " << this->use_empty_msg_ << "\n";
-    oss << "  reset_timeout_sec  : " << (config["reset_timeout_sec"] ? config["reset_timeout_sec"].as<double>() : -1.0) << "\n";
-    oss << "----------------------------------------------------";
-    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
+    std::ostringstream oss_empty;
+    oss_empty << get_common_config_info("EMPTY");
+    oss_empty << "----------------------------------------------------";
+    RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss_empty.str().c_str());
 }
 
 PointCloudMsgVector EmptyCloudConverter::pc_convert_impl(const void *sensor_msg)
 {
     PointCloudMsg cloud;
 
-    if (sensor_msg == nullptr && this->use_empty_msg_) {
+    if (sensor_msg == nullptr && this->use_converter_) {
         cloud = this->pointcloud_generator_.generateEmptyPointCloud2Message(this->target_frame_);
     }
 
