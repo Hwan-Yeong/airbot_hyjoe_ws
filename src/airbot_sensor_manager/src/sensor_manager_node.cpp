@@ -312,7 +312,11 @@ void SensorManagerNode::initConverters(const YAML::Node& config)
     }
 
     if (!static_transforms.empty()) {
-        static_tf_broadcaster_->sendTransform(static_transforms); // vector type 을 인자로 받음
+        // 1. sendTransform 함수는 vector type을 인자로 받음 (static_transforms 변수가 vector 타입인 이유)
+        // 2. sendTransform 호출시, "/tf_static" 이라는 전용 토픽으로 static tf 전송
+        // 3. /tf_static 토픽은 Latching 방식으로 동작. (ros2 내부에서 마지막 발행 메시지를 보관하고 있다가, 새로운 노드가 나중에 생기더라고 그 노드에게 이전에 발행했던 최신 TF 데이터를 즉시 전달)
+        // 4. 즉, static tf 를 sendTrasnform 으로 전송하면, 사용자가 주기적으로 tf를 발행해 줄 필요 없음.
+        static_tf_broadcaster_->sendTransform(static_transforms);
         RCLCPP_INFO(this->get_logger(), "[initConverters] Broadcasted %zu static TFs for sensors.", static_transforms.size());
     }
 }
