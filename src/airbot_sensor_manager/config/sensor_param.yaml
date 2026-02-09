@@ -148,9 +148,12 @@ airbot_sensor_manager:
         publish_rate_ms: 10
         use: true # 센서 모듈 사용 여부
         enable_target_frame_cloud: true # target frame 기준 통합 PointCloud 발행
-        enable_sensor_tf_cloud: false # TF 발행 + 해당 frame 기준 PointCloud 발행
+        enable_sensor_tf_cloud: true # TF 발행 + 해당 frame 기준 PointCloud 발행
         reset_timeout_sec: 30.0
         extrinsics:
+          tf_frame:
+            parent: "base_link"
+            child: "bottom_ir_link"
           distance: 0.15 # distance from robot center
           angle: 50.0 # deg to next ir sensor (CW)
 
@@ -159,9 +162,12 @@ airbot_sensor_manager:
         publish_rate_ms: 10
         use: true # 센서 모듈 사용 여부
         enable_target_frame_cloud: true # target frame 기준 통합 PointCloud 발행
-        enable_sensor_tf_cloud: false # TF 발행 + 해당 frame 기준 PointCloud 발행
+        enable_sensor_tf_cloud: true # TF 발행 + 해당 frame 기준 PointCloud 발행
         reset_timeout_sec: 30.0
         extrinsics:
+          tf_frame:
+            parent: "base_link"
+            child: "collision_front_link"
           distance: 0.19 # forward point offset
 
       collision_rear:
@@ -169,10 +175,13 @@ airbot_sensor_manager:
         publish_rate_ms: 10
         use: true # 센서 모듈 사용 여부
         enable_target_frame_cloud: true # target frame 기준 통합 PointCloud 발행
-        enable_sensor_tf_cloud: false # TF 발행 + 해당 frame 기준 PointCloud 발행
+        enable_sensor_tf_cloud: true # TF 발행 + 해당 frame 기준 PointCloud 발행
         reset_timeout_sec: 30.0
         extrinsics:
-          distance: 0.19 # backward point offset
+          tf_frame:
+            parent: "base_link"
+            child: "collision_rear_link"
+          distance: -0.19 # backward point offset
 
       empty: # use_tf2 = true 인 모드에서는 작동되지 않음
         use: true # 센서 모듈 사용 여부

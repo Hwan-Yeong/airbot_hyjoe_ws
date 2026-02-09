@@ -26,6 +26,11 @@ class SensorManagerNode; // forward declaration
 
 using PointCloudMsg = sensor_msgs::msg::PointCloud2;
 using PointCloudMsgVector = std::vector<PointCloudMsg>;
+struct ConverterOutput {
+  PointCloudMsgVector target_frame_clouds;
+  PointCloudMsgVector local_frame_clouds;
+  std::string local_topic_suffix;
+};
 
 /**
  * sensor -> PointCloud2  Strategy interface
@@ -45,7 +50,7 @@ class CloudConverterStrategy
      *       converter 독립적으로 상태를 깔끔하게 유지하기 위하여 내부 변수를 모두 초기화
      *       초기화 기능 비활성화 : reset_timeout_sec 파라미터 -1.0 으로 설정
      */
-    PointCloudMsgVector pc_convert(const void* sensor_msg);
+    ConverterOutput pc_convert(const void* sensor_msg);
 
     /**
      * @brief Multizone ToF 캘리브레이션 전용 가상 함수 (기본 구현 제공)
@@ -80,7 +85,7 @@ class CloudConverterStrategy
     /**
      * @brief PointCloud2 데이터 변환 함수 인터페이스
      */
-    virtual PointCloudMsgVector pc_convert_impl(const void* sensor_msg) = 0;
+    virtual ConverterOutput pc_convert_impl(const void* sensor_msg) = 0;
 
     /**
      * @brief 자식 클래스들의 공통 config 파싱 함수
@@ -125,7 +130,7 @@ class TofMonoCloudConverter : public CloudConverterStrategy
     void reset_internal_variables() override {
       // Do nothing
     }
-    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
+    ConverterOutput pc_convert_impl(const void* sensor_msg) override;
 };
 
 /**
@@ -142,7 +147,7 @@ class TofMultiLeftCloudConverter : public CloudConverterStrategy
     void reset_internal_variables() override {
       // Do nothing
     }
-    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
+    ConverterOutput pc_convert_impl(const void* sensor_msg) override;
     std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg) override;
     double tof_multi_left_fov_;
     std::vector<int> tof_multi_left_sub_cell_idx_array_;
@@ -164,7 +169,7 @@ class TofMultiRightCloudConverter : public CloudConverterStrategy
     void reset_internal_variables() override {
       // Do nothing
     }
-    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
+    ConverterOutput pc_convert_impl(const void* sensor_msg) override;
     std_msgs::msg::Float32MultiArray calibration_convert(const void* sensor_msg) override;
 
     double tof_multi_right_fov_;
@@ -185,9 +190,11 @@ class CameraCloudConverter : public CloudConverterStrategy
     void reset_internal_variables() override {
       is_ramp_detection_ = false;
       ramp_release_cnt = 0;
-      frame_converter_.loggedObjectInfoClear();
+      logged_objects_.clear();
     }
-    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
+    ConverterOutput pc_convert_impl(const void* sensor_msg) override;
+
+    void logNewObjects(const std::vector<CameraObject>& objects);
 
     // 경사로 감지 시 Camera 데이터 변환을 수행하지 않기 위해 추가된 플래그
     void setup_imu_subscription();
@@ -202,6 +209,8 @@ class CameraCloudConverter : public CloudConverterStrategy
     double object_ignore_pitch_th_;
     double object_logger_margin_distance_diff_m_;
     std::map<int, int> camera_class_id_confidence_th_ = {};
+
+    std::map<uint32_t, std::vector<vision_msgs::msg::BoundingBox2D>> logged_objects_;
 };
 
 /**
@@ -216,7 +225,7 @@ class BottomIrCloudConverter : public CloudConverterStrategy
     void reset_internal_variables() override {
       // Do nothing
     }
-    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
+    ConverterOutput pc_convert_impl(const void* sensor_msg) override;
 
     double ir_dist_center_to_sensor_;
     double ir_angle_sensor_to_next_sensor_;
@@ -234,7 +243,7 @@ class CollisionCloudConverter : public CloudConverterStrategy
     void reset_internal_variables() override {
       // Do nothing
     }
-    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
+    ConverterOutput pc_convert_impl(const void* sensor_msg) override;
 };
 
 /**
@@ -249,7 +258,7 @@ class EmptyCloudConverter : public CloudConverterStrategy
     void reset_internal_variables() override {
       // Do nothing
     }
-    PointCloudMsgVector pc_convert_impl(const void* sensor_msg) override;
+    ConverterOutput pc_convert_impl(const void* sensor_msg) override;
 };
 
 } // namespace sensor_manager

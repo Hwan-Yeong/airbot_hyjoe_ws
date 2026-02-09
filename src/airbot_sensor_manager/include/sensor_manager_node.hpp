@@ -42,11 +42,14 @@ private:
 
     /**
      * @brief 퍼블리셔 초기화 함수
+     * 
+     * @note target frame 기준 토픽 형태 : /sensor_manager/pointcloud/{sensor_name}
+     * @note tf2 기준 토픽 형태 : /sensor_manager/pointcloud/{sensor_name}/local
      */
     void initPublisher(const YAML::Node& config);
 
     /**
-     * @brief Converter 초기화 함수
+     * @brief Converter 및 Static TF 초기화 함수
      */
     void initConverters(const YAML::Node &config);
 
@@ -58,11 +61,10 @@ private:
     /**
      * @brief 센서 데이터 변환 후 메시지 퍼블리싱하는 함수
      * 
-     * @param converter_key: pointcloud 변환기 식별 기 (string)
-     * @param topic_key: 발행할 토픽명 (string)
+     * @param sensor_type: 센서 타입 (Enum)
      * @param msg_copied: 변환할 센서 raw data
      */
-    void publishPointcloud(const std::string& converter_key, const std::string& topic_key, const std::shared_ptr<void> msg_copy);
+    void publishPointcloud(SensorType sensor_type, const std::shared_ptr<void> msg_copy);
 
     /**
      * @brief 모든 converter 토픽들의 empty pointcloud 발행 함수
@@ -77,7 +79,7 @@ private:
      * @param clouds: 발행할 pointCloud2의 벡터 집합 (std::vector<sensor_msgs::msg::PointCloud2>)
      * @param topic_key: 발행할 토픽명 (string)
      */
-    void publishMultiTofIdxPointcloud(const PointCloudMsgVector& clouds, const std::string& topic_key);
+    void publishMultiTofIdxPointcloud(const ConverterOutput& output, const std::string& topic_key);
 
     /**
      * @brief Multizone ToF 보정(Calibration)에 사용되는 파라미터 로딩 함수
@@ -133,6 +135,13 @@ private:
     rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr mtof_calibration_data_pub_;
     rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr mtof_calibration_state_pub_;
     std::unique_ptr<MultizoneTofCalibrator> mtof_calibrator_;
+
+    struct SensorTopicConfig {
+        std::string converter_key;
+        std::string topic_key;
+    };
+
+    std::unordered_map<SensorType, SensorTopicConfig> sensor_topic_registry_;
 };
 
 } // namespace sensor_manager

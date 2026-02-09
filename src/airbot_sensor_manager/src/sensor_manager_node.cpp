@@ -11,6 +11,18 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud")
     this->get_parameter("target_frame", node_target_frame_);
     RCLCPP_INFO(this->get_logger(), "  Target Frame: '%s'", node_target_frame_.c_str());
 
+    // Initialize Sensor Topic Registry
+    sensor_topic_registry_ = {
+    //  {SensorType                     ,{ConverterName         ,TopicName}}
+        {SensorType::TOF_MONO           ,{"tof_mono"            ,"tof/mono"}}       ,
+        {SensorType::TOF_MULTI_LEFT     ,{"tof_multi_left"      ,"tof/multi/left"}} ,
+        {SensorType::TOF_MULTI_RIGHT    ,{"tof_multi_right"     ,"tof/multi/right"}},
+        {SensorType::CAMERA             ,{"camera"              ,"camera_object"}}  ,
+        {SensorType::BOTTOM_IR          ,{"bottom_ir"           ,"bottom_ir"}}      ,
+        {SensorType::COLLISION_FRONT    ,{"collision_front"     ,"collision/front"}},
+        {SensorType::COLLISION_REAR     ,{"collision_rear"      ,"collision/rear"}}
+    };
+
     // Initialize Multizone ToF Calibrator
     mtof_calibrator_ = std::make_unique<MultizoneTofCalibrator>(
         this->get_logger(),
@@ -222,12 +234,21 @@ void SensorManagerNode::initPublisher(const YAML::Node& config)
         if (sensor_config.IsMap()) {
             bool is_use = sensor_config["use"] ? sensor_config["use"].as<bool>() : false;
 
-            if (is_use) {
-                if (sensor_config["output_topic_suffix"] && sensor_config["output_topic_suffix"].IsScalar()) {
-                    std::string topic_name = sensor_config["output_topic_suffix"].as<std::string>();
-                    pointcloud_pubs_[topic_name] = create_pc_pub(topic_name);
-                } else {
-                    continue;
+            if (!is_use) continue;
+
+            if (sensor_config["output_topic_suffix"] && sensor_config["output_topic_suffix"].IsScalar()) {
+                std::string base_topic = sensor_config["output_topic_suffix"].as<std::string>();
+                oss << "    (basic topic name - suffix : " << base_topic << ")\n";
+                bool enable_target = sensor_config["enable_target_frame_cloud"] ? sensor_config["enable_target_frame_cloud"].as<bool>() : true;
+                if (enable_target) {
+                    pointcloud_pubs_[base_topic] = create_pc_pub(base_topic);
+                }
+
+                bool enable_tf_cloud = sensor_config["enable_sensor_tf_cloud"] ? sensor_config["enable_sensor_tf_cloud"].as<bool>() : false;
+                if (enable_tf_cloud) {
+                    std::string local_topic = base_topic + "/local";
+                    oss << "    (local topic name - suffix : " << local_topic << ")\n";
+                    pointcloud_pubs_[local_topic] = create_pc_pub(local_topic);
                 }
             }
         }
@@ -237,37 +258,31 @@ void SensorManagerNode::initPublisher(const YAML::Node& config)
 
     bool is_enable_8x8 = sensor_config["tof_multi"]["enable_8x8"] ? sensor_config["tof_multi"]["enable_8x8"].as<bool>() : false;
     if (is_enable_8x8) {
-        const YAML::Node& left_node = config["sensors"]["tof_multi_left"];
-        const YAML::Node& right_node = config["sensors"]["tof_multi_right"];
+        auto setup_multi_tof = [&](const std::string& side, std::vector<int>& idx_array) {
+            const YAML::Node& node = sensor_config[side];
+            if (node && node["use"] && node["use"].as<bool>() && node["sub_cell_idx_array"]) {
+                std::string base_suffix = node["output_idx_topic_suffix"].as<std::string>();
+                bool enable_tf_cloud = node["enable_sensor_tf_cloud"] ? node["enable_sensor_tf_cloud"].as<bool>() : false;
+
+                for (const auto& idx_node : node["sub_cell_idx_array"]) {
+                    int index = idx_node.as<int>();
+                    std::string idx_name = std::to_string(index);
+
+                    pointcloud_pubs_[base_suffix + idx_name] = create_pc_pub(base_suffix + idx_name);
+
+                    if (enable_tf_cloud) {
+                        std::string local_idx_topic = base_suffix + idx_name + "/local";
+                        pointcloud_pubs_[local_idx_topic] = create_pc_pub(local_idx_topic);
+                    }
+                    idx_array.push_back(index);
+                }
+            }
+        };
 
         multi_tof_left_sub_cell_idx_array_.clear();
         multi_tof_right_sub_cell_idx_array_.clear();
-
-        if (left_node && left_node["use"] && left_node["sub_cell_idx_array"] && left_node["sub_cell_idx_array"].IsSequence()) {
-            bool use_left = false;
-            try { use_left = left_node["use"].as<bool>(); } catch(...) { use_left = false; }
-            if (use_left) {
-                auto topic_idx = left_node["output_idx_topic_suffix"].as<std::string>();
-                for (const auto& idx_node : left_node["sub_cell_idx_array"]) {
-                    int index = idx_node.as<int>();
-                    pointcloud_pubs_[topic_idx + std::to_string(index)] = create_pc_pub(topic_idx + std::to_string(index));
-                    multi_tof_left_sub_cell_idx_array_.push_back(index);
-                }
-            }
-        }
-
-        if (right_node && right_node["use"] && right_node["sub_cell_idx_array"] && right_node["sub_cell_idx_array"].IsSequence()) {
-            bool use_right = false;
-            try { use_right = right_node["use"].as<bool>(); } catch(...) { use_right = false; }
-            if (use_right) {
-                auto topic_idx = right_node["output_idx_topic_suffix"].as<std::string>();
-                for (const auto& idx_node : right_node["sub_cell_idx_array"]) {
-                    int index = idx_node.as<int>();
-                    pointcloud_pubs_[topic_idx + std::to_string(index)] = create_pc_pub(topic_idx + std::to_string(index));
-                    multi_tof_right_sub_cell_idx_array_.push_back(index);
-                }
-            }
-        }
+        setup_multi_tof("tof_multi_left", multi_tof_left_sub_cell_idx_array_);
+        setup_multi_tof("tof_multi_right", multi_tof_right_sub_cell_idx_array_);
     }
 
     // etc Publishers
@@ -355,15 +370,14 @@ void SensorManagerNode::publishPointcloudTimer()
             this->runMultizoneToFCalibration(tof_msg_copied);
             return;
         }
-        // -----------------------------
 
         if (tof_buffer_.publishing_cnt_map["tof_mono"] >= pointcloud_publishing_rate_map_["tof_mono"]) {
-            publishPointcloud("tof_mono", "tof/mono", tof_msg_copied);
+            publishPointcloud(SensorType::TOF_MONO, tof_msg_copied);
             tof_buffer_.publishing_cnt_map["tof_mono"] = 0;
         }
         if (tof_buffer_.publishing_cnt_map["tof_multi"] >= pointcloud_publishing_rate_map_["tof_multi"]) {
-            publishPointcloud("tof_multi_left", "tof/multi/left", tof_msg_copied);
-            publishPointcloud("tof_multi_right", "tof/multi/right", tof_msg_copied);
+            publishPointcloud(SensorType::TOF_MULTI_LEFT, tof_msg_copied);
+            publishPointcloud(SensorType::TOF_MULTI_RIGHT, tof_msg_copied);
             tof_buffer_.publishing_cnt_map["tof_multi"] = 0;
         }
     }
@@ -372,7 +386,7 @@ void SensorManagerNode::publishPointcloudTimer()
     robot_custom_msgs::msg::CameraDataArray::SharedPtr camera_msg_copied;
     if (process_buffer(camera_buffer_, camera_msg_copied) &&
         (camera_buffer_.publishing_cnt >= pointcloud_publishing_rate_map_["camera"])) {
-        publishPointcloud("camera", "camera_object", camera_msg_copied);
+        publishPointcloud(SensorType::CAMERA, camera_msg_copied);
         camera_buffer_.publishing_cnt = 0;
     }
 
@@ -380,7 +394,7 @@ void SensorManagerNode::publishPointcloudTimer()
     robot_custom_msgs::msg::BottomIrData::SharedPtr bottom_ir_msg_copied;
     if (process_buffer(bottom_ir_buffer_, bottom_ir_msg_copied) &&
         (bottom_ir_buffer_.publishing_cnt >= pointcloud_publishing_rate_map_["bottom_ir"])) {
-        publishPointcloud("bottom_ir", "bottom_ir", bottom_ir_msg_copied);
+        publishPointcloud(SensorType::BOTTOM_IR, bottom_ir_msg_copied);
         bottom_ir_buffer_.publishing_cnt = 0;
     }
 
@@ -390,19 +404,28 @@ void SensorManagerNode::publishPointcloudTimer()
     if (process_buffer(collision_buffer_, collision_msg_copied)) {
         if (collision_buffer_.publishing_cnt_map["collision_front"] >= pointcloud_publishing_rate_map_["collision_front"]
             && collision_msg_copied->event_trigger == 1) {
-            publishPointcloud("collision_front", "collision/front", collision_msg_copied);
-            collision_buffer_.publishing_cnt_map["collision"] = 0;
+            publishPointcloud(SensorType::COLLISION_FRONT, collision_msg_copied);
+            collision_buffer_.publishing_cnt_map["collision_front"] = 0;
         }
         if (collision_buffer_.publishing_cnt_map["collision_rear"] >= pointcloud_publishing_rate_map_["collision_rear"]
             && collision_msg_copied->event_trigger == -1) {
-            publishPointcloud("collision_rear", "collision/rear", collision_msg_copied);
+            publishPointcloud(SensorType::COLLISION_REAR, collision_msg_copied);
             collision_buffer_.publishing_cnt_map["collision_rear"] = 0;
         }
     }
 }
 
-void SensorManagerNode::publishPointcloud(const std::string& converter_key, const std::string& topic_key, const std::shared_ptr<void> msg_copied)
+void SensorManagerNode::publishPointcloud(SensorType sensor_type, const std::shared_ptr<void> msg_copied)
 {
+    auto reg_it = sensor_topic_registry_.find(sensor_type);
+    if (reg_it == sensor_topic_registry_.end()) {
+        RCLCPP_ERROR(this->get_logger(), "SensorType not found in registry.");
+        return;
+    }
+    const auto& config = reg_it->second;
+    const std::string& converter_key = config.converter_key;
+    const std::string& topic_key = config.topic_key;
+
     auto it = converters_.find(converter_key);
     if (it == converters_.end() || !it->second) {
         RCLCPP_WARN(this->get_logger(),
@@ -412,63 +435,83 @@ void SensorManagerNode::publishPointcloud(const std::string& converter_key, cons
         return;
     }
 
-    auto clouds = it->second->pc_convert(static_cast<const void*>(msg_copied.get()));
+    auto cloud_outputs = it->second->pc_convert(static_cast<const void*>(msg_copied.get()));
 
-    if (topic_key == "tof/multi/left" || topic_key == "tof/multi/right") { 
-        this->publishMultiTofIdxPointcloud(clouds, topic_key);
+    if (topic_key == "tof/multi/left" || topic_key == "tof/multi/right") {
+        this->publishMultiTofIdxPointcloud(cloud_outputs, topic_key);
         return;
     }
 
-    auto pub_it = pointcloud_pubs_.find(topic_key);
-    if (pub_it != pointcloud_pubs_.end() && pub_it->second) {
-        for (auto& cloud : clouds) {
-            pub_it->second->publish(cloud);
+    // 1. Publish Target Frame Cloud
+    if (!cloud_outputs.target_frame_clouds.empty()) {
+        auto pub_it = pointcloud_pubs_.find(topic_key);
+        if (pub_it != pointcloud_pubs_.end() && pub_it->second) {
+            pub_it->second->publish(cloud_outputs.target_frame_clouds[0]);
         }
-    } else {
-        RCLCPP_WARN(this->get_logger(),
-            "Publisher for topic key '%s' not found. Skipping publish.",
-            topic_key.c_str()
-        );
+    }
+
+    // 2. Publish Local Frame Cloud
+    if (!cloud_outputs.local_frame_clouds.empty()) {
+        std::string local_topic_key = topic_key + cloud_outputs.local_topic_suffix;
+        auto pub_it = pointcloud_pubs_.find(local_topic_key);
+        if (pub_it != pointcloud_pubs_.end() && pub_it->second) {
+            pub_it->second->publish(cloud_outputs.local_frame_clouds[0]);
+        }
     }
 }
 
 void SensorManagerNode::publishEmptyMsg()
 {
-    // use_tf2 = false 에서만 정상 작동
+    // 현재 "map" target_frame 에 대해서만 publish 되도록 되어있음
+    // TODO: 각 converter 의 child frame에 대해서도 publish 되도록 수정
     auto it = converters_.find("empty");
     if (it == converters_.end() || !it->second) {
         RCLCPP_INFO(this->get_logger(), "No converter for empty msg");
         return;
     }
 
-    auto empty_msg = it->second->pc_convert(nullptr);
+    auto empty_msg_outputs = it->second->pc_convert(nullptr);
 
-    for (auto& [name, pub] : pointcloud_pubs_) {
-        if (pub && pub->get_subscription_count() > 0) {
-            pub->publish(empty_msg[0]);
+    if (!empty_msg_outputs.target_frame_clouds.empty()) {
+        for (auto& [name, pub] : pointcloud_pubs_) {
+            if (pub && pub->get_subscription_count() > 0) {
+                pub->publish(empty_msg_outputs.target_frame_clouds[0]);
+            }
+            // RCLCPP_INFO(this->get_logger(), "CLEAR: %s", name.c_str());
         }
     }
 
     RCLCPP_INFO(this->get_logger(), "All Active Publisher publish empty_cloud msgs!");
 }
 
-void SensorManagerNode::publishMultiTofIdxPointcloud(const PointCloudMsgVector& clouds, const std::string& topic_key)
+void SensorManagerNode::publishMultiTofIdxPointcloud(const ConverterOutput& output, const std::string& topic_key)
 {
+    const auto& target_clouds = output.target_frame_clouds;
+    const auto& local_clouds = output.local_frame_clouds;
+
     std::vector<int> std_sub_cell_idx = (topic_key == "tof/multi/left") ? multi_tof_left_sub_cell_idx_array_ : multi_tof_right_sub_cell_idx_array_;
 
-    size_t cloud_idx = 0;
-    for (auto& idx : std_sub_cell_idx) {
-        std::string pub_key = topic_key + "/idx_" + std::to_string(idx);
+    for (size_t cloud_idx = 0; cloud_idx < std_sub_cell_idx.size(); ++cloud_idx) {
+        int idx = std_sub_cell_idx[cloud_idx];
+        std::string idx_name = std::to_string(idx);
 
-        auto pub_it = pointcloud_pubs_.find(pub_key);
-        if (pub_it != pointcloud_pubs_.end() && pub_it->second) {
-            if (cloud_idx < clouds.size()) {
-                pub_it->second->publish(clouds[cloud_idx]);
-            } else {
-                RCLCPP_WARN(this->get_logger(), "No cloud[%zu] available for '%s'", cloud_idx, pub_key.c_str());
+        // 1. Publish Target Frame Cloud
+        if (cloud_idx < target_clouds.size()) {
+            std::string pub_key = (topic_key == "tof/multi/left" ? "tof/multi/left/idx_" : "tof/multi/right/idx_") + idx_name;
+            auto pub_it = pointcloud_pubs_.find(pub_key);
+            if (pub_it != pointcloud_pubs_.end() && pub_it->second) {
+                pub_it->second->publish(target_clouds[cloud_idx]);
             }
         }
-        cloud_idx++;
+
+        // 2. Publish Local Frame Cloud
+        if (cloud_idx < local_clouds.size()) {
+            std::string local_pub_key = (topic_key == "tof/multi/left" ? "tof/multi/left/idx_" : "tof/multi/right/idx_") + idx_name + "/local";
+            auto pub_it = pointcloud_pubs_.find(local_pub_key);
+            if (pub_it != pointcloud_pubs_.end() && pub_it->second) {
+                pub_it->second->publish(local_clouds[cloud_idx]);
+            }
+        }
     }
 }
 

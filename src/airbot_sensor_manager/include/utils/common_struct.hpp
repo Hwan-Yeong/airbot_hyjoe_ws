@@ -254,4 +254,14 @@ struct MTOF_CALIB_DATA {
     MTOF_PUB_DATA right;
 };
 
+enum class SensorType {
+    TOF_MONO,
+    TOF_MULTI_LEFT,
+    TOF_MULTI_RIGHT,
+    CAMERA,
+    BOTTOM_IR,
+    COLLISION_FRONT,
+    COLLISION_REAR
+};
+
 #endif

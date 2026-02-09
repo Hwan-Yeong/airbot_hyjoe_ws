@@ -46,9 +46,10 @@ public:
      * 
      * @param[in] input_bbox_array PointCloud2로 변환하고자 하는 bounding box의 array 집합
      * @param[in] resolution PointCloud2 데이터의 분해능
+     * @param[in] frame target_frame <string>
      * @return 결과 sensor_msgs::msg::PointCloud2 메시지
      */
-    sensor_msgs::msg::PointCloud2 generateCameraPointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution);
+    sensor_msgs::msg::PointCloud2 generateCameraPointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution, std::string frame);
 
     /**
      * @brief "비어있는" PointCloud2 데이터를 생성하는 함수 (초기화 및 clear 용도)

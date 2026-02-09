@@ -111,7 +111,7 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generateEmptyPointCloud2Messa
     return msg;
 }
 
-sensor_msgs::msg::PointCloud2 PointCloudGenerator::generateCameraPointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution)
+sensor_msgs::msg::PointCloud2 PointCloudGenerator::generateCameraPointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution, std::string frame)
 {
     sensor_msgs::msg::PointCloud2 msg;
 
@@ -139,7 +139,8 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::generateCameraPointCloud2Mess
         }
     }
 
-    msg.header = input_bbox_array.header;
+    msg.header.stamp = rclcpp::Clock().now();
+    msg.header.frame_id = frame;
 
     msg.height = 1;
     msg.width = total_points;
