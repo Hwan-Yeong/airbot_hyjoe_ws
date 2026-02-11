@@ -1,66 +1,75 @@
-#ifndef __POINTCLOUD_GENERATOR__
-#define __POINTCLOUD_GENERATOR__
+#ifndef AIRBOT_SENSOR_MANAGER_UTILS_POINTCLOUD_GENERATOR_HPP_
+#define AIRBOT_SENSOR_MANAGER_UTILS_POINTCLOUD_GENERATOR_HPP_
+
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 #include <cmath>
-#include <vector>
-#include "rclcpp/rclcpp.hpp"
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <vector>
+
+#include "rclcpp/rclcpp.hpp"
+#include "utils/common_struct.hpp"
 #include "vision_msgs/msg/bounding_box2_d.hpp"
 #include "vision_msgs/msg/bounding_box2_d_array.hpp"
-#include "utils/common_struct.hpp"
-#include <pcl_conversions/pcl_conversions.h>
-#include "pcl/point_cloud.h"
-#include "pcl/point_types.h"
-#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 
 namespace sensor_manager {
 
-class PointCloudGenerator
-{
-public:
-    PointCloudGenerator();
-    ~PointCloudGenerator();
+class PointCloudGenerator {
+ public:
+  PointCloudGenerator();
+  ~PointCloudGenerator();
 
-    /**
-     * @brief PointCloud2 데이터 여러개를 (vector<PC2>) 하나의 메시지로 통합하는 함수
-     * 
-     * @param[in] pc_msgs PointCloud2 메시지의 벡터
-     * @param[in] frame target_frame <string>
-     * @return 합쳐진 결과 sensor_msgs::msg::PointCloud2 메시지
-     */
-    sensor_msgs::msg::PointCloud2 mergePointCloud2Vector(const std::vector<sensor_msgs::msg::PointCloud2>& pc_msgs, std::string frame);
+  /**
+   * @brief Generates a single merged message from multiple PointCloud2 data (vector<PC2>).
+   *
+   * @param[in] pc_msgs Vector of PointCloud2 messages.
+   * @param[in] frame target_frame <string>.
+   * @return sensor_msgs::msg::PointCloud2
+   */
+  sensor_msgs::msg::PointCloud2 MergePointCloud2Vector(
+      const std::vector<sensor_msgs::msg::PointCloud2>& pc_msgs,
+      std::string frame);
 
-    /**
-     * @brief "일반적인 센서" 위치 데이터로부터 PointCloud2 데이터를 생성하는 함수
-     * 
-     * @param[in] points PointCloud2로 변환하고자 하는 위치 데이터의 벡터
-     * @param[in] frame target_frame <string>
-     * @return 결과 sensor_msgs::msg::PointCloud2 메시지
-     */
-    sensor_msgs::msg::PointCloud2 generatePointCloud2Message(const std::vector<tPoint> &points, std::string frame);
-    sensor_msgs::msg::PointCloud2 generatePointCloud2Message(const tPoint &point, std::string frame);
+  /**
+   * @brief Generates PointCloud2 data from "General Sensor" position data.
+   *
+   * @param[in] points Vector of position data to convert to PointCloud2.
+   * @param[in] frame target_frame <string>.
+   * @return sensor_msgs::msg::PointCloud2
+   */
+  sensor_msgs::msg::PointCloud2 GeneratePointCloud2Message(
+      const std::vector<Point>& points, std::string frame);
+  sensor_msgs::msg::PointCloud2 GeneratePointCloud2Message(const Point& point,
+                                                           std::string frame);
 
-    /**
-     * @brief "카메라 센서" 위치 데이터로부터 PointCloud2 데이터를 생성하는 함수
-     * 
-     * @param[in] input_bbox_array PointCloud2로 변환하고자 하는 bounding box의 array 집합
-     * @param[in] resolution PointCloud2 데이터의 분해능
-     * @param[in] frame target_frame <string>
-     * @return 결과 sensor_msgs::msg::PointCloud2 메시지
-     */
-    sensor_msgs::msg::PointCloud2 generateCameraPointCloud2Message(const vision_msgs::msg::BoundingBox2DArray input_bbox_array, float resolution, std::string frame);
+  /**
+   * @brief Generates PointCloud2 data from "Camera Sensor" position data.
+   *
+   * @param[in] input_bbox_array Set of bounding box arrays to convert to PointCloud2.
+   * @param[in] resolution Resolution of the PointCloud2 data.
+   * @param[in] frame target_frame <string>.
+   * @return sensor_msgs::msg::PointCloud2
+   */
+  sensor_msgs::msg::PointCloud2 GenerateCameraPointCloud2Message(
+      const vision_msgs::msg::BoundingBox2DArray input_bbox_array,
+      float resolution, std::string frame);
 
-    /**
-     * @brief "비어있는" PointCloud2 데이터를 생성하는 함수 (초기화 및 clear 용도)
-     * 
-     * @param[in] frame: target_frame <string>
-     * @return 비어있는 sensor_msgs::msg::PointCloud2 메시지
-     */
-    sensor_msgs::msg::PointCloud2 generateEmptyPointCloud2Message(const std::string &frame);
-private:
+  /**
+   * @brief Generates "Empty" PointCloud2 data (for initialization and clear purposes).
+   *
+   * @param[in] frame target_frame <string>.
+   * @return sensor_msgs::msg::PointCloud2
+   */
+  sensor_msgs::msg::PointCloud2 GenerateEmptyPointCloud2Message(
+      const std::string& frame);
+
+ private:
 };
 
-} // namespace sensor_manager
+}  // namespace sensor_manager
 
-#endif // POINTCLOUD_GENERATOR
+#endif  // AIRBOT_SENSOR_MANAGER_UTILS_POINTCLOUD_GENERATOR_HPP_
