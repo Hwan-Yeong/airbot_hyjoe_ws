@@ -68,12 +68,14 @@ struct tSensorBuffer {
     typename MsgT::SharedPtr latest_msg;
     unsigned int publishing_cnt = 0;
     std::unordered_map<std::string, unsigned int> publishing_cnt_map;
+    rclcpp::Time receive_time;
 
     void reset() {
         updated.store(false);
         latest_msg.reset();
         publishing_cnt = 0;
         publishing_cnt_map.clear();
+        receive_time = rclcpp::Time(0, 0, RCL_ROS_TIME);
     }
 };
 

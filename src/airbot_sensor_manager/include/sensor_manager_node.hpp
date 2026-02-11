@@ -17,6 +17,7 @@
 #include "cloud_converter/cloud_converter.hpp"
 #include "cloud_converter/cloud_converter_factory.hpp"
 #include "utils/multizone_tof_calibrator.hpp"
+#include "utils/self_diagnosis.hpp"
 
 namespace sensor_manager {
 
@@ -64,7 +65,7 @@ private:
      * @param sensor_type: 센서 타입 (Enum)
      * @param msg_copied: 변환할 센서 raw data
      */
-    void publishPointcloud(SensorType sensor_type, const std::shared_ptr<void> msg_copy);
+    void publishPointcloud(SensorType sensor_type, const std::shared_ptr<void> msg_copy, const rclcpp::Time& receive_time);
 
     /**
      * @brief 모든 converter 토픽들의 empty pointcloud 발행 함수
@@ -142,6 +143,8 @@ private:
     };
 
     std::unordered_map<SensorType, SensorTopicConfig> sensor_topic_registry_;
+
+    std::shared_ptr<SelfDiagnosis> self_diagnosis_;
 };
 
 } // namespace sensor_manager

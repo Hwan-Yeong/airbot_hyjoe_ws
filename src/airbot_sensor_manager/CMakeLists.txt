@@ -41,6 +41,7 @@ add_executable(sensor_manager
   src/utils/multizone_tof_calibrator.cpp
   src/cloud_converter/cloud_converter_factory.cpp
   src/cloud_converter/cloud_converter.cpp
+  src/utils/self_diagnosis.cpp
   src/sensor_manager_node.cpp
   src/main.cpp
 )

@@ -69,6 +69,7 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud")
         [this](robot_custom_msgs::msg::TofData::SharedPtr msg) {
             std::lock_guard<std::mutex> lock(tof_buffer_.mtx);
             tof_buffer_.latest_msg = msg;
+            tof_buffer_.receive_time = this->now();
             tof_buffer_.updated.store(true);
         }
     );
@@ -80,6 +81,7 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud")
         [this](robot_custom_msgs::msg::CameraDataArray::SharedPtr msg) {
             std::lock_guard<std::mutex> lock(camera_buffer_.mtx);
             camera_buffer_.latest_msg = msg;
+            camera_buffer_.receive_time = this->now();
             camera_buffer_.updated.store(true);
         }
     );
@@ -91,6 +93,7 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud")
         [this](robot_custom_msgs::msg::BottomIrData::SharedPtr msg) {
             std::lock_guard<std::mutex> lock(bottom_ir_buffer_.mtx);
             bottom_ir_buffer_.latest_msg = msg;
+            bottom_ir_buffer_.receive_time = this->now();
             bottom_ir_buffer_.updated.store(true);
         }
     );
@@ -102,6 +105,7 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud")
         [this](robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg) {
             std::lock_guard<std::mutex> lock(collision_buffer_.mtx);
             collision_buffer_.latest_msg = msg;
+            collision_buffer_.receive_time = this->now();
             collision_buffer_.updated.store(true);
         }
     );
@@ -169,6 +173,8 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud")
             }
         }
     );
+
+    self_diagnosis_ = std::make_shared<SelfDiagnosis>(this, converters_);
 }
 
 void SensorManagerNode::loadConfig()
@@ -195,6 +201,8 @@ void SensorManagerNode::init()
     initializeRuntime();
     initPublisher(this->config_);
     initConverters(this->config_["sensors"]);
+    
+    self_diagnosis_->run_startup_diagnosis(this->config_["sensors"]);
 }
 
 void SensorManagerNode::initPublisher(const YAML::Node& config)
@@ -351,10 +359,11 @@ void SensorManagerNode::publishPointcloudTimer()
         return;
     }
 
-    auto process_buffer = [&](auto& buffer, auto& msg_copied_out) -> bool {
+    auto process_buffer = [&](auto& buffer, auto& msg_copied_out, rclcpp::Time& recv_time_out) -> bool {
         if (buffer.updated.load()) {
             std::lock_guard<std::mutex> lock(buffer.mtx);
             msg_copied_out = std::move(buffer.latest_msg);
+            recv_time_out = buffer.receive_time;
             buffer.updated.store(false);
             return (msg_copied_out != nullptr);
         }
@@ -364,7 +373,8 @@ void SensorManagerNode::publishPointcloudTimer()
     tof_buffer_.publishing_cnt_map["tof_mono"] += 10;
     tof_buffer_.publishing_cnt_map["tof_multi"] += 10;
     robot_custom_msgs::msg::TofData::SharedPtr tof_msg_copied;
-    if (process_buffer(tof_buffer_, tof_msg_copied)) {
+    rclcpp::Time tof_recv_time;
+    if (process_buffer(tof_buffer_, tof_msg_copied, tof_recv_time)) {
         // --- Calibration Interrupt ---
         if (mtof_calibrator_->getCalibrationState() != MTOF_CALIB_STATE::INACTIVE) {
             this->runMultizoneToFCalibration(tof_msg_copied);
@@ -372,50 +382,53 @@ void SensorManagerNode::publishPointcloudTimer()
         }
 
         if (tof_buffer_.publishing_cnt_map["tof_mono"] >= pointcloud_publishing_rate_map_["tof_mono"]) {
-            publishPointcloud(SensorType::TOF_MONO, tof_msg_copied);
+            publishPointcloud(SensorType::TOF_MONO, tof_msg_copied, tof_recv_time);
             tof_buffer_.publishing_cnt_map["tof_mono"] = 0;
         }
         if (tof_buffer_.publishing_cnt_map["tof_multi"] >= pointcloud_publishing_rate_map_["tof_multi"]) {
-            publishPointcloud(SensorType::TOF_MULTI_LEFT, tof_msg_copied);
-            publishPointcloud(SensorType::TOF_MULTI_RIGHT, tof_msg_copied);
+            publishPointcloud(SensorType::TOF_MULTI_LEFT, tof_msg_copied, tof_recv_time);
+            publishPointcloud(SensorType::TOF_MULTI_RIGHT, tof_msg_copied, tof_recv_time);
             tof_buffer_.publishing_cnt_map["tof_multi"] = 0;
         }
     }
 
     camera_buffer_.publishing_cnt += 10;
     robot_custom_msgs::msg::CameraDataArray::SharedPtr camera_msg_copied;
-    if (process_buffer(camera_buffer_, camera_msg_copied) &&
+    rclcpp::Time camera_recv_time;
+    if (process_buffer(camera_buffer_, camera_msg_copied, camera_recv_time) &&
         (camera_buffer_.publishing_cnt >= pointcloud_publishing_rate_map_["camera"])) {
-        publishPointcloud(SensorType::CAMERA, camera_msg_copied);
+        publishPointcloud(SensorType::CAMERA, camera_msg_copied, camera_recv_time);
         camera_buffer_.publishing_cnt = 0;
     }
 
     bottom_ir_buffer_.publishing_cnt += 10;
     robot_custom_msgs::msg::BottomIrData::SharedPtr bottom_ir_msg_copied;
-    if (process_buffer(bottom_ir_buffer_, bottom_ir_msg_copied) &&
+    rclcpp::Time bottom_ir_recv_time;
+    if (process_buffer(bottom_ir_buffer_, bottom_ir_msg_copied, bottom_ir_recv_time) &&
         (bottom_ir_buffer_.publishing_cnt >= pointcloud_publishing_rate_map_["bottom_ir"])) {
-        publishPointcloud(SensorType::BOTTOM_IR, bottom_ir_msg_copied);
+        publishPointcloud(SensorType::BOTTOM_IR, bottom_ir_msg_copied, bottom_ir_recv_time);
         bottom_ir_buffer_.publishing_cnt = 0;
     }
 
     collision_buffer_.publishing_cnt_map["collision_front"] += 10;
     collision_buffer_.publishing_cnt_map["collision_rear"] += 10;
     robot_custom_msgs::msg::AbnormalEventData::SharedPtr collision_msg_copied;
-    if (process_buffer(collision_buffer_, collision_msg_copied)) {
+    rclcpp::Time collision_recv_time;
+    if (process_buffer(collision_buffer_, collision_msg_copied, collision_recv_time)) {
         if (collision_buffer_.publishing_cnt_map["collision_front"] >= pointcloud_publishing_rate_map_["collision_front"]
             && collision_msg_copied->event_trigger == 1) {
-            publishPointcloud(SensorType::COLLISION_FRONT, collision_msg_copied);
+            publishPointcloud(SensorType::COLLISION_FRONT, collision_msg_copied, collision_recv_time);
             collision_buffer_.publishing_cnt_map["collision_front"] = 0;
         }
         if (collision_buffer_.publishing_cnt_map["collision_rear"] >= pointcloud_publishing_rate_map_["collision_rear"]
             && collision_msg_copied->event_trigger == -1) {
-            publishPointcloud(SensorType::COLLISION_REAR, collision_msg_copied);
+            publishPointcloud(SensorType::COLLISION_REAR, collision_msg_copied, collision_recv_time);
             collision_buffer_.publishing_cnt_map["collision_rear"] = 0;
         }
     }
 }
 
-void SensorManagerNode::publishPointcloud(SensorType sensor_type, const std::shared_ptr<void> msg_copied)
+void SensorManagerNode::publishPointcloud(SensorType sensor_type, const std::shared_ptr<void> msg_copied, const rclcpp::Time& receive_time)
 {
     auto reg_it = sensor_topic_registry_.find(sensor_type);
     if (reg_it == sensor_topic_registry_.end()) {
@@ -425,6 +438,17 @@ void SensorManagerNode::publishPointcloud(SensorType sensor_type, const std::sha
     const auto& config = reg_it->second;
     const std::string& converter_key = config.converter_key;
     const std::string& topic_key = config.topic_key;
+
+    // Check Latency
+    unsigned int rate_ms = 0;
+    if (sensor_type == SensorType::TOF_MONO) rate_ms = pointcloud_publishing_rate_map_["tof_mono"];
+    else if (sensor_type == SensorType::TOF_MULTI_LEFT || sensor_type == SensorType::TOF_MULTI_RIGHT) rate_ms = pointcloud_publishing_rate_map_["tof_multi"];
+    else if (sensor_type == SensorType::CAMERA) rate_ms = pointcloud_publishing_rate_map_["camera"];
+    else if (sensor_type == SensorType::BOTTOM_IR) rate_ms = pointcloud_publishing_rate_map_["bottom_ir"];
+    else if (sensor_type == SensorType::COLLISION_FRONT) rate_ms = pointcloud_publishing_rate_map_["collision_front"];
+    else if (sensor_type == SensorType::COLLISION_REAR) rate_ms = pointcloud_publishing_rate_map_["collision_rear"];
+    
+    self_diagnosis_->check_latency(sensor_type, receive_time, rate_ms);
 
     auto it = converters_.find(converter_key);
     if (it == converters_.end() || !it->second) {
