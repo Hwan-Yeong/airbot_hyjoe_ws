@@ -2,7 +2,7 @@ build/
 install/
 log/
 bin/
-lib/
+# lib/
 msg_gen/
 srv_gen/
 msg/*Action.msg
@@ -17,6 +17,14 @@ build_isolated/
 devel_isolated/
 csv/
 bag/
+
+
+# 외부 대용량 바이너리 디렉토리 제외
+src/spatio_temporal_voxel_layer/external/openvdb_vendor/
+
+# 압축된 바이너리 파일은 포함
+!src/spatio_temporal_voxel_layer/external/openvdb_vendor.tar.gz
+
 
 # VS Code
 .vscode/

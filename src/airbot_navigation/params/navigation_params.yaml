@@ -244,53 +244,7 @@ local_costmap:
       height: 4
       resolution: 0.05
       robot_radius: 0.19
-      plugins: ["static_layer", "obstacle_layer", "inflation_layer"] #, "voxel_layer"]
-      obstacle_layer:
-        plugin: "nav2_costmap_2d::ObstacleLayer"
-        enabled: True
-        footprint_clearing_enabled: false
-        min_obstacle_height: -3.0
-        max_obstacle_height: 10.0
-        observation_sources: scan perception keepout_zones 
-        scan:
-          topic: /scan
-          min_obstacle_height: -3.0
-          max_obstacle_height: 10.0
-          clearing: True
-          marking: True
-          data_type: "LaserScan"
-          raytrace_max_range: 2.0
-          raytrace_min_range: 0.17
-          obstacle_max_range: 2.0
-          obstacle_min_range: 0.17
-          observation_persistence: 0.0
-
-        perception:
-          topic: /perception/output
-          min_obstacle_height: -3.0
-          max_obstacle_height: 10.0
-          clearing: True
-          marking: True
-          data_type: "PointCloud2"
-          raytrace_max_range: 10.0
-          raytrace_min_range: 0.0
-          obstacle_max_range: 2.0
-          obstacle_min_range: 0.0
-          observation_persistence: 0.0
-        
-        keepout_zones:
-          topic: /A1_keepout/point_cloud
-          sensor_frame: "base_link"
-          max_obstacle_height: 2.0
-          min_obstacle_height: -2.0
-          clearing: True
-          marking: True
-          data_type: "PointCloud2"
-          raytrace_max_range: 10.0
-          raytrace_min_range: 0.0
-          obstacle_max_range: 5.0
-          obstacle_min_range: 0.0
-          observation_persistence: 5.0
+      plugins: ["static_layer", "stvl_layer", "inflation_layer"]
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True
@@ -298,15 +252,199 @@ local_costmap:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 10.0
         inflation_radius: 0.45
-      always_send_full_costmap: True
-      unknown_cost_value: 255
-      lethal_cost_threshold: 254
-      filters: ["keepout_filter"]
-      keepout_filter:
-        plugin: "nav2_costmap_2d::KeepoutFilter"
-        enabled: true
-        filter_info_topic: "/keepout_costmap_filter_info"
-        mask_topic: "/keepout_filter_mask"
+      stvl_layer:
+        plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
+        enabled:                  true
+        voxel_decay:              5.0
+        decay_model:              0
+        voxel_size:               0.05
+        track_unknown_space:      true
+        unknown_threshold:        15
+        mark_threshold:           0
+        update_footprint_enabled: true
+        combination_method:       1
+        origin_z:                 0.0
+        publish_voxel_map:        true
+        transform_tolerance:      0.2
+        mapping_mode:             false
+        map_save_duration:        60.0
+        observation_sources: >
+          tof_mono_mark tof_mono_clear
+          camera_mark camera_clear
+          bottom_ir_mark bottom_ir_clear
+          collision_front_mark collision_front_clear
+          collision_rear_mark collision_rear_clear
+          tof_left_0_mark tof_left_0_clear tof_left_3_mark tof_left_3_clear tof_left_6_mark tof_left_6_clear
+          tof_left_17_mark tof_left_17_clear tof_left_20_mark tof_left_20_clear tof_left_23_mark tof_left_23_clear
+          tof_left_28_mark tof_left_28_clear tof_left_31_mark tof_left_31_clear
+          tof_left_44_mark tof_left_44_clear tof_left_47_mark tof_left_47_clear
+          tof_left_49_mark tof_left_49_clear tof_left_52_mark tof_left_52_clear tof_left_55_mark tof_left_55_clear
+          tof_left_57_mark tof_left_57_clear tof_left_60_mark tof_left_60_clear tof_left_63_mark tof_left_63_clear
+          tof_right_1_mark tof_right_1_clear tof_right_4_mark tof_right_4_clear tof_right_7_mark tof_right_7_clear
+          tof_right_16_mark tof_right_16_clear tof_right_19_mark tof_right_19_clear tof_right_22_mark tof_right_22_clear
+          tof_right_24_mark tof_right_24_clear tof_right_27_mark tof_right_27_clear
+          tof_right_40_mark tof_right_40_clear tof_right_43_mark tof_right_43_clear
+          tof_right_48_mark tof_right_48_clear tof_right_51_mark tof_right_51_clear tof_right_54_mark tof_right_54_clear
+          tof_right_56_mark tof_right_56_clear tof_right_59_mark tof_right_59_clear tof_right_62_mark tof_right_62_clear
+
+        # --- Tof Mono ---
+        tof_mono_mark:
+          data_type: PointCloud2
+          topic: /sensor_to_pointcloud/tof/mono/local
+          marking: true
+          clearing: false
+          obstacle_range: 3.0
+          max_obstacle_height: 2.0
+        tof_mono_clear:
+          data_type: PointCloud2
+          topic: /sensor_to_pointcloud/tof/mono/local
+          marking: false
+          clearing: true
+          max_z: 3.0
+          min_z: 0.1
+          model_type: 0
+          vertical_fov_angle: 0.5236 # 30 deg
+          horizontal_fov_angle: 1.0472 # 60 deg
+
+        # --- Camera ---
+        camera_mark:
+          data_type: PointCloud2
+          topic: /sensor_to_pointcloud/camera_object/local
+          marking: true
+          clearing: false
+          obstacle_range: 3.0
+          max_obstacle_height: 2.0
+        camera_clear:
+          data_type: PointCloud2
+          topic: /sensor_to_pointcloud/camera_object/local
+          marking: false
+          clearing: true
+          max_z: 5.0
+          min_z: 0.1
+          model_type: 0
+          vertical_fov_angle: 0.8745
+          horizontal_fov_angle: 1.50098
+
+        # --- Bottom IR ---
+        bottom_ir_mark:
+          data_type: PointCloud2
+          topic: /sensor_to_pointcloud/bottom_ir/local
+          marking: true
+          clearing: false
+          obstacle_range: 0.5
+          max_obstacle_height: 0.5
+        bottom_ir_clear:
+          data_type: PointCloud2
+          topic: /sensor_to_pointcloud/bottom_ir/local
+          marking: false
+          clearing: true
+          max_z: 1.0
+          min_z: 0.05
+          model_type: 0
+          vertical_fov_angle: 0.1
+          horizontal_fov_angle: 0.1
+
+        # --- Collision ---
+        collision_front_mark:
+          data_type: PointCloud2
+          topic: /sensor_to_pointcloud/collision/front/local
+          marking: true
+          clearing: false
+          obstacle_range: 0.5
+        collision_front_clear:
+          data_type: PointCloud2
+          topic: /sensor_to_pointcloud/collision/front/local
+          marking: false
+          clearing: true
+          max_z: 1.0
+          model_type: 0
+        collision_rear_mark:
+          data_type: PointCloud2
+          topic: /sensor_to_pointcloud/collision/rear/local
+          marking: true
+          clearing: false
+          obstacle_range: 0.5
+        collision_rear_clear:
+          data_type: PointCloud2
+          topic: /sensor_to_pointcloud/collision/rear/local
+          marking: false
+          clearing: true
+          max_z: 1.0
+          model_type: 0
+
+        # --- Multi Tof Left Indices ---
+        # Note: Each index is defined with its own mark/clear for per-sensor control
+        # Template for idx:
+        # tof_left_<num>_mark: { topic: /sensor_to_pointcloud/tof/multi/left/idx_<num>/local, marking: true, clearing: false }
+        # tof_left_<num>_clear: { topic: /sensor_to_pointcloud/tof/multi/left/idx_<num>/local, marking: false, clearing: true, model_type: 0 }
+
+        tof_left_0_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_0/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_0_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_0/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_3_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_3/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_3_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_3/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_6_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_6/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_6_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_6/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_17_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_17/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_17_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_17/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_20_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_20/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_20_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_20/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_23_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_23/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_23_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_23/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_28_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_28/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_28_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_28/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_31_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_31/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_31_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_31/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_44_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_44/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_44_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_44/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_47_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_47/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_47_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_47/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_49_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_49/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_49_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_49/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_52_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_52/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_52_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_52/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_55_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_55/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_55_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_55/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_57_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_57/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_57_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_57/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_60_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_60/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_60_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_60/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_left_63_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_63/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_63_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_63/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+
+        # --- Multi Tof Right Indices ---
+        tof_right_1_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_1/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_1_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_1/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_4_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_4/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_4_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_4/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_7_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_7/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_7_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_7/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_16_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_16/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_16_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_16/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_19_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_19/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_19_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_19/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_22_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_22/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_22_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_22/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_24_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_24/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_24_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_24/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_27_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_27/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_27_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_27/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_40_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_40/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_40_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_40/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_43_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_43/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_43_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_43/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_48_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_48/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_48_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_48/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_51_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_51/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_51_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_51/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_54_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_54/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_54_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_54/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_56_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_56/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_56_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_56/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_59_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_59/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_59_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_59/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+        tof_right_62_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_62/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_62_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_62/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
+
 
 global_costmap:
   global_costmap:
@@ -327,7 +465,7 @@ global_costmap:
         enabled: True
         min_obstacle_height: -3.0
         max_obstacle_height: 10.0
-        observation_sources: scan perception keepout_zones
+        observation_sources: scan # perception keepout_zones
         scan:
           topic: /scan
           min_obstacle_height: -3.0
@@ -341,33 +479,33 @@ global_costmap:
           obstacle_min_range: 0.17
           observation_persistence: 0.0
 
-        perception:
-          sensor_frame: map
-          topic: /perception/output
-          min_obstacle_height: -3.0
-          max_obstacle_height: 10.0
-          clearing: True
-          marking: True
-          data_type: "PointCloud2"
-          raytrace_max_range: 10.0
-          raytrace_min_range: 0.0
-          obstacle_max_range: 100.0
-          obstacle_min_range: 0.0
-          observation_persistence: 0.0
+        # perception:
+        #   sensor_frame: map
+        #   topic: /perception/output
+        #   min_obstacle_height: -3.0
+        #   max_obstacle_height: 10.0
+        #   clearing: True
+        #   marking: True
+        #   data_type: "PointCloud2"
+        #   raytrace_max_range: 10.0
+        #   raytrace_min_range: 0.0
+        #   obstacle_max_range: 100.0
+        #   obstacle_min_range: 0.0
+        #   observation_persistence: 0.0
 
-        keepout_zones:
-          topic: /A1_keepout/point_cloud
-          sensor_frame: "map"
-          max_obstacle_height: 2.0
-          min_obstacle_height: -2.0
-          clearing: True
-          marking: True
-          data_type: "PointCloud2"
-          raytrace_max_range: 10.0
-          raytrace_min_range: 0.0
-          obstacle_max_range: 100.0
-          obstacle_min_range: 0.0
-          observation_persistence: 5.0
+        # keepout_zones:
+        #   topic: /A1_keepout/point_cloud
+        #   sensor_frame: "map"
+        #   max_obstacle_height: 2.0
+        #   min_obstacle_height: -2.0
+        #   clearing: True
+        #   marking: True
+        #   data_type: "PointCloud2"
+        #   raytrace_max_range: 10.0
+        #   raytrace_min_range: 0.0
+        #   obstacle_max_range: 100.0
+        #   obstacle_min_range: 0.0
+        #   observation_persistence: 5.0
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True
