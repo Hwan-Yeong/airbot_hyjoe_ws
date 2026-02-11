@@ -1,5 +1,4 @@
-#ifndef AIRBOT_SENSOR_MANAGER_UTILS_SELF_DIAGNOSIS_HPP_
-#define AIRBOT_SENSOR_MANAGER_UTILS_SELF_DIAGNOSIS_HPP_
+#pragma once
 
 #include <map>
 #include <memory>
@@ -53,4 +52,4 @@ class SelfDiagnosis {
 
 }  // namespace sensor_manager
 
-#endif  // AIRBOT_SENSOR_MANAGER_UTILS_SELF_DIAGNOSIS_HPP_
+

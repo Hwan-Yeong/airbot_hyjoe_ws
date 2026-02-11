@@ -1,5 +1,4 @@
-#ifndef AIRBOT_SENSOR_MANAGER_CLOUD_CONVERTER_CLOUD_CONVERTER_HPP_
-#define AIRBOT_SENSOR_MANAGER_CLOUD_CONVERTER_CLOUD_CONVERTER_HPP_
+#pragma once
 
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -267,4 +266,4 @@ class EmptyCloudConverter : public CloudConverterStrategy {
 
 }  // namespace sensor_manager
 
-#endif  // AIRBOT_SENSOR_MANAGER_CLOUD_CONVERTER_CLOUD_CONVERTER_HPP_
+

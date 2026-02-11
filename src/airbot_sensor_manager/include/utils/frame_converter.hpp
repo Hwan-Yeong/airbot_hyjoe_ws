@@ -1,5 +1,4 @@
-#ifndef AIRBOT_SENSOR_MANAGER_UTILS_FRAME_CONVERTER_HPP_
-#define AIRBOT_SENSOR_MANAGER_UTILS_FRAME_CONVERTER_HPP_
+#pragma once
 
 #include <cmath>
 #include <map>
@@ -246,4 +245,4 @@ class FrameConverter {
 
 }  // namespace sensor_manager
 
-#endif  // AIRBOT_SENSOR_MANAGER_UTILS_FRAME_CONVERTER_HPP_
+

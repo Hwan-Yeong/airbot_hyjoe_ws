@@ -1,5 +1,4 @@
-#ifndef AIRBOT_SENSOR_MANAGER_UTILS_TOF_UTILS_HPP_
-#define AIRBOT_SENSOR_MANAGER_UTILS_TOF_UTILS_HPP_
+#pragma once
 
 #include <cmath>
 #include <vector>
@@ -33,4 +32,4 @@ class TofUtils {
 
 }  // namespace sensor_manager
 
-#endif  // AIRBOT_SENSOR_MANAGER_UTILS_TOF_UTILS_HPP_
+

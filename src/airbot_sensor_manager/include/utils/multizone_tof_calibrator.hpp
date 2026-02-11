@@ -1,5 +1,4 @@
-#ifndef AIRBOT_SENSOR_MANAGER_UTILS_MULTIZONE_TOF_CALIBRATOR_HPP_
-#define AIRBOT_SENSOR_MANAGER_UTILS_MULTIZONE_TOF_CALIBRATOR_HPP_
+#pragma once
 
 #include <ctime>
 #include <deque>
@@ -170,4 +169,4 @@ class MultizoneTofCalibrator {
 
 }  // namespace sensor_manager
 
-#endif  // AIRBOT_SENSOR_MANAGER_UTILS_MULTIZONE_TOF_CALIBRATOR_HPP_
+

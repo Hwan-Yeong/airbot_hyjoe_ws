@@ -1,5 +1,4 @@
-#ifndef AIRBOT_SENSOR_MANAGER_UTILS_POINTCLOUD_GENERATOR_HPP_
-#define AIRBOT_SENSOR_MANAGER_UTILS_POINTCLOUD_GENERATOR_HPP_
+#pragma once
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -72,4 +71,4 @@ class PointCloudGenerator {
 
 }  // namespace sensor_manager
 
-#endif  // AIRBOT_SENSOR_MANAGER_UTILS_POINTCLOUD_GENERATOR_HPP_
+

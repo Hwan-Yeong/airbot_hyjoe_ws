@@ -1,5 +1,4 @@
-#ifndef AIRBOT_SENSOR_MANAGER_CLOUD_CONVERTER_CLOUD_CONVERTER_FACTORY_HPP_
-#define AIRBOT_SENSOR_MANAGER_CLOUD_CONVERTER_CLOUD_CONVERTER_FACTORY_HPP_
+#pragma once
 
 #include <memory>
 
@@ -28,4 +27,4 @@ class CloudConverterFactory {
 
 }  // namespace sensor_manager
 
-#endif  // AIRBOT_SENSOR_MANAGER_CLOUD_CONVERTER_CLOUD_CONVERTER_FACTORY_HPP_
+

@@ -1,5 +1,4 @@
-#ifndef AIRBOT_SENSOR_MANAGER_UTILS_COMMON_STRUCT_HPP_
-#define AIRBOT_SENSOR_MANAGER_UTILS_COMMON_STRUCT_HPP_
+#pragma once
 
 #include <cmath>
 #include <mutex>
@@ -275,4 +274,4 @@ enum class SensorType {
   kCollisionRear
 };
 
-#endif  // AIRBOT_SENSOR_MANAGER_UTILS_COMMON_STRUCT_HPP_
+

@@ -1,5 +1,4 @@
-#ifndef AIRBOT_SENSOR_MANAGER_PARAMETER_MANAGER_PARAM_SETTER_HPP_
-#define AIRBOT_SENSOR_MANAGER_PARAMETER_MANAGER_PARAM_SETTER_HPP_
+#pragma once
 
 #include <string>
 #include <thread>
@@ -27,4 +26,4 @@ class ParamSetterNode : public rclcpp::Node {
   std::shared_ptr<rclcpp::AsyncParametersClient> parameters_client_;
 };
 
-#endif  // AIRBOT_SENSOR_MANAGER_PARAMETER_MANAGER_PARAM_SETTER_HPP_
+
