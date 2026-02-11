@@ -51,8 +51,7 @@ std::vector<Point> FrameConverter::TfMultiTofSensor2RobotFrame(
   for (size_t i = 0; i < tof_dists.size(); ++i) {
     double dist = tof_dists[i];
 
-    if (dist <= 1e-6) {  // tof 거리값 0인 수들 NaN으로 처리 (추후 변환시
-                         // 필터링)
+    if (dist <= 1e-6) {  // data filtering (dist data 0 -> NaN)
       Point zero_p;
       zero_p.x = std::numeric_limits<double>::quiet_NaN();
       zero_p.y = std::numeric_limits<double>::quiet_NaN();
@@ -103,7 +102,6 @@ std::vector<Point> FrameConverter::TfMultiTofDistance2SensorFrame(
       p_sensor.y = std::numeric_limits<double>::quiet_NaN();
       p_sensor.z = std::numeric_limits<double>::quiet_NaN();
     } else {
-      // 센서 고유의 좌표축 기준 (일반적으로 앞이 x, 왼쪽이 y, 위가 z)
       p_sensor.x = dist;
       p_sensor.y = dist * y_tan[i];
       p_sensor.z = dist * z_tan[i];
@@ -310,27 +308,8 @@ Point FrameConverter::TfCollisionData2SensorFrame(
 Point FrameConverter::TfCollisionData2RobotFrame(
     const robot_custom_msgs::msg::AbnormalEventData* collision_msg,
     double offset_m) {
-  // 로봇 프레임 기준 충돌 위치 변환 (여기서는 단순 오프셋만 적용한다고 가정?
-  // 아니면 회전 고려?) 기존 코드에서는 로봇 프레임으로 변환하는 로직이 따로
-  // 있었는데, 헤더에는 tfCollisionData2RobotFrame이 선언되어 있으나 구현이
-  // 없었음? 아님 위 함수랑 같음?
-  // 확인 결과: 헤더에 선언만 있고 구현은 없었거나, 위 함수와 동일한 로직?
-  // 사용자 코드를 보니 위 함수 이름이
-  // tfCollisionData2SensorFrame 이고, 아래 주석된 부분이
-  // tfCollisionData2RobotFrame 인듯 하나 구현이 누락된듯.
-  // 일단 헤더에 맞춰 구현. (기존 코드 논리 유지 - Sensor frame 변환 후 Robot으로
-  // 변환 필요하지만 기존 코드가 단순함)
-
-  // NOTE: 원본 코드에서 tfCollisionData2RobotFrame 구현이 누락되어있었을 수
-  // 있음. 하지만 여기서는 일단 헤더에 맞춰 빈 구현 또는 적절한 구현을 해둠.
-  // 여기서는 단순히 tfCollisionData2SensorFrame 을 호출하여 반환하거나,
-  // SensorFrame2RobotFrame 을 태워야 함.
-  // 기존 코드 흐름 상 SensorFrame -> RobotFrame 변환이 필요.
-
   Point p_s = TfCollisionData2SensorFrame(collision_msg, offset_m);
-  // 충돌 센서는 보통 base_link에 고정되어 있다고 가정하면, 별도 회전 없이
-  // offset만 적용될 수 있음. 하지만 정확히는 Pose 정보를 받아야 함. 이 함수는
-  // Pose 인자가 없음. 즉, 이 함수는 미완성 상태였을 가능성이 큼.
+
   return p_s;
 }
 
@@ -378,9 +357,7 @@ FrameConverter::TfCameraSensor2SensorFrameBBoxArray(
 vision_msgs::msg::BoundingBox2DArray
 FrameConverter::TfCameraSensorFrameBBoxArray2TargetFrame(
     const vision_msgs::msg::BoundingBox2DArray& bbox_array_sensor,
-    Pose& robot_pose, std::string target_frame, Pose camera_sensor_frame_pose,
-    std::map<int, int> class_id_confidence_th, bool use_object_logger,
-    double logger_dist_margin, rclcpp::Logger logger) {
+    Pose& robot_pose, std::string target_frame, Pose camera_sensor_frame_pose) {
   vision_msgs::msg::BoundingBox2DArray bbox_array_target;
   bbox_array_target.header = bbox_array_sensor.header;
   bbox_array_target.header.frame_id = target_frame;
@@ -388,21 +365,6 @@ FrameConverter::TfCameraSensorFrameBBoxArray2TargetFrame(
   std::vector<CameraObject> objects_sensor;
   for (const auto& bbox : bbox_array_sensor.boxes) {
     CameraObject obj;
-    // BoundingBox2D 에는 id 필드가 없으므로, 변환 과정에서 id를 복원하거나
-    // 구조를 바꿔야 함. 하지만 여기서는 bbox array를 입력으로 받음.
-    // 기존 로직: `TfCameraSensor2SensorFrame` 에서 id를 가진 CameraObject를
-    // 생성함. 여기서 BBoxArray만 받으면 ID 정보가 유실됨? vision_msgs의 BBox2D
-    // 메시지에는 ID 필드가 없음.
-    // --> 기존 코드 분석 필요. `TfCameraSensor2SensorFrame`는 CameraObject
-    // 리스트를 반환함.
-
-    // 이 함수는 BBoxArray를 입력으로 받는데, 이는 ID 정보가 없는 상태임.
-    // Class ID Filtering을 하려면 ID 정보가 있어야 함.
-    // 아마도 이 함수 설계 상, BBoxArray 변환은 위치 변환만 수행하고, 필터링은
-    // 수행할 수 없거나? 아니면 BBoxArray 생성 시점에 이미 필터링 되었어야 함.
-    // 혹은 vision_msgs::msg::BoundingBox2D를 확장해서 쓰거나...
-
-    // 여기서는 일단 단순 좌표 변환만 수행.
     obj.bbox = bbox;
     objects_sensor.push_back(obj);
   }
@@ -419,13 +381,8 @@ FrameConverter::TfCameraSensorFrameBBoxArray2TargetFrame(
     objects_target =
         TfCameraObjects2RobotFrame(objects_sensor, camera_sensor_frame_pose);
   } else {
-    // Unknown frame, return empty or original?
     return bbox_array_target;
   }
-
-  // Logger & Filter Logic (if ID is available, currently not easily accessible
-  // from BBox)
-  // ... (Logging logic implementation requires ID)
 
   bbox_array_target = ToBBoxArray(objects_target);
   return bbox_array_target;

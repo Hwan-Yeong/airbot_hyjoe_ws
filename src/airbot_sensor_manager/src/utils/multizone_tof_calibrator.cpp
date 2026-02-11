@@ -85,7 +85,7 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
     return MToFCalibResult::kFailUnknown;
   }
 
-  // 1. 임계값(Threshold) TF 변환 계산
+  // 1. Threshold TF Conversion
   auto pnp_min_msg = std::make_shared<robot_custom_msgs::msg::TofData>();
   auto pnp_max_msg = std::make_shared<robot_custom_msgs::msg::TofData>();
 
@@ -104,7 +104,7 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
   auto max_th_arr = converter_->CalibrationConvert(
       static_cast<const void*>(pnp_max_msg.get()));
 
-  // 2. 입력 데이터 TF 변환
+  // 2. Input Data TF Conversion
   auto current_data_arr =
       converter_->CalibrationConvert(static_cast<const void*>(msg.get()));
 
@@ -113,7 +113,7 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
     return MToFCalibResult::kFailUnknown;
   }
 
-  // 3. 세션 초기화 및 데이터 갱신 체크
+  // 3. Session Reset and Data Update Check
   if (calib_session_.is_finish_sampling && calib_session_.sample_count != 0) {
     calib_session_.Reset();
     RCLCPP_INFO(logger_,
@@ -123,7 +123,7 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
                 mtof_calib_cfg_.method.c_str(), mtof_calib_cfg_.sampling_count);
   }
 
-  // 시도 횟수 증가 (유효/무효 상관 없이)
+  // Increment attempt count (regardless of validity)
   calib_session_.attempt_count++;
 
   bool any_valid = false;
@@ -138,7 +138,7 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
     }
   }
 
-  // ★ 모든 값이 무효인 상태가 지속되면 FAIL
+  // FAIL if all values are invalid
   if (!any_valid) {
     if (calib_session_.attempt_count > 64) {
       RCLCPP_ERROR(logger_,
@@ -151,18 +151,18 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
     return MToFCalibResult::kRunning;
   }
 
-  // 갱신 체크 및 데이터 축적 (for 루프로 통합)
+  // Data Update Check and Accumulation (Integrated into for loop)
   for (int i = 0; i < 3; ++i) {
     int target_idx = calib_session_.kTargetIndices[i];  // 13, 14, 15
     float raw_val = (side == TofSide::kLeft) ? msg->bot_left[target_idx]
                                              : msg->bot_right[target_idx];
 
-    // 0.0 혹은 nan 데이터는 아예 세션에 넣지 않고 스킵
+    // Skip 0.0 or nan data
     if (raw_val <= 1e-6 || std::isnan(raw_val)) {
       return MToFCalibResult::kRunning;
     }
 
-    // 데이터 갱신 여부 확인
+    // Check data renewal
     if (!calib_session_.origins[i].empty() &&
         std::abs(calib_session_.origins[i].back() - raw_val) < 1e-6f) {
       calib_session_.non_renewal_counts[i]++;
@@ -178,7 +178,7 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
       return MToFCalibResult::kFailDataNonRenewal;
     }
 
-    // 데이터 push
+    // Push data
     calib_session_.origins[i].push_back(raw_val);
     calib_session_.samples[i].push_back(current_data_arr.data[i]);
   }
@@ -189,9 +189,9 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
                 calib_session_.sample_count, mtof_calib_cfg_.sampling_count);
   }
 
-  // 4. 결과 판정
+  // 4. Result Judgment
   if (calib_session_.sample_count >= mtof_calib_cfg_.sampling_count) {
-    // 통계값 계산 (Max / Median)
+    // Calculate Statistics (Max / Median)
     for (int i = 0; i < 3; ++i) {
       auto& v = calib_session_.samples[i];
       if (mtof_calib_cfg_.method == "Max") {
@@ -202,7 +202,7 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
       }
     }
 
-    // 안정성 체크 (idx 14 기준)
+    // Stability Check (idx 14)
     float min_val =
         *std::min_element(calib_session_.samples[1].begin(),
                           calib_session_.samples[1].end());
@@ -211,7 +211,7 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
                           calib_session_.samples[1].end());
     float diff = max_val - min_val;
 
-    // Udp 전송용 데이터 세팅
+    // Set data for UDP transmission
     if (mtof_calib_cfg_.method == "Max") {
       calib_result.SetMinValue(side, min_val, min_th_arr.data[1]);
       calib_result.SetMaxValue(side, max_val, max_th_arr.data[1]);
@@ -219,7 +219,7 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
       calib_result.SetMedianValue(side, calib_session_.stats[1]);
     }
 
-    // 결과 로깅 (심플 스타일)
+    // Result Logging (Simple Style)
     RCLCPP_INFO(logger_,
                 "[Calibration Result] Method: %s | Samples: %d\n"
                 "  idx_13: %.3f\n"
@@ -229,7 +229,7 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
                 calib_session_.stats[0], calib_session_.stats[1],
                 calib_session_.stats[2]);
 
-    // 범위 검사
+    // Range Check
     bool out_of_range = false;
     for (int i = 0; i < 3; ++i) {
       if (calib_session_.stats[i] < min_th_arr.data[i] ||
@@ -262,7 +262,7 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
                   (side == TofSide::kLeft ? "LEFT" : "RIGHT"));
       ret = MToFCalibResult::kPass;
 
-      // 결과 데이터 저장
+      // Save result data
       int offset = (side == TofSide::kLeft) ? 0 : 3;
       for (int i = 0; i < 3; ++i) {
         mtof_calib_result_array_[offset + i] = calib_session_.stats[i];
@@ -342,7 +342,7 @@ bool MultizoneTofCalibrator::CheckFileExist(std::string path,
 
   if (!read_file.good()) {
     RCLCPP_WARN(logger_, "There is no file in path = %s", path.c_str());
-    // 파일 없을 시 새로 생성
+    // Create new file if not exists
     std::ofstream make_new_file(path);
     if (!make_new_file) {
       RCLCPP_ERROR(logger_, "Fail to make new file in path = %s", path.c_str());
@@ -357,7 +357,7 @@ bool MultizoneTofCalibrator::CheckFileExist(std::string path,
   std::string line;
   while (std::getline(read_file, line)) {
     buffer.push_back(line);
-    // 만약 파일에 쓰여져있는 내용이 10줄 이상이라면 오래된 내용 삭제
+    // If the file contains more than 10 lines, delete the oldest content
     if ((int)buffer.size() >= max_lines) {
       buffer.pop_front();
     }

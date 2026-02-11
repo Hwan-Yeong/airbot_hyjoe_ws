@@ -185,8 +185,6 @@ void SensorManagerNode::LoadConfig() {
     this->config_ =
         YAML::LoadFile(full_path)["airbot_sensor_manager"]["ros__parameters"];
   } catch (const std::exception& e) {
-    // fallback (ament_index_cpp::get_package_share_directory()가 제대로
-    // 작동하지 않을 경우)
     RCLCPP_ERROR(this->get_logger(), "Failed to load config file: %s",
                  e.what());
     std::string fallback_path =
@@ -357,14 +355,15 @@ void SensorManagerNode::InitConverters(const YAML::Node& config) {
   }
 
   if (!static_transforms.empty()) {
-    // 1. sendTransform 함수는 vector type을 인자로 받음 (static_transforms
-    //    변수가 vector 타입인 이유)
-    // 2. sendTransform 호출시, "/tf_static" 이라는 전용 토픽으로 static tf 전송
-    // 3. /tf_static 토픽은 Latching 방식으로 동작. (ros2 내부에서 마지막 발행
-    //    메시지를 보관하고 있다가, 새로운 노드가 나중에 생기더라고 그 노드에게
-    //    이전에 발행했던 최신 TF 데이터를 즉시 전달)
-    // 4. 즉, static tf 를 sendTrasnform 으로 전송하면, 사용자가 주기적으로
-    //    tf를 발행해 줄 필요 없음.
+    // 1. The sendTransform function accepts a vector argument (this is why
+    //    static_transforms is a vector).
+    // 2. When called, sendTransform publishes static TF to the dedicated
+    //    "/tf_static" topic.
+    // 3. The "/tf_static" topic uses Latching QoS. (ROS 2 internally stores
+    //    the last message and immediately sends the latest TF data to any
+    //    new nodes that subscribe later).
+    // 4. Therefore, users do not need to publish static TFs periodically
+    //    if sent via sendTransform.
     static_tf_broadcaster_->sendTransform(static_transforms);
     RCLCPP_INFO(this->get_logger(),
                 "[InitConverters] Broadcasted %zu static TFs for sensors.",
@@ -534,8 +533,8 @@ void SensorManagerNode::PublishPointcloud(SensorType sensor_type,
 }
 
 void SensorManagerNode::PublishEmptyMsg() {
-  // 현재 "map" target_frame 에 대해서만 publish 되도록 되어있음
-  // TODO: 각 converter 의 child frame에 대해서도 publish 되도록 수정
+  // Currently publishing only for "map" target_frame
+  // TODO: Modify to publish for each converter's child frame
   auto it = converters_.find("empty");
   if (it == converters_.end() || !it->second) {
     RCLCPP_INFO(this->get_logger(), "No converter for empty msg");
@@ -597,16 +596,16 @@ void SensorManagerNode::PublishMultiTofIdxPointcloud(
 }
 
 TofCalibrationParam SensorManagerNode::LoadMultizoneTofCalibrationParams() {
-  TofCalibrationParam cfg;  // 기본값으로 초기화된 구조체 생성
+  TofCalibrationParam cfg;  // default initialized struct
 
   try {
-    // config_["sensors"]["tof_multi"]["calibration"] 경로 확인
+    // config_["sensors"]["tof_multi"]["calibration"] path check
     if (this->config_["sensors"] && this->config_["sensors"]["tof_multi"] &&
         this->config_["sensors"]["tof_multi"]["calibration"]) {
       const auto& calib_node =
           this->config_["sensors"]["tof_multi"]["calibration"];
 
-      // 각 필드 존재 여부 확인 후 값 할당 (안전한 파싱)
+      // check existence of each field and assign value (safe parsing)
       if (calib_node["method"])
         cfg.method = calib_node["method"].as<std::string>();
 

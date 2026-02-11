@@ -76,7 +76,7 @@ void ParamSetterNode::SubCellIdxLeftCallback(
     return;
   }
 
-  // 유효하지 않은 값 검사: 값이 0~3이 아닌 경우
+  // Invalid value check: if value is not 0~3
   for (size_t i = 0; i < msg->data.size(); ++i) {
     int val = msg->data[i];
     if (val < 0 || val > 3) {
@@ -112,7 +112,7 @@ void ParamSetterNode::SubCellIdxRightCallback(
     return;
   }
 
-  // 유효하지 않은 값 검사: 값이 0~3이 아닌 경우
+  // Invalid value check: if value is not 0~3
   for (size_t i = 0; i < msg->data.size(); ++i) {
     int val = msg->data[i];
     if (val < 0 || val > 3) {

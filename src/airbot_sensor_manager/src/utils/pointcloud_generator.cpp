@@ -19,12 +19,12 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::GeneratePointCloud2Message(
   msg.header.frame_id = frame;
 
   msg.height = 1;
-  msg.width = points.size();  // 입력받은 points의 개수
+  msg.width = points.size();  // Number of input points
   msg.is_dense = false;       // True if there are no invalid points
   msg.is_bigendian = false;   // Is this data bigendian?
-  msg.point_step = 12;  // 각 포인트가 차지하는 bytes (8 bytes * 3 (x, y, z))
+  msg.point_step = 12;        // Bytes occupied by each point (8 bytes * 3 (x, y, z))
   msg.row_step =
-      msg.point_step * msg.width;  // Length of a row in bytes (전체 bytes 크기)
+      msg.point_step * msg.width;  // Length of a row in bytes (total bytes size)
 
   // Define fields (x, y, z)
   sensor_msgs::msg::PointField field_x, field_y, field_z;
@@ -33,7 +33,7 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::GeneratePointCloud2Message(
   field_x.datatype =
       sensor_msgs::msg::PointField::FLOAT32;  // Datatype enumeration, see
                                               // "PointField.msg"
-  field_x.count = 1;  // 각 포인트에 저장할 값의 개수 (1이 정상적인 값임)
+  field_x.count = 1;  // Number of values to store for each point (1 is normal)
 
   field_y.name = "y";
   field_y.offset = 4;
@@ -48,8 +48,8 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::GeneratePointCloud2Message(
   msg.fields = {field_x, field_y, field_z};
 
   // Fill point data
-  // 실제 Points들의 데이터(바이너리 값들)를 저장하는 곳
-  msg.data.resize(msg.row_step);  // 전체 bytes 크기로 데이터 버퍼 생성
+  // Stores the actual data (binary values) of Points
+  msg.data.resize(msg.row_step);  // Create data buffer with total bytes size
   uint8_t* data_ptr = msg.data.data();
   for (const auto& point : points) {
     float x = static_cast<float>(point.x);
@@ -78,14 +78,14 @@ PointCloudGenerator::GenerateEmptyPointCloud2Message(const std::string& frame) {
   msg.header.stamp = rclcpp::Clock().now();
   msg.header.frame_id = frame;
 
-  msg.height = 1;        // 단일 행
-  msg.width = 0;         // 데이터 포인트 0개
-  msg.is_dense = true;   // 빈 메시지이므로 dense라고 봐도 무방
+  msg.height = 1;        // Single row
+  msg.width = 0;         // 0 data points
+  msg.is_dense = true;   // Dense is acceptable for empty messages
   msg.is_bigendian = false;
   msg.point_step = 12;                         // 3 floats * 4 bytes
   msg.row_step = msg.point_step * msg.width;   // 0
 
-  // 필드 정의 (x, y, z)
+  // Define fields (x, y, z)
   sensor_msgs::msg::PointField field_x;
   field_x.name = "x";
   field_x.offset = 0;
@@ -131,8 +131,7 @@ PointCloudGenerator::GenerateCameraPointCloud2Message(
   int point_size_x, point_size_y;
   for (const auto& box : input_bbox_array.boxes) {
     if (box.size_x <= 0 ||
-        box.size_y <= 0) {  // width, height 음수인 경우는 예외처리
-                            // (계산 망가짐)
+        box.size_y <= 0) {  // negative case exception handling
       return msg;
     }
     point_size_x = static_cast<int>(box.size_x * 1000) /
@@ -194,9 +193,9 @@ PointCloudGenerator::GenerateCameraPointCloud2Message(
 
     for (int i = 0; i < point_size_x; ++i) {
       for (int j = 0; j < point_size_y; ++j) {
+        // generate point only when it is on the edge of x-axis or y-axis
         if (i == 0 || i == point_size_x - 1 || j == 0 ||
-            j == point_size_y - 1) {  // 테두리 조건: x축 가장자리 or
-                                      // y축 가장자리일 때만 point 생성
+            j == point_size_y - 1) {
           size_t current_offset = static_cast<size_t>(ptr - msg.data.data());
           if (current_offset + msg.point_step > max_size) {
             return msg;

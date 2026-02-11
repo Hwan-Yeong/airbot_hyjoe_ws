@@ -6,8 +6,9 @@
 #include <atomic>
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
-#define DEG2RAD(x) ((x) * M_PI / 180.0)
-#define RAD2DEG(x) ((x) * 180.0 / M_PI)
+// already defined in "pcl-1.12/pcl/point_cloud.h"
+// #define DEG2RAD(x) ((x) * M_PI / 180.0)
+// #define RAD2DEG(x) ((x) * 180.0 / M_PI)
 
 struct Point {
   double x = 0.0;

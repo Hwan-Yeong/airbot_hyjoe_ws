@@ -81,11 +81,6 @@ void SelfDiagnosis::RunStartupDiagnosis(const YAML::Node& config) {
       continue;
     }
 
-    // Handle Multi-ToF specially (it has sub-sensors left/right but one config
-    // entry 'tof_multi') However, 'tof_multi' in config is a group, and
-    // 'tof_multi_left'/'tof_multi_right' are actual sensors. The loop iterates
-    // over all keys in 'sensors' node.
-
     if (sensor_name == "tof_multi")
       continue;  // Skip group config, check individual left/right
 
@@ -102,10 +97,9 @@ void SelfDiagnosis::CheckSingleSensor(const std::string& sensor_name,
 
   auto it = converters_.find(sensor_name);
   if (it == converters_.end() || !it->second) {
-    // Some sensors might not have converters (e.g. if initialization failed),
-    // but we check here. Or if the sensor name usage in config doesn't match
-    // converter key. based on SensorManagerNode::initConverters, keys match
-    // config keys.
+    // Some sensors might not have converters, but we check here.
+    // Or if the sensor name usage in config doesn't match converter key.
+    // based on SensorManagerNode::initConverters, keys match config keys.
     RCLCPP_WARN(node_->get_logger(),
                 "[SelfDiagnosis] No converter found for active sensor: %s",
                 sensor_name.c_str());
@@ -138,8 +132,8 @@ void SelfDiagnosis::CheckSingleSensor(const std::string& sensor_name,
     try {
       auto output = it->second->PcConvert(dummy_data.get());
       // If pc_convert runs without throwing exception, we assume success.
-      // We can check if output is empty, but empty result is also valid (e.g.
-      // filtering). A crash or exception would indicate failure.
+      // We can check if output is empty, but empty result is also valid
+      // A crash or exception would indicate failure.
       RCLCPP_INFO(node_->get_logger(), "[SelfDiagnosis] [PASS] %s pipeline check.",
                   sensor_name.c_str());
     } catch (const std::exception& e) {

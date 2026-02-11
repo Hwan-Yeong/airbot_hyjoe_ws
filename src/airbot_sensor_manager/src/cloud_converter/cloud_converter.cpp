@@ -21,11 +21,11 @@ ConverterOutput CloudConverterStrategy::PcConvert(const void* sensor_msg) {
     double duration_sec = duration.count();
 
     /**
-     * @brief Converter 내부 변수 자동 초기화 기능
+     * @brief Converter Internal Variable auto Initialization
      *
-     * @details 변수 자동 초기화는 크게 2가지 경우에 발생
-     * 1) sensor_manager 노드 "on -> off -(over timeout)-> on" 시
-     * 2) 센서 데이터 "수신 -> 미수신 -(over timeout)-> 수신" 시
+     * @details Internal Variable auto Initialization happens in two cases:
+     * 1) sensor_manager node "on -> off -(over timeout)-> on"
+     * 2) sensor data "receive -> not receive -(over timeout)-> receive"
      */
     if ((duration_sec >= timeout_limit_sec_)) {
       if (!is_already_reset_) {
@@ -164,8 +164,7 @@ TofMonoCloudConverter::TofMonoCloudConverter(
   }
 
   // TODO: Set Default Config
-  //       => Yaml 파일이 깨질 경우를 대비하여 양산 시 확정된 사양의 기본값을 하드
-  //       코딩으로 채워넣기.
+  //       => Hard Coding for default value (e.g. yaml file is broken)
 
   // Load Config
   LoadCommonConfig(config);
@@ -184,7 +183,7 @@ ConverterOutput TofMonoCloudConverter::PcConvertImpl(const void* sensor_msg) {
 
   auto msg = static_cast<const robot_custom_msgs::msg::TofData*>(sensor_msg);
 
-  // sensor frame 기준 point 생성
+  // Create point on sensor frame
   Point point_on_sensor_frame;
   point_on_sensor_frame.x = msg->top;
   point_on_sensor_frame.y = 0.0;
@@ -197,7 +196,7 @@ ConverterOutput TofMonoCloudConverter::PcConvertImpl(const void* sensor_msg) {
     output.local_topic_suffix = "/local";
   }
 
-  // target frame 기준 point 생성
+  // Create point on target frame
   if (this->enable_target_frame_cloud_) {
     Pose robot_pose;
     robot_pose.position.x = msg->robot_x;
@@ -238,8 +237,7 @@ TofMultiLeftCloudConverter::TofMultiLeftCloudConverter(
   }
 
   // TODO: Set Default Config
-  //       => Yaml 파일이 깨질 경우를 대비하여 양산 시 확정된 사양의 기본값을 하드
-  //       코딩으로 채워넣기.
+  //       => Hard Coding for default value (e.g. yaml file is broken)
 
   // Load Config
   LoadCommonConfig(config);
@@ -290,7 +288,7 @@ ConverterOutput TofMultiLeftCloudConverter::PcConvertImpl(
 
   std::vector<double> left_dists(msg->bot_left.begin(), msg->bot_left.end());
 
-  // sensor frame 기준 point 생성
+  // Create points on sensor frame
   std::vector<Point> points_on_sensor_frame =
       this->frame_converter_.TfMultiTofDistance2SensorFrame(
           left_dists, this->tof_multi_left_y_tan_array_,
@@ -307,7 +305,7 @@ ConverterOutput TofMultiLeftCloudConverter::PcConvertImpl(
     output.local_topic_suffix = "/local";
   }
 
-  // target frame 기준 point 생성
+  // Create points on target frame
   if (this->enable_target_frame_cloud_) {
     Pose robot_pose;
     robot_pose.position.x = msg->robot_x;
@@ -360,11 +358,11 @@ std_msgs::msg::Float32MultiArray TofMultiLeftCloudConverter::CalibrationConvert(
   }
 
   size_t idx_num =
-      3;  // 왼쪽 3개([13], [14], [15]) 캘리브레이션 진행 하여 3으로 설정
+      3;  // Left 3 points ([13], [14], [15]) are calibrated, so set to 3
   if (robot_pts.size() >= idx_num) {
     const size_t n = robot_pts.size();
     ret.data.reserve(idx_num);
-    for (size_t i = n - idx_num; i < n; ++i) {  // 뒤에서부터 3개 인덱스 접근
+    for (size_t i = n - idx_num; i < n; ++i) {  // Access last 3 points
       ret.data.push_back(static_cast<float>(
           sqrt(robot_pts[i].x * robot_pts[i].x +
                robot_pts[i].y * robot_pts[i].y)));
@@ -388,8 +386,7 @@ TofMultiRightCloudConverter::TofMultiRightCloudConverter(
   }
 
   // TODO: Set Default Config
-  //       => Yaml 파일이 깨질 경우를 대비하여 양산 시 확정된 사양의 기본값을 하드
-  //       코딩으로 채워넣기.
+  //       => Hard Coding for default value (e.g. yaml file is broken)
 
   // Load Config
   LoadCommonConfig(config);
@@ -441,7 +438,7 @@ ConverterOutput TofMultiRightCloudConverter::PcConvertImpl(
 
   std::vector<double> right_dists(msg->bot_right.begin(), msg->bot_right.end());
 
-  // sensor frame 기준 point 생성
+  // Create points on sensor frame
   std::vector<Point> points_on_sensor_frame =
       this->frame_converter_.TfMultiTofDistance2SensorFrame(
           right_dists, this->tof_multi_right_y_tan_array_,
@@ -458,7 +455,7 @@ ConverterOutput TofMultiRightCloudConverter::PcConvertImpl(
     output.local_topic_suffix = "/local";
   }
 
-  // target frame 기준 point 생성
+  // Create points on target frame
   if (this->enable_target_frame_cloud_) {
     Pose robot_pose;
     robot_pose.position.x = msg->robot_x;
@@ -511,11 +508,11 @@ TofMultiRightCloudConverter::CalibrationConvert(const void* sensor_msg) {
   }
 
   size_t idx_num =
-      3;  // 오른쪽 3개([13], [14], [15]) 캘리브레이션 진행 하여 3으로 설정
+      3;  // Right 3 points ([13], [14], [15]) are calibrated, so set to 3
   if (robot_pts.size() >= idx_num) {
     const size_t n = robot_pts.size();
     ret.data.reserve(idx_num);
-    for (size_t i = n - idx_num; i < n; ++i) {  // 뒤에서부터 3개 인덱스 접근
+    for (size_t i = n - idx_num; i < n; ++i) {  // Access last 3 points
       ret.data.push_back(static_cast<float>(
           sqrt(robot_pts[i].x * robot_pts[i].x +
                robot_pts[i].y * robot_pts[i].y)));
@@ -539,8 +536,7 @@ CameraCloudConverter::CameraCloudConverter(
   }
 
   // TODO: Set Default Config
-  //       => Yaml 파일이 깨질 경우를 대비하여 양산 시 확정된 사양의 기본값을 하드
-  //       코딩으로 채워넣기.
+  //       => Hard Coding for default value (e.g. yaml file is broken)
 
   // Load Config
   LoadCommonConfig(config);
@@ -661,7 +657,7 @@ ConverterOutput CameraCloudConverter::PcConvertImpl(const void* sensor_msg) {
       static_cast<const robot_custom_msgs::msg::CameraDataArray*>(sensor_msg);
   auto now = this->node_ptr_->get_clock()->now();
 
-  // sensor frame 기준 point 생성
+  // Create points on sensor frame
   std::vector<CameraObject> objects_on_sensor_frame =
       this->frame_converter_.TfCameraSensor2SensorFrame(
           msg, this->object_direction_, this->object_max_dist_);
@@ -676,6 +672,7 @@ ConverterOutput CameraCloudConverter::PcConvertImpl(const void* sensor_msg) {
     output.local_topic_suffix = "/local";
   }
 
+  // Create points on target frame
   if (this->enable_target_frame_cloud_) {
     auto objects_on_robot_frame =
         this->frame_converter_.TfCameraObjects2RobotFrame(
@@ -750,8 +747,7 @@ BottomIrCloudConverter::BottomIrCloudConverter(
   }
 
   // TODO: Set Default Config
-  //       => Yaml 파일이 깨질 경우를 대비하여 양산 시 확정된 사양의 기본값을 하드
-  //       코딩으로 채워넣기.
+  //       => Hard Coding for default value (e.g. yaml file is broken)
 
   // Load Config
   LoadCommonConfig(config);
@@ -785,7 +781,7 @@ ConverterOutput BottomIrCloudConverter::PcConvertImpl(const void* sensor_msg) {
   auto msg =
       static_cast<const robot_custom_msgs::msg::BottomIrData*>(sensor_msg);
 
-  // sensor frame 기준 point 생성
+  // Create points on sensor frame
   std::vector<Point> points_on_sensor_frame =
       this->frame_converter_.TfBottomIrSensor2SensorFrame(
           msg, this->ir_dist_center_to_sensor_,
@@ -800,7 +796,7 @@ ConverterOutput BottomIrCloudConverter::PcConvertImpl(const void* sensor_msg) {
     output.local_topic_suffix = "/local";
   }
 
-  // target frame 기준 point 생성
+  // Create points on target frame
   if (this->enable_target_frame_cloud_) {
     Pose robot_pose;
     robot_pose.position.x = msg->robot_x;
@@ -836,8 +832,7 @@ CollisionCloudConverter::CollisionCloudConverter(
   }
 
   // TODO: Set Default Config
-  //       => Yaml 파일이 깨질 경우를 대비하여 양산 시 확정된 사양의 기본값을 하드
-  //       코딩으로 채워넣기.
+  //       => Hard Coding for default value (e.g. yaml file is broken)
 
   // Load Config
   LoadCommonConfig(config);
@@ -861,7 +856,7 @@ ConverterOutput CollisionCloudConverter::PcConvertImpl(const void* sensor_msg) {
   auto msg =
       static_cast<const robot_custom_msgs::msg::AbnormalEventData*>(sensor_msg);
 
-  // sensor frame 기준 point 생성
+  // Create points on sensor frame
   Point point_on_sensor_frame =
       this->frame_converter_.TfCollisionData2SensorFrame(
           msg, this->sensor_extrinsic_.position.x);
@@ -873,7 +868,7 @@ ConverterOutput CollisionCloudConverter::PcConvertImpl(const void* sensor_msg) {
     output.local_topic_suffix = "/local";
   }
 
-  // target frame 기준 point 생성
+  // Create points on target frame
   if (this->enable_target_frame_cloud_) {
     Pose robot_pose;
     robot_pose.position.x = msg->robot_x;

@@ -11,10 +11,10 @@ void TofUtils::UpdateSubCellIndexArray(
     const std::vector<int>& sub_cell_idx_array, double fov,
     std::vector<double>& y_tan_out, std::vector<double>& z_tan_out,
     rclcpp::Logger logger) {
-  // =========== 사용자 입력 기반으로 사용할 8x8 마스킹 Mat 만들기 ===========
+  // =========== Create masked 8x8 matrix based on user input ===========
   bool masked_mat[8][8] = {false};
 
-  // =========== Input sub cell 인덱스 로깅 ===========
+  // =========== Input sub cell index logging ===========
   std::ostringstream oss;
   oss << "\n==== Input sub_cell_idx_array ====\n";
   for (int r = 0; r < 4; ++r) {
@@ -33,7 +33,7 @@ void TofUtils::UpdateSubCellIndexArray(
   oss.str("");
   oss.clear();
 
-  // =========== Masked 행렬 세팅 ===========
+  // =========== Masked matrix setting ===========
   for (int idx : sub_cell_idx_array) {
     if (idx >= 0 && idx < 64) {
       int row = idx / 8;
@@ -47,7 +47,7 @@ void TofUtils::UpdateSubCellIndexArray(
     }
   }
 
-  // =========== Masked 행렬 로깅 ===========
+  // =========== Masked matrix logging ===========
   oss << "\n==== Masked 8x8 Matrix ====\n";
   for (int i = 0; i < 8; ++i) {
     for (int j = 0; j < 8; ++j) {
@@ -59,7 +59,7 @@ void TofUtils::UpdateSubCellIndexArray(
   oss.str("");
   oss.clear();
 
-  // =========== true인 셀 기반으로 y_tan, z_tan 계산 ===========
+  // =========== Calculate y_tan, z_tan based on true cells ===========
   y_tan_out.clear();
   z_tan_out.clear();
 

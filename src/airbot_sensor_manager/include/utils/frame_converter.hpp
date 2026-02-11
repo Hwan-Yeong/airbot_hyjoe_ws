@@ -144,18 +144,11 @@ class FrameConverter {
    * @param[in] robot_pose Current position of the robot (Required when Target Frame is map).
    * @param[in] target_frame Target coordinate system to convert ("base_link" or "map").
    * @param[in] camera_sensor_frame_pose Position information of camera sensor relative to robot (base_link).
-   * @param[in] class_id_confidence_th Object id and confidence threshold matching data.
-   * @param[in] use_object_logger Whether to use object recognition logging.
-   * @param[in] logger_dist_margin Logging distance threshold.
-   * @param[in] logger rclcpp logger object.
    * @return Bounding Box Array based on Target Frame.
    */
   vision_msgs::msg::BoundingBox2DArray TfCameraSensorFrameBBoxArray2TargetFrame(
       const vision_msgs::msg::BoundingBox2DArray& bbox_array_sensor,
-      Pose& robot_pose, std::string target_frame, Pose camera_sensor_frame_pose,
-      std::map<int, int> class_id_confidence_th = {},
-      bool use_object_logger = false, double logger_dist_margin = 0.0,
-      rclcpp::Logger logger = rclcpp::get_logger("FrameConverter"));
+      Pose& robot_pose, std::string target_frame, Pose camera_sensor_frame_pose);
 
   /**
    * @brief Returns the activation position of the Bottom IR sensor based on the Sensor Frame.
