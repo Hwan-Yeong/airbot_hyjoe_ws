@@ -24,7 +24,7 @@ void TofUtils::UpdateSubCellIndexArray(
         oss << std::setw(2) << std::setfill('0') << sub_cell_idx_array[idx]
             << " ";
       } else {
-        oss << "-- ";  // 범위 넘어가면 표시
+        oss << "-- ";
       }
     }
     oss << "\n";

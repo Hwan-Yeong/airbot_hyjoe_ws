@@ -28,7 +28,8 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud") {
   RCLCPP_INFO(this->get_logger(), "MultizoneTofCalibrator Initialized.");
 
   // Sensor Manager On/Off Cmd Subscriber
-  sensor_manager_cmd_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+  sensor_manager_cmd_sub_ =
+    this->create_subscription<std_msgs::msg::Bool>(
       "cmd_sensor_manager", rclcpp::QoS(3).reliable(),
       [this](std_msgs::msg::Bool::SharedPtr msg) {
         if (!msg) {
@@ -61,9 +62,11 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud") {
       });
 
   // ToF Msg Subscriber
-  tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
+  tof_sub_ =
+    this->create_subscription<robot_custom_msgs::msg::TofData>(
       "/tof_data", rclcpp::SensorDataQoS(),
       [this](robot_custom_msgs::msg::TofData::SharedPtr msg) {
+        if (!this->node_active_cmd_) return;
         std::lock_guard<std::mutex> lock(tof_buffer_.mtx);
         tof_buffer_.latest_msg = msg;
         tof_buffer_.receive_time = this->now();
@@ -72,39 +75,43 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud") {
 
   // Camera Msg Subscriber
   camera_sub_ =
-      this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
-          "/camera_data", rclcpp::SensorDataQoS(),
-          [this](robot_custom_msgs::msg::CameraDataArray::SharedPtr msg) {
-            std::lock_guard<std::mutex> lock(camera_buffer_.mtx);
-            camera_buffer_.latest_msg = msg;
-            camera_buffer_.receive_time = this->now();
-            camera_buffer_.updated.store(true);
-          });
+    this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
+      "/camera_data", rclcpp::SensorDataQoS(),
+      [this](robot_custom_msgs::msg::CameraDataArray::SharedPtr msg) {
+        if (!this->node_active_cmd_) return;
+        std::lock_guard<std::mutex> lock(camera_buffer_.mtx);
+        camera_buffer_.latest_msg = msg;
+        camera_buffer_.receive_time = this->now();
+        camera_buffer_.updated.store(true);
+      });
 
   // Bottom IR Msg Subscriber
   bottom_ir_sub_ =
-      this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
-          "/bottom_ir_data", rclcpp::SensorDataQoS(),
-          [this](robot_custom_msgs::msg::BottomIrData::SharedPtr msg) {
-            std::lock_guard<std::mutex> lock(bottom_ir_buffer_.mtx);
-            bottom_ir_buffer_.latest_msg = msg;
-            bottom_ir_buffer_.receive_time = this->now();
-            bottom_ir_buffer_.updated.store(true);
-          });
+    this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
+      "/bottom_ir_data", rclcpp::SensorDataQoS(),
+      [this](robot_custom_msgs::msg::BottomIrData::SharedPtr msg) {
+        if (!this->node_active_cmd_) return;
+        std::lock_guard<std::mutex> lock(bottom_ir_buffer_.mtx);
+        bottom_ir_buffer_.latest_msg = msg;
+        bottom_ir_buffer_.receive_time = this->now();
+        bottom_ir_buffer_.updated.store(true);
+      });
 
   // Collision Msg Subscriber
   collision_sub_ =
-      this->create_subscription<robot_custom_msgs::msg::AbnormalEventData>(
-          "/collision_detected", rclcpp::QoS(10).reliable(),
-          [this](robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg) {
-            std::lock_guard<std::mutex> lock(collision_buffer_.mtx);
-            collision_buffer_.latest_msg = msg;
-            collision_buffer_.receive_time = this->now();
-            collision_buffer_.updated.store(true);
-          });
+    this->create_subscription<robot_custom_msgs::msg::AbnormalEventData>(
+      "/collision_detected", rclcpp::QoS(10).reliable(),
+      [this](robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg) {
+        if (!this->node_active_cmd_) return;
+        std::lock_guard<std::mutex> lock(collision_buffer_.mtx);
+        collision_buffer_.latest_msg = msg;
+        collision_buffer_.receive_time = this->now();
+        collision_buffer_.updated.store(true);
+      });
 
   // Multizone ToF Calibration Cmd Subscriber
-  mtof_calibration_cmd_sub_ = this->create_subscription<std_msgs::msg::UInt8>(
+  mtof_calibration_cmd_sub_ =
+    this->create_subscription<std_msgs::msg::UInt8>(
       "start_tofcalib", rclcpp::QoS(10).reliable(),
       [this](std_msgs::msg::UInt8::SharedPtr msg) {
         auto calib_cmd_state = static_cast<MToFCalibState>(msg->data);
@@ -150,29 +157,28 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud") {
       });
 
   // PointCloud Publish Timer
-  timer_ = this->create_wall_timer(
+  timer_ =
+    this->create_wall_timer(
       std::chrono::milliseconds(10),
       std::bind(&SensorManagerNode::PublishPointcloudTimer, this));
 
   // Dynamic Parameter Handler (for changing parameters at runtime)
   param_handler_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
-  target_frame_callback_handle_ = param_handler_->add_parameter_callback(
+  target_frame_callback_handle_ =
+    param_handler_->add_parameter_callback(
       "target_frame", [this](const rclcpp::Parameter& param) {
         if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
-          std::string before = this->node_target_frame_;
-          this->node_target_frame_ = param.as_string();
-          std::string after;
-          if (this->get_parameter("target_frame", after)) {
+          std::string before = this->node_target_frame_; // before update param
+          this->node_target_frame_ = param.as_string(); // after update param
+          if (!this->node_target_frame_.empty()) {
             RCLCPP_INFO(this->get_logger(),
                         "[=== Updating target_frame: %s -> %s ===]",
-                        before.c_str(), after.c_str());
+                        before.c_str(), this->node_target_frame_.c_str());
           } else {
             RCLCPP_WARN(this->get_logger(), "target_frame parameter not found!");
           }
         }
       });
-
-  self_diagnosis_ = std::make_shared<SelfDiagnosis>(this, converters_);
 }
 
 void SensorManagerNode::LoadConfig() {
@@ -202,6 +208,7 @@ void SensorManagerNode::Init() {
   InitPublisher(this->config_);
   InitConverters(this->config_["sensors"]);
 
+  self_diagnosis_ = std::make_shared<SelfDiagnosis>(this, converters_);
   self_diagnosis_->RunStartupDiagnosis(this->config_["sensors"]);
 }
 

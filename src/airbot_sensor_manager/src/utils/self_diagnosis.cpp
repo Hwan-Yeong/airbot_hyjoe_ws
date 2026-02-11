@@ -134,11 +134,14 @@ void SelfDiagnosis::CheckSingleSensor(const std::string& sensor_name,
       // If pc_convert runs without throwing exception, we assume success.
       // We can check if output is empty, but empty result is also valid
       // A crash or exception would indicate failure.
-      RCLCPP_INFO(node_->get_logger(), "[SelfDiagnosis] [PASS] %s pipeline check.",
-                  sensor_name.c_str());
+      RCLCPP_INFO(node_->get_logger(),
+                  "[SelfDiagnosis] %s pipeline check. Result: %s",
+                  sensor_name.c_str(),
+                  (output.target_frame_clouds.empty() &&
+                   output.local_frame_clouds.empty()) ? "FAIL" : "PASS");
     } catch (const std::exception& e) {
       RCLCPP_ERROR(node_->get_logger(),
-                   "[SelfDiagnosis] [FAIL] %s pipeline check. Exception: %s",
+                   "[SelfDiagnosis] %s pipeline check. Result: FAIL. Exception: %s",
                    sensor_name.c_str(), e.what());
     }
   }
@@ -149,9 +152,12 @@ std::shared_ptr<void> SelfDiagnosis::CreateDummyTofData() {
   msg->timestamp = node_->now();
   // Fill with minimal valid data
   // Fixed size arrays [16] are std::array in ROS2 C++
-  msg->bot_left.fill(500.0);  // 500mm
-  msg->bot_right.fill(500.0);
-  msg->top = 500.0;
+  msg->top = 1.0;
+  msg->bot_left.fill(1.0);  // 1.0m
+  msg->bot_right.fill(1.0);
+  msg->robot_x = 0.0;
+  msg->robot_y = 0.0;
+  msg->robot_angle = 0.0;
 
   return std::static_pointer_cast<void>(msg);
 }
@@ -159,7 +165,19 @@ std::shared_ptr<void> SelfDiagnosis::CreateDummyTofData() {
 std::shared_ptr<void> SelfDiagnosis::CreateDummyCameraData() {
   auto msg = std::make_shared<robot_custom_msgs::msg::CameraDataArray>();
   msg->timestamp = node_->now();
-  // data_array is empty, which is valid.
+  msg->num = 1;
+  msg->data_array.resize(1);
+  msg->data_array[0].id = 1;
+  msg->data_array[0].score = 1.0;
+  msg->data_array[0].x = 1.0;
+  msg->data_array[0].y = 1.0;
+  msg->data_array[0].theta = 10.0;
+  msg->data_array[0].width = 0.3;
+  msg->data_array[0].height = 0.3;
+  msg->data_array[0].distance = 0.3;
+  msg->robot_x = 0.0;
+  msg->robot_y = 0.0;
+  msg->robot_angle = 0.0;
   return std::static_pointer_cast<void>(msg);
 }
 
@@ -167,12 +185,21 @@ std::shared_ptr<void> SelfDiagnosis::CreateDummyBottomIrData() {
   auto msg = std::make_shared<robot_custom_msgs::msg::BottomIrData>();
   msg->timestamp = node_->now();
   // Initialize some ADC values
+  msg->ff = true;
+  msg->fl = true;
+  msg->fr = true;
+  msg->bb = true;
+  msg->bl = true;
+  msg->br = true;
   msg->adc_ff = 100;
   msg->adc_fl = 100;
   msg->adc_fr = 100;
   msg->adc_bb = 100;
   msg->adc_bl = 100;
   msg->adc_br = 100;
+  msg->robot_x = 0.0;
+  msg->robot_y = 0.0;
+  msg->robot_angle = 0.0;
   return std::static_pointer_cast<void>(msg);
 }
 
@@ -180,6 +207,9 @@ std::shared_ptr<void> SelfDiagnosis::CreateDummyCollisionData() {
   auto msg = std::make_shared<robot_custom_msgs::msg::AbnormalEventData>();
   msg->timestamp = node_->now();
   msg->event_trigger = 1;  // Simulate front collision
+  msg->robot_x = 0.0;
+  msg->robot_y = 0.0;
+  msg->robot_angle = 0.0;
   return std::static_pointer_cast<void>(msg);
 }
 
