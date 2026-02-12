@@ -540,27 +540,87 @@ void SensorManagerNode::PublishPointcloud(SensorType sensor_type,
 }
 
 void SensorManagerNode::PublishEmptyMsg() {
-  // Currently publishing only for "map" target_frame
-  // TODO: Modify to publish for each converter's child frame
-  auto it = converters_.find("empty");
-  if (it == converters_.end() || !it->second) {
-    RCLCPP_INFO(this->get_logger(), "No converter for empty msg");
-    return;
-  }
+  for (const auto& [sensor_name, converter] : converters_) {
+    if (!converter) continue;
 
-  auto empty_msg_outputs = it->second->PcConvert(nullptr);
-
-  if (!empty_msg_outputs.target_frame_clouds.empty()) {
-    for (auto& [name, pub] : pointcloud_pubs_) {
-      if (pub && pub->get_subscription_count() > 0) {
-        pub->publish(empty_msg_outputs.target_frame_clouds[0]);
+    // 1. Publish for Target Frame
+    if (converter->IsEnableTargetFrameCloud()) {
+      auto empty_output = converter->PcConvertEmpty(converter->GetTargetFrame());
+      if (!empty_output.target_frame_clouds.empty()) {
+        const auto& empty_msg = empty_output.target_frame_clouds[0];
+        
+        auto reg_it = std::find_if(
+            sensor_topic_registry_.begin(), sensor_topic_registry_.end(),
+            [&](const auto& pair) {
+              return pair.second.converter_key == sensor_name;
+            });
+        
+        if (reg_it != sensor_topic_registry_.end()) {
+          std::string topic_key = reg_it->second.topic_key;
+          
+          if (topic_key == "tof/multi/left" || topic_key == "tof/multi/right") {
+            std::vector<int> std_sub_cell_idx = (topic_key == "tof/multi/left") ? 
+                                                multi_tof_left_sub_cell_idx_array_ :
+                                                multi_tof_right_sub_cell_idx_array_;
+            for (int idx : std_sub_cell_idx) {
+              std::string pub_key = topic_key + "/idx_" + std::to_string(idx);
+              auto pub_it = pointcloud_pubs_.find(pub_key);
+              if (pub_it != pointcloud_pubs_.end() && pub_it->second &&
+                  pub_it->second->get_subscription_count() > 0) {
+                pub_it->second->publish(empty_msg);
+              }
+            }
+          } else {
+            auto pub_it = pointcloud_pubs_.find(topic_key);
+            if (pub_it != pointcloud_pubs_.end() && pub_it->second &&
+                pub_it->second->get_subscription_count() > 0) {
+              pub_it->second->publish(empty_msg);
+            }
+          }
+        }
       }
-      // RCLCPP_INFO(this->get_logger(), "CLEAR: %s", name.c_str());
+    }
+
+    // 2. Publish for Local Frame
+    if (converter->IsEnableSensorTfCloud()) {
+      auto empty_output = converter->PcConvertEmpty(converter->GetChildFrame());
+      if (!empty_output.target_frame_clouds.empty()) {
+        const auto& empty_msg = empty_output.target_frame_clouds[0];
+        
+        auto reg_it = std::find_if(
+            sensor_topic_registry_.begin(), sensor_topic_registry_.end(),
+            [&](const auto& pair) { return pair.second.converter_key == sensor_name; });
+        
+        if (reg_it != sensor_topic_registry_.end()) {
+          std::string topic_key = reg_it->second.topic_key;
+          
+          if (topic_key == "tof/multi/left" || topic_key == "tof/multi/right") {
+            std::vector<int> std_sub_cell_idx = (topic_key == "tof/multi/left") ? 
+                                                multi_tof_left_sub_cell_idx_array_ :
+                                                multi_tof_right_sub_cell_idx_array_;
+            for (int idx : std_sub_cell_idx) {
+              std::string pub_key = topic_key + "/idx_" + std::to_string(idx) + "/local";
+              auto pub_it = pointcloud_pubs_.find(pub_key);
+              if (pub_it != pointcloud_pubs_.end() && pub_it->second &&
+                  pub_it->second->get_subscription_count() > 0) {
+                pub_it->second->publish(empty_msg);
+              }
+            }
+          } else {
+            std::string local_topic_key = topic_key + "/local";
+            auto pub_it = pointcloud_pubs_.find(local_topic_key);
+            if (pub_it != pointcloud_pubs_.end() && pub_it->second &&
+                pub_it->second->get_subscription_count() > 0) {
+              pub_it->second->publish(empty_msg);
+            }
+          }
+        }
+      }
     }
   }
 
   RCLCPP_INFO(this->get_logger(),
-              "All Active Publisher publish empty_cloud msgs!");
+              "All Active Publishers published appropriate empty_cloud msgs!");
 }
 
 void SensorManagerNode::PublishMultiTofIdxPointcloud(

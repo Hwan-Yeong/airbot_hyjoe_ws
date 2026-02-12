@@ -45,6 +45,14 @@ ConverterOutput CloudConverterStrategy::PcConvert(const void* sensor_msg) {
   return PcConvertImpl(sensor_msg);
 }
 
+ConverterOutput CloudConverterStrategy::PcConvertEmpty(
+  const std::string& frame_id) {
+  ConverterOutput output;
+  output.target_frame_clouds.push_back(
+      this->pointcloud_generator_.GenerateEmptyPointCloud2Message(frame_id));
+  return output;
+}
+
 void CloudConverterStrategy::LoadCommonConfig(const YAML::Node& config) {
   if (!config.IsMap()) return;
 

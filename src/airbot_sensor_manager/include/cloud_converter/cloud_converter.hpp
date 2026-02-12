@@ -62,6 +62,13 @@ class CloudConverterStrategy {
         "This converter does not support calibration_convert.");
     return std_msgs::msg::Float32MultiArray{};
   }
+  
+  /**
+   * @brief Create empty pointcloud with specific frame id
+   * 
+   * @param frame_id Target frame id
+   */
+  ConverterOutput PcConvertEmpty(const std::string& frame_id);
 
   /**
    * @brief Virtual function to provide TF for each sensor
@@ -76,6 +83,26 @@ class CloudConverterStrategy {
    * @return std::shared_ptr<SensorManagerNode>
    */
   std::shared_ptr<SensorManagerNode> GetNodePtr() const;
+
+  /**
+   * @brief Get target frame id
+   */
+  std::string GetTargetFrame() const { return target_frame_; }
+
+  /**
+   * @brief Get child frame id (local frame)
+   */
+  std::string GetChildFrame() const { return child_frame_; }
+
+  /**
+   * @brief Check if sensor tf cloud is enabled
+   */
+  bool IsEnableSensorTfCloud() const { return enable_sensor_tf_cloud_; }
+
+  /**
+   * @brief Check if target frame cloud is enabled
+   */
+  bool IsEnableTargetFrameCloud() const { return enable_target_frame_cloud_; }
 
  protected:
   /**
