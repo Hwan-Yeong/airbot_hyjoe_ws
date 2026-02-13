@@ -295,6 +295,8 @@ local_costmap:
           clearing: false
           obstacle_range: 2.0           # default 2.5 | meters
                                         # 센서로부터 이 거리 이내에 있는 데이터만 실제 장애물로 레이어에 추가
+          min_obstacle_range: 0.0       # default 0.0 | meters
+                                        # 센서로부터 이 거리보다 가까운 데이터는 노이즈 또는 본체 간섭으로 간주하여 무시
           min_obstacle_height: 0.10     # default 0.0 | meters
                                         # 장애물로 인식할 최소 높이 | 바닥면(Ground) 입자나 노이즈를 장애물로 오인하지 않도록 10cm 이상의 데이터만 사용
           max_obstacle_height: 3.0      # default 3.0 | meters
@@ -335,6 +337,7 @@ local_costmap:
           marking: true
           clearing: false
           obstacle_range: 3.0
+          min_obstacle_range: 0.0
           max_obstacle_height: 1.0
           expected_update_rate: 0.0
           observation_persistence: 0.0
@@ -360,6 +363,7 @@ local_costmap:
           marking: true
           clearing: false
           obstacle_range: 0.5
+          min_obstacle_range: 0.0
           max_obstacle_height: 0.1
           expected_update_rate: 0.0
           observation_persistence: 0.0
@@ -385,6 +389,7 @@ local_costmap:
           marking: true
           clearing: false
           obstacle_range: 0.5
+          min_obstacle_range: 0.0
         collision_front_clear:
           data_type: PointCloud2
           topic: /sensor_to_pointcloud/collision/front/local
@@ -398,6 +403,7 @@ local_costmap:
           marking: true
           clearing: false
           obstacle_range: 0.5
+          min_obstacle_range: 0.0
         collision_rear_clear:
           data_type: PointCloud2
           topic: /sensor_to_pointcloud/collision/rear/local
@@ -413,82 +419,82 @@ local_costmap:
         # tof_left_<num>_clear: { topic: /sensor_to_pointcloud/tof/multi/left/idx_<num>/local, marking: false, clearing: true, model_type: 0 }
 
         # --- L row 1 ---
-        tof_left_0_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_0/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_0_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_0/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_0_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_0/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_left_3_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_3/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_3_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_3/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_3_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_3/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_left_6_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_6/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_6_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_6/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_6_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_6/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
         # --- L row 3 ---
-        tof_left_17_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_17/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_17_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_17/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_17_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_17/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_left_20_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_20/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_20_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_20/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_20_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_20/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_left_23_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_23/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_23_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_23/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_23_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_23/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
         # --- L row 4 ---
-        tof_left_28_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_28/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_28_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_28/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_28_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_28/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_left_31_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_31/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_31_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_31/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_31_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_31/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
         # --- L row 6 ---
-        tof_left_44_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_44/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_44_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_44/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_44_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_44/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_left_47_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_47/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_47_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_47/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_47_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_47/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
         # --- L row 7 ---
-        tof_left_49_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_49/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_49_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_49/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_49_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_49/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_left_52_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_52/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_52_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_52/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_52_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_52/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_left_55_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_55/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_55_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_55/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_55_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_55/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
         # --- L row 8 ---
-        tof_left_57_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_57/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_57_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_57/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_57_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_57/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_left_60_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_60/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_60_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_60/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_60_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_60/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_left_63_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_63/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_left_63_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_63/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_left_63_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/left/idx_63/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
 
         # --- Multi Tof Right Indices ---
         # --- R row 1 ---
-        tof_right_1_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_1/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_1_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_1/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_1_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_1/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_right_4_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_4/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_4_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_4/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_4_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_4/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_right_7_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_7/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_7_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_7/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_7_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_7/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
         # --- R row 3 ---
-        tof_right_16_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_16/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_16_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_16/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_16_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_16/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_right_19_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_19/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_19_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_19/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_19_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_19/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_right_22_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_22/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_22_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_22/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_22_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_22/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
         # --- R row 4 ---
-        tof_right_24_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_24/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_24_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_24/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_24_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_24/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_right_27_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_27/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_27_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_27/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_27_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_27/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
         # --- R row 6 ---
-        tof_right_40_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_40/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_40_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_40/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_40_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_40/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_right_43_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_43/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_43_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_43/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_43_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_43/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
         # --- R row 7 ---
-        tof_right_48_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_48/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_48_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_48/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_48_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_48/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_right_51_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_51/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_51_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_51/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_51_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_51/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_right_54_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_54/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_54_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_54/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_54_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_54/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
         # --- R row 8 ---
-        tof_right_56_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_56/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_56_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_56/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_56_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_56/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_right_59_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_59/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_59_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_59/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_59_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_59/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
-        tof_right_62_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_62/local, marking: true, clearing: false, obstacle_range: 2.5 }
+        tof_right_62_mark: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_62/local, marking: true, clearing: false, obstacle_range: 2.5, min_obstacle_range: 0.0 }
         tof_right_62_clear: { data_type: PointCloud2, topic: /sensor_to_pointcloud/tof/multi/right/idx_62/local, marking: false, clearing: true, model_type: 0, vertical_fov_angle: 0.1, horizontal_fov_angle: 0.1 }
 
 

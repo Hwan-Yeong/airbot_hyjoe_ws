@@ -92,6 +92,7 @@ public:
     const double & min_obstacle_height,
     const double & max_obstacle_height,
     const double & obstacle_range,
+    const double & min_obstacle_range,
     tf2_ros::Buffer & tf,
     const std::string & global_frame,
     const std::string & sensor_frame,
@@ -131,6 +132,7 @@ public:
   // params setters
   void SetMinObstacleHeight(const double & min_obstacle_height);
   void SetMaxObstacleHeight(const double & max_obstacle_height);
+  void SetMinObstacleRange(const double & min_obstacle_range);
   void SetMinZ(const double & min_z);
   void SetMaxZ(const double & max_z);
   void SetVerticalFovPadding(const double & vertical_fov_padding);
@@ -157,7 +159,7 @@ private:
   boost::recursive_mutex _lock;
   std::string _global_frame, _sensor_frame, _source_name, _topic_name;
   std::list<observation::MeasurementReading> _observation_list;
-  double _min_obstacle_height, _max_obstacle_height, _obstacle_range, _tf_tolerance;
+  double _min_obstacle_height, _max_obstacle_height, _obstacle_range, _min_obstacle_range, _tf_tolerance;
   double _min_z, _max_z, _vertical_fov, _vertical_fov_padding, _horizontal_fov;
   double _decay_acceleration, _voxel_size;
   bool _marking, _clearing;
