@@ -9,8 +9,7 @@ MultizoneTofCalibrator::MultizoneTofCalibrator(rclcpp::Logger logger,
                                                const TofCalibrationParam& param)
     : logger_(logger), mtof_calib_cfg_(param) {
   mtof_calib_result_array_.fill(0.0f);
-  RCLCPP_INFO(logger_,
-              "[MultizoneTofCalibrator] initialized with method: %s",
+  RCLCPP_INFO(logger_, "[MultizoneTofCalibrator] initialized with method: %s",
               mtof_calib_cfg_.method.c_str());
 }
 
@@ -129,8 +128,8 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
   bool any_valid = false;
   for (int i = 0; i < 3; ++i) {
     int idx = calib_session_.kTargetIndices[i];
-    float raw_val = (side == TofSide::kLeft) ? msg->bot_left[idx]
-                                             : msg->bot_right[idx];
+    float raw_val =
+        (side == TofSide::kLeft) ? msg->bot_left[idx] : msg->bot_right[idx];
 
     if (raw_val > 1e-6 && !std::isnan(raw_val)) {
       any_valid = true;
@@ -203,12 +202,10 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
     }
 
     // Stability Check (idx 14)
-    float min_val =
-        *std::min_element(calib_session_.samples[1].begin(),
-                          calib_session_.samples[1].end());
-    float max_val =
-        *std::max_element(calib_session_.samples[1].begin(),
-                          calib_session_.samples[1].end());
+    float min_val = *std::min_element(calib_session_.samples[1].begin(),
+                                      calib_session_.samples[1].end());
+    float max_val = *std::max_element(calib_session_.samples[1].begin(),
+                                      calib_session_.samples[1].end());
     float diff = max_val - min_val;
 
     // Set data for UDP transmission
@@ -240,16 +237,15 @@ MToFCalibResult MultizoneTofCalibrator::ProcessCalibration(
     }
 
     if (out_of_range) {
-      RCLCPP_INFO(logger_,
-                  "[Calibration: FAIL_OUT_OF_RANGE]\n"
-                  "  idx_13: %.3f (min_th: %.3f, max_th: %.3f)\n"
-                  "  idx_14: %.3f (min_th: %.3f, max_th: %.3f)\n"
-                  "  idx_15: %.3f (min_th: %.3f, max_th: %.3f)",
-                  calib_session_.stats[0], min_th_arr.data[0],
-                  max_th_arr.data[0], calib_session_.stats[1],
-                  min_th_arr.data[1], max_th_arr.data[1],
-                  calib_session_.stats[2], min_th_arr.data[2],
-                  max_th_arr.data[2]);
+      RCLCPP_INFO(
+          logger_,
+          "[Calibration: FAIL_OUT_OF_RANGE]\n"
+          "  idx_13: %.3f (min_th: %.3f, max_th: %.3f)\n"
+          "  idx_14: %.3f (min_th: %.3f, max_th: %.3f)\n"
+          "  idx_15: %.3f (min_th: %.3f, max_th: %.3f)",
+          calib_session_.stats[0], min_th_arr.data[0], max_th_arr.data[0],
+          calib_session_.stats[1], min_th_arr.data[1], max_th_arr.data[1],
+          calib_session_.stats[2], min_th_arr.data[2], max_th_arr.data[2]);
       ret = MToFCalibResult::kFailOutOfRange;
     } else if (diff > mtof_calib_cfg_.pass_diff_th) {
       RCLCPP_INFO(logger_,
@@ -319,8 +315,8 @@ uint8_t MultizoneTofCalibrator::MakeMTofState(TofSide side,
   return value;
 }
 
-void MultizoneTofCalibrator::WriteSelfTestCalibFile(TofSide side,
-                                                    MToFCalibResult resultCode) {
+void MultizoneTofCalibrator::WriteSelfTestCalibFile(
+    TofSide side, MToFCalibResult resultCode) {
   std::deque<std::string> buffer;
   std::string tof_calib_file_path =
       "/home/airbot/app_rw/log/MultiCalibration.json";

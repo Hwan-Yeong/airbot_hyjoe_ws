@@ -62,7 +62,7 @@ class CloudConverterStrategy {
         "This converter does not support calibration_convert.");
     return std_msgs::msg::Float32MultiArray{};
   }
-  
+
   /**
    * @brief Create empty pointcloud with specific frame id
    * 
@@ -130,7 +130,8 @@ class CloudConverterStrategy {
 
   std::shared_ptr<SensorManagerNode> node_ptr_{};
   std::chrono::steady_clock::time_point last_call_time_;
-  double timeout_limit_sec_ = -1.0;  // converter reset timeout time (default: -1, disabled)
+  double timeout_limit_sec_ =
+      -1.0;  // converter reset timeout time (default: -1, disabled)
   bool is_already_reset_ = true;
   bool use_converter_ = true;
   bool enable_target_frame_cloud_ = true;
@@ -292,5 +293,3 @@ class EmptyCloudConverter : public CloudConverterStrategy {
 };
 
 }  // namespace sensor_manager
-
-

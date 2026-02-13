@@ -29,8 +29,7 @@ Point FrameConverter::TfMonoTofSensor2RobotFrame(
 
 std::vector<Point> FrameConverter::TfMultiTofSensor2RobotFrame(
     const std::vector<double>& tof_dists, const std::vector<double>& y_tan,
-    const std::vector<double>& z_tan,
-    const Pose& multi_tof_sensor_frame_pose) {
+    const std::vector<double>& z_tan, const Pose& multi_tof_sensor_frame_pose) {
   std::vector<Point> points;
 
   if (tof_dists.size() != y_tan.size() || tof_dists.size() != z_tan.size())
@@ -113,7 +112,8 @@ std::vector<Point> FrameConverter::TfMultiTofDistance2SensorFrame(
 
 Point FrameConverter::TfSensorFrame2RobotFrame(const Point& p_s,
                                                const Pose& sensor_frame_pose) {
-  if (std::isnan(p_s.x)) return p_s;
+  if (std::isnan(p_s.x))
+    return p_s;
 
   double cos_yaw = std::cos(sensor_frame_pose.orientation.yaw);
   double sin_yaw = std::sin(sensor_frame_pose.orientation.yaw);
@@ -125,11 +125,9 @@ Point FrameConverter::TfSensorFrame2RobotFrame(const Point& p_s,
   double z_yaw = p_s.z;
 
   Point p_r;
-  p_r.x =
-      x_yaw * cos_pitch + z_yaw * sin_pitch + sensor_frame_pose.position.x;
+  p_r.x = x_yaw * cos_pitch + z_yaw * sin_pitch + sensor_frame_pose.position.x;
   p_r.y = y_yaw + sensor_frame_pose.position.y;
-  p_r.z =
-      -x_yaw * sin_pitch + z_yaw * cos_pitch + sensor_frame_pose.position.z;
+  p_r.z = -x_yaw * sin_pitch + z_yaw * cos_pitch + sensor_frame_pose.position.z;
 
   return p_r;
 }
@@ -154,11 +152,11 @@ std::vector<Point> FrameConverter::TfSensorFrame2RobotFrame(
     double z_yaw = p_s.z;
 
     Point p_r;
-    p_r.x = x_yaw * cos_pitch + z_yaw * sin_pitch +
-            sensor_frame_pose.position.x;
+    p_r.x =
+        x_yaw * cos_pitch + z_yaw * sin_pitch + sensor_frame_pose.position.x;
     p_r.y = y_yaw + sensor_frame_pose.position.y;
-    p_r.z = -x_yaw * sin_pitch + z_yaw * cos_pitch +
-            sensor_frame_pose.position.z;
+    p_r.z =
+        -x_yaw * sin_pitch + z_yaw * cos_pitch + sensor_frame_pose.position.z;
 
     pts_robot.push_back(p_r);
   }
@@ -169,11 +167,14 @@ std::vector<CameraObject> FrameConverter::TfCameraSensor2SensorFrame(
     const robot_custom_msgs::msg::CameraDataArray* camera_msg, bool direction,
     double object_max_distance) {
   std::vector<CameraObject> objects;
-  if (camera_msg->data_array.empty() || camera_msg->num == 0) return objects;
+  if (camera_msg->data_array.empty() || camera_msg->num == 0)
+    return objects;
 
   for (const auto& obj : camera_msg->data_array) {
-    if (obj.distance > object_max_distance) continue;
-    if (obj.height < 0.0 || obj.width < 0.0) continue;
+    if (obj.distance > object_max_distance)
+      continue;
+    if (obj.height < 0.0 || obj.width < 0.0)
+      continue;
 
     CameraObject cam_obj;
     cam_obj.id = obj.id;
@@ -247,8 +248,7 @@ vision_msgs::msg::BoundingBox2DArray FrameConverter::ToBBoxArray(
 
 std::vector<Point> FrameConverter::TfBottomIrSensor2SensorFrame(
     const robot_custom_msgs::msg::BottomIrData* cliff_msg,
-    double distance_center_to_front_ir_sensor,
-    double angle_to_next_ir_sensor) {
+    double distance_center_to_front_ir_sensor, double angle_to_next_ir_sensor) {
   std::vector<Point> active_sensor_points;
   if (!bottom_ir_extrinsics_updated_) {
     double d = distance_center_to_front_ir_sensor;
@@ -296,8 +296,7 @@ Point FrameConverter::TfCollisionData2SensorFrame(
     double offset_m) {
   Point point;
   // 1: 전방 충돌, -1: 후방 충돌
-  if (collision_msg->event_trigger == 1 ||
-      collision_msg->event_trigger == -1) {
+  if (collision_msg->event_trigger == 1 || collision_msg->event_trigger == -1) {
     point.x = offset_m * collision_msg->event_trigger;
     point.y = 0.0;
     point.z = 0.0;
@@ -322,10 +321,10 @@ std::vector<Point> FrameConverter::TfRobot2GlobalFrame(
   const double robot_sine = std::sin(robot_pose.orientation.yaw);
 
   for (const auto& local_point : input_points_on_robot_frame) {
-    global_point.x = local_point.x * robot_cosine -
-                     local_point.y * robot_sine + robot_pose.position.x;
-    global_point.y = local_point.x * robot_sine +
-                     local_point.y * robot_cosine + robot_pose.position.y;
+    global_point.x = local_point.x * robot_cosine - local_point.y * robot_sine +
+                     robot_pose.position.x;
+    global_point.y = local_point.x * robot_sine + local_point.y * robot_cosine +
+                     robot_pose.position.y;
     global_point.z = local_point.z + robot_pose.position.z;
     global_points.push_back(global_point);
   }

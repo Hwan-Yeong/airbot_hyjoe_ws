@@ -148,7 +148,8 @@ class FrameConverter {
    */
   vision_msgs::msg::BoundingBox2DArray TfCameraSensorFrameBBoxArray2TargetFrame(
       const vision_msgs::msg::BoundingBox2DArray& bbox_array_sensor,
-      Pose& robot_pose, std::string target_frame, Pose camera_sensor_frame_pose);
+      Pose& robot_pose, std::string target_frame,
+      Pose camera_sensor_frame_pose);
 
   /**
    * @brief Returns the activation position of the Bottom IR sensor based on the Sensor Frame.
@@ -237,5 +238,3 @@ class FrameConverter {
 };
 
 }  // namespace sensor_manager
-
-

@@ -26,5 +26,3 @@ class CloudConverterFactory {
 };
 
 }  // namespace sensor_manager
-
-

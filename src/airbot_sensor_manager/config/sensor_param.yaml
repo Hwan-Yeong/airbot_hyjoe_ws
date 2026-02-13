@@ -1,6 +1,5 @@
 airbot_sensor_manager:
   ros__parameters:
-
     target_frame: "map" # "map" or "base_link"
     output_topic_prefix: "sensor_to_pointcloud/"
 
@@ -35,7 +34,7 @@ airbot_sensor_manager:
           sampling_count: 300
           pass_min_value: 0.250 # raw sensor data "이상"인 경우 통과
           pass_max_value: 0.370 # raw sensor data "이하"인 경우 통과
-          pass_diff_th: 0.030   # raw data min,max의 diff 가 30mm "이하"인 경우 통과
+          pass_diff_th: 0.030 # raw data min,max의 diff 가 30mm "이하"인 경우 통과
           time_out_sec: 10.0 # 한쪽 캘리브레이션 완료 후 최대 대기시간, 실패 시 timeout fail 처리
           data_non_renewal_count: 90
 
@@ -46,14 +45,8 @@ airbot_sensor_manager:
         enable_target_frame_cloud: true # target frame 기준 통합 PointCloud 발행
         enable_sensor_tf_cloud: true # TF 발행 + 해당 frame 기준 PointCloud 발행
         reset_timeout_sec: 30.0
-        sub_cell_idx_array: [
-          0, 3, 6,
-          17, 20, 23,
-          28, 31,
-          44, 47,
-          49, 52, 55,
-          57, 60, 63
-        ]
+        sub_cell_idx_array:
+          [0, 3, 6, 17, 20, 23, 28, 31, 44, 47, 49, 52, 55, 57, 60, 63]
         extrinsics:
           fov: 45.0 # deg
           tf_frame:
@@ -75,14 +68,8 @@ airbot_sensor_manager:
         enable_target_frame_cloud: true # target frame 기준 통합 PointCloud 발행
         enable_sensor_tf_cloud: true # TF 발행 + 해당 frame 기준 PointCloud 발행
         reset_timeout_sec: 30.0
-        sub_cell_idx_array: [
-          1, 4, 7,
-          16, 19, 22,
-          24, 27,
-          40, 43,
-          48, 51, 54,
-          56, 59, 62
-        ]
+        sub_cell_idx_array:
+          [1, 4, 7, 16, 19, 22, 24, 27, 40, 43, 48, 51, 54, 56, 59, 62]
         extrinsics:
           fov: 45.0 # deg
           tf_frame:
@@ -106,14 +93,14 @@ airbot_sensor_manager:
         reset_timeout_sec: 30.0
         pointcloud_resolution: 0.05
         class_id_confidence_th: # 형식: "class id: confidence score"
-          - "0: 0"  #cable
-          - "1: 0"  #carpet [Unused]
-          - "2: 0"  #clothes
-          - "3: 0"  #liquid [Unused]
-          - "4: 0"  #non_obstacle [Unused]
-          - "5: 0"  #obstacle [Unused]
-          - "6: 0"  #poop
-          - "7: 0"  #scale
+          - "0: 0" #cable
+          - "1: 0" #carpet [Unused]
+          - "2: 0" #clothes
+          - "3: 0" #liquid [Unused]
+          - "4: 0" #non_obstacle [Unused]
+          - "5: 0" #obstacle [Unused]
+          - "6: 0" #poop
+          - "7: 0" #scale
           # - "8: 0"  #threshold [Unused]
           # - "9: 0"  #person
           - "10: 0" #dog [Unused]
@@ -127,7 +114,7 @@ airbot_sensor_manager:
           - "18: 0"
           - "19: 0"
           - "20: 0"
-        object_direction: true  # 정방향(CCW+):True, 역방향(CW+):False
+        object_direction: true # 정방향(CCW+):True, 역방향(CW+):False
         object_max_distance_m: 1.5 # 최대 장애물 거리 (해당 거리 이내의 장애물 정보만 처리)
         object_ignore_pitch_th_deg: 3.0 # 객체인식 장애물 무시하는 pitch 각도 (절댓값)
         extrinsics:
@@ -190,7 +177,6 @@ airbot_sensor_manager:
         reset_timeout_sec: -1.0 # 비활성화
 
     use_sim_time: false
-
 ################################
 #######  ToF Matrix idx  #######
 #                              #

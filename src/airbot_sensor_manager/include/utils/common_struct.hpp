@@ -1,9 +1,9 @@
 #pragma once
 
+#include <atomic>
 #include <cmath>
 #include <mutex>
 #include <vector>
-#include <atomic>
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
 // already defined in "pcl-1.12/pcl/point_cloud.h"
@@ -250,14 +250,26 @@ struct MToFCalibData {
   }
   void SetPublishValue(TofSide side) {
     if (side == TofSide::kLeft) {
-      left.pub_data = {static_cast<float>(side), left.idx_13,  left.idx_14,
-                       left.idx_15,              left.min,     left.min_ref,
-                       left.max,                 left.max_ref, left.median,
+      left.pub_data = {static_cast<float>(side),
+                       left.idx_13,
+                       left.idx_14,
+                       left.idx_15,
+                       left.min,
+                       left.min_ref,
+                       left.max,
+                       left.max_ref,
+                       left.median,
                        left.result};
     } else if (side == TofSide::kRight) {
-      right.pub_data = {static_cast<float>(side),  right.idx_13,  right.idx_14,
-                        right.idx_15,              right.min,     right.min_ref,
-                        right.max,                 right.max_ref, right.median,
+      right.pub_data = {static_cast<float>(side),
+                        right.idx_13,
+                        right.idx_14,
+                        right.idx_15,
+                        right.min,
+                        right.min_ref,
+                        right.max,
+                        right.max_ref,
+                        right.median,
                         right.result};
     }
   }
@@ -274,5 +286,3 @@ enum class SensorType {
   kCollisionFront,
   kCollisionRear
 };
-
-

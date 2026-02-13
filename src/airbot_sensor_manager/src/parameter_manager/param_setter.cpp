@@ -29,7 +29,9 @@ ParamSetterNode::ParamSetterNode() : Node("airbot_param_setter") {
   RCLCPP_INFO(this->get_logger(), "[param_setter] Node init finished!");
 }
 
-ParamSetterNode::~ParamSetterNode() { parameters_client_.reset(); }
+ParamSetterNode::~ParamSetterNode() {
+  parameters_client_.reset();
+}
 
 void ParamSetterNode::SocCmdCallback(
     const std_msgs::msg::UInt8::SharedPtr msg) {

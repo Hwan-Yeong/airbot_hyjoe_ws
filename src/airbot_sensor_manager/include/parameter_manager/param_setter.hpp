@@ -15,8 +15,10 @@ class ParamSetterNode : public rclcpp::Node {
 
  private:
   void SocCmdCallback(const std_msgs::msg::UInt8::SharedPtr msg);
-  void SubCellIdxLeftCallback(const std_msgs::msg::Int32MultiArray::SharedPtr msg);
-  void SubCellIdxRightCallback(const std_msgs::msg::Int32MultiArray::SharedPtr msg);
+  void SubCellIdxLeftCallback(
+      const std_msgs::msg::Int32MultiArray::SharedPtr msg);
+  void SubCellIdxRightCallback(
+      const std_msgs::msg::Int32MultiArray::SharedPtr msg);
 
   rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr subscription_;
   rclcpp::Subscription<std_msgs::msg::Int32MultiArray>::SharedPtr
@@ -25,5 +27,3 @@ class ParamSetterNode : public rclcpp::Node {
       sub_cell_idx_right_subscription_;
   std::shared_ptr<rclcpp::AsyncParametersClient> parameters_client_;
 };
-
-
