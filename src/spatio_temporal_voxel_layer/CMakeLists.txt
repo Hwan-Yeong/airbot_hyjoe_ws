@@ -36,40 +36,29 @@ find_package(builtin_interfaces REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(std_srvs REQUIRED)
 
-# 패키지 내부의 pre-built 바이너리 경로 설정
-set(PREBUILT_OPENVDB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/openvdb_vendor")
+set(OPENVDB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/external/openvdb_vendor")
 
-if(EXISTS "${PREBUILT_OPENVDB_DIR}")
-  message(STATUS "Using local pre-built openvdb_vendor from: ${PREBUILT_OPENVDB_DIR}")
-  # openvdb_vendor 가이드에 따라 CMake 경로 추가
-  set(openvdb_vendor_DIR "${PREBUILT_OPENVDB_DIR}/share/openvdb_vendor/cmake")
-  # 2. 실제 OpenVDB 라이브러리 및 헤더 경로 수동 설정 (바이너리 이식 시 CMake 절대경로 문제 해결)
-  list(INSERT CMAKE_PREFIX_PATH 0 "${PREBUILT_OPENVDB_DIR}")
-  find_package(openvdb_vendor REQUIRED NO_DEFAULT_PATH)
-
-  # 3. 설치 규칙 추가: 빌드 결과물(install/)에 바이너리 포함
-  install(DIRECTORY ${PREBUILT_OPENVDB_DIR}/ DESTINATION .)
-
-  # 4. 런타임 경로 보장: LD_LIBRARY_PATH 에 라이브러리 경로 추가 (환경 훅)
-  ament_environment_hooks(
-    "${CMAKE_CURRENT_SOURCE_DIR}/hooks/export_openvdb_lib_path.sh"
-  )
-else()
-  find_package(openvdb_vendor REQUIRED)
+if(NOT EXISTS "${OPENVDB_ROOT}/lib/libopenvdb.so")
+  message(FATAL_ERROR "Prebuilt OpenVDB not found in external/openvdb_vendor")
 endif()
+
+include_directories(
+  include
+  ${BOOST_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
+  ${OPENVDB_ROOT}/include
+)
+
+link_directories(${OPENVDB_ROOT}/lib)
 
 remove_definitions(-DDISABLE_LIBUSB-1.0)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system thread)
-
 find_package(PCL REQUIRED COMPONENTS filters common)
+
 if(NOT "${PCL_LIBRARIES}" STREQUAL "")
-  # This package fails to build on Debian Stretch with a linking error against
-  # 'Qt5::Widgets'.  This is a transitive dependency that comes in to PCL via
-  # the PCL dependency on VTK.  However, we don't actually care about the Qt
-  # dependencies for this package, so just remove them.  This is similar to the
-  # workaround in https://github.com/ros-perception/perception_pcl/pull/151,
-  # and can be removed when Stretch goes out of support.
   list(REMOVE_ITEM PCL_LIBRARIES
     "vtkGUISupportQt"
     "vtkGUISupportQtOpenGL"
@@ -95,7 +84,6 @@ set(dependencies
   tf2_sensor_msgs
   visualization_msgs
   builtin_interfaces
-  openvdb_vendor
 )
 
 set(library_name spatio_temporal_voxel_layer_core)
@@ -109,44 +97,43 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 )
 rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
 
-include_directories(
-    include
-    ${BOOST_INCLUDE_DIRS}
-    ${EIGEN3_INCLUDE_DIRS}
-    ${PCL_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS}
-)
-
 add_library(${library_name} SHARED
-            src/spatio_temporal_voxel_layer.cpp
-            src/spatio_temporal_voxel_grid.cpp
-            src/measurement_buffer.cpp
-            src/frustum_models/depth_camera_frustum.cpp
-            src/frustum_models/three_dimensional_lidar_frustum.cpp
-            src/vdb2pc.cpp
+  src/spatio_temporal_voxel_layer.cpp
+  src/spatio_temporal_voxel_grid.cpp
+  src/measurement_buffer.cpp
+  src/frustum_models/depth_camera_frustum.cpp
+  src/frustum_models/three_dimensional_lidar_frustum.cpp
+  src/vdb2pc.cpp
 )
 
-target_link_libraries(${library_name} "${cpp_typesupport_target}")
 target_compile_definitions(${library_name} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 
 target_link_libraries(${library_name}
+  "${cpp_typesupport_target}"
   ${Boost_LIBRARIES}
   ${EIGEN3_LIBRARIES}
   ${PCL_LIBRARIES}
-  OpenVDB::openvdb
+  ${OPENVDB_ROOT}/lib/libopenvdb.so
 )
 
 ament_target_dependencies(${library_name} ${dependencies})
-
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  ament_lint_auto_find_test_dependencies()
-endif()
+ament_environment_hooks(env_hook/50.openvdb_library_path.sh)
 
 install(TARGETS ${library_name}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
+# openvdb 라이브러리 복사
+install(
+  DIRECTORY ${OPENVDB_ROOT}/lib/
+  DESTINATION lib
+)
+
+install(
+  DIRECTORY ${OPENVDB_ROOT}/include/
+  DESTINATION include
 )
 
 install(DIRECTORY example
