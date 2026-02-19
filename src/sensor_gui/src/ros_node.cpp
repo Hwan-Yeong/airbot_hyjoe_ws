@@ -23,8 +23,18 @@ RosNode::RosNode() : Node("sensor_simulator") {
   };
 
   tof_mono_sub_ = create_cloud_sub("/sensor_to_pointcloud/tof/mono", "ToF Mono");
-  tof_multi_l_sub_ = create_cloud_sub("/sensor_to_pointcloud/tof/multi/left", "ToF Multi L");
-  tof_multi_r_sub_ = create_cloud_sub("/sensor_to_pointcloud/tof/multi/right", "ToF Multi R");
+
+  std::vector<int> left_indices = {0, 3, 6, 17, 20, 23, 28, 31, 44, 47, 49, 52, 55, 57, 60, 63};
+  for (int idx : left_indices) {
+    std::string topic = "/sensor_to_pointcloud/tof/multi/left/idx_" + std::to_string(idx);
+    tof_multi_subs_.push_back(create_cloud_sub(topic, "ToF Multi L " + std::to_string(idx)));
+  }
+
+  std::vector<int> right_indices = {1, 4, 7, 16, 19, 22, 24, 27, 40, 43, 48, 51, 54, 56, 59, 62};
+  for (int idx : right_indices) {
+    std::string topic = "/sensor_to_pointcloud/tof/multi/right/idx_" + std::to_string(idx);
+    tof_multi_subs_.push_back(create_cloud_sub(topic, "ToF Multi R " + std::to_string(idx)));
+  }
 
   // Initialize states
   sensor_states_[SensorType::kTofMono] = false;

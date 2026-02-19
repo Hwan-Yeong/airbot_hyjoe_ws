@@ -46,8 +46,7 @@ private:
 
   // Subscribers for visualization
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr tof_mono_sub_;
-  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr tof_multi_l_sub_;
-  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr tof_multi_r_sub_;
+  std::vector<rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr> tof_multi_subs_;
 
   CloudCallback cloud_callback_;
 

@@ -40,8 +40,8 @@ private:
     std::mutex cloud_mutex_;
 
     // Camera state
-    float yaw_ = 45.0f;   // degrees
-    float pitch_ = 35.0f; // degrees
-    float distance_ = 5.0f;
+    float yaw_ = -45.0f;   // degrees
+    float pitch_ = -60.0f; // degrees
+    float distance_ = 10.0f;
     QPoint last_mouse_pos_;
 };

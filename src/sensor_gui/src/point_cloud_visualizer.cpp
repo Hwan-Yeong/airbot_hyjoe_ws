@@ -10,15 +10,20 @@ PointCloudVisualizer::PointCloudVisualizer(QWidget* parent)
 
 void PointCloudVisualizer::updateCloud(const std::string& name, const std::vector<float>& points, QColor color) {
     std::lock_guard<std::mutex> lock(cloud_mutex_);
+    if (clouds_.find(name) == clouds_.end()) {
+        printf("[INFO] PointCloudVisualizer: New source %s (%zu points)\n", name.c_str(), points.size()/3);
+    }
     clouds_[name] = {points, color};
     update(); // Request repaint
 }
 
 void PointCloudVisualizer::initializeGL() {
     initializeOpenGLFunctions();
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.05f, 0.05f, 0.1f, 1.0f); // Darker blueish background
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_PROGRAM_POINT_SIZE);
+    glEnable(GL_POINT_SMOOTH);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void PointCloudVisualizer::resizeGL(int w, int h) {
@@ -45,7 +50,7 @@ void PointCloudVisualizer::paintGL() {
 
     // Draw Clouds
     std::lock_guard<std::mutex> lock(cloud_mutex_);
-    glPointSize(2.0f);
+    glPointSize(10.0f);
     for (auto const& [name, cloud] : clouds_) {
         glColor3f(cloud.color.redF(), cloud.color.greenF(), cloud.color.blueF());
         glBegin(GL_POINTS);

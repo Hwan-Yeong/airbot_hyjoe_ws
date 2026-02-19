@@ -15,7 +15,9 @@ MainWindow::MainWindow(std::shared_ptr<RosNode> node)
 {
   setupUi();
   ros_node_->setCloudCallback([this](const std::string& name, const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-      processCloud(name, msg);
+      QMetaObject::invokeMethod(this, [this, name, msg]() {
+          processCloud(name, msg);
+      }, Qt::QueuedConnection);
   });
 }
 
@@ -98,10 +100,21 @@ void MainWindow::processCloud(const std::string& name, const sensor_msgs::msg::P
         points.push_back(*iter_z);
     }
 
+    if (points.empty()) {
+        static int empty_count = 0;
+        if (empty_count++ % 100 == 0) printf("[DEBUG] processCloud: %s received EMPTY cloud\n", name.c_str());
+    } else {
+        static std::map<std::string, int> counts;
+        if (counts[name]++ % 50 == 0) {
+            printf("[DEBUG] processCloud: %s received %zu points. Coord[0]: (%.2f, %.2f, %.2f)\n", 
+                   name.c_str(), points.size()/3, points[0], points[1], points[2]);
+        }
+    }
+
     QColor color = Qt::white;
     if (name == "ToF Mono") color = Qt::yellow;
-    else if (name == "ToF Multi L") color = Qt::cyan;
-    else if (name == "ToF Multi R") color = Qt::magenta;
+    else if (name.find("ToF Multi L") != std::string::npos) color = Qt::cyan;
+    else if (name.find("ToF Multi R") != std::string::npos) color = Qt::magenta;
 
     visualizer_->updateCloud(name, points, color);
 }
