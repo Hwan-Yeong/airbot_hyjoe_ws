@@ -6,6 +6,8 @@
 #include <robot_custom_msgs/msg/camera_data_array.hpp>
 #include <robot_custom_msgs/msg/bottom_ir_data.hpp>
 #include <robot_custom_msgs/msg/abnormal_event_data.hpp>
+#include <tf2_ros/static_transform_broadcaster.h>
+#include <geometry_msgs/msg/transform_stamped.hpp>
 #include <map>
 
 enum class SensorType {
@@ -40,4 +42,5 @@ private:
 
   std::map<SensorType, bool> sensor_states_;
   bool sensor_manager_active_ = false;
+  std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_broadcaster_;
 };

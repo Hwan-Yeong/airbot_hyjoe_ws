@@ -1,6 +1,8 @@
 #include "sensor_gui/ros_node.hpp"
 
-RosNode::RosNode() : Node("sensor_simulator_node") {
+
+RosNode::RosNode() : Node("sensor_simulator") {
+  // Publishers
   sensor_manager_cmd_pub_ = this->create_publisher<std_msgs::msg::Bool>("cmd_sensor_manager", 10);
   
   tof_pub_ = this->create_publisher<robot_custom_msgs::msg::TofData>("/tof_data", 10);
@@ -20,6 +22,18 @@ RosNode::RosNode() : Node("sensor_simulator_node") {
   sensor_states_[SensorType::kBottomIr] = false;
   sensor_states_[SensorType::kCollisionFront] = false;
   sensor_states_[SensorType::kCollisionRear] = false;
+
+  // Static TF: map -> base_link (ensure RViz has a frame)
+  static_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
+  geometry_msgs::msg::TransformStamped t;
+  t.header.stamp = this->now();
+  t.header.frame_id = "map";
+  t.child_frame_id = "base_link";
+  t.transform.translation.x = 0;
+  t.transform.translation.y = 0;
+  t.transform.translation.z = 0;
+  t.transform.rotation.w = 1.0;
+  static_broadcaster_->sendTransform(t);
 }
 
 void RosNode::toggleSensor(SensorType type, bool on) {

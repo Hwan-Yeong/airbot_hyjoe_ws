@@ -1,0 +1,3427 @@
+Panels:
+  - Class: rviz_common/Displays
+    Help Height: 0
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /TF1
+        - /TF1/Frames1
+        - /TF1/Tree1
+        - /Local Planner1/Local Plan1/Topic1
+        - /Sensor_Manager1
+        - /Sensor_Manager1/TOF1/[New] 8x8 (idx)1/Multi tof right 8x81/row_81/idx_621
+        - /Sensor_Manager1/TOF1/[New/local] 8x8 (idx)1/Multi tof left 8x81/row_31/idx_171
+      Splitter Ratio: 0.5340909361839294
+    Tree Height: 1572
+  - Class: rviz_common/Selection
+    Name: Selection
+  - Class: rviz_common/Tool Properties
+    Expanded:
+      - /Publish Point1
+      - /2D Goal Pose1
+    Name: Tool Properties
+    Splitter Ratio: 0.5886790156364441
+  - Class: rviz_common/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+  - Class: nav2_rviz_plugins/Navigation 2
+    Name: Navigation 2
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.30000001192092896
+      Cell Size: 1
+      Class: rviz_default_plugins/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.029999999329447746
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 100
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Alpha: 1
+      Class: rviz_default_plugins/RobotModel
+      Collision Enabled: false
+      Description File: ""
+      Description Source: Topic
+      Description Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /robot_description
+      Enabled: false
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+      Mass Properties:
+        Inertia: false
+        Mass: false
+      Name: RobotModel
+      TF Prefix: ""
+      Update Interval: 0
+      Value: false
+      Visual Enabled: true
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Frame Timeout: 15
+      Frames:
+        All Enabled: true
+        base_link:
+          Value: true
+        bottom_ir_link:
+          Value: true
+        collision_front_link:
+          Value: true
+        collision_rear_link:
+          Value: true
+        tof_camera_link:
+          Value: true
+        tof_mono_link:
+          Value: true
+        tof_multi_left_link:
+          Value: true
+        tof_multi_right_link:
+          Value: true
+      Marker Scale: 0.4000000059604645
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Tree:
+        base_link:
+          bottom_ir_link:
+            {}
+          collision_front_link:
+            {}
+          collision_rear_link:
+            {}
+          tof_camera_link:
+            {}
+          tof_mono_link:
+            {}
+          tof_multi_left_link:
+            {}
+          tof_multi_right_link:
+            {}
+      Update Interval: 1
+      Value: true
+    - Alpha: 1
+      Class: rviz_default_plugins/Map
+      Color Scheme: map
+      Draw Behind: true
+      Enabled: true
+      Name: Map
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /map
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /map_updates
+      Use Timestamp: false
+      Value: true
+    - Alpha: 1
+      Class: nav2_rviz_plugins/ParticleCloud
+      Color: 0; 180; 0
+      Enabled: true
+      Max Arrow Length: 0.30000001192092896
+      Min Arrow Length: 0.10000000149011612
+      Name: Amcl Particle Swarm
+      Shape: Arrow (Flat)
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /particle_cloud
+      Value: true
+    - Class: rviz_common/Group
+      Displays:
+        - Alpha: 0.20000000298023224
+          Class: rviz_default_plugins/Map
+          Color Scheme: costmap
+          Draw Behind: false
+          Enabled: true
+          Name: Global Costmap
+          Topic:
+            Depth: 1
+            Durability Policy: Transient Local
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /global_costmap/costmap
+          Update Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /global_costmap/costmap_updates
+          Use Timestamp: false
+          Value: true
+        - Alpha: 0.30000001192092896
+          Class: rviz_default_plugins/Map
+          Color Scheme: costmap
+          Draw Behind: false
+          Enabled: false
+          Name: Downsampled Costmap
+          Topic:
+            Depth: 1
+            Durability Policy: Transient Local
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /downsampled_costmap
+          Update Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /downsampled_costmap_updates
+          Use Timestamp: false
+          Value: false
+        - Alpha: 0.25
+          Buffer Length: 1
+          Class: rviz_default_plugins/Path
+          Color: 38; 162; 105
+          Enabled: true
+          Head Diameter: 0.019999999552965164
+          Head Length: 0.019999999552965164
+          Length: 0.30000001192092896
+          Line Style: Billboards
+          Line Width: 0.05999999865889549
+          Name: Path
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0
+          Pose Color: 38; 162; 105
+          Pose Style: Arrows
+          Radius: 0.029999999329447746
+          Shaft Diameter: 0.004999999888241291
+          Shaft Length: 0.019999999552965164
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /plan
+          Value: true
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz_default_plugins/PointCloud2
+          Color: 125; 125; 125
+          Color Transformer: FlatColor
+          Decay Time: 0
+          Enabled: false
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 4096
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: VoxelGrid
+          Position Transformer: XYZ
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.05000000074505806
+          Style: Boxes
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /global_costmap/voxel_marked_cloud
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: false
+        - Alpha: 1
+          Class: rviz_default_plugins/Polygon
+          Color: 129; 61; 156
+          Enabled: true
+          Name: Polygon
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /global_costmap/published_footprint
+          Value: true
+      Enabled: false
+      Name: Global Planner
+    - Class: rviz_common/Group
+      Displays:
+        - Alpha: 0.30000001192092896
+          Class: rviz_default_plugins/Map
+          Color Scheme: costmap
+          Draw Behind: false
+          Enabled: true
+          Name: Local Costmap
+          Topic:
+            Depth: 1
+            Durability Policy: Transient Local
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /local_costmap/costmap
+          Update Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /local_costmap/costmap_updates
+          Use Timestamp: false
+          Value: true
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz_default_plugins/Path
+          Color: 224; 27; 36
+          Enabled: true
+          Head Diameter: 0.30000001192092896
+          Head Length: 0.20000000298023224
+          Length: 0.30000001192092896
+          Line Style: Billboards
+          Line Width: 0.05000000074505806
+          Name: Local Plan
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0
+          Pose Color: 255; 85; 255
+          Pose Style: None
+          Radius: 0.029999999329447746
+          Shaft Diameter: 0.10000000149011612
+          Shaft Length: 0.10000000149011612
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /local_plan
+          Value: true
+        - Class: rviz_default_plugins/MarkerArray
+          Enabled: false
+          Name: Trajectories
+          Namespaces:
+            {}
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /marker
+          Value: false
+        - Alpha: 1
+          Class: rviz_default_plugins/Polygon
+          Color: 25; 255; 0
+          Enabled: true
+          Name: Polygon
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /local_costmap/published_footprint
+          Value: true
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz_default_plugins/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: RGB8
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 4096
+          Min Color: 0; 0; 0
+          Min Intensity: 0
+          Name: VoxelGrid
+          Position Transformer: XYZ
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.009999999776482582
+          Style: Flat Squares
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /local_costmap/voxel_marked_cloud
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+      Enabled: true
+      Name: Local Planner
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: false
+      Name: waypoints
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /waypoints
+      Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 28; 113; 216
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: perception
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.05000000074505806
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /perception/output
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
+    - Class: rviz_common/Group
+      Displays:
+        - Class: rviz_default_plugins/MarkerArray
+          Enabled: false
+          Name: path
+          Namespaces:
+            {}
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /explore_plan
+          Value: false
+        - Class: rviz_default_plugins/MarkerArray
+          Enabled: true
+          Name: frontier
+          Namespaces:
+            {}
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /frontiers
+          Value: true
+      Enabled: false
+      Name: mapping
+    - Class: rviz_common/Group
+      Displays:
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz_default_plugins/LaserScan
+          Color: 237; 51; 59
+          Color Transformer: FlatColor
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 171
+          Min Color: 0; 0; 0
+          Min Intensity: 1
+          Name: Scan
+          Position Transformer: XYZ
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.07500000298023224
+          Style: Flat Squares
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Best Effort
+            Value: /scan
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz_default_plugins/LaserScan
+          Color: 51; 209; 122
+          Color Transformer: FlatColor
+          Decay Time: 0
+          Enabled: false
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 171
+          Min Color: 0; 0; 0
+          Min Intensity: 1
+          Name: Scan_Front
+          Position Transformer: XYZ
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.05000000074505806
+          Style: Flat Squares
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Best Effort
+            Value: /scan_front
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: false
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz_default_plugins/LaserScan
+          Color: 53; 132; 228
+          Color Transformer: FlatColor
+          Decay Time: 0
+          Enabled: false
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Max Intensity: 171
+          Min Color: 0; 0; 0
+          Min Intensity: 1
+          Name: Scan_Back
+          Position Transformer: XYZ
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.05000000074505806
+          Style: Flat Squares
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Best Effort
+            Value: /scan_back
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: false
+      Enabled: false
+      Name: LiDAR
+    - Class: rviz_common/Group
+      Displays:
+        - Class: rviz_common/Group
+          Displays:
+            - Alpha: 1
+              Autocompute Intensity Bounds: true
+              Autocompute Value Bounds:
+                Max Value: 10
+                Min Value: -10
+                Value: true
+              Axis: Z
+              Channel Name: intensity
+              Class: rviz_default_plugins/PointCloud2
+              Color: 220; 138; 221
+              Color Transformer: FlatColor
+              Decay Time: 0
+              Enabled: false
+              Invert Rainbow: false
+              Max Color: 255; 255; 255
+              Max Intensity: 4096
+              Min Color: 0; 0; 0
+              Min Intensity: 0
+              Name: 1d_tof
+              Position Transformer: XYZ
+              Selectable: true
+              Size (Pixels): 3
+              Size (m): 0.10000000149011612
+              Style: Flat Squares
+              Topic:
+                Depth: 5
+                Durability Policy: Volatile
+                Filter size: 10
+                History Policy: Keep Last
+                Reliability Policy: Reliable
+                Value: /sensor_to_pointcloud/tof/mono
+              Use Fixed Frame: true
+              Use rainbow: true
+              Value: false
+            - Alpha: 1
+              Autocompute Intensity Bounds: true
+              Autocompute Value Bounds:
+                Max Value: 10
+                Min Value: -10
+                Value: true
+              Axis: Z
+              Channel Name: intensity
+              Class: rviz_default_plugins/PointCloud2
+              Color: 220; 138; 221
+              Color Transformer: FlatColor
+              Decay Time: 0
+              Enabled: true
+              Invert Rainbow: false
+              Max Color: 255; 255; 255
+              Max Intensity: 4096
+              Min Color: 0; 0; 0
+              Min Intensity: 0
+              Name: 1d_tof/local
+              Position Transformer: XYZ
+              Selectable: true
+              Size (Pixels): 3
+              Size (m): 0.10000000149011612
+              Style: Flat Squares
+              Topic:
+                Depth: 5
+                Durability Policy: Volatile
+                Filter size: 10
+                History Policy: Keep Last
+                Reliability Policy: Reliable
+                Value: /sensor_to_pointcloud/tof/mono/local
+              Use Fixed Frame: true
+              Use rainbow: true
+              Value: true
+            - Class: rviz_common/Group
+              Displays:
+                - Class: rviz_common/Group
+                  Displays:
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 249; 240; 107
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_1
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_0
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 246; 211; 45
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_4
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_3
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 229; 165; 10
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_7
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_6
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_1
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 249; 240; 107
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_17
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_17
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 246; 211; 45
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_20
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_20
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 229; 165; 10
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_23
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_23
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_3
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 229; 165; 10
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_28
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_28
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 229; 165; 10
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_31
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_31
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_4
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 229; 165; 10
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_44
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_44
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 229; 165; 10
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_47
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_47
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_6
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 255; 120; 0
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_49
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_49
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 255; 120; 0
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_52
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_52
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 255; 120; 0
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_55
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_55
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_7
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 255; 120; 0
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_57
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_57
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 255; 120; 0
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_60
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_60
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 255; 120; 0
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_63
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_63
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_8
+                  Enabled: true
+                  Name: Multi tof left 8x8
+                - Class: rviz_common/Group
+                  Displays:
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 143; 240; 164
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_1
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_1
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 143; 240; 164
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_4
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_4
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 143; 240; 164
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_7
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_7
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_1
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 143; 240; 164
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_16
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_16
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 143; 240; 164
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_19
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_19
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 143; 240; 164
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_22
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_22
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_3
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 51; 209; 122
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_24
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_24
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 51; 209; 122
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_27
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_27
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_4
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 51; 209; 122
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_40
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_40
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 51; 209; 122
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_43
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_43
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_6
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 38; 162; 105
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_48
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_48
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 38; 162; 105
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_51
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_51
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 38; 162; 105
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_54
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_54
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_7
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 38; 162; 105
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_56
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_56
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 38; 162; 105
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_59
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_59
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 38; 162; 105
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_62
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_62
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_8
+                  Enabled: true
+                  Name: Multi tof right 8x8
+              Enabled: false
+              Name: "[New] 8x8 (idx)"
+            - Class: rviz_common/Group
+              Displays:
+                - Class: rviz_common/Group
+                  Displays:
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 249; 240; 107
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_1
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_0/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 246; 211; 45
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_4
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_3/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 229; 165; 10
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_7
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_6/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_1
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 249; 240; 107
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_17
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_17/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 246; 211; 45
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_20
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_20/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 229; 165; 10
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_23
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_23/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_3
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 229; 165; 10
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_28
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_28/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 229; 165; 10
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_31
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_31/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_4
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 229; 165; 10
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_44
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_44/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 229; 165; 10
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_47
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_47/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_6
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 255; 120; 0
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_49
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_49/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 255; 120; 0
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_52
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_52/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 255; 120; 0
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_55
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_55/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_7
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 255; 120; 0
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_57
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_57/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 255; 120; 0
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_60
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_60/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 255; 120; 0
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_63
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/left/idx_63/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_8
+                  Enabled: true
+                  Name: Multi tof left 8x8
+                - Class: rviz_common/Group
+                  Displays:
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 143; 240; 164
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_1
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_1/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 143; 240; 164
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_4
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_4/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 143; 240; 164
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_7
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_7/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_1
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 143; 240; 164
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_16
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_16/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 143; 240; 164
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_19
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_19/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 143; 240; 164
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_22
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_22/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_3
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 51; 209; 122
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_24
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_24/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 51; 209; 122
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_27
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_27/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_4
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 51; 209; 122
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_40
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_40/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 51; 209; 122
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_43
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_43/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_6
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 38; 162; 105
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_48
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_48/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 38; 162; 105
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_51
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_51/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 38; 162; 105
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_54
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_54/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_7
+                    - Class: rviz_common/Group
+                      Displays:
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 38; 162; 105
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_56
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_56/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 38; 162; 105
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_59
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_59/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                        - Alpha: 1
+                          Autocompute Intensity Bounds: true
+                          Autocompute Value Bounds:
+                            Max Value: 10
+                            Min Value: -10
+                            Value: true
+                          Axis: Z
+                          Channel Name: intensity
+                          Class: rviz_default_plugins/PointCloud2
+                          Color: 38; 162; 105
+                          Color Transformer: FlatColor
+                          Decay Time: 0
+                          Enabled: true
+                          Invert Rainbow: false
+                          Max Color: 255; 255; 255
+                          Max Intensity: 4096
+                          Min Color: 0; 0; 0
+                          Min Intensity: 0
+                          Name: idx_62
+                          Position Transformer: XYZ
+                          Selectable: true
+                          Size (Pixels): 3
+                          Size (m): 0.05000000074505806
+                          Style: Flat Squares
+                          Topic:
+                            Depth: 5
+                            Durability Policy: Volatile
+                            Filter size: 10
+                            History Policy: Keep Last
+                            Reliability Policy: Reliable
+                            Value: /sensor_to_pointcloud/tof/multi/right/idx_62/local
+                          Use Fixed Frame: true
+                          Use rainbow: true
+                          Value: true
+                      Enabled: true
+                      Name: row_8
+                  Enabled: true
+                  Name: Multi tof right 8x8
+              Enabled: true
+              Name: "[New/local] 8x8 (idx)"
+          Enabled: true
+          Name: TOF
+        - Class: rviz_common/Group
+          Displays:
+            - Alpha: 1
+              Autocompute Intensity Bounds: true
+              Autocompute Value Bounds:
+                Max Value: 10
+                Min Value: -10
+                Value: true
+              Axis: Z
+              Channel Name: intensity
+              Class: rviz_default_plugins/PointCloud2
+              Color: 192; 97; 203
+              Color Transformer: FlatColor
+              Decay Time: 0
+              Enabled: false
+              Invert Rainbow: false
+              Max Color: 255; 255; 255
+              Max Intensity: 4096
+              Min Color: 0; 0; 0
+              Min Intensity: 0
+              Name: camera_object
+              Position Transformer: XYZ
+              Selectable: true
+              Size (Pixels): 3
+              Size (m): 0.029999999329447746
+              Style: Flat Squares
+              Topic:
+                Depth: 5
+                Durability Policy: Volatile
+                Filter size: 10
+                History Policy: Keep Last
+                Reliability Policy: Reliable
+                Value: /sensor_to_pointcloud/camera_object
+              Use Fixed Frame: true
+              Use rainbow: true
+              Value: false
+            - Alpha: 1
+              Autocompute Intensity Bounds: true
+              Autocompute Value Bounds:
+                Max Value: 10
+                Min Value: -10
+                Value: true
+              Axis: Z
+              Channel Name: intensity
+              Class: rviz_default_plugins/PointCloud2
+              Color: 192; 97; 203
+              Color Transformer: FlatColor
+              Decay Time: 0
+              Enabled: true
+              Invert Rainbow: false
+              Max Color: 255; 255; 255
+              Max Intensity: 4096
+              Min Color: 0; 0; 0
+              Min Intensity: 0
+              Name: camera_object/local
+              Position Transformer: XYZ
+              Selectable: true
+              Size (Pixels): 3
+              Size (m): 0.029999999329447746
+              Style: Flat Squares
+              Topic:
+                Depth: 5
+                Durability Policy: Volatile
+                Filter size: 10
+                History Policy: Keep Last
+                Reliability Policy: Reliable
+                Value: /sensor_to_pointcloud/camera_object/local
+              Use Fixed Frame: true
+              Use rainbow: true
+              Value: true
+          Enabled: true
+          Name: CAMERA
+        - Class: rviz_common/Group
+          Displays:
+            - Alpha: 1
+              Autocompute Intensity Bounds: true
+              Autocompute Value Bounds:
+                Max Value: 10
+                Min Value: -10
+                Value: true
+              Axis: Z
+              Channel Name: intensity
+              Class: rviz_default_plugins/PointCloud2
+              Color: 255; 163; 72
+              Color Transformer: FlatColor
+              Decay Time: 0
+              Enabled: false
+              Invert Rainbow: false
+              Max Color: 255; 255; 255
+              Max Intensity: 4096
+              Min Color: 0; 0; 0
+              Min Intensity: 0
+              Name: bottom_ir
+              Position Transformer: XYZ
+              Selectable: true
+              Size (Pixels): 3
+              Size (m): 0.029999999329447746
+              Style: Flat Squares
+              Topic:
+                Depth: 5
+                Durability Policy: Volatile
+                Filter size: 10
+                History Policy: Keep Last
+                Reliability Policy: Reliable
+                Value: /sensor_to_pointcloud/bottom_ir
+              Use Fixed Frame: true
+              Use rainbow: true
+              Value: false
+            - Alpha: 1
+              Autocompute Intensity Bounds: true
+              Autocompute Value Bounds:
+                Max Value: 10
+                Min Value: -10
+                Value: true
+              Axis: Z
+              Channel Name: intensity
+              Class: rviz_default_plugins/PointCloud2
+              Color: 255; 163; 72
+              Color Transformer: FlatColor
+              Decay Time: 0
+              Enabled: true
+              Invert Rainbow: false
+              Max Color: 255; 255; 255
+              Max Intensity: 4096
+              Min Color: 0; 0; 0
+              Min Intensity: 0
+              Name: bottom_ir/local
+              Position Transformer: XYZ
+              Selectable: true
+              Size (Pixels): 3
+              Size (m): 0.029999999329447746
+              Style: Flat Squares
+              Topic:
+                Depth: 5
+                Durability Policy: Volatile
+                Filter size: 10
+                History Policy: Keep Last
+                Reliability Policy: Reliable
+                Value: /sensor_to_pointcloud/bottom_ir/local
+              Use Fixed Frame: true
+              Use rainbow: true
+              Value: true
+          Enabled: true
+          Name: Bottom IR
+        - Class: rviz_common/Group
+          Displays:
+            - Alpha: 1
+              Autocompute Intensity Bounds: true
+              Autocompute Value Bounds:
+                Max Value: 10
+                Min Value: -10
+                Value: true
+              Axis: Z
+              Channel Name: intensity
+              Class: rviz_default_plugins/PointCloud2
+              Color: 152; 106; 68
+              Color Transformer: FlatColor
+              Decay Time: 0
+              Enabled: false
+              Invert Rainbow: false
+              Max Color: 255; 255; 255
+              Max Intensity: 4096
+              Min Color: 0; 0; 0
+              Min Intensity: 0
+              Name: front_collision
+              Position Transformer: XYZ
+              Selectable: true
+              Size (Pixels): 3
+              Size (m): 0.10000000149011612
+              Style: Flat Squares
+              Topic:
+                Depth: 5
+                Durability Policy: Volatile
+                Filter size: 10
+                History Policy: Keep Last
+                Reliability Policy: Reliable
+                Value: /sensor_to_pointcloud/collision/front
+              Use Fixed Frame: true
+              Use rainbow: true
+              Value: false
+            - Alpha: 1
+              Autocompute Intensity Bounds: true
+              Autocompute Value Bounds:
+                Max Value: 10
+                Min Value: -10
+                Value: true
+              Axis: Z
+              Channel Name: intensity
+              Class: rviz_default_plugins/PointCloud2
+              Color: 192; 191; 188
+              Color Transformer: FlatColor
+              Decay Time: 0
+              Enabled: false
+              Invert Rainbow: false
+              Max Color: 255; 255; 255
+              Max Intensity: 4096
+              Min Color: 0; 0; 0
+              Min Intensity: 0
+              Name: rear_collision
+              Position Transformer: XYZ
+              Selectable: true
+              Size (Pixels): 3
+              Size (m): 0.10000000149011612
+              Style: Flat Squares
+              Topic:
+                Depth: 5
+                Durability Policy: Volatile
+                Filter size: 10
+                History Policy: Keep Last
+                Reliability Policy: Reliable
+                Value: /sensor_to_pointcloud/collision/rear
+              Use Fixed Frame: true
+              Use rainbow: true
+              Value: false
+            - Alpha: 1
+              Autocompute Intensity Bounds: true
+              Autocompute Value Bounds:
+                Max Value: 10
+                Min Value: -10
+                Value: true
+              Axis: Z
+              Channel Name: intensity
+              Class: rviz_default_plugins/PointCloud2
+              Color: 152; 106; 68
+              Color Transformer: FlatColor
+              Decay Time: 0
+              Enabled: true
+              Invert Rainbow: false
+              Max Color: 255; 255; 255
+              Max Intensity: 4096
+              Min Color: 0; 0; 0
+              Min Intensity: 0
+              Name: front_collision/local
+              Position Transformer: XYZ
+              Selectable: true
+              Size (Pixels): 3
+              Size (m): 0.10000000149011612
+              Style: Flat Squares
+              Topic:
+                Depth: 5
+                Durability Policy: Volatile
+                Filter size: 10
+                History Policy: Keep Last
+                Reliability Policy: Reliable
+                Value: /sensor_to_pointcloud/collision/front/local
+              Use Fixed Frame: true
+              Use rainbow: true
+              Value: true
+            - Alpha: 1
+              Autocompute Intensity Bounds: true
+              Autocompute Value Bounds:
+                Max Value: 10
+                Min Value: -10
+                Value: true
+              Axis: Z
+              Channel Name: intensity
+              Class: rviz_default_plugins/PointCloud2
+              Color: 192; 191; 188
+              Color Transformer: FlatColor
+              Decay Time: 0
+              Enabled: true
+              Invert Rainbow: false
+              Max Color: 255; 255; 255
+              Max Intensity: 4096
+              Min Color: 0; 0; 0
+              Min Intensity: 0
+              Name: rear_collision/local
+              Position Transformer: XYZ
+              Selectable: true
+              Size (Pixels): 3
+              Size (m): 0.10000000149011612
+              Style: Flat Squares
+              Topic:
+                Depth: 5
+                Durability Policy: Volatile
+                Filter size: 10
+                History Policy: Keep Last
+                Reliability Policy: Reliable
+                Value: /sensor_to_pointcloud/collision/rear/local
+              Use Fixed Frame: true
+              Use rainbow: true
+              Value: true
+          Enabled: true
+          Name: Collision
+      Enabled: true
+      Name: Sensor_Manager
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.10000000149011612
+      Class: rviz_default_plugins/PoseWithCovariance
+      Color: 129; 61; 156
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: false
+      Head Length: 0.10000000149011612
+      Head Radius: 0.30000001192092896
+      Name: PoseWithCovariance
+      Shaft Length: 0.5
+      Shaft Radius: 0.05000000074505806
+      Shape: Arrow
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /amcl_pose
+      Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 51; 209; 122
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: Keepout-Zone
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.10000000149011612
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /A1_keepout/point_cloud
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
+    - Class: rviz_default_plugins/Marker
+      Enabled: false
+      Name: Forced_scape_target_point
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /debug/scan_roi_result
+      Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 145; 65; 172
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: stvl_voxel_grid
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.10000000149011612
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /local_costmap/voxel_grid
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: base_link
+    Frame Rate: 5
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+      Line color: 128; 128; 0
+    - Class: rviz_default_plugins/SetInitialPose
+      Covariance x: 0.25
+      Covariance y: 0.25
+      Covariance yaw: 0.06853891909122467
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /initialpose
+    - Class: rviz_default_plugins/PublishPoint
+      Single click: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /clicked_point
+    - Class: nav2_rviz_plugins/GoalTool
+    - Class: rviz_default_plugins/SetGoal
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: goal_pose
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 2.4398531913757324
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: 0.3911159038543701
+        Y: -0.23973575234413147
+        Z: 0.5668812990188599
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05000000074505806
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Pitch: 0.4247972071170807
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 4.363129138946533
+    Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 1723
+  Hide Left Dock: false
+  Hide Right Dock: true
+  Navigation 2:
+    collapsed: false
+  QMainWindow State: 000000ff00000000fd00000004000000000000033700000661fc020000000bfb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000005fb0000043800000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d00000661000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb00000018004e0061007600690067006100740069006f006e00200032000000010c000001390000013900fffffffb0000001e005200650061006c00730065006e0073006500430061006d0065007200610000000177000002640000000000000000fb0000001e005200650061006c00730065006e0073006500430061006d006500720061000000031f000000bc0000000000000000000000010000036500000661fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d00000661000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004420000003efc0100000002fb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d00650100000000000004500000000000000000000007ae0000066100000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Selection:
+    collapsed: false
+  Tool Properties:
+    collapsed: false
+  Views:
+    collapsed: true
+  Width: 2795
+  X: 2727
+  Y: 295
