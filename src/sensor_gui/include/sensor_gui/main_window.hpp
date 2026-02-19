@@ -6,6 +6,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <map>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <QDoubleSpinBox>
+#include <QTimer>
 #include "ros_node.hpp"
 #include "point_cloud_visualizer.hpp"
 
@@ -21,6 +23,8 @@ protected:
 private slots:
   void onToggleSensorManager();
   void onToggleSensor();
+  void onParamChanged();
+  void syncTFs();
 
 private:
   void setupUi();
@@ -32,4 +36,12 @@ private:
   std::map<SensorType, QPushButton*> sensor_buttons_;
 
   PointCloudVisualizer* visualizer_;
+
+  QDoubleSpinBox* spin_tof_dist_;
+  QDoubleSpinBox* spin_cam_dist_;
+  QDoubleSpinBox* spin_cam_width_;
+  QDoubleSpinBox* spin_cam_height_;
+  QDoubleSpinBox* spin_tf_scale_;
+
+  QTimer* tf_timer_;
 };

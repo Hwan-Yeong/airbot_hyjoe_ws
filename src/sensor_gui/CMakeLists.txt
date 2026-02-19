@@ -6,10 +6,10 @@ find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(rviz_common REQUIRED)
-find_package(rviz_default_plugins REQUIRED)
 find_package(robot_custom_msgs REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Widgets OpenGL)
 
@@ -34,7 +34,9 @@ ament_target_dependencies(sensor_gui
   rclcpp
   std_msgs
   sensor_msgs
+  tf2
   tf2_ros
+  tf2_geometry_msgs
   geometry_msgs
   robot_custom_msgs
 )

@@ -2,6 +2,8 @@
 
 
 RosNode::RosNode() : Node("sensor_simulator") {
+  for (int i = 0; i < 6; ++i) ir_states_[i] = true;
+
   // Publishers
   sensor_manager_cmd_pub_ = this->create_publisher<std_msgs::msg::Bool>("cmd_sensor_manager", 10);
   
@@ -36,6 +38,11 @@ RosNode::RosNode() : Node("sensor_simulator") {
     tof_multi_subs_.push_back(create_cloud_sub(topic, "ToF Multi R " + std::to_string(idx)));
   }
 
+  camera_pc_sub_ = create_cloud_sub("/sensor_to_pointcloud/camera_object", "Camera Object PC");
+  bottom_ir_pc_sub_ = create_cloud_sub("/sensor_to_pointcloud/bottom_ir", "Bottom IR PC");
+  collision_f_pc_sub_ = create_cloud_sub("/sensor_to_pointcloud/collision/front", "Collision F PC");
+  collision_r_pc_sub_ = create_cloud_sub("/sensor_to_pointcloud/collision/rear", "Collision R PC");
+
   // Initialize states
   sensor_states_[SensorType::kTofMono] = false;
   sensor_states_[SensorType::kTofMultiLeft] = false;
@@ -56,6 +63,10 @@ RosNode::RosNode() : Node("sensor_simulator") {
   t.transform.translation.z = 0;
   t.transform.rotation.w = 1.0;
   static_broadcaster_->sendTransform(t);
+
+  // TF Listener
+  tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 }
 
 void RosNode::toggleSensor(SensorType type, bool on) {
@@ -87,15 +98,17 @@ void RosNode::publishFakeData() {
     auto msg = robot_custom_msgs::msg::TofData();
     msg.timestamp = now;
     
-    // Fake a plane at 0.5m
+    // Fake a plane at current dist
+    float d = tof_dist_.load();
+
     if (sensor_states_[SensorType::kTofMono]) {
-      msg.top = 0.5;
+      msg.top = d;
     } else {
       msg.top = 0.0;
     }
     if (sensor_states_[SensorType::kTofMultiLeft]) {
       for (int i = 0; i < 16; ++i) {
-        msg.bot_left[i] = 0.5;
+        msg.bot_left[i] = d;
       }
     } else {
       for (int i = 0; i < 16; ++i) {
@@ -104,7 +117,7 @@ void RosNode::publishFakeData() {
     }
     if (sensor_states_[SensorType::kTofMultiRight]) {
       for (int i = 0; i < 16; ++i) {
-        msg.bot_right[i] = 0.5;
+        msg.bot_right[i] = d;
       }
     } else {
       for (int i = 0; i < 16; ++i) {
@@ -122,11 +135,11 @@ void RosNode::publishFakeData() {
     robot_custom_msgs::msg::CameraData obj;
     obj.id = 0; // Cable
     obj.score = 90;
-    obj.distance = 0.3;
-    obj.x = 0.3;
+    obj.distance = cam_dist_.load();
+    obj.x = cam_dist_.load();
     obj.y = 0.0;
-    obj.width = 0.4;
-    obj.height = 0.2;
+    obj.width = cam_width_.load();
+    obj.height = cam_height_.load();
     obj.theta = 0.0;
     msg.data_array.push_back(obj);
     camera_pub_->publish(msg);
@@ -136,13 +149,12 @@ void RosNode::publishFakeData() {
   if (sensor_states_[SensorType::kBottomIr]) {
     auto msg = robot_custom_msgs::msg::BottomIrData();
     msg.timestamp = now;
-    // Assume no cliff
-    msg.ff = true;
-    msg.fl = true;
-    msg.fr = true;
-    msg.bl = true;
-    msg.br = true;
-    msg.bb = true;
+    msg.ff = ir_states_[0].load();
+    msg.fl = ir_states_[1].load();
+    msg.fr = ir_states_[2].load();
+    msg.bb = ir_states_[3].load();
+    msg.bl = ir_states_[4].load();
+    msg.br = ir_states_[5].load();
     bottom_ir_pub_->publish(msg);
   }
 
