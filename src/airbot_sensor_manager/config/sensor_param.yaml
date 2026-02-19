@@ -155,7 +155,7 @@ airbot_sensor_manager:
           tf_frame:
             parent: "base_link"
             child: "collision_front_link"
-          distance: 0.19 # forward point offset
+          distance: 0.19 # forward point offset (positive)
 
       collision_rear:
         output_topic_suffix: "collision/rear"
@@ -168,7 +168,7 @@ airbot_sensor_manager:
           tf_frame:
             parent: "base_link"
             child: "collision_rear_link"
-          distance: -0.19 # backward point offset
+          distance: -0.19 # backward point offset (negative)
 
       empty: # use_tf2 = true 인 모드에서는 작동되지 않음
         use: true # 센서 모듈 사용 여부

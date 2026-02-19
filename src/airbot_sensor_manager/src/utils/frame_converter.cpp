@@ -297,7 +297,7 @@ Point FrameConverter::TfCollisionData2SensorFrame(
   Point point;
   // 1: 전방 충돌, -1: 후방 충돌
   if (collision_msg->event_trigger == 1 || collision_msg->event_trigger == -1) {
-    point.x = offset_m * collision_msg->event_trigger;
+    point.x = offset_m;
     point.y = 0.0;
     point.z = 0.0;
   }
