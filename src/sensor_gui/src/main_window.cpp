@@ -86,7 +86,7 @@ void MainWindow::setupUi() {
   QGroupBox* param_group = new QGroupBox("Simulation Params");
   QVBoxLayout* param_layout = new QVBoxLayout();
 
-  auto create_param_row = [&](const QString& label, double val, double min, double max, QDoubleSpinBox** spin) {
+  auto create_param_row = [&](QLayout* layout, const QString& label, double val, double min, double max, QDoubleSpinBox** spin) {
     QHBoxLayout* row = new QHBoxLayout();
     row->addWidget(new QLabel(label));
     *spin = new QDoubleSpinBox();
@@ -96,14 +96,14 @@ void MainWindow::setupUi() {
     (*spin)->setDecimals(2);
     connect(*spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &MainWindow::onParamChanged);
     row->addWidget(*spin);
-    param_layout->addLayout(row);
+    static_cast<QVBoxLayout*>(layout)->addLayout(row);
   };
 
-  create_param_row("ToF Dist:", 0.5, 0.05, 5.0, &spin_tof_dist_);
-  create_param_row("Cam Dist:", 0.3, 0.1, 3.0, &spin_cam_dist_);
-  create_param_row("Cam Width:", 0.4, 0.1, 2.0, &spin_cam_width_);
-  create_param_row("Cam Height:", 0.2, 0.1, 2.0, &spin_cam_height_);
-  create_param_row("TF Scale:", 1.0, 0.1, 10.0, &spin_tf_scale_);
+  create_param_row(param_layout, "ToF Dist:", 0.5, 0.05, 5.0, &spin_tof_dist_);
+  create_param_row(param_layout, "Cam Dist:", 0.3, 0.1, 3.0, &spin_cam_dist_);
+  create_param_row(param_layout, "Cam Width:", 0.4, 0.1, 2.0, &spin_cam_width_);
+  create_param_row(param_layout, "Cam Height:", 0.2, 0.1, 2.0, &spin_cam_height_);
+  create_param_row(param_layout, "TF Scale:", 1.0, 0.1, 10.0, &spin_tf_scale_);
 
   param_group->setLayout(param_layout);
   sidebar_layout->addWidget(param_group);
@@ -112,13 +112,33 @@ void MainWindow::setupUi() {
   QGroupBox* robot_group = new QGroupBox("Robot Control");
   QVBoxLayout* robot_layout = new QVBoxLayout();
   
-  create_param_row("Robot X:", 0.0, -10.0, 10.0, &spin_robot_x_);
-  create_param_row("Robot Y:", 0.0, -10.0, 10.0, &spin_robot_y_);
-  create_param_row("Robot Yaw:", 0.0, -180.0, 180.0, &spin_robot_yaw_);
-  create_param_row("Footprint R:", 0.19, 0.05, 2.0, &spin_footprint_radius_);
+  create_param_row(robot_layout, "Robot X:", 0.0, -10.0, 10.0, &spin_robot_x_);
+  create_param_row(robot_layout, "Robot Y:", 0.0, -10.0, 10.0, &spin_robot_y_);
+  create_param_row(robot_layout, "Robot Yaw:", 0.0, -180.0, 180.0, &spin_robot_yaw_);
+  create_param_row(robot_layout, "Footprint R:", 0.19, 0.05, 2.0, &spin_footprint_radius_);
 
   robot_group->setLayout(robot_layout);
   sidebar_layout->addWidget(robot_group);
+
+  // Simulation Environment
+  QGroupBox* env_group = new QGroupBox("Simulation Env");
+  QVBoxLayout* env_layout = new QVBoxLayout();
+  
+  check_ground_clip_ = new QCheckBox("Clip to Ground (Z=0)");
+  check_ground_clip_->setChecked(false);
+  env_layout->addWidget(check_ground_clip_);
+  
+  check_wall_sim_ = new QCheckBox("Simulate Wall (X)");
+  check_wall_sim_->setChecked(false);
+  env_layout->addWidget(check_wall_sim_);
+  
+  create_param_row(env_layout, "Wall X Pos:", 2.0, -5.0, 10.0, &spin_wall_x_);
+
+  env_group->setLayout(env_layout);
+  sidebar_layout->addWidget(env_group);
+
+  connect(check_ground_clip_, &QCheckBox::toggled, this, &MainWindow::onParamChanged);
+  connect(check_wall_sim_, &QCheckBox::toggled, this, &MainWindow::onParamChanged);
 
   // Bottom IR Cliff Controls
   QGroupBox* ir_group = new QGroupBox("Bottom IR CLIFF (True/False)");
@@ -211,6 +231,9 @@ void MainWindow::onParamChanged() {
   if (visualizer_) {
       visualizer_->setTfScale(spin_tf_scale_->value());
       visualizer_->setFootprintRadius(spin_footprint_radius_->value());
+      visualizer_->setGroundClipping(check_ground_clip_->isChecked());
+      visualizer_->setWallSimulation(check_wall_sim_->isChecked());
+      visualizer_->setWallPosition(spin_wall_x_->value());
   }
 }
 

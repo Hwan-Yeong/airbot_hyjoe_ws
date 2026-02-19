@@ -7,6 +7,8 @@
 #include <map>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <QDoubleSpinBox>
+#include <QCheckBox>
+#include <QGroupBox>
 #include <QTimer>
 #include "ros_node.hpp"
 #include "point_cloud_visualizer.hpp"
@@ -46,6 +48,11 @@ private:
   QDoubleSpinBox* spin_robot_y_;
   QDoubleSpinBox* spin_robot_yaw_;
   QDoubleSpinBox* spin_footprint_radius_;
+  
+  // Simulation Environment
+  QCheckBox* check_ground_clip_;
+  QCheckBox* check_wall_sim_;
+  QDoubleSpinBox* spin_wall_x_;
 
   QTimer* tf_timer_;
 };

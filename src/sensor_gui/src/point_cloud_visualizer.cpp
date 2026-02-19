@@ -75,14 +75,47 @@ void PointCloudVisualizer::paintGL() {
         glPushMatrix();
         // Transform cloud from local to world
         auto it = tfs_.find(cloud.frame_id);
+        TfData sensor_tf;
+        bool has_tf = false;
         if (it != tfs_.end()) {
-            applyTf(it->second);
+            sensor_tf = it->second;
+            applyTf(sensor_tf);
+            has_tf = true;
         }
 
         glColor3f(cloud.color.redF(), cloud.color.greenF(), cloud.color.blueF());
         glBegin(GL_POINTS);
         for (size_t i = 0; i + 2 < cloud.points.size(); i += 3) {
-            glVertex3f(cloud.points[i], cloud.points[i+1], cloud.points[i+2]);
+            float px = cloud.points[i];
+            float py = cloud.points[i+1];
+            float pz = cloud.points[i+2];
+
+            if (has_tf && (ground_clipping_ || wall_sim_)) {
+                float wx, wy, wz;
+                transformPoint(sensor_tf, px, py, pz, wx, wy, wz);
+                
+                float t = 1.0f;
+                // Clip against ground (z=0)
+                if (ground_clipping_) {
+                    float sz = sensor_tf.z;
+                    float dz = wz - sz;
+                    if (std::abs(dz) > 1e-6f) {
+                        float t_ground = -sz / dz;
+                        if (t_ground > 0.0f && t_ground < t) t = t_ground;
+                    }
+                }
+                // Clip against wall (x=wall_x)
+                if (wall_sim_) {
+                    float sx = sensor_tf.x;
+                    float dx = wx - sx;
+                    if (std::abs(dx) > 1e-6f) {
+                        float t_wall = (wall_x_ - sx) / dx;
+                        if (t_wall > 0.0f && t_wall < t) t = t_wall;
+                    }
+                }
+                px *= t; py *= t; pz *= t;
+            }
+            glVertex3f(px, py, pz);
         }
         glEnd();
         glPopMatrix();
@@ -198,6 +231,23 @@ void PointCloudVisualizer::applyTf(const TfData& tf) {
     mat[15] = 1.0f;
     
     glMultMatrixf(mat);
+}
+
+void PointCloudVisualizer::transformPoint(const TfData& tf, float lx, float ly, float lz, float& wx, float& wy, float& wz) {
+    // Rotation by Quaternion
+    float x = tf.qx, y = tf.qy, z = tf.qz, w = tf.qw;
+    
+    // P_rot = q * P_local * q_inv
+    float px = lx, py = ly, pz = lz;
+    
+    float vx = w*px + y*pz - z*py;
+    float vy = w*py + z*px - x*pz;
+    float vz = w*pz + x*py - y*px;
+    float vw = -x*px - y*py - z*pz;
+    
+    wx = vx*w + vw*-x + vy*-z - vz*-y + tf.x;
+    wy = vy*w + vw*-y + vz*-x - vx*-z + tf.y;
+    wz = vz*w + vw*-z + vx*-y - vy*-x + tf.z;
 }
 
 void PointCloudVisualizer::mousePressEvent(QMouseEvent* event) {

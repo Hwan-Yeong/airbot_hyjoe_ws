@@ -33,6 +33,9 @@ public:
     void updateTFs(const std::map<std::string, TfData>& tfs);
     void setTfScale(float s) { tf_scale_ = s; update(); }
     void setFootprintRadius(float r) { footprint_radius_ = r; update(); }
+    void setGroundClipping(bool enabled) { ground_clipping_ = enabled; update(); }
+    void setWallSimulation(bool enabled) { wall_sim_ = enabled; update(); }
+    void setWallPosition(float x) { wall_x_ = x; update(); }
 
 protected:
     void initializeGL() override;
@@ -49,6 +52,7 @@ private:
     void drawGrid();
     void drawRobotFootprint();
     void applyTf(const TfData& tf);
+    void transformPoint(const TfData& tf, float lx, float ly, float lz, float& wx, float& wy, float& wz);
 
     std::map<std::string, ColoredCloud> clouds_;
     std::map<std::string, TfData> tfs_;
@@ -56,6 +60,9 @@ private:
 
     float tf_scale_ = 1.0f;
     float footprint_radius_ = 0.19f;
+    bool ground_clipping_ = false;
+    bool wall_sim_ = false;
+    float wall_x_ = 2.0f;
 
     // Camera state
     float yaw_ = -45.0f;   // degrees
