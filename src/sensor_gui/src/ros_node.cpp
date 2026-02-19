@@ -14,6 +14,18 @@ RosNode::RosNode() : Node("sensor_simulator") {
     std::chrono::milliseconds(100),
     std::bind(&RosNode::publishFakeData, this));
 
+  // Subscribers
+  auto create_cloud_sub = [this](const std::string& topic, const std::string& name) {
+    return this->create_subscription<sensor_msgs::msg::PointCloud2>(
+      topic, 10, [this, name](const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+        if (cloud_callback_) cloud_callback_(name, msg);
+      });
+  };
+
+  tof_mono_sub_ = create_cloud_sub("/sensor_to_pointcloud/tof/mono", "ToF Mono");
+  tof_multi_l_sub_ = create_cloud_sub("/sensor_to_pointcloud/tof/multi/left", "ToF Multi L");
+  tof_multi_r_sub_ = create_cloud_sub("/sensor_to_pointcloud/tof/multi/right", "ToF Multi R");
+
   // Initialize states
   sensor_states_[SensorType::kTofMono] = false;
   sensor_states_[SensorType::kTofMultiLeft] = false;

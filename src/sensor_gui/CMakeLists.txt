@@ -11,7 +11,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(rviz_common REQUIRED)
 find_package(rviz_default_plugins REQUIRED)
 find_package(robot_custom_msgs REQUIRED)
-find_package(Qt5 REQUIRED COMPONENTS Widgets)
+find_package(Qt5 REQUIRED COMPONENTS Widgets OpenGL)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
@@ -23,8 +23,10 @@ add_executable(sensor_gui
   src/main.cpp
   src/main_window.cpp
   src/ros_node.cpp
+  src/point_cloud_visualizer.cpp
   include/sensor_gui/main_window.hpp
   include/sensor_gui/ros_node.hpp
+  include/sensor_gui/point_cloud_visualizer.hpp
 )
 
 ament_target_dependencies(sensor_gui
@@ -34,12 +36,10 @@ ament_target_dependencies(sensor_gui
   sensor_msgs
   tf2_ros
   geometry_msgs
-  rviz_common
-  rviz_default_plugins
   robot_custom_msgs
 )
 
-target_link_libraries(sensor_gui Qt5::Widgets)
+target_link_libraries(sensor_gui Qt5::Widgets Qt5::OpenGL GL GLU)
 
 install(TARGETS sensor_gui
   DESTINATION lib/${PROJECT_NAME})

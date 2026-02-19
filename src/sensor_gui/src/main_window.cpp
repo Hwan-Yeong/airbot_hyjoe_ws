@@ -1,16 +1,4 @@
-#include <rviz_common/ros_integration/ros_node_abstraction.hpp>
-#include <rviz_common/visualization_manager.hpp>
-#include <rviz_common/render_panel.hpp>
-#include <rviz_common/window_manager_interface.hpp>
-#include <rviz_common/display.hpp>
-#include <rviz_common/yaml_config_reader.hpp>
-#include <rviz_common/config.hpp>
-#include <rviz_common/view_manager.hpp>
-#include <rviz_common/view_controller.hpp>
-#include <rviz_common/display_group.hpp>
-#include <rviz_rendering/render_window.hpp>
-#include <ament_index_cpp/get_package_share_directory.hpp>
-
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 #include "sensor_gui/main_window.hpp"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -23,18 +11,16 @@
 #include <functional>
 
 MainWindow::MainWindow(std::shared_ptr<RosNode> node)
-    : ros_node_(node), manager_(nullptr)
+    : ros_node_(node), visualizer_(nullptr)
 {
   setupUi();
+  ros_node_->setCloudCallback([this](const std::string& name, const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+      processCloud(name, msg);
+  });
 }
 
 void MainWindow::showEvent(QShowEvent *event) {
   QMainWindow::showEvent(event);
-  if (!manager_) {
-    QTimer::singleShot(1000, this, [this]() {
-        initRviz();
-    });
-  }
 }
 
 void MainWindow::setupUi() {
@@ -85,162 +71,39 @@ void MainWindow::setupUi() {
   sidebar_layout->addWidget(sensor_group);
   sidebar_layout->addStretch();
 
-  // RViz Panel
-  render_panel_ = new rviz_common::RenderPanel(central);
-  render_panel_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-  render_panel_->setMinimumSize(800, 600);
+  // Custom PointCloud Visualizer
+  visualizer_ = new PointCloudVisualizer(central);
+  visualizer_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+  visualizer_->setMinimumSize(800, 600);
 
   main_layout->addWidget(sidebar);
-  main_layout->addWidget(render_panel_, 1);
+  main_layout->addWidget(visualizer_, 1);
 
   setCentralWidget(central);
   resize(1200, 800);
-  setWindowTitle("Airbot Sensor Simulator & RViz2");
+  setWindowTitle("Airbot Sensor Simulator & Custom Cloud Visualizer");
 }
 
-void MainWindow::initRviz() {
-  if (!QGuiApplication::instance()) return;
+void MainWindow::processCloud(const std::string& name, const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+    if (!visualizer_) return;
 
-  printf("[INFO] MainWindow::initRviz() started (Delayed)\n"); fflush(stdout);
-  
-  ros_node_abstraction_ =
-    std::make_shared<rviz_common::ros_integration::RosNodeAbstraction>(
-        "rviz_embedded_node");
+    std::vector<float> points;
+    sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x");
+    sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg, "y");
+    sensor_msgs::PointCloud2ConstIterator<float> iter_z(*msg, "z");
 
-  // Ensure render_panel is truly ready
-  printf("[DEBUG] RenderPanel size before init: %d x %d\n", render_panel_->width(), render_panel_->height());
-  
-  // Test if widget is visible at all
-  render_panel_->setStyleSheet("background-color: magenta;");
-  
-  // CRITICAL for Ogre embedding: Prevent Qt from clearing the background
-  render_panel_->setAttribute(Qt::WA_NoSystemBackground, true);
-  render_panel_->setAttribute(Qt::WA_OpaquePaintEvent, true);
-  render_panel_->setAttribute(Qt::WA_NativeWindow, true);
-  render_panel_->setAttribute(Qt::WA_PaintOnScreen, true);
-  
-  render_panel_->show();
-  qApp->processEvents();
-  uint64_t window_id = render_panel_->winId();
-  printf("[DEBUG] RenderPanel Window ID: %lu\n", window_id);
-  
-  auto clock = ros_node_->get_clock();
-
-  try {
-    printf("[DEBUG] Creating VisualizationManager...\n"); fflush(stdout);
-    manager_ = new rviz_common::VisualizationManager(
-        render_panel_, 
-        ros_node_abstraction_, 
-        nullptr, 
-        clock);
-    
-    // 1. Initialize manager first (creates RenderSystem)
-    printf("[DEBUG] Initializing VisualizationManager...\n"); fflush(stdout);
-    manager_->initialize();
-    
-    // 2. Initialize RenderPanel (creates RenderWindow)
-    printf("[DEBUG] Initializing RenderPanel...\n"); fflush(stdout);
-    render_panel_->initialize(manager_);
-    
-    // 3. Start update loop
-    manager_->startUpdate();
-
-    // --- Load Package RViz Config ---
-    bool config_loaded = false;
-    try {
-      std::string package_share = ament_index_cpp::get_package_share_directory("sensor_gui");
-      std::string config_path = package_share + "/rviz/default.rviz";
-      printf("[INFO] Loading package RViz config from: %s\n", config_path.c_str());
-      
-      rviz_common::YamlConfigReader reader;
-      rviz_common::Config config;
-      reader.readFile(config, QString::fromStdString(config_path));
-      
-      if (!reader.error()) {
-        rviz_common::Config v_config = config.mapGetChild("Visualization Manager");
-        if (v_config.isValid()) {
-          printf("[INFO] Found 'Visualization Manager' node, loading displays/views...\n");
-          manager_->load(v_config);
-          config_loaded = true;
-        } else {
-          printf("[WARN] 'Visualization Manager' node not found. Trying entire config...\n");
-          manager_->load(config);
-          config_loaded = true;
-        }
-      } else {
-        printf("[WARN] Could not load package config: %s\n", 
-               reader.errorMessage().toStdString().c_str());
-      }
-    } catch (const std::exception& e) {
-       printf("[WARN] Exception finding package share directory: %s\n", e.what());
+    for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
+        points.push_back(*iter_x);
+        points.push_back(*iter_y);
+        points.push_back(*iter_z);
     }
 
-    // --- Fallback or Add Required Displays if not already there ---
-    manager_->setFixedFrame("base_link");
-    
-    // Set a very distinctive background color to see if Ogre is rendering at all
-    auto global_options = manager_->getRootDisplayGroup()->subProp("Global Options");
-    if (global_options) {
-      global_options->subProp("Background Color")->setValue(QColor(255, 255, 0)); // Bright Yellow
-    }
+    QColor color = Qt::white;
+    if (name == "ToF Mono") color = Qt::yellow;
+    else if (name == "ToF Multi L") color = Qt::cyan;
+    else if (name == "ToF Multi R") color = Qt::magenta;
 
-    if (config_loaded) {
-      if (manager_->getViewManager() && manager_->getViewManager()->getCurrent()) {
-        printf("[INFO] Resetting camera view and setting distance...\n");
-        manager_->getViewManager()->getCurrent()->reset();
-        manager_->getViewManager()->getCurrent()->subProp("Distance")->setValue(50.0f);
-      }
-    }
-    
-    // Always ensure some visual reference
-    auto grid = manager_->createDisplay("rviz_default_plugins/Grid", "Reference Grid", true);
-    if (grid) {
-      grid->subProp("Color")->setValue(QColor(0, 255, 0)); // Bright Green
-      grid->subProp("Cell Size")->setValue(10.0);
-      grid->subProp("Plane Cell Count")->setValue(10);
-    }
-
-    auto axes = manager_->createDisplay("rviz_default_plugins/Axes", "Reference Axes", true);
-    if (axes) {
-      axes->subProp("Length")->setValue(5.0);
-      axes->subProp("Radius")->setValue(0.2);
-    }
-    
-    printf("[INFO] MainWindow::initRviz() successfully completed\n"); fflush(stdout);
-    
-    // Status Monitor Timer (to see if frames and displays are OK)
-    auto status_timer = new QTimer(this);
-    connect(status_timer, &QTimer::timeout, this, [this]() {
-        if (!manager_) return;
-        printf("\n--- RViz Runtime Status ---\n");
-        printf("  Fixed Frame: %s\n", manager_->getFixedFrame().toStdString().c_str());
-        
-        auto root = manager_->getRootDisplayGroup();
-        if (root) {
-            printf("  Displays (%d):\n", root->numDisplays());
-            for (int i = 0; i < root->numDisplays(); ++i) {
-                auto disp = root->getDisplayAt(i);
-                printf("    - [%s] %s\n", 
-                       disp->getBool() ? "ON " : "OFF",
-                       disp->getName().toStdString().c_str());
-            }
-        }
-        fflush(stdout);
-        
-        // Force rendering updates
-        render_panel_->update();
-        this->update();
-    });
-    status_timer->start(2000); // 2 second intervals
-
-    render_panel_->update();
-    this->update();
-
-  } catch (const std::exception& e) {
-    printf("[ERROR] initRviz exception: %s\n", e.what()); fflush(stdout);
-  } catch (...) {
-    printf("[ERROR] initRviz unknown exception\n"); fflush(stdout);
-  }
+    visualizer_->updateCloud(name, points, color);
 }
 
 void MainWindow::onToggleSensorManager() {
