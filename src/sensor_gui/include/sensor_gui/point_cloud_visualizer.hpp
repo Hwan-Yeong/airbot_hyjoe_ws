@@ -10,6 +10,7 @@
 #include <QColor>
 
 struct ColoredCloud {
+    std::string frame_id;
     std::vector<float> points; // [x, y, z, ...]
     QColor color;
 };
@@ -28,9 +29,10 @@ public:
     explicit PointCloudVisualizer(QWidget* parent = nullptr);
     virtual ~PointCloudVisualizer() = default;
 
-    void updateCloud(const std::string& name, const std::vector<float>& points, QColor color = Qt::white);
+    void updateCloud(const std::string& name, const std::string& frame_id, const std::vector<float>& points, QColor color = Qt::white);
     void updateTFs(const std::map<std::string, TfData>& tfs);
     void setTfScale(float s) { tf_scale_ = s; update(); }
+    void setFootprintRadius(float r) { footprint_radius_ = r; update(); }
 
 protected:
     void initializeGL() override;
@@ -45,12 +47,15 @@ protected:
 private:
     void drawAxes();
     void drawGrid();
+    void drawRobotFootprint();
+    void applyTf(const TfData& tf);
 
     std::map<std::string, ColoredCloud> clouds_;
     std::map<std::string, TfData> tfs_;
     std::mutex cloud_mutex_;
 
     float tf_scale_ = 1.0f;
+    float footprint_radius_ = 0.19f;
 
     // Camera state
     float yaw_ = -45.0f;   // degrees

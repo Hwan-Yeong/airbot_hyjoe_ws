@@ -24,24 +24,24 @@ RosNode::RosNode() : Node("sensor_simulator") {
       });
   };
 
-  tof_mono_sub_ = create_cloud_sub("/sensor_to_pointcloud/tof/mono", "ToF Mono");
+  tof_mono_sub_ = create_cloud_sub("/sensor_to_pointcloud/tof/mono/local", "ToF Mono");
 
   std::vector<int> left_indices = {0, 3, 6, 17, 20, 23, 28, 31, 44, 47, 49, 52, 55, 57, 60, 63};
   for (int idx : left_indices) {
-    std::string topic = "/sensor_to_pointcloud/tof/multi/left/idx_" + std::to_string(idx);
+    std::string topic = "/sensor_to_pointcloud/tof/multi/left/idx_" + std::to_string(idx) + "/local";
     tof_multi_subs_.push_back(create_cloud_sub(topic, "ToF Multi L " + std::to_string(idx)));
   }
 
   std::vector<int> right_indices = {1, 4, 7, 16, 19, 22, 24, 27, 40, 43, 48, 51, 54, 56, 59, 62};
   for (int idx : right_indices) {
-    std::string topic = "/sensor_to_pointcloud/tof/multi/right/idx_" + std::to_string(idx);
+    std::string topic = "/sensor_to_pointcloud/tof/multi/right/idx_" + std::to_string(idx) + "/local";
     tof_multi_subs_.push_back(create_cloud_sub(topic, "ToF Multi R " + std::to_string(idx)));
   }
 
-  camera_pc_sub_ = create_cloud_sub("/sensor_to_pointcloud/camera_object", "Camera Object PC");
-  bottom_ir_pc_sub_ = create_cloud_sub("/sensor_to_pointcloud/bottom_ir", "Bottom IR PC");
-  collision_f_pc_sub_ = create_cloud_sub("/sensor_to_pointcloud/collision/front", "Collision F PC");
-  collision_r_pc_sub_ = create_cloud_sub("/sensor_to_pointcloud/collision/rear", "Collision R PC");
+  camera_pc_sub_ = create_cloud_sub("/sensor_to_pointcloud/camera_object/local", "Camera Object PC");
+  bottom_ir_pc_sub_ = create_cloud_sub("/sensor_to_pointcloud/bottom_ir/local", "Bottom IR PC");
+  collision_f_pc_sub_ = create_cloud_sub("/sensor_to_pointcloud/collision/front/local", "Collision F PC");
+  collision_r_pc_sub_ = create_cloud_sub("/sensor_to_pointcloud/collision/rear/local", "Collision R PC");
 
   // Initialize states
   sensor_states_[SensorType::kTofMono] = false;
@@ -52,17 +52,8 @@ RosNode::RosNode() : Node("sensor_simulator") {
   sensor_states_[SensorType::kCollisionFront] = false;
   sensor_states_[SensorType::kCollisionRear] = false;
 
-  // Static TF: map -> base_link (ensure RViz has a frame)
-  static_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
-  geometry_msgs::msg::TransformStamped t;
-  t.header.stamp = this->now();
-  t.header.frame_id = "map";
-  t.child_frame_id = "base_link";
-  t.transform.translation.x = 0;
-  t.transform.translation.y = 0;
-  t.transform.translation.z = 0;
-  t.transform.rotation.w = 1.0;
-  static_broadcaster_->sendTransform(t);
+  // Dynamic TF: map -> base_link
+  tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
   // TF Listener
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
@@ -91,12 +82,29 @@ bool RosNode::getSensorState(SensorType type) const {
 void RosNode::publishFakeData() {
   auto now = this->now();
 
+  // 0. Publish map -> base_link transform
+  geometry_msgs::msg::TransformStamped t;
+  t.header.stamp = now;
+  t.header.frame_id = "map";
+  t.child_frame_id = "base_link";
+  t.transform.translation.x = robot_x_.load();
+  t.transform.translation.y = robot_y_.load();
+  t.transform.translation.z = 0.0;
+  
+  float yaw = robot_yaw_.load() * M_PI / 180.0f;
+  t.transform.rotation.z = std::sin(yaw / 2.0);
+  t.transform.rotation.w = std::cos(yaw / 2.0);
+  tf_broadcaster_->sendTransform(t);
+
   // 1. ToF Data
   if (sensor_states_[SensorType::kTofMono] || 
       sensor_states_[SensorType::kTofMultiLeft] || 
       sensor_states_[SensorType::kTofMultiRight]) {
     auto msg = robot_custom_msgs::msg::TofData();
     msg.timestamp = now;
+    msg.robot_x = robot_x_.load();
+    msg.robot_y = robot_y_.load();
+    msg.robot_angle = robot_yaw_.load() * M_PI / 180.0f;
     
     // Fake a plane at current dist
     float d = tof_dist_.load();
@@ -131,6 +139,9 @@ void RosNode::publishFakeData() {
   if (sensor_states_[SensorType::kCamera]) {
     auto msg = robot_custom_msgs::msg::CameraDataArray();
     msg.timestamp = now;
+    msg.robot_x = robot_x_.load();
+    msg.robot_y = robot_y_.load();
+    msg.robot_angle = robot_yaw_.load() * M_PI / 180.0f;
     msg.num = 1;
     robot_custom_msgs::msg::CameraData obj;
     obj.id = 0; // Cable
@@ -149,6 +160,9 @@ void RosNode::publishFakeData() {
   if (sensor_states_[SensorType::kBottomIr]) {
     auto msg = robot_custom_msgs::msg::BottomIrData();
     msg.timestamp = now;
+    msg.robot_x = robot_x_.load();
+    msg.robot_y = robot_y_.load();
+    msg.robot_angle = robot_yaw_.load() * M_PI / 180.0f;
     msg.ff = ir_states_[0].load();
     msg.fl = ir_states_[1].load();
     msg.fr = ir_states_[2].load();
@@ -163,6 +177,9 @@ void RosNode::publishFakeData() {
       sensor_states_[SensorType::kCollisionRear]) {
     auto msg = robot_custom_msgs::msg::AbnormalEventData();
     msg.timestamp = now;
+    msg.robot_x = robot_x_.load();
+    msg.robot_y = robot_y_.load();
+    msg.robot_angle = robot_yaw_.load() * M_PI / 180.0f;
     if (sensor_states_[SensorType::kCollisionFront]) msg.event_trigger = 1;
     else if (sensor_states_[SensorType::kCollisionRear]) msg.event_trigger = -1;
     collision_pub_->publish(msg);

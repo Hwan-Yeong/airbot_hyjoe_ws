@@ -108,6 +108,18 @@ void MainWindow::setupUi() {
   param_group->setLayout(param_layout);
   sidebar_layout->addWidget(param_group);
 
+  // Robot Control
+  QGroupBox* robot_group = new QGroupBox("Robot Control");
+  QVBoxLayout* robot_layout = new QVBoxLayout();
+  
+  create_param_row("Robot X:", 0.0, -10.0, 10.0, &spin_robot_x_);
+  create_param_row("Robot Y:", 0.0, -10.0, 10.0, &spin_robot_y_);
+  create_param_row("Robot Yaw:", 0.0, -180.0, 180.0, &spin_robot_yaw_);
+  create_param_row("Footprint R:", 0.19, 0.05, 2.0, &spin_footprint_radius_);
+
+  robot_group->setLayout(robot_layout);
+  sidebar_layout->addWidget(robot_group);
+
   // Bottom IR Cliff Controls
   QGroupBox* ir_group = new QGroupBox("Bottom IR CLIFF (True/False)");
   QGridLayout* ir_grid = new QGridLayout();
@@ -162,7 +174,7 @@ void MainWindow::processCloud(const std::string& name, const sensor_msgs::msg::P
     else if (name.find("Bottom IR") != std::string::npos) color = Qt::red;
     else if (name.find("Collision") != std::string::npos) color = QColor(255, 165, 0); // Orange
 
-    visualizer_->updateCloud(name, points, color);
+    visualizer_->updateCloud(name, msg->header.frame_id, points, color);
 }
 
 void MainWindow::onToggleSensorManager() {
@@ -195,7 +207,11 @@ void MainWindow::onToggleSensor() {
 void MainWindow::onParamChanged() {
   ros_node_->setToFDistance(spin_tof_dist_->value());
   ros_node_->setCameraParams(spin_cam_dist_->value(), spin_cam_width_->value(), spin_cam_height_->value());
-  if (visualizer_) visualizer_->setTfScale(spin_tf_scale_->value());
+  ros_node_->setRobotPose(spin_robot_x_->value(), spin_robot_y_->value(), spin_robot_yaw_->value());
+  if (visualizer_) {
+      visualizer_->setTfScale(spin_tf_scale_->value());
+      visualizer_->setFootprintRadius(spin_footprint_radius_->value());
+  }
 }
 
 void MainWindow::syncTFs() {

@@ -9,13 +9,10 @@
 PointCloudVisualizer::PointCloudVisualizer(QWidget* parent)
     : QOpenGLWidget(parent) {}
 
-void PointCloudVisualizer::updateCloud(const std::string& name, const std::vector<float>& points, QColor color) {
+void PointCloudVisualizer::updateCloud(const std::string& name, const std::string& frame_id, const std::vector<float>& points, QColor color) {
     std::lock_guard<std::mutex> lock(cloud_mutex_);
-    if (clouds_.find(name) == clouds_.end()) {
-        printf("[INFO] PointCloudVisualizer: New source %s (%zu points)\n", name.c_str(), points.size()/3);
-    }
-    clouds_[name] = {points, color};
-    update(); // Request repaint
+    clouds_[name] = {frame_id, points, color};
+    update();
 }
 
 void PointCloudVisualizer::updateTFs(const std::map<std::string, TfData>& tfs) {
@@ -46,12 +43,11 @@ void PointCloudVisualizer::paintGL() {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    // Camera Transformation (Orbit + Screen-Relative Pan)
-    glTranslatef(-pan_x_, pan_z_, 0); // Screen-X and Screen-Y (mapped to pan_z for convenience)
+    // Camera Transformation (Orbit + Target Pan)
     glTranslatef(0, 0, -distance_);
     glRotatef(pitch_, 1, 0, 0);
     glRotatef(yaw_, 0, 0, 1);
-    // Removed world-space pan
+    glTranslatef(-pan_x_, -pan_y_, -pan_z_); // Rotate around panned target
 
     drawGrid();
     drawAxes(); // Main Origin Axes
@@ -61,28 +57,38 @@ void PointCloudVisualizer::paintGL() {
     // Draw TFs
     for (auto const& [frame_id, tf] : tfs_) {
         glPushMatrix();
-        glTranslatef(tf.x, tf.y, tf.z);
+        applyTf(tf);
         
-        // Draw small axis with scaling
+        // Draw axis with scaling
         glLineWidth(2.0f);
         glBegin(GL_LINES);
-        glColor3f(1, 0, 0); glVertex3f(0, 0, 0); glVertex3f(0.1f * tf_scale_, 0, 0);
-        glColor3f(0, 1, 0); glVertex3f(0, 0, 0); glVertex3f(0, 0.1f * tf_scale_, 0);
-        glColor3f(0, 0, 1); glVertex3f(0, 0, 0); glVertex3f(0, 0, 0.1f * tf_scale_);
+        glColor3f(1, 0.2f, 0.2f); glVertex3f(0, 0, 0); glVertex3f(0.1f * tf_scale_, 0, 0);
+        glColor3f(0.2f, 1, 0.2f); glVertex3f(0, 0, 0); glVertex3f(0, 0.1f * tf_scale_, 0);
+        glColor3f(0.2f, 0.2f, 1); glVertex3f(0, 0, 0); glVertex3f(0, 0, 0.1f * tf_scale_);
         glEnd();
         glPopMatrix();
     }
 
     // Draw Clouds
-    glPointSize(10.0f);
+    glPointSize(5.0f);
     for (auto const& [name, cloud] : clouds_) {
+        glPushMatrix();
+        // Transform cloud from local to world
+        auto it = tfs_.find(cloud.frame_id);
+        if (it != tfs_.end()) {
+            applyTf(it->second);
+        }
+
         glColor3f(cloud.color.redF(), cloud.color.greenF(), cloud.color.blueF());
         glBegin(GL_POINTS);
         for (size_t i = 0; i + 2 < cloud.points.size(); i += 3) {
             glVertex3f(cloud.points[i], cloud.points[i+1], cloud.points[i+2]);
         }
         glEnd();
+        glPopMatrix();
     }
+    
+    drawRobotFootprint();
 }
 
 void PointCloudVisualizer::paintEvent(QPaintEvent* event) {
@@ -118,14 +124,13 @@ void PointCloudVisualizer::paintEvent(QPaintEvent* event) {
 }
 
 void PointCloudVisualizer::drawAxes() {
-    glLineWidth(2.0f);
+    // World Origin (fixed small size, greyish)
+    glLineWidth(1.0f);
     glBegin(GL_LINES);
-    // X - Red
-    glColor3f(1, 0, 0); glVertex3f(0, 0, 0); glVertex3f(0.5, 0, 0);
-    // Y - Green
-    glColor3f(0, 1, 0); glVertex3f(0, 0, 0); glVertex3f(0, 0.5, 0);
-    // Z - Blue
-    glColor3f(0, 0, 1); glVertex3f(0, 0, 0); glVertex3f(0, 0, 0.5);
+    glColor3f(0.5f, 0.5f, 0.5f);
+    glVertex3f(0, 0, 0); glVertex3f(0.1f, 0, 0);
+    glVertex3f(0, 0, 0); glVertex3f(0, 0.1f, 0);
+    glVertex3f(0, 0, 0); glVertex3f(0, 0, 0.1f);
     glEnd();
 }
 
@@ -138,6 +143,61 @@ void PointCloudVisualizer::drawGrid() {
         glVertex3f(-10, i, 0); glVertex3f(10, i, 0);
     }
     glEnd();
+}
+
+void PointCloudVisualizer::drawRobotFootprint() {
+    // Find base_link position/orientation
+    float bx = 0, by = 0, bz = 0;
+    // We draw relative to world, but base_link pose is already in tfs_
+    auto it = tfs_.find("base_link");
+    if (it != tfs_.end()) {
+        bx = it->second.x;
+        by = it->second.y;
+        bz = it->second.z;
+    }
+
+    glPushMatrix();
+    glTranslatef(bx, by, bz + 0.01f); // Slightly above ground
+    
+    // Skyblue circle
+    glColor3f(0.53f, 0.81f, 0.98f);
+    glLineWidth(3.0f);
+    glBegin(GL_LINE_LOOP);
+    for (int i = 0; i < 360; i += 10) {
+        float rad = i * M_PI / 180.0f;
+        glVertex3f(std::cos(rad) * footprint_radius_, std::sin(rad) * footprint_radius_, 0);
+    }
+    glEnd();
+    glPopMatrix();
+}
+void PointCloudVisualizer::applyTf(const TfData& tf) {
+    glTranslatef(tf.x, tf.y, tf.z);
+    
+    // Quaternion to Rotation Matrix
+    float x = tf.qx, y = tf.qy, z = tf.qz, w = tf.qw;
+    float mat[16];
+    
+    mat[0]  = 1.0f - 2.0f * (y * y + z * z);
+    mat[1]  = 2.0f * (x * y + z * w);
+    mat[2]  = 2.0f * (x * z - y * w);
+    mat[3]  = 0.0f;
+    
+    mat[4]  = 2.0f * (x * y - z * w);
+    mat[5]  = 1.0f - 2.0f * (x * x + z * z);
+    mat[6]  = 2.0f * (y * z + x * w);
+    mat[7]  = 0.0f;
+    
+    mat[8]  = 2.0f * (x * z + y * w);
+    mat[9]  = 2.0f * (y * z - x * w);
+    mat[10] = 1.0f - 2.0f * (x * x + y * y);
+    mat[11] = 0.0f;
+    
+    mat[12] = 0.0f;
+    mat[13] = 0.0f;
+    mat[14] = 0.0f;
+    mat[15] = 1.0f;
+    
+    glMultMatrixf(mat);
 }
 
 void PointCloudVisualizer::mousePressEvent(QMouseEvent* event) {
@@ -154,7 +214,7 @@ void PointCloudVisualizer::mouseMoveEvent(QMouseEvent* event) {
         update();
     } else if (event->buttons() & Qt::MiddleButton) {
         // Direct Screen-Relative Panning
-        float factor = 0.005f * distance_;
+        float factor = 0.001f * distance_;
         pan_x_ -= dx * factor;
         pan_z_ -= dy * factor; // Reusing pan_z variable for screen-Y
         update();

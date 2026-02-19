@@ -42,6 +42,10 @@ private:
   QDoubleSpinBox* spin_cam_width_;
   QDoubleSpinBox* spin_cam_height_;
   QDoubleSpinBox* spin_tf_scale_;
+  QDoubleSpinBox* spin_robot_x_;
+  QDoubleSpinBox* spin_robot_y_;
+  QDoubleSpinBox* spin_robot_yaw_;
+  QDoubleSpinBox* spin_footprint_radius_;
 
   QTimer* tf_timer_;
 };
