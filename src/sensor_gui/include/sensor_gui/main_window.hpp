@@ -15,6 +15,7 @@
 #include <QTimer>
 #include "ros_node.hpp"
 #include "point_cloud_visualizer.hpp"
+#include "teleop_window.hpp"
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -33,7 +34,7 @@ private slots:
   void onAddWall();
   void onDeleteWall();
   void onWallTableChanged(int row, int col);
-  void onTeleopTimer();
+  void onOpenTeleop();
 
 private:
   void setupUi();
@@ -68,10 +69,5 @@ private:
   QDoubleSpinBox* spin_wall_x_;
 
   QTimer* tf_timer_;
-  QTimer* teleop_timer_;
-  QSet<int> pressed_keys_;
-
-protected:
-  void keyPressEvent(QKeyEvent* event) override;
-  void keyReleaseEvent(QKeyEvent* event) override;
+  TeleopWindow* teleop_window_ = nullptr;
 };

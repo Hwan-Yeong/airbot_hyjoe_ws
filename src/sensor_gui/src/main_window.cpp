@@ -28,11 +28,6 @@ MainWindow::MainWindow(std::shared_ptr<RosNode> node)
   tf_timer_ = new QTimer(this);
   connect(tf_timer_, &QTimer::timeout, this, &MainWindow::syncTFs);
   tf_timer_->start(100); // 10Hz
-
-  // Teleop Timer
-  teleop_timer_ = new QTimer(this);
-  connect(teleop_timer_, &QTimer::timeout, this, &MainWindow::onTeleopTimer);
-  teleop_timer_->start(50); // 20Hz for smoother control
 }
 
 void MainWindow::showEvent(QShowEvent *event) {
@@ -120,9 +115,16 @@ void MainWindow::setupUi() {
   
   create_param_row(robot_layout, "Robot X:", 0.0, -10.0, 10.0, &spin_robot_x_);
   create_param_row(robot_layout, "Robot Y:", 0.0, -10.0, 10.0, &spin_robot_y_);
-  create_param_row(robot_layout, "Robot Z:", 0.05, 0.0, 2.0, &spin_robot_z_);
+  create_param_row(robot_layout, "Robot Z:", 0.05, 0.0, 2.0, &spin_robot_z_); // 0.0267 m
   create_param_row(robot_layout, "Robot Yaw:", 0.0, -180.0, 180.0, &spin_robot_yaw_);
   create_param_row(robot_layout, "Footprint R:", 0.19, 0.05, 2.0, &spin_footprint_radius_);
+
+  QPushButton* btn_open_teleop = new QPushButton("🎮  Open Teleop Window");
+  btn_open_teleop->setStyleSheet(
+      "height: 32px; background-color: #313244; color: #89b4fa;"
+      "border: 1px solid #45475a; border-radius: 6px; font-weight: bold;");
+  connect(btn_open_teleop, &QPushButton::clicked, this, &MainWindow::onOpenTeleop);
+  robot_layout->addWidget(btn_open_teleop);
 
   robot_group->setLayout(robot_layout);
   sidebar_layout->addWidget(robot_group);
@@ -259,7 +261,8 @@ void MainWindow::onParamChanged() {
   ros_node_->setToFDistance(spin_tof_dist_->value());
   ros_node_->setCameraParams(spin_cam_dist_->value(), spin_cam_width_->value(), spin_cam_height_->value());
   
-  if (pressed_keys_.isEmpty()) {
+  // Teleop 창이 없거나 닫혀 있을 때만 UI 에서 직접 제어
+  if (!teleop_window_ || !teleop_window_->isVisible()) {
       ros_node_->setRobotPose(spin_robot_x_->value(), spin_robot_y_->value(), spin_robot_yaw_->value());
       ros_node_->setRobotZ(spin_robot_z_->value());
   }
@@ -276,8 +279,8 @@ void MainWindow::onParamChanged() {
 void MainWindow::syncTFs() {
   if (!ros_node_ || !visualizer_) return;
   
-  // Sync UI with Node if keys are pressed
-  if (!pressed_keys_.isEmpty()) {
+  // Teleop 창이 열려 있으면 Node 의 현재 위치를 UI 에 반영
+  if (teleop_window_ && teleop_window_->isVisible()) {
       spin_robot_x_->blockSignals(true);
       spin_robot_y_->blockSignals(true);
       spin_robot_yaw_->blockSignals(true);
@@ -370,31 +373,15 @@ void MainWindow::onWallTableChanged(int row, int col) {
     if (visualizer_) visualizer_->setWalls(walls);
 }
 
-void MainWindow::keyPressEvent(QKeyEvent* event) {
-    if (!event->isAutoRepeat()) {
-        pressed_keys_.insert(event->key());
+void MainWindow::onOpenTeleop() {
+    if (!teleop_window_) {
+        teleop_window_ = new TeleopWindow(nullptr); // 독립 창
+        teleop_window_->setVelCallback([this](float vx, float vy, float vyaw) {
+            if (ros_node_) ros_node_->setVelocities(vx, vy, vyaw);
+        });
     }
-}
-
-void MainWindow::keyReleaseEvent(QKeyEvent* event) {
-    if (!event->isAutoRepeat()) {
-        pressed_keys_.remove(event->key());
-    }
-}
-
-void MainWindow::onTeleopTimer() {
-    if (!ros_node_) return;
-    
-    float vx = 0.0f, vy = 0.0f, vyaw = 0.0f;
-    float linear_speed = 0.5f; // m/s
-    float angular_speed = 45.0f; // deg/s
-    
-    if (pressed_keys_.contains(Qt::Key_Up) || pressed_keys_.contains(Qt::Key_W)) vx += linear_speed;
-    if (pressed_keys_.contains(Qt::Key_Down) || pressed_keys_.contains(Qt::Key_S)) vx -= linear_speed;
-    if (pressed_keys_.contains(Qt::Key_A)) vy += linear_speed;
-    if (pressed_keys_.contains(Qt::Key_D)) vy -= linear_speed;
-    if (pressed_keys_.contains(Qt::Key_Left) || pressed_keys_.contains(Qt::Key_Q)) vyaw += angular_speed;
-    if (pressed_keys_.contains(Qt::Key_Right) || pressed_keys_.contains(Qt::Key_E)) vyaw -= angular_speed;
-    
-    ros_node_->setVelocities(vx, vy, vyaw);
+    teleop_window_->show();
+    teleop_window_->raise();
+    teleop_window_->activateWindow();
+    teleop_window_->setFocus();
 }

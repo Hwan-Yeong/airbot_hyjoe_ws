@@ -24,9 +24,11 @@ add_executable(sensor_gui
   src/main_window.cpp
   src/ros_node.cpp
   src/point_cloud_visualizer.cpp
+  src/teleop_window.cpp
   include/sensor_gui/main_window.hpp
   include/sensor_gui/ros_node.hpp
   include/sensor_gui/point_cloud_visualizer.hpp
+  include/sensor_gui/teleop_window.hpp
 )
 
 ament_target_dependencies(sensor_gui
