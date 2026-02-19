@@ -10,6 +10,7 @@ CloudConverterStrategy::CloudConverterStrategy(
     : node_ptr_(node_ptr) {
   last_call_time_ = std::chrono::steady_clock::now();
   this->target_frame_ = node_ptr_->GetTargetFrame();
+  this->frame_converter_.SetTfBuffer(node_ptr_->GetTfBuffer());
 }
 
 ConverterOutput CloudConverterStrategy::PcConvert(const void* sensor_msg) {

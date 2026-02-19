@@ -4,85 +4,23 @@ namespace sensor_manager {
 
 FrameConverter::FrameConverter() {}
 
+FrameConverter::FrameConverter(std::shared_ptr<tf2_ros::Buffer> tf_buffer)
+    : tf_buffer_(tf_buffer) {}
+
 FrameConverter::~FrameConverter() {}
 
 Point FrameConverter::TfMonoTofSensor2RobotFrame(
     const double input_dist, Pose mono_tof_sensor_frame_pose) {
-  Point point;
-
-  if (!tof_mono_extrinsics_updated_) {
-    tof_mono_sensor_frame_pitch_cosine_ =
-        std::cos(mono_tof_sensor_frame_pose.orientation.pitch);
-    tof_mono_sensor_frame_pitch_sine_ =
-        std::sin(mono_tof_sensor_frame_pose.orientation.pitch);
-    tof_mono_extrinsics_updated_ = true;
-  }
-
-  point.x = mono_tof_sensor_frame_pose.position.x +
-            input_dist * tof_mono_sensor_frame_pitch_cosine_;
-  point.y = mono_tof_sensor_frame_pose.position.y;
-  point.z = mono_tof_sensor_frame_pose.position.z -
-            input_dist * tof_mono_sensor_frame_pitch_sine_;
-
-  return point;
+  Point point_s(input_dist, 0.0, 0.0);
+  return TfSensorFrame2RobotFrame(point_s, mono_tof_sensor_frame_pose);
 }
 
 std::vector<Point> FrameConverter::TfMultiTofSensor2RobotFrame(
     const std::vector<double>& tof_dists, const std::vector<double>& y_tan,
     const std::vector<double>& z_tan, const Pose& multi_tof_sensor_frame_pose) {
-  std::vector<Point> points;
-
-  if (tof_dists.size() != y_tan.size() || tof_dists.size() != z_tan.size())
-    return points;
-
-  if (!tof_multi_extrinsics_updated_) {
-    multi_tof_sensor_frame_yaw_cosine_ =
-        std::cos(multi_tof_sensor_frame_pose.orientation.yaw);
-    multi_tof_sensor_frame_yaw_sine_ =
-        std::sin(multi_tof_sensor_frame_pose.orientation.yaw);
-    multi_tof_sensor_frame_pitch_cosine_ =
-        std::cos(multi_tof_sensor_frame_pose.orientation.pitch);
-    multi_tof_sensor_frame_pitch_sine_ =
-        std::sin(multi_tof_sensor_frame_pose.orientation.pitch);
-    tof_multi_extrinsics_updated_ = true;
-  }
-
-  for (size_t i = 0; i < tof_dists.size(); ++i) {
-    double dist = tof_dists[i];
-
-    if (dist <= 1e-6) {  // data filtering (dist data 0 -> NaN)
-      Point zero_p;
-      zero_p.x = std::numeric_limits<double>::quiet_NaN();
-      zero_p.y = std::numeric_limits<double>::quiet_NaN();
-      zero_p.z = std::numeric_limits<double>::quiet_NaN();
-      points.push_back(zero_p);
-      continue;
-    }
-
-    Point p_sensor;
-    p_sensor.x = dist;
-    p_sensor.y = dist * y_tan[i];
-    p_sensor.z = dist * z_tan[i];
-
-    double x_yaw = p_sensor.x * multi_tof_sensor_frame_yaw_cosine_ -
-                   p_sensor.y * multi_tof_sensor_frame_yaw_sine_;
-    double y_yaw = p_sensor.x * multi_tof_sensor_frame_yaw_sine_ +
-                   p_sensor.y * multi_tof_sensor_frame_yaw_cosine_;
-    double z_yaw = p_sensor.z;
-
-    Point p;
-    p.x = x_yaw * multi_tof_sensor_frame_pitch_cosine_ +
-          z_yaw * multi_tof_sensor_frame_pitch_sine_ +
-          multi_tof_sensor_frame_pose.position.x;
-    p.y = y_yaw + multi_tof_sensor_frame_pose.position.y;
-    p.z = -x_yaw * multi_tof_sensor_frame_pitch_sine_ +
-          z_yaw * multi_tof_sensor_frame_pitch_cosine_ +
-          multi_tof_sensor_frame_pose.position.z;
-
-    points.push_back(p);
-  }
-
-  return points;
+  std::vector<Point> points_s =
+      TfMultiTofDistance2SensorFrame(tof_dists, y_tan, z_tan);
+  return TfSensorFrame2RobotFrame(points_s, multi_tof_sensor_frame_pose);
 }
 
 std::vector<Point> FrameConverter::TfMultiTofDistance2SensorFrame(
@@ -112,53 +50,52 @@ std::vector<Point> FrameConverter::TfMultiTofDistance2SensorFrame(
 
 Point FrameConverter::TfSensorFrame2RobotFrame(const Point& p_s,
                                                const Pose& sensor_frame_pose) {
-  if (std::isnan(p_s.x))
-    return p_s;
+  if (std::isnan(p_s.x)) return p_s;
 
-  double cos_yaw = std::cos(sensor_frame_pose.orientation.yaw);
-  double sin_yaw = std::sin(sensor_frame_pose.orientation.yaw);
-  double cos_pitch = std::cos(sensor_frame_pose.orientation.pitch);
-  double sin_pitch = std::sin(sensor_frame_pose.orientation.pitch);
+  geometry_msgs::msg::PointStamped ps_in, ps_out;
+  ps_in.point.x = p_s.x;
+  ps_in.point.y = p_s.y;
+  ps_in.point.z = p_s.z;
 
-  double x_yaw = p_s.x * cos_yaw - p_s.y * sin_yaw;
-  double y_yaw = p_s.x * sin_yaw + p_s.y * cos_yaw;
-  double z_yaw = p_s.z;
+  tf2::Transform tf;
+  tf.setOrigin(tf2::Vector3(sensor_frame_pose.position.x,
+                            sensor_frame_pose.position.y,
+                            sensor_frame_pose.position.z));
+  tf2::Quaternion q;
+  q.setRPY(sensor_frame_pose.orientation.roll,
+           sensor_frame_pose.orientation.pitch,
+           sensor_frame_pose.orientation.yaw);
+  tf.setRotation(q);
 
-  Point p_r;
-  p_r.x = x_yaw * cos_pitch + z_yaw * sin_pitch + sensor_frame_pose.position.x;
-  p_r.y = y_yaw + sensor_frame_pose.position.y;
-  p_r.z = -x_yaw * sin_pitch + z_yaw * cos_pitch + sensor_frame_pose.position.z;
+  tf2::Vector3 pt_in(p_s.x, p_s.y, p_s.z);
+  tf2::Vector3 pt_out = tf * pt_in; // p_robot = R * p_sensor + t
 
-  return p_r;
+  return Point(pt_out.x(), pt_out.y(), pt_out.z());
 }
 
 std::vector<Point> FrameConverter::TfSensorFrame2RobotFrame(
     const std::vector<Point>& pts_sensor, const Pose& sensor_frame_pose) {
   std::vector<Point> pts_robot;
+  pts_robot.reserve(pts_sensor.size());
 
-  double cos_yaw = std::cos(sensor_frame_pose.orientation.yaw);
-  double sin_yaw = std::sin(sensor_frame_pose.orientation.yaw);
-  double cos_pitch = std::cos(sensor_frame_pose.orientation.pitch);
-  double sin_pitch = std::sin(sensor_frame_pose.orientation.pitch);
+  tf2::Transform tf;
+  tf.setOrigin(tf2::Vector3(sensor_frame_pose.position.x,
+                            sensor_frame_pose.position.y,
+                            sensor_frame_pose.position.z));
+  tf2::Quaternion q;
+  q.setRPY(sensor_frame_pose.orientation.roll,
+           sensor_frame_pose.orientation.pitch,
+           sensor_frame_pose.orientation.yaw);
+  tf.setRotation(q);
 
   for (const auto& p_s : pts_sensor) {
     if (std::isnan(p_s.x)) {
       pts_robot.push_back(p_s);
       continue;
     }
-
-    double x_yaw = p_s.x * cos_yaw - p_s.y * sin_yaw;
-    double y_yaw = p_s.x * sin_yaw + p_s.y * cos_yaw;
-    double z_yaw = p_s.z;
-
-    Point p_r;
-    p_r.x =
-        x_yaw * cos_pitch + z_yaw * sin_pitch + sensor_frame_pose.position.x;
-    p_r.y = y_yaw + sensor_frame_pose.position.y;
-    p_r.z =
-        -x_yaw * sin_pitch + z_yaw * cos_pitch + sensor_frame_pose.position.z;
-
-    pts_robot.push_back(p_r);
+    tf2::Vector3 pt_in(p_s.x, p_s.y, p_s.z);
+    tf2::Vector3 pt_out = tf * pt_in;
+    pts_robot.emplace_back(pt_out.x(), pt_out.y(), pt_out.z());
   }
   return pts_robot;
 }
@@ -219,18 +156,22 @@ std::vector<CameraObject> FrameConverter::TfCameraObjects2RobotFrame(
 std::vector<CameraObject> FrameConverter::TfCameraObjects2GlobalFrame(
     const std::vector<CameraObject>& objects_robot, const Pose& robot_pose) {
   std::vector<CameraObject> objects_global;
-  double robot_cos = std::cos(robot_pose.orientation.yaw);
-  double robot_sin = std::sin(robot_pose.orientation.yaw);
+  objects_global.reserve(objects_robot.size());
+
+  tf2::Transform tf;
+  tf.setOrigin(tf2::Vector3(robot_pose.position.x, robot_pose.position.y,
+                            robot_pose.position.z));
+  tf2::Quaternion q;
+  q.setRPY(robot_pose.orientation.roll, robot_pose.orientation.pitch,
+           robot_pose.orientation.yaw);
+  tf.setRotation(q);
 
   for (auto obj_g : objects_robot) {
-    double x_r = obj_g.bbox.center.position.x;
-    double y_r = obj_g.bbox.center.position.y;
-
-    obj_g.bbox.center.position.x =
-        x_r * robot_cos - y_r * robot_sin + robot_pose.position.x;
-    obj_g.bbox.center.position.y =
-        x_r * robot_sin + y_r * robot_cos + robot_pose.position.y;
-
+    tf2::Vector3 pt_in(obj_g.bbox.center.position.x,
+                       obj_g.bbox.center.position.y, 0.0);
+    tf2::Vector3 pt_out = tf * pt_in;
+    obj_g.bbox.center.position.x = pt_out.x();
+    obj_g.bbox.center.position.y = pt_out.y();
     objects_global.push_back(obj_g);
   }
   return objects_global;
@@ -315,18 +256,20 @@ Point FrameConverter::TfCollisionData2RobotFrame(
 std::vector<Point> FrameConverter::TfRobot2GlobalFrame(
     const std::vector<Point>& input_points_on_robot_frame, Pose robot_pose) {
   std::vector<Point> global_points;
-  Point global_point;
+  global_points.reserve(input_points_on_robot_frame.size());
 
-  const double robot_cosine = std::cos(robot_pose.orientation.yaw);
-  const double robot_sine = std::sin(robot_pose.orientation.yaw);
+  tf2::Transform tf;
+  tf.setOrigin(tf2::Vector3(robot_pose.position.x, robot_pose.position.y,
+                            robot_pose.position.z));
+  tf2::Quaternion q;
+  q.setRPY(robot_pose.orientation.roll, robot_pose.orientation.pitch,
+           robot_pose.orientation.yaw);
+  tf.setRotation(q);
 
   for (const auto& local_point : input_points_on_robot_frame) {
-    global_point.x = local_point.x * robot_cosine - local_point.y * robot_sine +
-                     robot_pose.position.x;
-    global_point.y = local_point.x * robot_sine + local_point.y * robot_cosine +
-                     robot_pose.position.y;
-    global_point.z = local_point.z + robot_pose.position.z;
-    global_points.push_back(global_point);
+    tf2::Vector3 pt_in(local_point.x, local_point.y, local_point.z);
+    tf2::Vector3 pt_out = tf * pt_in;
+    global_points.emplace_back(pt_out.x(), pt_out.y(), pt_out.z());
   }
 
   return global_points;

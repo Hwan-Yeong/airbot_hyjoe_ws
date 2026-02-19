@@ -12,6 +12,8 @@
 #include "std_msgs/msg/u_int8.hpp"
 #include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/static_transform_broadcaster.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 
 #include "cloud_converter/cloud_converter.hpp"
 #include "cloud_converter/cloud_converter_factory.hpp"
@@ -28,6 +30,7 @@ class SensorManagerNode : public rclcpp::Node {
   SensorManagerNode();
   void Init();
   std::string GetTargetFrame() const { return node_target_frame_; }
+  std::shared_ptr<tf2_ros::Buffer> GetTfBuffer() const { return tf_buffer_; }
 
  private:
   /**
@@ -116,6 +119,9 @@ class SensorManagerNode : public rclcpp::Node {
       node_active_cmd_response_pub_;
 
   std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_;
+
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
 
   std::shared_ptr<rclcpp::ParameterEventHandler> param_handler_;
   std::shared_ptr<rclcpp::ParameterCallbackHandle>

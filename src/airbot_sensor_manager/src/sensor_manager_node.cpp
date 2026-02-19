@@ -11,6 +11,10 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud") {
   RCLCPP_INFO(this->get_logger(), "  Target Frame: '%s'",
               node_target_frame_.c_str());
 
+  // Initialize tf2 buffer and listener
+  tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
   // Initialize Sensor Topic Registry
   sensor_topic_registry_ = {
     //{SensorType, {ConverterName, TopicName}}

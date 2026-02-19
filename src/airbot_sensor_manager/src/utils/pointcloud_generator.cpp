@@ -8,60 +8,20 @@ PointCloudGenerator::~PointCloudGenerator() {}
 
 sensor_msgs::msg::PointCloud2 PointCloudGenerator::GeneratePointCloud2Message(
     const std::vector<Point>& points, std::string frame) {
-  sensor_msgs::msg::PointCloud2 msg;
+  pcl::PointCloud<pcl::PointXYZ> cloud;
+  cloud.reserve(points.size());
 
-  if (points.empty()) {
-    // RCLCPP_WARN(rclcpp::get_logger("PointCloud"), "Input data is empty!");
-    return msg;
+  for (const auto& pt : points) {
+    if (std::isnan(pt.x) || std::isnan(pt.y) || std::isnan(pt.z)) continue;
+    cloud.push_back(pcl::PointXYZ(static_cast<float>(pt.x),
+                                  static_cast<float>(pt.y),
+                                  static_cast<float>(pt.z)));
   }
 
+  sensor_msgs::msg::PointCloud2 msg;
+  pcl::toROSMsg(cloud, msg);
   msg.header.stamp = rclcpp::Clock().now();
   msg.header.frame_id = frame;
-
-  msg.height = 1;
-  msg.width = points.size();  // Number of input points
-  msg.is_dense = false;       // True if there are no invalid points
-  msg.is_bigendian = false;   // Is this data bigendian?
-  msg.point_step = 12;        // Bytes occupied by each point (8 bytes * 3 (x, y, z))
-  msg.row_step =
-      msg.point_step * msg.width;  // Length of a row in bytes (total bytes size)
-
-  // Define fields (x, y, z)
-  sensor_msgs::msg::PointField field_x, field_y, field_z;
-  field_x.name = "x";  // Name of field
-  field_x.offset = 0;  // Offset from start of point struct
-  field_x.datatype =
-      sensor_msgs::msg::PointField::FLOAT32;  // Datatype enumeration, see
-                                              // "PointField.msg"
-  field_x.count = 1;  // Number of values to store for each point (1 is normal)
-
-  field_y.name = "y";
-  field_y.offset = 4;
-  field_y.datatype = sensor_msgs::msg::PointField::FLOAT32;
-  field_y.count = 1;
-
-  field_z.name = "z";
-  field_z.offset = 8;
-  field_z.datatype = sensor_msgs::msg::PointField::FLOAT32;
-  field_z.count = 1;
-
-  msg.fields = {field_x, field_y, field_z};
-
-  // Fill point data
-  // Stores the actual data (binary values) of Points
-  msg.data.resize(msg.row_step);  // Create data buffer with total bytes size
-  uint8_t* data_ptr = msg.data.data();
-  for (const auto& point : points) {
-    float x = static_cast<float>(point.x);
-    float y = static_cast<float>(point.y);
-    float z = static_cast<float>(point.z);
-    std::memcpy(data_ptr, &x, sizeof(float));      // x
-    std::memcpy(data_ptr + 4, &y, sizeof(float));  // y
-    std::memcpy(data_ptr + 8, &z, sizeof(float));  // z
-    data_ptr += msg.point_step;
-  }
-  // RCLCPP_INFO(rclcpp::get_logger("PointCloud"), "Msg Data Size: %zu",
-  // msg.data.size());
 
   return msg;
 }
@@ -73,41 +33,11 @@ sensor_msgs::msg::PointCloud2 PointCloudGenerator::GeneratePointCloud2Message(
 
 sensor_msgs::msg::PointCloud2
 PointCloudGenerator::GenerateEmptyPointCloud2Message(const std::string& frame) {
+  pcl::PointCloud<pcl::PointXYZ> cloud;
   sensor_msgs::msg::PointCloud2 msg;
-
+  pcl::toROSMsg(cloud, msg);
   msg.header.stamp = rclcpp::Clock().now();
   msg.header.frame_id = frame;
-
-  msg.height = 1;        // Single row
-  msg.width = 0;         // 0 data points
-  msg.is_dense = true;   // Dense is acceptable for empty messages
-  msg.is_bigendian = false;
-  msg.point_step = 12;                         // 3 floats * 4 bytes
-  msg.row_step = msg.point_step * msg.width;   // 0
-
-  // Define fields (x, y, z)
-  sensor_msgs::msg::PointField field_x;
-  field_x.name = "x";
-  field_x.offset = 0;
-  field_x.datatype = sensor_msgs::msg::PointField::FLOAT32;
-  field_x.count = 1;
-
-  sensor_msgs::msg::PointField field_y;
-  field_y.name = "y";
-  field_y.offset = 4;
-  field_y.datatype = sensor_msgs::msg::PointField::FLOAT32;
-  field_y.count = 1;
-
-  sensor_msgs::msg::PointField field_z;
-  field_z.name = "z";
-  field_z.offset = 8;
-  field_z.datatype = sensor_msgs::msg::PointField::FLOAT32;
-  field_z.count = 1;
-
-  msg.fields = {field_x, field_y, field_z};
-
-  msg.data.clear();
-
   return msg;
 }
 
@@ -115,106 +45,46 @@ sensor_msgs::msg::PointCloud2
 PointCloudGenerator::GenerateCameraPointCloud2Message(
     const vision_msgs::msg::BoundingBox2DArray input_bbox_array,
     float resolution, std::string frame, Pose extrinsic_pose) {
-  sensor_msgs::msg::PointCloud2 msg;
+  pcl::PointCloud<pcl::PointXYZ> cloud;
 
-  if (input_bbox_array.boxes.empty()) {
-    // RCLCPP_WARN(this->node_ptr->get_logger(), "Input data is empty!");
+  if (input_bbox_array.boxes.empty() || resolution <= 0) {
+    sensor_msgs::msg::PointCloud2 msg;
+    pcl::toROSMsg(cloud, msg);
+    msg.header.stamp = rclcpp::Clock().now();
+    msg.header.frame_id = frame;
     return msg;
   }
-  if (resolution <= 0) {
-    // RCLCPP_ERROR(this->node_ptr->get_logger(), "Invalid resolution: %f",
-    // resolution);
-    return msg;
-  }
 
-  size_t total_points = 0;
-  int point_size_x, point_size_y;
   for (const auto& box : input_bbox_array.boxes) {
-    if (box.size_x <= 0 ||
-        box.size_y <= 0) {  // negative case exception handling
-      return msg;
-    }
-    point_size_x = static_cast<int>(box.size_x * 1000) /
-                       static_cast<int>(resolution * 1000) +
-                   1;
-    point_size_y = static_cast<int>(box.size_y * 1000) /
-                       static_cast<int>(resolution * 1000) +
-                   1;
-    if (point_size_x == 1 && point_size_y == 1) {
-      total_points += 1;
-    } else {
-      total_points += 2 * point_size_x + 2 * (point_size_y - 2);
-    }
-  }
+    if (box.size_x <= 0 || box.size_y <= 0) continue;
 
-  msg.header.stamp = rclcpp::Clock().now();
-  msg.header.frame_id = frame;
-
-  msg.height = 1;
-  msg.width = total_points;
-  msg.is_dense = false;
-  msg.is_bigendian = false;
-  msg.point_step = 12;
-  msg.row_step = msg.width * msg.point_step;
-
-  sensor_msgs::msg::PointField field_x, field_y, field_z;
-  field_x.name = "x";
-  field_x.offset = 0;
-  field_x.datatype = sensor_msgs::msg::PointField::FLOAT32;
-  field_x.count = 1;
-
-  field_y.name = "y";
-  field_y.offset = 4;
-  field_y.datatype = sensor_msgs::msg::PointField::FLOAT32;
-  field_y.count = 1;
-
-  field_z.name = "z";
-  field_z.offset = 8;
-  field_z.datatype = sensor_msgs::msg::PointField::FLOAT32;
-  field_z.count = 1;
-
-  msg.fields = {field_x, field_y, field_z};
-
-  msg.data.resize(msg.row_step);
-  size_t max_size = msg.data.size();
-  uint8_t* ptr = msg.data.data();
-  for (const auto& box : input_bbox_array.boxes) {
     const double center_x = box.center.position.x;
     const double center_y = box.center.position.y;
     const double size_x = box.size_x;
     const double size_y = box.size_y;
 
-    point_size_x = static_cast<int>(box.size_x * 1000) /
-                       static_cast<int>(resolution * 1000) +
-                   1;
-    point_size_y = static_cast<int>(box.size_y * 1000) /
-                       static_cast<int>(resolution * 1000) +
-                   1;
+    int point_size_x = static_cast<int>(size_x / resolution) + 1;
+    int point_size_y = static_cast<int>(size_y / resolution) + 1;
 
     for (int i = 0; i < point_size_x; ++i) {
       for (int j = 0; j < point_size_y; ++j) {
-        // generate point only when it is on the edge of x-axis or y-axis
-        if (i == 0 || i == point_size_x - 1 || j == 0 ||
-            j == point_size_y - 1) {
-          size_t current_offset = static_cast<size_t>(ptr - msg.data.data());
-          if (current_offset + msg.point_step > max_size) {
-            return msg;
-          }
-
-          float x = (center_x - size_x / 2) + i * resolution;
-          float y = (center_y - size_y / 2) + j * resolution;
+        if (i == 0 || i == point_size_x - 1 || j == 0 || j == point_size_y - 1) {
+          float x = static_cast<float>((center_x - size_x / 2.0) + i * resolution);
+          float y = static_cast<float>((center_y - size_y / 2.0) + j * resolution);
           float z = 0.0f;
           if (!(frame == "map" || frame == "base_link")) {
             z = -extrinsic_pose.position.z;
           }
-          memcpy(ptr, &x, sizeof(float));
-          memcpy(ptr + 4, &y, sizeof(float));
-          memcpy(ptr + 8, &z, sizeof(float));
-          ptr += msg.point_step;
+          cloud.push_back(pcl::PointXYZ(x, y, z));
         }
       }
     }
   }
+
+  sensor_msgs::msg::PointCloud2 msg;
+  pcl::toROSMsg(cloud, msg);
+  msg.header.stamp = rclcpp::Clock().now();
+  msg.header.frame_id = frame;
 
   return msg;
 }

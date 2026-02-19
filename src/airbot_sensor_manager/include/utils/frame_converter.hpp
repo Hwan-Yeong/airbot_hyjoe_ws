@@ -12,6 +12,11 @@
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "robot_custom_msgs/msg/tof_data.hpp"
 #include "utils/common_struct.hpp"
+#include <tf2_ros/buffer.h>
+#include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
+#include <geometry_msgs/msg/point_stamped.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include "vision_msgs/msg/bounding_box2_d.hpp"
 #include "vision_msgs/msg/bounding_box2_d_array.hpp"
 
@@ -28,7 +33,12 @@ struct CameraObject {
 class FrameConverter {
  public:
   FrameConverter();
+  FrameConverter(std::shared_ptr<tf2_ros::Buffer> tf_buffer);
   ~FrameConverter();
+
+  void SetTfBuffer(std::shared_ptr<tf2_ros::Buffer> tf_buffer) {
+    tf_buffer_ = tf_buffer;
+  }
 
   /**
    * @brief Converts Mono ToF sensor coordinate data to Robot coordinate system.
@@ -216,25 +226,14 @@ class FrameConverter {
    */
   void LoggedObjectInfoClear() { logged_objects_.clear(); };
 
- private:
-  // tof mono
-  bool tof_mono_extrinsics_updated_ = false;
-  double tof_mono_sensor_frame_pitch_cosine_ = 0.0;
-  double tof_mono_sensor_frame_pitch_sine_ = 0.0;
-
-  // tof multi
-  bool tof_multi_extrinsics_updated_ = false;
-  double multi_tof_sensor_frame_yaw_cosine_ = 0.0;
-  double multi_tof_sensor_frame_yaw_sine_ = 0.0;
-  double multi_tof_sensor_frame_pitch_cosine_ = 0.0;
-  double multi_tof_sensor_frame_pitch_sine_ = 0.0;
-
   // camera
   std::map<int, std::vector<vision_msgs::msg::BoundingBox2D>> logged_objects_;
 
   // bottom ir
   bool bottom_ir_extrinsics_updated_ = false;
   std::vector<Point> bottom_ir_sensor_positions_;
+
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
 };
 
 }  // namespace sensor_manager
