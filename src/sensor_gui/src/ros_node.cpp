@@ -12,6 +12,9 @@ RosNode::RosNode() : Node("sensor_simulator") {
   bottom_ir_pub_ = this->create_publisher<robot_custom_msgs::msg::BottomIrData>("/bottom_ir_data", 10);
   collision_pub_ = this->create_publisher<robot_custom_msgs::msg::AbnormalEventData>("/collision_detected", 10);
 
+  vx_ = 0.0f; vy_ = 0.0f; vyaw_ = 0.0f;
+  robot_z_ = 0.05f;
+
   timer_ = this->create_wall_timer(
     std::chrono::milliseconds(100),
     std::bind(&RosNode::publishFakeData, this));
@@ -83,13 +86,32 @@ void RosNode::publishFakeData() {
   auto now = this->now();
 
   // 0. Publish map -> base_link transform
+  // Velocity Integration
+  float dt = 0.1f; // timer is 100ms
+  float vx = vx_.load();
+  float vy = vy_.load();
+  float vyaw = vyaw_.load();
+  
+  if (std::abs(vx) > 0.001f || std::abs(vy) > 0.001f || std::abs(vyaw) > 0.001f) {
+      float cy = std::cos(robot_yaw_.load() * M_PI / 180.0f);
+      float sy = std::sin(robot_yaw_.load() * M_PI / 180.0f);
+      
+      float dx = (vx * cy - vy * sy) * dt;
+      float dy = (vx * sy + vy * cy) * dt;
+      float dyaw = vyaw * dt;
+      
+      robot_x_.store(robot_x_.load() + dx);
+      robot_y_.store(robot_y_.load() + dy);
+      robot_yaw_.store(robot_yaw_.load() + dyaw);
+  }
+
   geometry_msgs::msg::TransformStamped t;
   t.header.stamp = now;
   t.header.frame_id = "map";
   t.child_frame_id = "base_link";
   t.transform.translation.x = robot_x_.load();
   t.transform.translation.y = robot_y_.load();
-  t.transform.translation.z = 0.0;
+  t.transform.translation.z = robot_z_.load();
   
   float yaw = robot_yaw_.load() * M_PI / 180.0f;
   t.transform.rotation.z = std::sin(yaw / 2.0);

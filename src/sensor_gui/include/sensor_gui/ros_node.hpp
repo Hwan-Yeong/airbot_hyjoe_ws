@@ -50,6 +50,17 @@ public:
     robot_y_ = y;
     robot_yaw_ = yaw;
   }
+  void setRobotZ(float z) { robot_z_ = z; }
+  void setVelocities(float vx, float vy, float vyaw) {
+    vx_ = vx;
+    vy_ = vy;
+    vyaw_ = vyaw;
+  }
+
+  float getRobotX() const { return robot_x_; }
+  float getRobotY() const { return robot_y_; }
+  float getRobotYaw() const { return robot_yaw_; }
+  float getRobotZ() const { return robot_z_; }
 
   // Callback type for Cloud data
   using CloudCallback = std::function<void(const std::string&, const sensor_msgs::msg::PointCloud2::SharedPtr)>;
@@ -92,6 +103,8 @@ private:
   std::atomic<float> robot_x_{0.0f};
   std::atomic<float> robot_y_{0.0f};
   std::atomic<float> robot_yaw_{0.0f};
+  std::atomic<float> robot_z_{0.05f};
+  std::atomic<float> vx_{0.0f}, vy_{0.0f}, vyaw_{0.0f};
 
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;

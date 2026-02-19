@@ -54,6 +54,10 @@ void PointCloudVisualizer::paintGL() {
 
     std::lock_guard<std::mutex> lock(cloud_mutex_);
 
+    drawGrid();
+    drawRobotFootprint();
+    drawWalls();
+
     // Draw TFs
     for (auto const& [frame_id, tf] : tfs_) {
         glPushMatrix();
@@ -90,7 +94,7 @@ void PointCloudVisualizer::paintGL() {
             float py = cloud.points[i+1];
             float pz = cloud.points[i+2];
 
-            if (has_tf && (ground_clipping_ || wall_sim_)) {
+            if (has_tf && (ground_clipping_ || wall_sim_ || !walls_.empty())) {
                 float wx, wy, wz;
                 transformPoint(sensor_tf, px, py, pz, wx, wy, wz);
                 
@@ -104,7 +108,8 @@ void PointCloudVisualizer::paintGL() {
                         if (t_ground > 0.0f && t_ground < t) t = t_ground;
                     }
                 }
-                // Clip against wall (x=wall_x)
+                
+                // Clip against legacy wall (x=wall_x)
                 if (wall_sim_) {
                     float sx = sensor_tf.x;
                     float dx = wx - sx;
@@ -113,6 +118,38 @@ void PointCloudVisualizer::paintGL() {
                         if (t_wall > 0.0f && t_wall < t) t = t_wall;
                     }
                 }
+
+                // Clip against all box walls
+                for (const auto& box : walls_) {
+                    float sx = sensor_tf.x, sy = sensor_tf.y, sz = sensor_tf.z;
+                    float dx = wx - sx, dy = wy - sy, dz = wz - sz;
+                    
+                    float tmin = -1e30f, tmax = 1e30f;
+                    
+                    auto check_axis = [&](float start, float delta, float bmin, float bmax) {
+                        if (std::abs(delta) < 1e-6f) {
+                            if (start < bmin || start > bmax) return false;
+                        } else {
+                            float t1 = (bmin - start) / delta;
+                            float t2 = (bmax - start) / delta;
+                            if (t1 > t2) std::swap(t1, t2);
+                            tmin = std::max(tmin, t1);
+                            tmax = std::min(tmax, t2);
+                        }
+                        return true;
+                    };
+
+                    if (check_axis(sx, dx, box.x - box.sx/2, box.x + box.sx/2) &&
+                        check_axis(sy, dy, box.y - box.sy/2, box.y + box.sy/2) &&
+                        check_axis(sz, dz, box.z - box.sz/2, box.z + box.sz/2)) {
+                        
+                        if (tmin <= tmax && tmax > 0.0f) {
+                            float hit_t = (tmin > 0.0f) ? tmin : 0.0f;
+                            if (hit_t < t) t = hit_t;
+                        }
+                    }
+                }
+
                 px *= t; py *= t; pz *= t;
             }
             glVertex3f(px, py, pz);
@@ -120,8 +157,6 @@ void PointCloudVisualizer::paintGL() {
         glEnd();
         glPopMatrix();
     }
-    
-    drawRobotFootprint();
 }
 
 void PointCloudVisualizer::paintEvent(QPaintEvent* event) {
@@ -248,6 +283,62 @@ void PointCloudVisualizer::transformPoint(const TfData& tf, float lx, float ly, 
     wx = vx*w + vw*-x + vy*-z - vz*-y + tf.x;
     wy = vy*w + vw*-y + vz*-x - vx*-z + tf.y;
     wz = vz*w + vw*-z + vx*-y - vy*-x + tf.z;
+}
+
+void PointCloudVisualizer::drawWalls() {
+    if (!wall_sim_ && walls_.empty()) return;
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Legacy Wall
+    if (wall_sim_) {
+        glColor4f(0.8f, 0.2f, 0.2f, 0.3f);
+        glBegin(GL_QUADS);
+        glVertex3f(wall_x_, -5.0f, 0.0f);
+        glVertex3f(wall_x_,  5.0f, 0.0f);
+        glVertex3f(wall_x_,  5.0f, 5.0f);
+        glVertex3f(wall_x_, -5.0f, 5.0f);
+        glEnd();
+    }
+
+    // Box Walls
+    for (const auto& box : walls_) {
+        glColor4f(0.5f, 0.5f, 0.8f, 0.4f);
+        float x1 = box.x - box.sx/2, x2 = box.x + box.sx/2;
+        float y1 = box.y - box.sy/2, y2 = box.y + box.sy/2;
+        float z1 = box.z - box.sz/2, z2 = box.z + box.sz/2;
+
+        glBegin(GL_QUADS);
+        // Bottom
+        glVertex3f(x1, y1, z1); glVertex3f(x2, y1, z1); glVertex3f(x2, y2, z1); glVertex3f(x1, y2, z1);
+        // Top
+        glVertex3f(x1, y1, z2); glVertex3f(x2, y1, z2); glVertex3f(x2, y2, z2); glVertex3f(x1, y2, z2);
+        // Front
+        glVertex3f(x1, y1, z1); glVertex3f(x2, y1, z1); glVertex3f(x2, y1, z2); glVertex3f(x1, y1, z2);
+        // Back
+        glVertex3f(x1, y2, z1); glVertex3f(x2, y2, z1); glVertex3f(x2, y2, z2); glVertex3f(x1, y2, z2);
+        // Left
+        glVertex3f(x1, y1, z1); glVertex3f(x1, y2, z1); glVertex3f(x1, y2, z2); glVertex3f(x1, y1, z2);
+        // Right
+        glVertex3f(x2, y1, z1); glVertex3f(x2, y2, z1); glVertex3f(x2, y2, z2); glVertex3f(x2, y1, z2);
+        glEnd();
+        
+        // Wireframe for edges
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glColor4f(0.0f, 0.0f, 0.0f, 0.5f);
+        glBegin(GL_QUADS);
+        glVertex3f(x1, y1, z1); glVertex3f(x2, y1, z1); glVertex3f(x2, y2, z1); glVertex3f(x1, y2, z1);
+        glVertex3f(x1, y1, z2); glVertex3f(x2, y1, z2); glVertex3f(x2, y2, z2); glVertex3f(x1, y2, z2);
+        glVertex3f(x1, y1, z1); glVertex3f(x2, y1, z1); glVertex3f(x2, y1, z2); glVertex3f(x1, y1, z2);
+        glVertex3f(x1, y2, z1); glVertex3f(x2, y2, z1); glVertex3f(x2, y2, z2); glVertex3f(x1, y2, z2);
+        glVertex3f(x1, y1, z1); glVertex3f(x1, y2, z1); glVertex3f(x1, y2, z2); glVertex3f(x1, y1, z2);
+        glVertex3f(x2, y1, z1); glVertex3f(x2, y2, z1); glVertex3f(x2, y2, z2); glVertex3f(x2, y1, z2);
+        glEnd();
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
+
+    glDisable(GL_BLEND);
 }
 
 void PointCloudVisualizer::mousePressEvent(QMouseEvent* event) {

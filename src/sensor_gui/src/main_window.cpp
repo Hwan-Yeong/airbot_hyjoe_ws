@@ -9,6 +9,7 @@
 #include <QPushButton>
 #include <QCheckBox>
 #include <QGridLayout>
+#include <QHeaderView>
 #include <QSizePolicy>
 #include <functional>
 #include <tf2/utils.h>
@@ -27,6 +28,11 @@ MainWindow::MainWindow(std::shared_ptr<RosNode> node)
   tf_timer_ = new QTimer(this);
   connect(tf_timer_, &QTimer::timeout, this, &MainWindow::syncTFs);
   tf_timer_->start(100); // 10Hz
+
+  // Teleop Timer
+  teleop_timer_ = new QTimer(this);
+  connect(teleop_timer_, &QTimer::timeout, this, &MainWindow::onTeleopTimer);
+  teleop_timer_->start(50); // 20Hz for smoother control
 }
 
 void MainWindow::showEvent(QShowEvent *event) {
@@ -114,6 +120,7 @@ void MainWindow::setupUi() {
   
   create_param_row(robot_layout, "Robot X:", 0.0, -10.0, 10.0, &spin_robot_x_);
   create_param_row(robot_layout, "Robot Y:", 0.0, -10.0, 10.0, &spin_robot_y_);
+  create_param_row(robot_layout, "Robot Z:", 0.05, 0.0, 2.0, &spin_robot_z_);
   create_param_row(robot_layout, "Robot Yaw:", 0.0, -180.0, 180.0, &spin_robot_yaw_);
   create_param_row(robot_layout, "Footprint R:", 0.19, 0.05, 2.0, &spin_footprint_radius_);
 
@@ -139,6 +146,30 @@ void MainWindow::setupUi() {
 
   connect(check_ground_clip_, &QCheckBox::toggled, this, &MainWindow::onParamChanged);
   connect(check_wall_sim_, &QCheckBox::toggled, this, &MainWindow::onParamChanged);
+
+  // Wall Manager
+  QGroupBox* wall_group = new QGroupBox("Maze Wall Manager");
+  QVBoxLayout* wall_layout = new QVBoxLayout();
+  
+  table_walls_ = new QTableWidget(0, 6);
+  table_walls_->setHorizontalHeaderLabels({"X", "Y", "Z", "SX", "SY", "SZ"});
+  table_walls_->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+  table_walls_->setFixedHeight(150);
+  wall_layout->addWidget(table_walls_);
+  
+  QHBoxLayout* wall_btn_layout = new QHBoxLayout();
+  btn_add_wall_ = new QPushButton("Add Wall");
+  btn_delete_wall_ = new QPushButton("Delete Wall");
+  wall_btn_layout->addWidget(btn_add_wall_);
+  wall_btn_layout->addWidget(btn_delete_wall_);
+  wall_layout->addLayout(wall_btn_layout);
+  
+  wall_group->setLayout(wall_layout);
+  sidebar_layout->addWidget(wall_group);
+  
+  connect(btn_add_wall_, &QPushButton::clicked, this, &MainWindow::onAddWall);
+  connect(btn_delete_wall_, &QPushButton::clicked, this, &MainWindow::onDeleteWall);
+  connect(table_walls_, &QTableWidget::cellChanged, this, &MainWindow::onWallTableChanged);
 
   // Bottom IR Cliff Controls
   QGroupBox* ir_group = new QGroupBox("Bottom IR CLIFF (True/False)");
@@ -227,7 +258,12 @@ void MainWindow::onToggleSensor() {
 void MainWindow::onParamChanged() {
   ros_node_->setToFDistance(spin_tof_dist_->value());
   ros_node_->setCameraParams(spin_cam_dist_->value(), spin_cam_width_->value(), spin_cam_height_->value());
-  ros_node_->setRobotPose(spin_robot_x_->value(), spin_robot_y_->value(), spin_robot_yaw_->value());
+  
+  if (pressed_keys_.isEmpty()) {
+      ros_node_->setRobotPose(spin_robot_x_->value(), spin_robot_y_->value(), spin_robot_yaw_->value());
+      ros_node_->setRobotZ(spin_robot_z_->value());
+  }
+
   if (visualizer_) {
       visualizer_->setTfScale(spin_tf_scale_->value());
       visualizer_->setFootprintRadius(spin_footprint_radius_->value());
@@ -239,6 +275,23 @@ void MainWindow::onParamChanged() {
 
 void MainWindow::syncTFs() {
   if (!ros_node_ || !visualizer_) return;
+  
+  // Sync UI with Node if keys are pressed
+  if (!pressed_keys_.isEmpty()) {
+      spin_robot_x_->blockSignals(true);
+      spin_robot_y_->blockSignals(true);
+      spin_robot_yaw_->blockSignals(true);
+      spin_robot_z_->blockSignals(true);
+      spin_robot_x_->setValue(ros_node_->getRobotX());
+      spin_robot_y_->setValue(ros_node_->getRobotY());
+      spin_robot_yaw_->setValue(ros_node_->getRobotYaw());
+      spin_robot_z_->setValue(ros_node_->getRobotZ());
+      spin_robot_x_->blockSignals(false);
+      spin_robot_y_->blockSignals(false);
+      spin_robot_yaw_->blockSignals(false);
+      spin_robot_z_->blockSignals(false);
+  }
+
   auto buffer = ros_node_->getTFBuffer();
   if (!buffer) return;
 
@@ -277,4 +330,71 @@ void MainWindow::syncTFs() {
     }
   }
   visualizer_->updateTFs(tfs);
+}
+
+void MainWindow::onAddWall() {
+    int row = table_walls_->rowCount();
+    table_walls_->insertRow(row);
+    table_walls_->blockSignals(true);
+    table_walls_->setItem(row, 0, new QTableWidgetItem("1.0")); // X
+    table_walls_->setItem(row, 1, new QTableWidgetItem("0.0")); // Y
+    table_walls_->setItem(row, 2, new QTableWidgetItem("0.5")); // Z
+    table_walls_->setItem(row, 3, new QTableWidgetItem("0.1")); // SX
+    table_walls_->setItem(row, 4, new QTableWidgetItem("2.0")); // SY
+    table_walls_->setItem(row, 5, new QTableWidgetItem("1.0")); // SZ
+    table_walls_->blockSignals(false);
+    onWallTableChanged(row, 0);
+}
+
+void MainWindow::onDeleteWall() {
+    int row = table_walls_->currentRow();
+    if (row >= 0) {
+        table_walls_->removeRow(row);
+        onWallTableChanged(0, 0);
+    }
+}
+
+void MainWindow::onWallTableChanged(int row, int col) {
+    (void)row; (void)col;
+    std::vector<BoxObject> walls;
+    for (int i = 0; i < table_walls_->rowCount(); ++i) {
+        BoxObject box;
+        box.x = table_walls_->item(i, 0)->text().toFloat();
+        box.y = table_walls_->item(i, 1)->text().toFloat();
+        box.z = table_walls_->item(i, 2)->text().toFloat();
+        box.sx = table_walls_->item(i, 3)->text().toFloat();
+        box.sy = table_walls_->item(i, 4)->text().toFloat();
+        box.sz = table_walls_->item(i, 5)->text().toFloat();
+        walls.push_back(box);
+    }
+    if (visualizer_) visualizer_->setWalls(walls);
+}
+
+void MainWindow::keyPressEvent(QKeyEvent* event) {
+    if (!event->isAutoRepeat()) {
+        pressed_keys_.insert(event->key());
+    }
+}
+
+void MainWindow::keyReleaseEvent(QKeyEvent* event) {
+    if (!event->isAutoRepeat()) {
+        pressed_keys_.remove(event->key());
+    }
+}
+
+void MainWindow::onTeleopTimer() {
+    if (!ros_node_) return;
+    
+    float vx = 0.0f, vy = 0.0f, vyaw = 0.0f;
+    float linear_speed = 0.5f; // m/s
+    float angular_speed = 45.0f; // deg/s
+    
+    if (pressed_keys_.contains(Qt::Key_Up) || pressed_keys_.contains(Qt::Key_W)) vx += linear_speed;
+    if (pressed_keys_.contains(Qt::Key_Down) || pressed_keys_.contains(Qt::Key_S)) vx -= linear_speed;
+    if (pressed_keys_.contains(Qt::Key_A)) vy += linear_speed;
+    if (pressed_keys_.contains(Qt::Key_D)) vy -= linear_speed;
+    if (pressed_keys_.contains(Qt::Key_Left) || pressed_keys_.contains(Qt::Key_Q)) vyaw += angular_speed;
+    if (pressed_keys_.contains(Qt::Key_Right) || pressed_keys_.contains(Qt::Key_E)) vyaw -= angular_speed;
+    
+    ros_node_->setVelocities(vx, vy, vyaw);
 }

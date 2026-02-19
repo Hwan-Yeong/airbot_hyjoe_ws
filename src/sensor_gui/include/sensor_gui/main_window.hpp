@@ -9,6 +9,9 @@
 #include <QDoubleSpinBox>
 #include <QCheckBox>
 #include <QGroupBox>
+#include <QTableWidget>
+#include <QKeyEvent>
+#include <QSet>
 #include <QTimer>
 #include "ros_node.hpp"
 #include "point_cloud_visualizer.hpp"
@@ -27,6 +30,10 @@ private slots:
   void onToggleSensor();
   void onParamChanged();
   void syncTFs();
+  void onAddWall();
+  void onDeleteWall();
+  void onWallTableChanged(int row, int col);
+  void onTeleopTimer();
 
 private:
   void setupUi();
@@ -46,8 +53,14 @@ private:
   QDoubleSpinBox* spin_tf_scale_;
   QDoubleSpinBox* spin_robot_x_;
   QDoubleSpinBox* spin_robot_y_;
+  QDoubleSpinBox* spin_robot_z_;
   QDoubleSpinBox* spin_robot_yaw_;
   QDoubleSpinBox* spin_footprint_radius_;
+  
+  // Wall Manager
+  QTableWidget* table_walls_;
+  QPushButton* btn_add_wall_;
+  QPushButton* btn_delete_wall_;
   
   // Simulation Environment
   QCheckBox* check_ground_clip_;
@@ -55,4 +68,10 @@ private:
   QDoubleSpinBox* spin_wall_x_;
 
   QTimer* tf_timer_;
+  QTimer* teleop_timer_;
+  QSet<int> pressed_keys_;
+
+protected:
+  void keyPressEvent(QKeyEvent* event) override;
+  void keyReleaseEvent(QKeyEvent* event) override;
 };

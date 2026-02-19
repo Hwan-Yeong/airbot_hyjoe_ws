@@ -15,6 +15,11 @@ struct ColoredCloud {
     QColor color;
 };
 
+struct BoxObject {
+    float x, y, z;
+    float sx, sy, sz; // Full size
+};
+
 struct TfData {
     std::string frame_id;
     std::string displayName;
@@ -35,7 +40,8 @@ public:
     void setFootprintRadius(float r) { footprint_radius_ = r; update(); }
     void setGroundClipping(bool enabled) { ground_clipping_ = enabled; update(); }
     void setWallSimulation(bool enabled) { wall_sim_ = enabled; update(); }
-    void setWallPosition(float x) { wall_x_ = x; update(); }
+    void setWallPosition(float x) { wall_x_ = x; update(); } // Legacy, still used for single wall if needed
+    void setWalls(const std::vector<BoxObject>& walls) { walls_ = walls; update(); }
 
 protected:
     void initializeGL() override;
@@ -51,11 +57,13 @@ private:
     void drawAxes();
     void drawGrid();
     void drawRobotFootprint();
+    void drawWalls();
     void applyTf(const TfData& tf);
     void transformPoint(const TfData& tf, float lx, float ly, float lz, float& wx, float& wy, float& wz);
 
     std::map<std::string, ColoredCloud> clouds_;
     std::map<std::string, TfData> tfs_;
+    std::vector<BoxObject> walls_;
     std::mutex cloud_mutex_;
 
     float tf_scale_ = 1.0f;
