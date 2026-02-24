@@ -3,6 +3,11 @@
 #include <QWidget>
 #include <QLabel>
 #include <QKeyEvent>
+#include <QDoubleSpinBox>
+#include <QGroupBox>
+#include <QGridLayout>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QTimer>
 #include <QPainter>
 #include <QSet>
@@ -40,6 +45,7 @@ private slots:
 private:
     void drawArrowKey(QPainter& p, int x, int y, int w, int h,
                       const QString& label, Qt::Key key, bool active);
+    void setupControlUi();
 
     VelCallback vel_callback_;
     QTimer*     timer_;
@@ -47,6 +53,9 @@ private:
 
     float linear_speed_  = 0.5f;  // m/s
     float angular_speed_ = 60.0f; // deg/s
+
+    QDoubleSpinBox* spin_linear_speed_;
+    QDoubleSpinBox* spin_angular_speed_;
 
     airbot::SCurveProfile smoother_vx_;
     airbot::SCurveProfile smoother_vy_;

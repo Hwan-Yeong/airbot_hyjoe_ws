@@ -6,7 +6,7 @@ TeleopWindow::TeleopWindow(QWidget* parent)
 {
     setWindowTitle("Robot Teleop");
     setWindowFlags(Qt::Window | Qt::WindowStaysOnTopHint);
-    setFixedSize(320, 360);
+    setFixedSize(320, 480); // Increased height for speed controls
     setFocusPolicy(Qt::StrongFocus);
 
     // Background style
@@ -14,6 +14,28 @@ TeleopWindow::TeleopWindow(QWidget* parent)
         QWidget {
             background-color: #1e1e2e;
             color: #cdd6f4;
+        }
+        QGroupBox {
+            border: 1px solid #45475a;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-weight: bold;
+            color: #f5c2e7;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 3px 0 3px;
+        }
+        QLabel {
+            color: #bac2de;
+        }
+        QDoubleSpinBox {
+            background-color: #313244;
+            color: #cdd6f4;
+            border: 1px solid #45475a;
+            border-radius: 4px;
+            padding: 2px;
         }
     )");
 
@@ -27,6 +49,8 @@ TeleopWindow::TeleopWindow(QWidget* parent)
     smoother_vy_.setLimits(linear_speed_, 0.6, 2.0);
     // Angular limits converted from rad to deg (45 deg/s, 143.24 deg/s^2, 458.37 deg/s^3)
     smoother_vyaw_.setLimits(angular_speed_, 143.24, 458.37);
+
+    setupControlUi();
 }
 
 // ─────────────────────────────────────────────
@@ -222,16 +246,6 @@ void TeleopWindow::paintEvent(QPaintEvent*) {
     drawKeyButton(p, cx + kw + gap,          row3_y, kw, kh, "↓  X",  down_active);
     drawKeyButton(p, cx + (kw + gap) * 2,   row3_y, kw, kh, "E",  strafe_r_active);
 
-    // Speed readout
-    p.setPen(QColor("#a6e3a1"));
-    QFont sf = p.font();
-    sf.setPixelSize(12);
-    p.setFont(sf);
-    p.drawText(QRect(0, row3_y + kh + 16, width(), 20), Qt::AlignCenter,
-               QString("Linear: %1 m/s   Angular: %2 °/s")
-                   .arg(linear_speed_, 0, 'f', 2)
-                   .arg(angular_speed_, 0, 'f', 1));
-
     // Focus hint
     p.setPen(QColor("#6c7086"));
     QFont hf = p.font();
@@ -239,4 +253,43 @@ void TeleopWindow::paintEvent(QPaintEvent*) {
     p.setFont(hf);
     p.drawText(QRect(0, height() - 22, width(), 20), Qt::AlignCenter,
                hasFocus() ? "▶  Keys active" : "⚠  Click here to activate");
+}
+
+void TeleopWindow::setupControlUi() {
+    QVBoxLayout* main_layout = new QVBoxLayout(this);
+    // Add stretch at the top to reserve space for the drawn keyboard (about 330px)
+    main_layout->addSpacing(330);
+
+    QGroupBox* speed_group = new QGroupBox("Speed Settings");
+    QGridLayout* grid = new QGridLayout();
+
+    // Linear Speed
+    grid->addWidget(new QLabel("Linear (m/s):"), 0, 0);
+    spin_linear_speed_ = new QDoubleSpinBox();
+    spin_linear_speed_->setRange(0.0, 2.0);
+    spin_linear_speed_->setSingleStep(0.1);
+    spin_linear_speed_->setValue(linear_speed_);
+    grid->addWidget(spin_linear_speed_, 0, 1);
+
+    // Angular Speed
+    grid->addWidget(new QLabel("Angular (°/s):"), 1, 0);
+    spin_angular_speed_ = new QDoubleSpinBox();
+    spin_angular_speed_->setRange(0.0, 180.0);
+    spin_angular_speed_->setSingleStep(5.0);
+    spin_angular_speed_->setValue(angular_speed_);
+    grid->addWidget(spin_angular_speed_, 1, 1);
+
+    speed_group->setLayout(grid);
+    main_layout->addWidget(speed_group);
+    main_layout->addStretch();
+
+    // Connect signals to update variables
+    connect(spin_linear_speed_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double val){
+        linear_speed_ = static_cast<float>(val);
+        update();
+    });
+    connect(spin_angular_speed_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double val){
+        angular_speed_ = static_cast<float>(val);
+        update();
+    });
 }
