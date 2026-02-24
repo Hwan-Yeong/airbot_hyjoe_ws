@@ -1,580 +1,626 @@
-<?xml version="1.0" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
-  <class>MainWindow</class>
-  <widget class="QMainWindow" name="MainWindow">
-    <widget class="QWidget" name="centralwidget">
-      <layout class="QVBoxLayout" name="verticalLayout_central">
-        <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_top">
-            <item>
-              <widget class="QPushButton" name="btn_sidebar_toggle_">
-                <property name="text">
-                  <string>◀ Hide Sidebar</string>
-                </property>
-              </widget>
-            </item>
-            <item>
-              <spacer name="horizontalSpacer">
-                <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                </property>
-              </spacer>
-            </item>
-          </layout>
-        </item>
-        <item>
-          <widget class="QSplitter" name="main_splitter_">
-            <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-            </property>
-            <widget class="QScrollArea" name="sidebar_scroll_">
-              <property name="widgetResizable">
-                <bool>true</bool>
-              </property>
-              <property name="minimumSize">
-                <size>
-                  <width>250</width>
-                  <height>0</height>
-                </size>
-              </property>
-              <property name="maximumSize">
-                <size>
-                  <width>400</width>
-                  <height>16777215</height>
-                </size>
-              </property>
-              <widget class="QWidget" name="scrollAreaWidgetContents">
-                <layout class="QVBoxLayout" name="verticalLayout_sidebar">
-                  <item>
-                    <widget class="QPushButton" name="btn_theme_toggle_">
-                      <property name="text">
-                        <string>🌙 Dark Mode</string>
-                      </property>
-                    </widget>
-                  </item>
-                  <item>
-                    <widget class="QLabel" name="label_title">
-                      <property name="text">
-                        <string>Sensor Simulator</string>
-                      </property>
-                      <property name="font">
-                        <font>
-                          <pointSize>14</pointSize>
-                          <bold>true</bold>
-                        </font>
-                      </property>
-                    </widget>
-                  </item>
-                  <item>
-                    <widget class="QPushButton" name="btn_sensor_manager_">
-                      <property name="text">
-                        <string>Sensor Manager: OFF</string>
-                      </property>
-                      <property name="checkable">
-                        <bool>true</bool>
-                      </property>
-                    </widget>
-                  </item>
-                  <item>
-                    <widget class="QGroupBox" name="groupBox_sensors">
-                      <property name="title">
-                        <string>Virtual Sensors</string>
-                      </property>
-                      <layout class="QVBoxLayout" name="vl_sensors">
-                        <item>
-                          <widget class="QPushButton" name="btn_sensor_tof_mono_">
-                            <property name="text">
-                              <string>ToF Mono</string>
-                            </property>
-                            <property name="checkable">
-                              <bool>true</bool>
-                            </property>
-                          </widget>
-                        </item>
-                        <item>
-                          <widget class="QPushButton" name="btn_sensor_tof_left_">
-                            <property name="text">
-                              <string>ToF Multi Left</string>
-                            </property>
-                            <property name="checkable">
-                              <bool>true</bool>
-                            </property>
-                          </widget>
-                        </item>
-                        <item>
-                          <widget class="QPushButton" name="btn_sensor_tof_right_">
-                            <property name="text">
-                              <string>ToF Multi Right</string>
-                            </property>
-                            <property name="checkable">
-                              <bool>true</bool>
-                            </property>
-                          </widget>
-                        </item>
-                        <item>
-                          <widget class="QPushButton" name="btn_sensor_cam_">
-                            <property name="text">
-                              <string>Camera Object</string>
-                            </property>
-                            <property name="checkable">
-                              <bool>true</bool>
-                            </property>
-                          </widget>
-                        </item>
-                        <item>
-                          <widget class="QPushButton" name="btn_sensor_bottom_ir_">
-                            <property name="text">
-                              <string>Bottom IR</string>
-                            </property>
-                            <property name="checkable">
-                              <bool>true</bool>
-                            </property>
-                          </widget>
-                        </item>
-                        <item>
-                          <widget class="QPushButton" name="btn_sensor_coll_front_">
-                            <property name="text">
-                              <string>Collision Front</string>
-                            </property>
-                            <property name="checkable">
-                              <bool>true</bool>
-                            </property>
-                          </widget>
-                        </item>
-                        <item>
-                          <widget class="QPushButton" name="btn_sensor_coll_rear_">
-                            <property name="text">
-                              <string>Collision Rear</string>
-                            </property>
-                            <property name="checkable">
-                              <bool>true</bool>
-                            </property>
-                          </widget>
-                        </item>
-                      </layout>
-                    </widget>
-                  </item>
-                  <item>
-                    <widget class="QGroupBox" name="groupBox_params">
-                      <property name="title">
-                        <string>Simulation Params</string>
-                      </property>
-                      <layout class="QVBoxLayout" name="vl_params">
-                        <item>
-                          <layout class="QHBoxLayout" name="hl_spin_tof_mono_dist_">
-                            <item>
-                              <widget class="QLabel" name="label_spin_tof_mono_dist_">
-                                <property name="text">
-                                  <string>Mono Dist:</string>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QDoubleSpinBox" name="spin_tof_mono_dist_">
-                                <property name="minimum">
-                                  <double>0.05</double>
-                                </property>
-                                <property name="maximum">
-                                  <double>5.0</double>
-                                </property>
-                                <property name="value">
-                                  <double>0.5</double>
-                                </property>
-                                <property name="singleStep">
-                                  <double>0.1</double>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
-                        </item>
-                        <item>
-                          <layout class="QHBoxLayout" name="hl_spin_tof_left_dist_">
-                            <item>
-                              <widget class="QLabel" name="label_spin_tof_left_dist_">
-                                <property name="text">
-                                  <string>Left Dist:</string>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QDoubleSpinBox" name="spin_tof_left_dist_">
-                                <property name="minimum">
-                                  <double>0.05</double>
-                                </property>
-                                <property name="maximum">
-                                  <double>5.0</double>
-                                </property>
-                                <property name="value">
-                                  <double>1.0</double>
-                                </property>
-                                <property name="singleStep">
-                                  <double>0.1</double>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
-                        </item>
-                        <item>
-                          <layout class="QHBoxLayout" name="hl_spin_tof_right_dist_">
-                            <item>
-                              <widget class="QLabel" name="label_spin_tof_right_dist_">
-                                <property name="text">
-                                  <string>Right Dist:</string>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QDoubleSpinBox" name="spin_tof_right_dist_">
-                                <property name="minimum">
-                                  <double>0.05</double>
-                                </property>
-                                <property name="maximum">
-                                  <double>5.0</double>
-                                </property>
-                                <property name="value">
-                                  <double>1.0</double>
-                                </property>
-                                <property name="singleStep">
-                                  <double>0.1</double>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
-                        </item>
-                        <item>
-                          <layout class="QHBoxLayout" name="hl_spin_cam_dist_">
-                            <item>
-                              <widget class="QLabel" name="label_spin_cam_dist_">
-                                <property name="text">
-                                  <string>Cam Dist:</string>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QDoubleSpinBox" name="spin_cam_dist_">
-                                <property name="minimum">
-                                  <double>0.1</double>
-                                </property>
-                                <property name="maximum">
-                                  <double>3.0</double>
-                                </property>
-                                <property name="value">
-                                  <double>0.3</double>
-                                </property>
-                                <property name="singleStep">
-                                  <double>0.1</double>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
-                        </item>
-                        <item>
-                          <layout class="QHBoxLayout" name="hl_spin_cam_width_">
-                            <item>
-                              <widget class="QLabel" name="label_spin_cam_width_">
-                                <property name="text">
-                                  <string>Cam Width:</string>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QDoubleSpinBox" name="spin_cam_width_">
-                                <property name="minimum">
-                                  <double>0.1</double>
-                                </property>
-                                <property name="maximum">
-                                  <double>2.0</double>
-                                </property>
-                                <property name="value">
-                                  <double>0.4</double>
-                                </property>
-                                <property name="singleStep">
-                                  <double>0.1</double>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
-                        </item>
-                        <item>
-                          <layout class="QHBoxLayout" name="hl_spin_cam_height_">
-                            <item>
-                              <widget class="QLabel" name="label_spin_cam_height_">
-                                <property name="text">
-                                  <string>Cam Height:</string>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QDoubleSpinBox" name="spin_cam_height_">
-                                <property name="minimum">
-                                  <double>0.1</double>
-                                </property>
-                                <property name="maximum">
-                                  <double>2.0</double>
-                                </property>
-                                <property name="value">
-                                  <double>0.2</double>
-                                </property>
-                                <property name="singleStep">
-                                  <double>0.1</double>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
-                        </item>
-                        <item>
-                          <layout class="QHBoxLayout" name="hl_spin_tf_scale_">
-                            <item>
-                              <widget class="QLabel" name="label_spin_tf_scale_">
-                                <property name="text">
-                                  <string>TF Scale:</string>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QDoubleSpinBox" name="spin_tf_scale_">
-                                <property name="minimum">
-                                  <double>0.1</double>
-                                </property>
-                                <property name="maximum">
-                                  <double>10.0</double>
-                                </property>
-                                <property name="value">
-                                  <double>1.0</double>
-                                </property>
-                                <property name="singleStep">
-                                  <double>0.1</double>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
-                        </item>
-                      </layout>
-                    </widget>
-                  </item>
-                  <item>
-                    <widget class="QGroupBox" name="groupBox_robot">
-                      <property name="title">
-                        <string>Robot Control</string>
-                      </property>
-                      <layout class="QVBoxLayout" name="vl_robot">
-                        <item>
-                          <layout class="QHBoxLayout" name="hl_spin_footprint_radius_">
-                            <item>
-                              <widget class="QLabel" name="label_spin_footprint_radius_">
-                                <property name="text">
-                                  <string>Footprint R:</string>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QDoubleSpinBox" name="spin_footprint_radius_">
-                                <property name="minimum">
-                                  <double>0.05</double>
-                                </property>
-                                <property name="maximum">
-                                  <double>2.0</double>
-                                </property>
-                                <property name="value">
-                                  <double>0.19</double>
-                                </property>
-                                <property name="singleStep">
-                                  <double>0.1</double>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
-                        </item>
-                        <item>
-                          <widget class="QPushButton" name="btn_open_teleop_">
-                            <property name="text">
-                              <string>🎮 Open Teleop Window</string>
-                            </property>
-                          </widget>
-                        </item>
-                      </layout>
-                    </widget>
-                  </item>
-                  <item>
-                    <widget class="QGroupBox" name="groupBox_env">
-                      <property name="title">
-                        <string>Simulation Env</string>
-                      </property>
-                      <layout class="QVBoxLayout" name="vl_env">
-                        <item>
-                          <widget class="QCheckBox" name="check_ground_clip_">
-                            <property name="text">
-                              <string>Clip to Ground (Z=0)</string>
-                            </property>
-                            <property name="checked">
-                              <bool>true</bool>
-                            </property>
-                          </widget>
-                        </item>
-                        <item>
-                          <widget class="QCheckBox" name="check_wall_sim_">
-                            <property name="text">
-                              <string>Simulate Wall (X)</string>
-                            </property>
-                          </widget>
-                        </item>
-                        <item>
-                          <widget class="QCheckBox" name="check_bump_sim_">
-                            <property name="text">
-                              <string>Simulate Bump (Threshold)</string>
-                            </property>
-                          </widget>
-                        </item>
-                        <item>
-                          <layout class="QHBoxLayout" name="hl_spin_wall_x_">
-                            <item>
-                              <widget class="QLabel" name="label_spin_wall_x_">
-                                <property name="text">
-                                  <string>Wall X Pos:</string>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QDoubleSpinBox" name="spin_wall_x_">
-                                <property name="minimum">
-                                  <double>-5.0</double>
-                                </property>
-                                <property name="maximum">
-                                  <double>10.0</double>
-                                </property>
-                                <property name="value">
-                                  <double>2.0</double>
-                                </property>
-                                <property name="singleStep">
-                                  <double>0.1</double>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
-                        </item>
-                        <item>
-                          <widget class="QPushButton" name="btn_pick_bg_">
-                            <property name="text">
-                              <string>🎨 Pick Background Color</string>
-                            </property>
-                          </widget>
-                        </item>
-                      </layout>
-                    </widget>
-                  </item>
-                  <item>
-                    <widget class="QGroupBox" name="groupBox_wall">
-                      <property name="title">
-                        <string>Maze Obstacle Manager (Table)</string>
-                      </property>
-                      <layout class="QVBoxLayout" name="vl_wall">
-                        <item>
-                          <widget class="QTableWidget" name="table_walls_">
-                            <property name="columnCount">
-                              <number>7</number>
-                            </property>
-                            <column>
-                              <property name="text">
-                                <string>Type</string>
-                              </property>
-                            </column>
-                            <column>
-                              <property name="text">
-                                <string>X</string>
-                              </property>
-                            </column>
-                            <column>
-                              <property name="text">
-                                <string>Y</string>
-                              </property>
-                            </column>
-                            <column>
-                              <property name="text">
-                                <string>Z</string>
-                              </property>
-                            </column>
-                            <column>
-                              <property name="text">
-                                <string>SX</string>
-                              </property>
-                            </column>
-                            <column>
-                              <property name="text">
-                                <string>SY</string>
-                              </property>
-                            </column>
-                            <column>
-                              <property name="text">
-                                <string>SZ</string>
-                              </property>
-                            </column>
-                          </widget>
-                        </item>
-                        <item>
-                          <layout class="QHBoxLayout" name="hl_wall_btn">
-                            <item>
-                              <widget class="QPushButton" name="btn_add_wall_">
-                                <property name="text">
-                                  <string>Add Obstacle</string>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QPushButton" name="btn_delete_wall_">
-                                <property name="text">
-                                  <string>Delete Selected</string>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
-                        </item>
-                      </layout>
-                    </widget>
-                  </item>
-                  <item>
-                    <widget class="QGroupBox" name="groupBox_map">
-                      <property name="title">
-                        <string>Map Config (Save/Load)</string>
-                      </property>
-                      <layout class="QVBoxLayout" name="vl_map">
-                        <item>
-                          <widget class="QPushButton" name="btn_load_map_">
-                            <property name="text">
-                              <string>📂 Load Map JSON</string>
-                            </property>
-                          </widget>
-                        </item>
-                        <item>
-                          <widget class="QPushButton" name="btn_save_map_">
-                            <property name="text">
-                              <string>💾 Save Current Map</string>
-                            </property>
-                          </widget>
-                        </item>
-                      </layout>
-                    </widget>
-                  </item>
-                  <item>
-                    <spacer name="verticalSpacer">
-                      <property name="orientation">
-                        <enum>Qt::Vertical</enum>
-                      </property>
-                    </spacer>
-                  </item>
-                </layout>
-              </widget>
-            </widget>
-            <widget class="PointCloudVisualizer" name="visualizer_"/>
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1461</width>
+    <height>1068</height>
+   </rect>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout_central">
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_top">
+      <item>
+       <widget class="QPushButton" name="btn_sidebar_toggle_">
+        <property name="text">
+         <string>◀ Hide Sidebar</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QSplitter" name="main_splitter_">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <widget class="QScrollArea" name="sidebar_scroll_">
+       <property name="minimumSize">
+        <size>
+         <width>250</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>400</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="widgetResizable">
+        <bool>true</bool>
+       </property>
+       <widget class="QWidget" name="scrollAreaWidgetContents">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>-789</y>
+          <width>384</width>
+          <height>1309</height>
+         </rect>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_sidebar">
+         <item>
+          <widget class="QPushButton" name="btn_theme_toggle_">
+           <property name="text">
+            <string>🌙 Dark Mode</string>
+           </property>
           </widget>
-        </item>
-      </layout>
-    </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_title">
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Sensor Simulator</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btn_sensor_manager_">
+           <property name="text">
+            <string>Sensor Manager: OFF</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_sensors">
+           <property name="title">
+            <string>Virtual Sensors</string>
+           </property>
+           <layout class="QVBoxLayout" name="vl_sensors">
+            <item>
+             <widget class="QPushButton" name="btn_sensor_tof_mono_">
+              <property name="text">
+               <string>ToF Mono</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_sensor_tof_left_">
+              <property name="text">
+               <string>ToF Multi Left</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_sensor_tof_right_">
+              <property name="text">
+               <string>ToF Multi Right</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_sensor_cam_">
+              <property name="text">
+               <string>Camera Object</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_sensor_bottom_ir_">
+              <property name="text">
+               <string>Bottom IR</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_sensor_coll_front_">
+              <property name="text">
+               <string>Collision Front</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_sensor_coll_rear_">
+              <property name="text">
+               <string>Collision Rear</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_params">
+           <property name="title">
+            <string>Simulation Params</string>
+           </property>
+           <layout class="QVBoxLayout" name="vl_params">
+            <item>
+             <layout class="QHBoxLayout" name="hl_spin_tof_mono_dist_">
+              <item>
+               <widget class="QLabel" name="label_spin_tof_mono_dist_">
+                <property name="text">
+                 <string>Mono Dist:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QDoubleSpinBox" name="spin_tof_mono_dist_">
+                <property name="minimum">
+                 <double>0.050000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>5.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="value">
+                 <double>0.500000000000000</double>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="hl_spin_tof_left_dist_">
+              <item>
+               <widget class="QLabel" name="label_spin_tof_left_dist_">
+                <property name="text">
+                 <string>Left Dist:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QDoubleSpinBox" name="spin_tof_left_dist_">
+                <property name="minimum">
+                 <double>0.050000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>5.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="value">
+                 <double>1.000000000000000</double>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="hl_spin_tof_right_dist_">
+              <item>
+               <widget class="QLabel" name="label_spin_tof_right_dist_">
+                <property name="text">
+                 <string>Right Dist:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QDoubleSpinBox" name="spin_tof_right_dist_">
+                <property name="minimum">
+                 <double>0.050000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>5.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="value">
+                 <double>1.000000000000000</double>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="hl_spin_cam_dist_">
+              <item>
+               <widget class="QLabel" name="label_spin_cam_dist_">
+                <property name="text">
+                 <string>Cam Dist:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QDoubleSpinBox" name="spin_cam_dist_">
+                <property name="minimum">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>3.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="value">
+                 <double>0.300000000000000</double>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="hl_spin_cam_width_">
+              <item>
+               <widget class="QLabel" name="label_spin_cam_width_">
+                <property name="text">
+                 <string>Cam Width:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QDoubleSpinBox" name="spin_cam_width_">
+                <property name="minimum">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>2.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="value">
+                 <double>0.400000000000000</double>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="hl_spin_cam_height_">
+              <item>
+               <widget class="QLabel" name="label_spin_cam_height_">
+                <property name="text">
+                 <string>Cam Height:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QDoubleSpinBox" name="spin_cam_height_">
+                <property name="minimum">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>2.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="value">
+                 <double>0.200000000000000</double>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="hl_spin_tf_scale_">
+              <item>
+               <widget class="QLabel" name="label_spin_tf_scale_">
+                <property name="text">
+                 <string>TF Scale:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QDoubleSpinBox" name="spin_tf_scale_">
+                <property name="minimum">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>10.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="value">
+                 <double>1.000000000000000</double>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_robot">
+           <property name="title">
+            <string>Robot Control</string>
+           </property>
+           <layout class="QVBoxLayout" name="vl_robot">
+            <item>
+             <layout class="QHBoxLayout" name="hl_spin_footprint_radius_">
+              <item>
+               <widget class="QLabel" name="label_spin_footprint_radius_">
+                <property name="text">
+                 <string>Footprint R:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QDoubleSpinBox" name="spin_footprint_radius_">
+                <property name="minimum">
+                 <double>0.050000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>2.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="value">
+                 <double>0.190000000000000</double>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_open_teleop_">
+              <property name="text">
+               <string>🎮 Open Teleop Window</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_env">
+           <property name="title">
+            <string>Simulation Env</string>
+           </property>
+           <layout class="QVBoxLayout" name="vl_env">
+            <item>
+             <widget class="QCheckBox" name="check_ground_clip_">
+              <property name="text">
+               <string>Clip to Ground (Z=0)</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="check_wall_sim_">
+              <property name="text">
+               <string>Simulate Wall (X)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="check_bump_sim_">
+              <property name="text">
+               <string>Simulate Bump (Threshold)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="hl_spin_wall_x_">
+              <item>
+               <widget class="QLabel" name="label_spin_wall_x_">
+                <property name="text">
+                 <string>Wall X Pos:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QDoubleSpinBox" name="spin_wall_x_">
+                <property name="minimum">
+                 <double>-5.000000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>10.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.100000000000000</double>
+                </property>
+                <property name="value">
+                 <double>2.000000000000000</double>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_pick_bg_">
+              <property name="text">
+               <string>🎨 Pick Background Color</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_wall">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>300</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="title">
+            <string>Obstacle Manager (Table)</string>
+           </property>
+           <layout class="QVBoxLayout" name="vl_wall">
+            <item>
+             <widget class="QTableWidget" name="table_walls_">
+              <property name="columnCount">
+               <number>7</number>
+              </property>
+              <column>
+               <property name="text">
+                <string>Type</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>X</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>Y</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>Z</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>SX</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>SY</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>SZ</string>
+               </property>
+              </column>
+             </widget>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="hl_wall_btn">
+              <item>
+               <widget class="QPushButton" name="btn_add_wall_">
+                <property name="text">
+                 <string>Add Obstacle</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btn_delete_wall_">
+                <property name="text">
+                 <string>Delete Selected</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_map">
+           <property name="title">
+            <string>Map Config (Save/Load)</string>
+           </property>
+           <layout class="QVBoxLayout" name="vl_map">
+            <item>
+             <widget class="QPushButton" name="btn_load_map_">
+              <property name="text">
+               <string>📂 Load Map JSON</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_save_map_">
+              <property name="text">
+               <string>💾 Save Current Map</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <spacer name="verticalSpacer">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>0</width>
+             <height>0</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+      </widget>
+      <widget class="PointCloudVisualizer" name="visualizer_"/>
+     </widget>
+    </item>
+   </layout>
   </widget>
-  <customwidgets>
-    <customwidget>
-      <class>PointCloudVisualizer</class>
-      <extends>QOpenGLWidget</extends>
-      <header>sensor_gui/point_cloud_visualizer.hpp</header>
-    </customwidget>
-  </customwidgets>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PointCloudVisualizer</class>
+   <extends>QOpenGLWidget</extends>
+   <header>sensor_gui/point_cloud_visualizer.hpp</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
 </ui>
