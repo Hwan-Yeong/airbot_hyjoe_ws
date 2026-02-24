@@ -31,6 +31,8 @@ private slots:
   void onToggleSensor();
   void onParamChanged();
   void onToggleBump(bool checked);
+  void onPickBackgroundColor();
+  void onToggleTheme();
   void syncTFs();
   void onAddWall();
   void onDeleteWall();
@@ -70,4 +72,8 @@ private:
 
   QTimer* tf_timer_;
   TeleopWindow* teleop_window_ = nullptr;
+  
+  bool is_dark_mode_ = true;
+  QPushButton* btn_theme_toggle_;
+  QWidget* central_widget_ptr_;
 };

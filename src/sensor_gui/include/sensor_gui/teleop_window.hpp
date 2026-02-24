@@ -31,6 +31,7 @@ public:
     void setVelCallback(VelCallback cb) { vel_callback_ = cb; }
     void setLinearSpeed(float s)  { linear_speed_  = s; }
     void setAngularSpeed(float s) { angular_speed_ = s; }
+    void setTheme(bool is_dark);
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;
@@ -50,6 +51,7 @@ private:
     VelCallback vel_callback_;
     QTimer*     timer_;
     QSet<int>   pressed_keys_;
+    bool        is_dark_ = false;
 
     float linear_speed_  = 0.5f;  // m/s
     float angular_speed_ = 60.0f; // deg/s

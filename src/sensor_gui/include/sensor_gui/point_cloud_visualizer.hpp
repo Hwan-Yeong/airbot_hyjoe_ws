@@ -44,6 +44,7 @@ public:
     void setFootprintRadius(float r) { footprint_radius_ = r; update(); }
     void setGroundClipping(bool enabled) { ground_clipping_ = enabled; update(); }
     void setWallSimulation(bool enabled) { wall_sim_ = enabled; update(); }
+    void setBackgroundColor(const QColor& color);
     void setWallPosition(float x) { wall_x_ = x; update(); } // Legacy, still used for single wall if needed
     void setWalls(const std::vector<BoxObject>& walls) { walls_ = walls; update(); }
 
@@ -75,6 +76,7 @@ private:
     bool ground_clipping_ = true;
     bool wall_sim_ = false;
     float wall_x_ = 2.0f;
+    QColor bg_color_ = QColor(242, 242, 230); // Default Ivory
 
     // Camera state
     float yaw_ = -45.0f;   // degrees

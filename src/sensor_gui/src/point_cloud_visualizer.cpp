@@ -44,9 +44,14 @@ bool PointCloudVisualizer::setRobotModelFromUrdf(const std::string& path) {
     return false;
 }
 
+void PointCloudVisualizer::setBackgroundColor(const QColor& color) {
+    bg_color_ = color;
+    update();
+}
+
 void PointCloudVisualizer::initializeGL() {
     initializeOpenGLFunctions();
-    glClearColor(0.05f, 0.05f, 0.1f, 1.0f); // Darker blueish background
+    glClearColor(bg_color_.redF(), bg_color_.greenF(), bg_color_.blueF(), 1.0f);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_POINT_SMOOTH);
     glEnable(GL_BLEND);
@@ -62,6 +67,7 @@ void PointCloudVisualizer::resizeGL(int w, int h) {
 }
 
 void PointCloudVisualizer::paintGL() {
+    glClearColor(bg_color_.redF(), bg_color_.greenF(), bg_color_.blueF(), 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();

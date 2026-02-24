@@ -11,6 +11,8 @@
 #include <QGridLayout>
 #include <QHeaderView>
 #include <QSizePolicy>
+#include <QColorDialog>
+#include <QScrollArea>
 #include <functional>
 #include <tf2/utils.h>
 #include <ament_index_cpp/get_package_share_directory.hpp>
@@ -37,17 +39,71 @@ void MainWindow::showEvent(QShowEvent *event) {
 }
 
 void MainWindow::setupUi() {
-  QWidget* central = new QWidget();
-  QHBoxLayout* main_layout = new QHBoxLayout(central);
+  central_widget_ptr_ = new QWidget();
+  QHBoxLayout* main_layout = new QHBoxLayout(central_widget_ptr_);
 
-  // Sidebar
+  // Sidebar with Scroll Area
+  QScrollArea* scroll_area = new QScrollArea();
+  scroll_area->setFixedWidth(260); // Slightly wider to accommodate scrollbar
+  scroll_area->setWidgetResizable(true);
+  scroll_area->setFrameShape(QFrame::NoFrame);
+  scroll_area->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
   QWidget* sidebar = new QWidget();
   sidebar->setFixedWidth(250);
   QVBoxLayout* sidebar_layout = new QVBoxLayout(sidebar);
+  sidebar_layout->setContentsMargins(10, 10, 10, 10);
+  
+  scroll_area->setWidget(sidebar);
+  main_layout->addWidget(scroll_area);
+
+  // Theme Toggle Button at the top
+  btn_theme_toggle_ = new QPushButton("🌙 Dark Mode");
+  btn_theme_toggle_->setStyleSheet("height: 35px; font-weight: bold; margin-bottom: 10px;");
+  connect(btn_theme_toggle_, &QPushButton::clicked, this, &MainWindow::onToggleTheme);
+  sidebar_layout->addWidget(btn_theme_toggle_);
 
   QLabel* title = new QLabel("Sensor Simulator");
-  title->setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 20px;");
+  title->setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #2C2C2C;");
   sidebar_layout->addWidget(title);
+
+  // Set Light Theme for Main Window
+  central_widget_ptr_->setStyleSheet(R"(
+    QWidget { 
+        background-color: #FDFBF7; 
+        color: #2C2C2C; 
+        font-family: 'Segoe UI', sans-serif;
+    }
+    QGroupBox { 
+        border: 1px solid #D1D1D1; 
+        border-radius: 8px; 
+        margin-top: 15px; 
+        font-weight: bold;
+        background-color: #FFFFFF;
+    }
+    QGroupBox::title { 
+        subcontrol-origin: margin; 
+        left: 10px; 
+        padding: 0 5px; 
+        color: #4A4A4A;
+    }
+    QPushButton {
+        background-color: #FFFFFF;
+        border: 1px solid #D1D1D1;
+        border-radius: 6px;
+        padding: 5px;
+        height: 24px;
+    }
+    QPushButton:hover { background-color: #F0F0F0; }
+    QPushButton:checked { background-color: #AED9FF; border-color: #7BB8FF; }
+    QDoubleSpinBox {
+        background-color: #FFFFFF;
+        border: 1px solid #D1D1D1;
+        border-radius: 4px;
+        padding: 2px;
+    }
+    QCheckBox { spacing: 5px; }
+  )");
 
   // Sensor Manager Control
   btn_sensor_manager_ = new QPushButton("Sensor Manager: OFF");
@@ -176,6 +232,11 @@ void MainWindow::setupUi() {
   connect(check_ground_clip_, &QCheckBox::toggled, this, &MainWindow::onParamChanged);
   connect(check_wall_sim_, &QCheckBox::toggled, this, &MainWindow::onParamChanged);
 
+  QPushButton* btn_pick_bg = new QPushButton("🎨 Pick Background Color");
+  btn_pick_bg->setStyleSheet("height: 30px; margin-top: 5px; background-color: #ffffff; border: 1px solid #d1d1d1; border-radius: 4px;");
+  connect(btn_pick_bg, &QPushButton::clicked, this, &MainWindow::onPickBackgroundColor);
+  env_layout->addWidget(btn_pick_bg);
+
   // Wall Manager
   QGroupBox* wall_group = new QGroupBox("Maze Wall Manager");
   QVBoxLayout* wall_layout = new QVBoxLayout();
@@ -207,10 +268,11 @@ void MainWindow::setupUi() {
   IrIndex indices[] = {IrIndex::kFF, IrIndex::kFL, IrIndex::kFR, IrIndex::kBB, IrIndex::kBL, IrIndex::kBR};
 
   for (int i = 0; i < 6; ++i) {
+    IrIndex idx = indices[i];
     QCheckBox* cb = new QCheckBox(labels[i]);
     cb->setChecked(true);
-    connect(cb, &QCheckBox::toggled, [this, indices, i](bool checked) {
-      ros_node_->setIrState(indices[i], checked);
+    connect(cb, &QCheckBox::toggled, [this, idx](bool checked) {
+      ros_node_->setIrState(idx, checked);
     });
     ir_grid->addWidget(cb, i / 2, i % 2);
   }
@@ -220,16 +282,19 @@ void MainWindow::setupUi() {
   sidebar_layout->addStretch();
 
   // Custom PointCloud Visualizer
-  visualizer_ = new PointCloudVisualizer(central);
+  visualizer_ = new PointCloudVisualizer(central_widget_ptr_);
   visualizer_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
   visualizer_->setMinimumSize(800, 600);
 
-  main_layout->addWidget(sidebar);
   main_layout->addWidget(visualizer_, 1);
 
-  setCentralWidget(central);
+  setCentralWidget(central_widget_ptr_);
   resize(1200, 800);
   setWindowTitle("Airbot Sensor Simulator & Custom Cloud Visualizer");
+
+  // Force initial state to Dark Mode (user preferred "이전이 낫다")
+  is_dark_mode_ = false; // Set false first so toggle makes it true
+  onToggleTheme(); 
   
   onParamChanged(); // Sync initial values to Node and Visualizer
 
@@ -435,12 +500,60 @@ void MainWindow::onWallTableChanged(int row, int col) {
     if (visualizer_) visualizer_->setWalls(walls);
 }
 
+void MainWindow::onPickBackgroundColor() {
+    if (!visualizer_) return;
+    QColor color = QColorDialog::getColor(is_dark_mode_ ? QColor(13, 13, 26) : QColor(242, 242, 230), 
+                                         this, "Select 3D View Background Color");
+    if (color.isValid()) {
+        visualizer_->setBackgroundColor(color);
+    }
+}
+
+void MainWindow::onToggleTheme() {
+    is_dark_mode_ = !is_dark_mode_;
+    
+    if (is_dark_mode_) {
+        btn_theme_toggle_->setText("🌙 Dark Mode");
+        central_widget_ptr_->setStyleSheet(R"(
+            QWidget { background-color: #1e1e2e; color: #cdd6f4; font-family: 'Segoe UI', sans-serif; }
+            QGroupBox { border: 1px solid #45475a; border-radius: 8px; margin-top: 15px; font-weight: bold; background-color: #242438; }
+            QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; color: #f5c2e7; }
+            QPushButton { background-color: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 6px; padding: 5px; height: 24px; }
+            QPushButton:hover { background-color: #45475a; }
+            QPushButton:checked { background-color: #89b4fa; color: #1e1e2e; }
+            QDoubleSpinBox { background-color: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 2px; }
+            QCheckBox { spacing: 5px; }
+            QLabel { color: #cdd6f4; }
+        )");
+        if (visualizer_) visualizer_->setBackgroundColor(QColor(13, 13, 26));
+    } else {
+        btn_theme_toggle_->setText("☀️ Light Mode");
+        central_widget_ptr_->setStyleSheet(R"(
+            QWidget { background-color: #FDFBF7; color: #2C2C2C; font-family: 'Segoe UI', sans-serif; }
+            QGroupBox { border: 1px solid #D1D1D1; border-radius: 8px; margin-top: 15px; font-weight: bold; background-color: #FFFFFF; }
+            QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; color: #4A4A4A; }
+            QPushButton { background-color: #FFFFFF; color: #2C2C2C; border: 1px solid #D1D1D1; border-radius: 6px; padding: 5px; height: 24px; }
+            QPushButton:hover { background-color: #F0F0F0; }
+            QPushButton:checked { background-color: #AED9FF; border-color: #7BB8FF; }
+            QDoubleSpinBox { background-color: #FFFFFF; color: #2C2C2C; border: 1px solid #D1D1D1; border-radius: 4px; padding: 2px; }
+            QCheckBox { spacing: 5px; }
+            QLabel { color: #2C2C2C; }
+        )");
+        if (visualizer_) visualizer_->setBackgroundColor(QColor(242, 242, 230));
+    }
+
+    if (teleop_window_) {
+        teleop_window_->setTheme(is_dark_mode_);
+    }
+}
+
 void MainWindow::onOpenTeleop() {
     if (!teleop_window_) {
         teleop_window_ = new TeleopWindow(nullptr); // 독립 창
         teleop_window_->setVelCallback([this](float vx, float vy, float vyaw) {
             if (ros_node_) ros_node_->setVelocities(vx, vy, vyaw);
         });
+        teleop_window_->setTheme(is_dark_mode_);
     }
     teleop_window_->show();
     teleop_window_->raise();
