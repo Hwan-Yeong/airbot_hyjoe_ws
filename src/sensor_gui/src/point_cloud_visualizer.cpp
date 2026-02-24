@@ -10,6 +10,10 @@
 PointCloudVisualizer::PointCloudVisualizer(QWidget* parent)
     : QOpenGLWidget(parent) {
     robot_model_ = std::make_unique<RobotModel>();
+    
+    renderers_[ObstacleType::kBox] = std::make_unique<BoxRenderer>();
+    renderers_[ObstacleType::kCylinder] = std::make_unique<CylinderRenderer>();
+    renderers_[ObstacleType::kCone] = std::make_unique<ConeRenderer>();
 }
 
 PointCloudVisualizer::~PointCloudVisualizer() {}
@@ -92,7 +96,7 @@ void PointCloudVisualizer::paintGL() {
     }
     
     drawRobotFootprint();
-    drawWalls();
+    drawObstacles();
 
     // Draw TFs
     for (auto const& [frame_id, tf] : tfs_) {
@@ -130,7 +134,7 @@ void PointCloudVisualizer::paintGL() {
             float py = cloud.points[i+1];
             float pz = cloud.points[i+2];
 
-            if (has_tf && (ground_clipping_ || wall_sim_ || !walls_.empty())) {
+            if (has_tf && (ground_clipping_ || wall_sim_ || !obstacles_.empty())) {
                 float wx, wy, wz;
                 transformPoint(sensor_tf, px, py, pz, wx, wy, wz);
                 
@@ -155,33 +159,50 @@ void PointCloudVisualizer::paintGL() {
                     }
                 }
 
-                // Clip against all box walls
-                for (const auto& box : walls_) {
+                // Clip against all obstacles
+                for (const auto& ob : obstacles_) {
                     float sx = sensor_tf.x, sy = sensor_tf.y, sz = sensor_tf.z;
                     float dx = wx - sx, dy = wy - sy, dz = wz - sz;
                     
-                    float tmin = -1e30f, tmax = 1e30f;
-                    
-                    auto check_axis = [&](float start, float delta, float bmin, float bmax) {
-                        if (std::abs(delta) < 1e-6f) {
-                            if (start < bmin || start > bmax) return false;
-                        } else {
-                            float t1 = (bmin - start) / delta;
-                            float t2 = (bmax - start) / delta;
-                            if (t1 > t2) std::swap(t1, t2);
-                            tmin = std::max(tmin, t1);
-                            tmax = std::min(tmax, t2);
-                        }
-                        return true;
-                    };
+                    if (ob.type == ObstacleType::kBox) {
+                        float tmin = -1e30f, tmax = 1e30f;
+                        auto check_axis = [&](float start, float delta, float bmin, float bmax) {
+                            if (std::abs(delta) < 1e-6f) {
+                                if (start < bmin || start > bmax) return false;
+                            } else {
+                                float t1 = (bmin - start) / delta;
+                                float t2 = (bmax - start) / delta;
+                                if (t1 > t2) std::swap(t1, t2);
+                                tmin = std::max(tmin, t1);
+                                tmax = std::min(tmax, t2);
+                            }
+                            return true;
+                        };
 
-                    if (check_axis(sx, dx, box.x - box.sx/2, box.x + box.sx/2) &&
-                        check_axis(sy, dy, box.y - box.sy/2, box.y + box.sy/2) &&
-                        check_axis(sz, dz, box.z - box.sz/2, box.z + box.sz/2)) {
-                        
-                        if (tmin <= tmax && tmax > 0.0f) {
-                            float hit_t = (tmin > 0.0f) ? tmin : 0.0f;
-                            if (hit_t < t) t = hit_t;
+                        if (check_axis(sx, dx, ob.x - ob.sx/2, ob.x + ob.sx/2) &&
+                            check_axis(sy, dy, ob.y - ob.sy/2, ob.y + ob.sy/2) &&
+                            check_axis(sz, dz, ob.z - ob.sz/2, ob.z + ob.sz/2)) {
+                            if (tmin <= tmax && tmax > 0.0f) {
+                                float hit_t = (tmin > 0.0f) ? tmin : 0.0f;
+                                if (hit_t < t) t = hit_t;
+                            }
+                        }
+                    } else if (ob.type == ObstacleType::kCylinder) {
+                        // Ray-Cylinder intersection (Infinite cylinder first)
+                        // (sx-ox)^2 + (sy-oy)^2 = R^2
+                        float ox = sx - ob.x;
+                        float oy = sy - ob.y;
+                        float R = ob.sx;
+                        float A = dx*dx + dy*dy;
+                        float B = 2.0f * (dx*ox + dy*oy);
+                        float C = ox*ox + oy*oy - R*R;
+                        float disc = B*B - 4.0f*A*C;
+                        if (disc >= 0) {
+                            float t1 = (-B - std::sqrt(disc)) / (2.0f*A);
+                            if (t1 > 0 && t1 < t) {
+                                float hit_z = sz + t1 * dz;
+                                if (hit_z > ob.z - ob.sz/2 && hit_z < ob.z + ob.sz/2) t = t1;
+                            }
                         }
                     }
                 }
@@ -318,64 +339,32 @@ void PointCloudVisualizer::transformPoint(const TfData& tf, float lx, float ly, 
     wz = vz*w + vw*-z + vx*-y - vy*-x + tf.z;
 }
 
-void PointCloudVisualizer::drawWalls() {
-    if (!wall_sim_ && walls_.empty()) return;
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    
-    // Legacy Wall
-    if (wall_sim_) {
-        glColor4f(0.8f, 0.2f, 0.2f, 0.3f);
-        glBegin(GL_QUADS);
-        glVertex3f(wall_x_, -5.0f, 0.0f);
-        glVertex3f(wall_x_,  5.0f, 0.0f);
-        glVertex3f(wall_x_,  5.0f, 5.0f);
-        glVertex3f(wall_x_, -5.0f, 5.0f);
-        glEnd();
+void PointCloudVisualizer::drawObstacles() {
+    for (size_t i = 0; i < obstacles_.size(); ++i) {
+        auto type = obstacles_[i].type;
+        if (renderers_.count(type)) {
+            renderers_[type]->draw(obstacles_[i], (int)i == selected_idx_);
+        }
     }
-
-    // Box Walls
-    for (const auto& box : walls_) {
-        glColor4f(0.5f, 0.5f, 0.8f, 0.4f);
-        float x1 = box.x - box.sx/2, x2 = box.x + box.sx/2;
-        float y1 = box.y - box.sy/2, y2 = box.y + box.sy/2;
-        float z1 = box.z - box.sz/2, z2 = box.z + box.sz/2;
-
-        glBegin(GL_QUADS);
-        // Bottom
-        glVertex3f(x1, y1, z1); glVertex3f(x2, y1, z1); glVertex3f(x2, y2, z1); glVertex3f(x1, y2, z1);
-        // Top
-        glVertex3f(x1, y1, z2); glVertex3f(x2, y1, z2); glVertex3f(x2, y2, z2); glVertex3f(x1, y2, z2);
-        // Front
-        glVertex3f(x1, y1, z1); glVertex3f(x2, y1, z1); glVertex3f(x2, y1, z2); glVertex3f(x1, y1, z2);
-        // Back
-        glVertex3f(x1, y2, z1); glVertex3f(x2, y2, z1); glVertex3f(x2, y2, z2); glVertex3f(x1, y2, z2);
-        // Left
-        glVertex3f(x1, y1, z1); glVertex3f(x1, y2, z1); glVertex3f(x1, y2, z2); glVertex3f(x1, y1, z2);
-        // Right
-        glVertex3f(x2, y1, z1); glVertex3f(x2, y2, z1); glVertex3f(x2, y2, z2); glVertex3f(x2, y1, z2);
-        glEnd();
-        
-        // Wireframe for edges
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glColor4f(0.0f, 0.0f, 0.0f, 0.5f);
-        glBegin(GL_QUADS);
-        glVertex3f(x1, y1, z1); glVertex3f(x2, y1, z1); glVertex3f(x2, y2, z1); glVertex3f(x1, y2, z1);
-        glVertex3f(x1, y1, z2); glVertex3f(x2, y1, z2); glVertex3f(x2, y2, z2); glVertex3f(x1, y2, z2);
-        glVertex3f(x1, y1, z1); glVertex3f(x2, y1, z1); glVertex3f(x2, y1, z2); glVertex3f(x1, y1, z2);
-        glVertex3f(x1, y2, z1); glVertex3f(x2, y2, z1); glVertex3f(x2, y2, z2); glVertex3f(x1, y2, z2);
-        glVertex3f(x1, y1, z1); glVertex3f(x1, y2, z1); glVertex3f(x1, y2, z2); glVertex3f(x1, y1, z2);
-        glVertex3f(x2, y1, z1); glVertex3f(x2, y2, z1); glVertex3f(x2, y2, z2); glVertex3f(x2, y1, z2);
-        glEnd();
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    }
-
-    glDisable(GL_BLEND);
 }
 
 void PointCloudVisualizer::mousePressEvent(QMouseEvent* event) {
     last_mouse_pos_ = event->pos();
+    
+    if (event->button() == Qt::LeftButton) {
+        // Simple hit-test for deselection if Shift is NOT held
+        if (!(event->modifiers() & Qt::ShiftModifier)) {
+            // If user clicks without shift, and we want to allow deselection:
+            // (In a real app, we'd do ray-casting to see if they clicked 'nothing')
+            // For now, let's keep it simple: clicking lets you rotate, 
+            // but we can provide a way to deselect via double click or a specific area.
+        }
+    } else if (event->button() == Qt::RightButton) {
+        // Right click to deselect
+        selected_idx_ = -1;
+        emit obstacleSelected(-1);
+        update();
+    }
 }
 
 void PointCloudVisualizer::mouseMoveEvent(QMouseEvent* event) {
@@ -383,14 +372,51 @@ void PointCloudVisualizer::mouseMoveEvent(QMouseEvent* event) {
     int dy = event->y() - last_mouse_pos_.y();
 
     if (event->buttons() & Qt::LeftButton) {
-        yaw_ += dx * 0.5f;
-        pitch_ += dy * 0.5f;
-        update();
+        // Use Shift for Dragging to avoid blocking Camera Rotation
+        if ((event->modifiers() & Qt::ShiftModifier) && selected_idx_ >= 0 && selected_idx_ < (int)obstacles_.size()) {
+            float rad = yaw_ * M_PI / 180.0f;
+            float cos_y = std::cos(rad);
+            float sin_y = std::sin(rad);
+            
+            // Adjust factor by pitch to keep it roughly screen-consistent
+            // pitch_ is 0 (horizontal) to -90 (vertical down)
+            float pitch_rad = pitch_ * M_PI / 180.0f;
+            float pitch_factor = std::abs(std::sin(pitch_rad));
+            if (pitch_factor < 0.1f) pitch_factor = 0.1f;
+            
+            float factor = 0.001f * distance_ / pitch_factor;
+            
+            float move_x = (dx * cos_y + dy * sin_y) * factor;
+            float move_y = (-dx * sin_y - dy * cos_y) * factor;
+            
+            obstacles_[selected_idx_].x += move_x;
+            obstacles_[selected_idx_].y += move_y;
+            emit obstacleMoved(selected_idx_, obstacles_[selected_idx_].x, obstacles_[selected_idx_].y);
+            update();
+        } else {
+            // Normal Camera Rotation
+            yaw_ += dx * 0.5f;
+            pitch_ += dy * 0.5f;
+            if (pitch_ > -5.0f) pitch_ = -5.0f;
+            if (pitch_ < -89.0f) pitch_ = -89.0f;
+            update();
+        }
     } else if (event->buttons() & Qt::MiddleButton) {
-        // Direct Screen-Relative Panning
-        float factor = 0.001f * distance_;
-        pan_x_ -= dx * factor;
-        pan_z_ -= dy * factor; // Reusing pan_z variable for screen-Y
+        float rad = yaw_ * M_PI / 180.0f;
+        float cos_y = std::cos(rad);
+        float sin_y = std::sin(rad);
+        
+        float pitch_rad = pitch_ * M_PI / 180.0f;
+        float pitch_factor = std::abs(std::sin(pitch_rad));
+        if (pitch_factor < 0.1f) pitch_factor = 0.1f;
+        
+        float factor = 0.001f * distance_ / pitch_factor;
+        
+        float move_x = (dx * cos_y + dy * sin_y) * factor;
+        float move_y = (-dx * sin_y - dy * cos_y) * factor;
+
+        pan_x_ -= move_x;
+        pan_y_ -= move_y;
         update();
     }
     last_mouse_pos_ = event->pos();

@@ -9,8 +9,7 @@
 #include <mutex>
 #include <QColor>
 #include <memory>
-
-class RobotModel;
+#include "obstacle_renderer.hpp"
 
 struct ColoredCloud {
     std::string frame_id;
@@ -18,10 +17,7 @@ struct ColoredCloud {
     QColor color;
 };
 
-struct BoxObject {
-    float x, y, z;
-    float sx, sy, sz; // Full size
-};
+class RobotModel;
 
 struct TfData {
     std::string frame_id;
@@ -45,8 +41,12 @@ public:
     void setGroundClipping(bool enabled) { ground_clipping_ = enabled; update(); }
     void setWallSimulation(bool enabled) { wall_sim_ = enabled; update(); }
     void setBackgroundColor(const QColor& color);
-    void setWallPosition(float x) { wall_x_ = x; update(); } // Legacy, still used for single wall if needed
-    void setWalls(const std::vector<BoxObject>& walls) { walls_ = walls; update(); }
+    void setWallPosition(float x) { wall_x_ = x; update(); }
+    void setObstacles(const std::vector<SimObstacle>& obs) { obstacles_ = obs; update(); }
+    std::vector<SimObstacle> getObstacles() const { return obstacles_; }
+
+    int getSelectedObstacleIndex() const { return selected_idx_; }
+    void setSelectedObstacleIndex(int idx) { selected_idx_ = idx; update(); }
 
 protected:
     void initializeGL() override;
@@ -62,13 +62,13 @@ private:
     void drawAxes();
     void drawGrid();
     void drawRobotFootprint();
-    void drawWalls();
+    void drawObstacles();
     void applyTf(const TfData& tf);
     void transformPoint(const TfData& tf, float lx, float ly, float lz, float& wx, float& wy, float& wz);
 
     std::map<std::string, ColoredCloud> clouds_;
     std::map<std::string, TfData> tfs_;
-    std::vector<BoxObject> walls_;
+    std::vector<SimObstacle> obstacles_;
     std::mutex cloud_mutex_;
 
     float tf_scale_ = 1.0f;
@@ -88,4 +88,12 @@ private:
 
     std::unique_ptr<RobotModel> robot_model_;
     QPoint last_mouse_pos_;
+    int selected_idx_ = -1;
+    bool dragging_ = false;
+
+    std::map<ObstacleType, std::unique_ptr<IObstacleRenderer>> renderers_;
+
+signals:
+    void obstacleMoved(int index, float x, float y);
+    void obstacleSelected(int index);
 };

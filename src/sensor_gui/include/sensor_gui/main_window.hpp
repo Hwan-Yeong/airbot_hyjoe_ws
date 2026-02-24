@@ -13,6 +13,9 @@
 #include <QKeyEvent>
 #include <QSet>
 #include <QTimer>
+#include <QSplitter>
+#include <QScrollArea>
+#include <QComboBox>
 #include "ros_node.hpp"
 #include "point_cloud_visualizer.hpp"
 #include "teleop_window.hpp"
@@ -38,6 +41,12 @@ private slots:
   void onDeleteWall();
   void onWallTableChanged(int row, int col);
   void onOpenTeleop();
+  void onLoadMap();
+  void onSaveMap();
+  void onObstacleMoved(int index, float x, float y);
+  void onObstacleSelected(int index);
+  void onToggleSidebar();
+  void onTableSelectionChanged();
 
 private:
   void setupUi();
@@ -76,4 +85,13 @@ private:
   bool is_dark_mode_ = true;
   QPushButton* btn_theme_toggle_;
   QWidget* central_widget_ptr_;
+  
+  QString last_map_path_;
+  QComboBox* createTypeComboBox(ObstacleType type);
+  void loadSettings();
+  void saveSettings();
+
+  QSplitter* main_splitter_;
+  QScrollArea* sidebar_scroll_;
+  QPushButton* btn_sidebar_toggle_;
 };
