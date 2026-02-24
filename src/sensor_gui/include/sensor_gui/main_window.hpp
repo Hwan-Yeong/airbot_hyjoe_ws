@@ -30,6 +30,7 @@ private slots:
   void onToggleSensorManager();
   void onToggleSensor();
   void onParamChanged();
+  void onToggleBump(bool checked);
   void syncTFs();
   void onAddWall();
   void onDeleteWall();
@@ -64,6 +65,7 @@ private:
   // Simulation Environment
   QCheckBox* check_ground_clip_;
   QCheckBox* check_wall_sim_;
+  QCheckBox* check_bump_sim_;
   QDoubleSpinBox* spin_wall_x_;
 
   QTimer* tf_timer_;

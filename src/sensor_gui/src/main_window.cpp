@@ -13,6 +13,8 @@
 #include <QSizePolicy>
 #include <functional>
 #include <tf2/utils.h>
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#include "sensor_gui/robot_model.hpp"
 
 MainWindow::MainWindow(std::shared_ptr<RosNode> node)
     : ros_node_(node), visualizer_(nullptr)
@@ -161,6 +163,10 @@ void MainWindow::setupUi() {
   check_wall_sim_ = new QCheckBox("Simulate Wall (X)");
   check_wall_sim_->setChecked(false);
   env_layout->addWidget(check_wall_sim_);
+
+  check_bump_sim_ = new QCheckBox("Simulate Bump (Threshold)");
+  connect(check_bump_sim_, &QCheckBox::toggled, this, &MainWindow::onToggleBump);
+  env_layout->addWidget(check_bump_sim_);
   
   create_param_row(env_layout, "Wall X Pos:", 2.0, -5.0, 10.0, &spin_wall_x_);
 
@@ -226,6 +232,21 @@ void MainWindow::setupUi() {
   setWindowTitle("Airbot Sensor Simulator & Custom Cloud Visualizer");
   
   onParamChanged(); // Sync initial values to Node and Visualizer
+
+  // Load URDF from package share directory
+  try {
+      std::string share_dir = ament_index_cpp::get_package_share_directory("sensor_gui");
+      std::string urdf_path = share_dir + "/urdf/robot_urdf.xml";
+      if (visualizer_) {
+          if (!visualizer_->setRobotModelFromUrdf(urdf_path)) {
+              std::cerr << "Failed to load URDF from: " << urdf_path << std::endl;
+          } else {
+              std::cout << "Successfully loaded URDF: " << urdf_path << std::endl;
+          }
+      }
+  } catch (...) {
+      std::cerr << "Could not find package share directory for sensor_gui" << std::endl;
+  }
 }
 
 /**
@@ -346,6 +367,34 @@ void MainWindow::syncTFs() {
     }
   }
   visualizer_->updateTFs(tfs);
+
+  // Ground Following Logic (Implementation)
+  float rx = ros_node_->getRobotX();
+  float ground_z = 0.0f;
+  
+  if (check_bump_sim_ && check_bump_sim_->isChecked()) {
+      // Bump at X=[0.8, 1.2], Width=0.4m, Height=0.03m
+      if (rx > 0.8f && rx < 1.2f) {
+          ground_z = 0.03f;
+      }
+  }
+
+  float target_robot_z = ground_z + 0.045f; // Add wheel radius
+  ros_node_->setRobotZ(target_robot_z);
+}
+
+void MainWindow::onToggleBump(bool checked) {
+    if (!visualizer_) return;
+    
+    std::vector<BoxObject> current_walls;
+    // Note: Manage walls specifically for this demo
+    if (checked) {
+        BoxObject bump;
+        bump.x = 1.0f; bump.y = 0.0f; bump.z = 0.015f;
+        bump.sx = 0.4f; bump.sy = 4.0f; bump.sz = 0.03f;
+        current_walls.push_back(bump);
+    }
+    visualizer_->setWalls(current_walls);
 }
 
 void MainWindow::onAddWall() {

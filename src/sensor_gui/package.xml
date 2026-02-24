@@ -22,6 +22,7 @@
   <depend>freeglut3-dev</depend>
   <depend>libglu1-mesa-dev</depend>
   <depend>robot_custom_msgs</depend>
+  <depend>tinyxml2_vendor</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

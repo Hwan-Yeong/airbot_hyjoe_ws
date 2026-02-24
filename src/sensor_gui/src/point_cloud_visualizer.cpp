@@ -1,4 +1,5 @@
 #include "sensor_gui/point_cloud_visualizer.hpp"
+#include "sensor_gui/robot_model.hpp"
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QPainter>
@@ -7,7 +8,11 @@
 #include <GL/glu.h>
 
 PointCloudVisualizer::PointCloudVisualizer(QWidget* parent)
-    : QOpenGLWidget(parent) {}
+    : QOpenGLWidget(parent) {
+    robot_model_ = std::make_unique<RobotModel>();
+}
+
+PointCloudVisualizer::~PointCloudVisualizer() {}
 
 /**
  * @brief Update point cloud data
@@ -30,6 +35,13 @@ void PointCloudVisualizer::updateTFs(const std::map<std::string, TfData>& tfs) {
     std::lock_guard<std::mutex> lock(cloud_mutex_);
     tfs_ = tfs;
     update();
+}
+
+bool PointCloudVisualizer::setRobotModelFromUrdf(const std::string& path) {
+    if (robot_model_) {
+        return robot_model_->loadFromFile(path);
+    }
+    return false;
 }
 
 void PointCloudVisualizer::initializeGL() {
@@ -66,6 +78,13 @@ void PointCloudVisualizer::paintGL() {
     std::lock_guard<std::mutex> lock(cloud_mutex_);
 
     drawGrid();
+    
+    // Draw Robot Model (Object-Oriented)
+    auto it_base = tfs_.find("base_link");
+    if (it_base != tfs_.end()) {
+        robot_model_->draw(it_base->second, 0.5f);
+    }
+    
     drawRobotFootprint();
     drawWalls();
 
@@ -225,20 +244,16 @@ void PointCloudVisualizer::drawGrid() {
 }
 
 void PointCloudVisualizer::drawRobotFootprint() {
-    // Find base_link position/orientation
-    float bx = 0, by = 0, bz = 0;
-    // We draw relative to world, but base_link pose is already in tfs_
+    float bx = 0, by = 0;
     auto it = tfs_.find("base_link");
     if (it != tfs_.end()) {
         bx = it->second.x;
         by = it->second.y;
-        bz = it->second.z;
     }
 
     glPushMatrix();
-    glTranslatef(bx, by, bz + 0.01f); // Slightly above ground
+    glTranslatef(bx, by, 0.001f);
     
-    // Skyblue circle
     glColor3f(0.53f, 0.81f, 0.98f);
     glLineWidth(3.0f);
     glBegin(GL_LINE_LOOP);
@@ -249,6 +264,7 @@ void PointCloudVisualizer::drawRobotFootprint() {
     glEnd();
     glPopMatrix();
 }
+
 void PointCloudVisualizer::applyTf(const TfData& tf) {
     glTranslatef(tf.x, tf.y, tf.z);
     

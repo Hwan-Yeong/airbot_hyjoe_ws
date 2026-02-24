@@ -8,6 +8,9 @@
 #include <string>
 #include <mutex>
 #include <QColor>
+#include <memory>
+
+class RobotModel;
 
 struct ColoredCloud {
     std::string frame_id;
@@ -32,10 +35,11 @@ class PointCloudVisualizer : public QOpenGLWidget, protected QOpenGLFunctions {
 
 public:
     explicit PointCloudVisualizer(QWidget* parent = nullptr);
-    virtual ~PointCloudVisualizer() = default;
+    virtual ~PointCloudVisualizer();
 
     void updateCloud(const std::string& name, const std::string& frame_id, const std::vector<float>& points, QColor color = Qt::white);
     void updateTFs(const std::map<std::string, TfData>& tfs);
+    bool setRobotModelFromUrdf(const std::string& path);
     void setTfScale(float s) { tf_scale_ = s; update(); }
     void setFootprintRadius(float r) { footprint_radius_ = r; update(); }
     void setGroundClipping(bool enabled) { ground_clipping_ = enabled; update(); }
@@ -80,5 +84,6 @@ private:
     float pan_y_ = 0.0f;
     float pan_z_ = 0.0f;
 
+    std::unique_ptr<RobotModel> robot_model_;
     QPoint last_mouse_pos_;
 };

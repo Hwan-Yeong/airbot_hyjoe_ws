@@ -107,7 +107,7 @@ private:
   std::atomic<float> robot_x_{0.0f};
   std::atomic<float> robot_y_{0.0f};
   std::atomic<float> robot_yaw_{0.0f};
-  std::atomic<float> robot_z_{0.05f};
+  std::atomic<float> robot_z_{0.045f};
   std::atomic<float> vx_{0.0f}, vy_{0.0f}, vyaw_{0.0f};
 
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
