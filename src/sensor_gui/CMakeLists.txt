@@ -19,6 +19,7 @@ find_package(Qt5 REQUIRED COMPONENTS Widgets OpenGL)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC_SEARCH_PATHS "ui")
 
 include_directories(include ${tinyxml2_INCLUDE_DIRS})
 
