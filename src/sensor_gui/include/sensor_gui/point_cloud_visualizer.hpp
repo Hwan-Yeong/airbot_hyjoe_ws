@@ -68,7 +68,7 @@ private:
 
     float tf_scale_ = 1.0f;
     float footprint_radius_ = 0.19f;
-    bool ground_clipping_ = false;
+    bool ground_clipping_ = true;
     bool wall_sim_ = false;
     float wall_x_ = 2.0f;
 

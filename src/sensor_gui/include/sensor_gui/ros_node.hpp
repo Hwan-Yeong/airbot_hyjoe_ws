@@ -38,7 +38,9 @@ public:
   bool getSensorState(SensorType type) const;
 
   // Simulation Parameters
-  void setToFDistance(float d) { tof_dist_ = d; }
+  void setTofMonoDist(float d) { tof_mono_dist_ = d; }
+  void setTofLeftDist(float d) { tof_left_dist_ = d; }
+  void setTofRightDist(float d) { tof_right_dist_ = d; }
   void setCameraParams(float dist, float w, float h) {
     cam_dist_ = dist;
     cam_width_ = w;
@@ -94,7 +96,9 @@ private:
   bool sensor_manager_active_ = false;
 
   // Simulation Parameters (atomic for thread safety during publish)
-  std::atomic<float> tof_dist_{0.5f};
+  std::atomic<float> tof_mono_dist_{0.5f};
+  std::atomic<float> tof_left_dist_{1.0f};
+  std::atomic<float> tof_right_dist_{1.0f};
   std::atomic<float> cam_dist_{0.3f};
   std::atomic<float> cam_width_{0.4f};
   std::atomic<float> cam_height_{0.2f};

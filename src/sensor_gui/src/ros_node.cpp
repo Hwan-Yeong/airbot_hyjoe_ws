@@ -47,9 +47,9 @@ RosNode::RosNode() : Node("sensor_simulator") {
   collision_r_pc_sub_ = create_cloud_sub("/sensor_to_pointcloud/collision/rear/local", "Collision R PC");
 
   // Initialize states
-  sensor_states_[SensorType::kTofMono] = false;
-  sensor_states_[SensorType::kTofMultiLeft] = false;
-  sensor_states_[SensorType::kTofMultiRight] = false;
+  sensor_states_[SensorType::kTofMono] = true;
+  sensor_states_[SensorType::kTofMultiLeft] = true;
+  sensor_states_[SensorType::kTofMultiRight] = true;
   sensor_states_[SensorType::kCamera] = false;
   sensor_states_[SensorType::kBottomIr] = false;
   sensor_states_[SensorType::kCollisionFront] = false;
@@ -128,17 +128,15 @@ void RosNode::publishFakeData() {
     msg.robot_y = robot_y_.load();
     msg.robot_angle = robot_yaw_.load() * M_PI / 180.0f;
     
-    // Fake a plane at current dist
-    float d = tof_dist_.load();
-
     if (sensor_states_[SensorType::kTofMono]) {
-      msg.top = d;
+      msg.top = tof_mono_dist_.load();
     } else {
       msg.top = 0.0;
     }
     if (sensor_states_[SensorType::kTofMultiLeft]) {
+      float d_left = tof_left_dist_.load();
       for (int i = 0; i < 16; ++i) {
-        msg.bot_left[i] = d;
+        msg.bot_left[i] = d_left;
       }
     } else {
       for (int i = 0; i < 16; ++i) {
@@ -146,8 +144,9 @@ void RosNode::publishFakeData() {
       }
     }
     if (sensor_states_[SensorType::kTofMultiRight]) {
+      float d_right = tof_right_dist_.load();
       for (int i = 0; i < 16; ++i) {
-        msg.bot_right[i] = d;
+        msg.bot_right[i] = d_right;
       }
     } else {
       for (int i = 0; i < 16; ++i) {

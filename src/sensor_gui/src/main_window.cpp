@@ -73,6 +73,15 @@ void MainWindow::setupUi() {
   create_sensor_btn(SensorType::kTofMono, "ToF Mono");
   create_sensor_btn(SensorType::kTofMultiLeft, "ToF Multi Left");
   create_sensor_btn(SensorType::kTofMultiRight, "ToF Multi Right");
+  
+  // Set default active buttons style for ToF sensors
+  sensor_buttons_[SensorType::kTofMono]->setChecked(true);
+  sensor_buttons_[SensorType::kTofMono]->setStyleSheet("height: 25px; margin-bottom: 2px; background-color: #2196F3; color: white;");
+  sensor_buttons_[SensorType::kTofMultiLeft]->setChecked(true);
+  sensor_buttons_[SensorType::kTofMultiLeft]->setStyleSheet("height: 25px; margin-bottom: 2px; background-color: #2196F3; color: white;");
+  sensor_buttons_[SensorType::kTofMultiRight]->setChecked(true);
+  sensor_buttons_[SensorType::kTofMultiRight]->setStyleSheet("height: 25px; margin-bottom: 2px; background-color: #2196F3; color: white;");
+
   create_sensor_btn(SensorType::kCamera, "Camera Object");
   create_sensor_btn(SensorType::kBottomIr, "Bottom IR");
   create_sensor_btn(SensorType::kCollisionFront, "Collision Front");
@@ -87,7 +96,7 @@ void MainWindow::setupUi() {
   QGroupBox* param_group = new QGroupBox("Simulation Params");
   QVBoxLayout* param_layout = new QVBoxLayout();
 
-  auto create_param_row = [&](QLayout* layout, const QString& label, double val, double min, double max, QDoubleSpinBox** spin) {
+  auto create_param_row = [&](QVBoxLayout* layout, const QString& label, double val, double min, double max, QDoubleSpinBox** spin) {
     QHBoxLayout* row = new QHBoxLayout();
     row->addWidget(new QLabel(label));
     *spin = new QDoubleSpinBox();
@@ -97,14 +106,30 @@ void MainWindow::setupUi() {
     (*spin)->setDecimals(2);
     connect(*spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &MainWindow::onParamChanged);
     row->addWidget(*spin);
-    static_cast<QVBoxLayout*>(layout)->addLayout(row);
+    layout->addLayout(row);
   };
 
-  create_param_row(param_layout, "ToF Dist:", 0.5, 0.05, 5.0, &spin_tof_dist_);
-  create_param_row(param_layout, "Cam Dist:", 0.3, 0.1, 3.0, &spin_cam_dist_);
-  create_param_row(param_layout, "Cam Width:", 0.4, 0.1, 2.0, &spin_cam_width_);
-  create_param_row(param_layout, "Cam Height:", 0.2, 0.1, 2.0, &spin_cam_height_);
-  create_param_row(param_layout, "TF Scale:", 1.0, 0.1, 10.0, &spin_tf_scale_);
+  // 1. ToF Params
+  QLabel* l_tof = new QLabel("── ToF Sensors ────────────────");
+  l_tof->setStyleSheet("color: #6272a4; font-weight: bold; margin-top: 5px;");
+  param_layout->addWidget(l_tof);
+  create_param_row(param_layout, "  Mono Dist:", 0.5, 0.05, 5.0, &spin_tof_mono_dist_);
+  create_param_row(param_layout, "  Left Dist:", 1.0, 0.05, 5.0, &spin_tof_left_dist_);
+  create_param_row(param_layout, "  Right Dist:", 1.0, 0.05, 5.0, &spin_tof_right_dist_);
+
+  // 2. Camera Params
+  QLabel* l_cam = new QLabel("── Camera Array ───────────────");
+  l_cam->setStyleSheet("color: #6272a4; font-weight: bold; margin-top: 10px;");
+  param_layout->addWidget(l_cam);
+  create_param_row(param_layout, "  Dist:", 0.3, 0.1, 3.0, &spin_cam_dist_);
+  create_param_row(param_layout, "  Width:", 0.4, 0.1, 2.0, &spin_cam_width_);
+  create_param_row(param_layout, "  Height:", 0.2, 0.1, 2.0, &spin_cam_height_);
+
+  // 3. Global Params
+  QLabel* l_glob = new QLabel("── Global / TF ────────────────");
+  l_glob->setStyleSheet("color: #6272a4; font-weight: bold; margin-top: 10px;");
+  param_layout->addWidget(l_glob);
+  create_param_row(param_layout, "  TF Scale:", 1.0, 0.1, 10.0, &spin_tf_scale_);
 
   param_group->setLayout(param_layout);
   sidebar_layout->addWidget(param_group);
@@ -113,10 +138,6 @@ void MainWindow::setupUi() {
   QGroupBox* robot_group = new QGroupBox("Robot Control");
   QVBoxLayout* robot_layout = new QVBoxLayout();
   
-  create_param_row(robot_layout, "Robot X:", 0.0, -10.0, 10.0, &spin_robot_x_);
-  create_param_row(robot_layout, "Robot Y:", 0.0, -10.0, 10.0, &spin_robot_y_);
-  create_param_row(robot_layout, "Robot Z:", 0.05, 0.0, 2.0, &spin_robot_z_); // 0.0267 m
-  create_param_row(robot_layout, "Robot Yaw:", 0.0, -180.0, 180.0, &spin_robot_yaw_);
   create_param_row(robot_layout, "Footprint R:", 0.19, 0.05, 2.0, &spin_footprint_radius_);
 
   QPushButton* btn_open_teleop = new QPushButton("🎮  Open Teleop Window");
@@ -134,7 +155,7 @@ void MainWindow::setupUi() {
   QVBoxLayout* env_layout = new QVBoxLayout();
   
   check_ground_clip_ = new QCheckBox("Clip to Ground (Z=0)");
-  check_ground_clip_->setChecked(false);
+  check_ground_clip_->setChecked(true);
   env_layout->addWidget(check_ground_clip_);
   
   check_wall_sim_ = new QCheckBox("Simulate Wall (X)");
@@ -203,6 +224,8 @@ void MainWindow::setupUi() {
   setCentralWidget(central);
   resize(1200, 800);
   setWindowTitle("Airbot Sensor Simulator & Custom Cloud Visualizer");
+  
+  onParamChanged(); // Sync initial values to Node and Visualizer
 }
 
 /**
@@ -263,14 +286,13 @@ void MainWindow::onToggleSensor() {
 }
 
 void MainWindow::onParamChanged() {
-  ros_node_->setToFDistance(spin_tof_dist_->value());
+  ros_node_->setTofMonoDist(spin_tof_mono_dist_->value());
+  ros_node_->setTofLeftDist(spin_tof_left_dist_->value());
+  ros_node_->setTofRightDist(spin_tof_right_dist_->value());
   ros_node_->setCameraParams(spin_cam_dist_->value(), spin_cam_width_->value(), spin_cam_height_->value());
   
-  // Teleop 창이 없거나 닫혀 있을 때만 UI 에서 직접 제어
-  if (!teleop_window_ || !teleop_window_->isVisible()) {
-      ros_node_->setRobotPose(spin_robot_x_->value(), spin_robot_y_->value(), spin_robot_yaw_->value());
-      ros_node_->setRobotZ(spin_robot_z_->value());
-  }
+  // Note: Robot pose (X/Y/Z/Yaw) spinboxes were removed. 
+  // It's now primarily controlled by Teleop window or internal node logic.
 
   if (visualizer_) {
       visualizer_->setTfScale(spin_tf_scale_->value());
@@ -284,21 +306,7 @@ void MainWindow::onParamChanged() {
 void MainWindow::syncTFs() {
   if (!ros_node_ || !visualizer_) return;
   
-  // Teleop 창이 열려 있으면 Node 의 현재 위치를 UI 에 반영
-  if (teleop_window_ && teleop_window_->isVisible()) {
-      spin_robot_x_->blockSignals(true);
-      spin_robot_y_->blockSignals(true);
-      spin_robot_yaw_->blockSignals(true);
-      spin_robot_z_->blockSignals(true);
-      spin_robot_x_->setValue(ros_node_->getRobotX());
-      spin_robot_y_->setValue(ros_node_->getRobotY());
-      spin_robot_yaw_->setValue(ros_node_->getRobotYaw());
-      spin_robot_z_->setValue(ros_node_->getRobotZ());
-      spin_robot_x_->blockSignals(false);
-      spin_robot_y_->blockSignals(false);
-      spin_robot_yaw_->blockSignals(false);
-      spin_robot_z_->blockSignals(false);
-  }
+  // Note: Robot pose spinboxes were removed, so we no longer sync UI from Node here.
 
   auto buffer = ros_node_->getTFBuffer();
   if (!buffer) return;

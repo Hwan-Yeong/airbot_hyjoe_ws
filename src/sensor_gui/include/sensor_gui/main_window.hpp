@@ -47,15 +47,13 @@ private:
 
   PointCloudVisualizer* visualizer_;
 
-  QDoubleSpinBox* spin_tof_dist_;
+  QDoubleSpinBox* spin_tof_mono_dist_;
+  QDoubleSpinBox* spin_tof_left_dist_;
+  QDoubleSpinBox* spin_tof_right_dist_;
   QDoubleSpinBox* spin_cam_dist_;
   QDoubleSpinBox* spin_cam_width_;
   QDoubleSpinBox* spin_cam_height_;
   QDoubleSpinBox* spin_tf_scale_;
-  QDoubleSpinBox* spin_robot_x_;
-  QDoubleSpinBox* spin_robot_y_;
-  QDoubleSpinBox* spin_robot_z_;
-  QDoubleSpinBox* spin_robot_yaw_;
   QDoubleSpinBox* spin_footprint_radius_;
   
   // Wall Manager
