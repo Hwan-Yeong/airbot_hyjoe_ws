@@ -9,12 +9,23 @@
 PointCloudVisualizer::PointCloudVisualizer(QWidget* parent)
     : QOpenGLWidget(parent) {}
 
+/**
+ * @brief Update point cloud data
+ * @param name Sensor name
+ * @param frame_id Frame ID
+ * @param points Point data (x, y, z, ...)
+ * @param color Color for visualization
+ */
 void PointCloudVisualizer::updateCloud(const std::string& name, const std::string& frame_id, const std::vector<float>& points, QColor color) {
     std::lock_guard<std::mutex> lock(cloud_mutex_);
     clouds_[name] = {frame_id, points, color};
     update();
 }
 
+/**
+ * @brief Update TF data
+ * @param tfs TF data map
+ */
 void PointCloudVisualizer::updateTFs(const std::map<std::string, TfData>& tfs) {
     std::lock_guard<std::mutex> lock(cloud_mutex_);
     tfs_ = tfs;

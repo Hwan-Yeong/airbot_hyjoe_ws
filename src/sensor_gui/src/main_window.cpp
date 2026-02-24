@@ -205,6 +205,11 @@ void MainWindow::setupUi() {
   setWindowTitle("Airbot Sensor Simulator & Custom Cloud Visualizer");
 }
 
+/**
+ * @brief Process PointCloud2 message and update visualizer
+ * @param name Sensor name
+ * @param msg PointCloud2 message
+ */
 void MainWindow::processCloud(const std::string& name, const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
     if (!visualizer_) return;
 
@@ -220,12 +225,12 @@ void MainWindow::processCloud(const std::string& name, const sensor_msgs::msg::P
     }
 
     QColor color = Qt::white;
-    if (name == "ToF Mono") color = Qt::yellow;
+    if      (name.find("ToF Mono") != std::string::npos)    color = Qt::yellow;
     else if (name.find("ToF Multi L") != std::string::npos) color = Qt::cyan;
     else if (name.find("ToF Multi R") != std::string::npos) color = Qt::magenta;
-    else if (name.find("Camera") != std::string::npos) color = Qt::green;
-    else if (name.find("Bottom IR") != std::string::npos) color = Qt::red;
-    else if (name.find("Collision") != std::string::npos) color = QColor(255, 165, 0); // Orange
+    else if (name.find("Camera") != std::string::npos)      color = Qt::green;
+    else if (name.find("Bottom IR") != std::string::npos)   color = Qt::red;
+    else if (name.find("Collision") != std::string::npos)   color = QColor(255, 165, 0); // Orange
 
     visualizer_->updateCloud(name, msg->header.frame_id, points, color);
 }

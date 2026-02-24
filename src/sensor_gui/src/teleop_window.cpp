@@ -1,10 +1,4 @@
 #include "sensor_gui/teleop_window.hpp"
-#include <QPainter>
-#include <QVBoxLayout>
-#include <QLabel>
-#include <QFontDatabase>
-
-// ─────────────────────────────────────────────
 //  Constructor
 // ─────────────────────────────────────────────
 TeleopWindow::TeleopWindow(QWidget* parent)
@@ -27,6 +21,12 @@ TeleopWindow::TeleopWindow(QWidget* parent)
     timer_ = new QTimer(this);
     connect(timer_, &QTimer::timeout, this, &TeleopWindow::onTimer);
     timer_->start(50);
+
+    // Initialize smoothers with default limits derived from airbot_teleop_velocity_smoother
+    smoother_vx_.setLimits(linear_speed_, 0.6, 2.0);
+    smoother_vy_.setLimits(linear_speed_, 0.6, 2.0);
+    // Angular limits converted from rad to deg (45 deg/s, 143.24 deg/s^2, 458.37 deg/s^3)
+    smoother_vyaw_.setLimits(angular_speed_, 143.24, 458.37);
 }
 
 // ─────────────────────────────────────────────
@@ -49,7 +49,13 @@ void TeleopWindow::keyReleaseEvent(QKeyEvent* event) {
 void TeleopWindow::focusOutEvent(QFocusEvent* event) {
     // 창이 포커스를 잃으면 모든 키 해제 (안전 정지)
     pressed_keys_.clear();
-    if (vel_callback_) vel_callback_(0.0f, 0.0f, 0.0f);
+    if (vel_callback_) {
+        vel_callback_(0.0f, 0.0f, 0.0f);
+        smoother_vx_.reset();
+        smoother_vy_.reset();
+        smoother_vyaw_.reset();
+        first_update_ = true;
+    }
     update();
     QWidget::focusOutEvent(event);
 }
@@ -57,7 +63,13 @@ void TeleopWindow::focusOutEvent(QFocusEvent* event) {
 void TeleopWindow::closeEvent(QCloseEvent* event) {
     // 창 닫을 때 로봇 정지
     pressed_keys_.clear();
-    if (vel_callback_) vel_callback_(0.0f, 0.0f, 0.0f);
+    if (vel_callback_) {
+        vel_callback_(0.0f, 0.0f, 0.0f);
+        smoother_vx_.reset();
+        smoother_vy_.reset();
+        smoother_vyaw_.reset();
+        first_update_ = true;
+    }
     QWidget::closeEvent(event);
 }
 
@@ -67,16 +79,56 @@ void TeleopWindow::closeEvent(QCloseEvent* event) {
 void TeleopWindow::onTimer() {
     if (!vel_callback_) return;
 
-    float vx = 0.0f, vy = 0.0f, vyaw = 0.0f;
+    float target_vx = 0.0f, target_vy = 0.0f, target_vyaw = 0.0f;
+    bool emergency_stop = pressed_keys_.contains(Qt::Key_S);
 
-    if (pressed_keys_.contains(Qt::Key_Up)    || pressed_keys_.contains(Qt::Key_W)) vx +=  linear_speed_;
-    if (pressed_keys_.contains(Qt::Key_Down)  || pressed_keys_.contains(Qt::Key_S)) vx -=  linear_speed_;
-    if (pressed_keys_.contains(Qt::Key_A))                                           vy +=  linear_speed_;
-    if (pressed_keys_.contains(Qt::Key_D))                                           vy -=  linear_speed_;
-    if (pressed_keys_.contains(Qt::Key_Left)  || pressed_keys_.contains(Qt::Key_Q)) vyaw += angular_speed_;
-    if (pressed_keys_.contains(Qt::Key_Right) || pressed_keys_.contains(Qt::Key_E)) vyaw -= angular_speed_;
+    if (emergency_stop) {
+        // Emergency stop: target 0 and reset smoothers immediately
+        target_vx = 0.0f;
+        target_vy = 0.0f;
+        target_vyaw = 0.0f;
+        smoother_vx_.reset(0.0, 0.0);
+        smoother_vy_.reset(0.0, 0.0);
+        smoother_vyaw_.reset(0.0, 0.0);
+    } else {
+        // Forward/Backward
+        if (pressed_keys_.contains(Qt::Key_Up)    || pressed_keys_.contains(Qt::Key_W)) target_vx +=  linear_speed_;
+        if (pressed_keys_.contains(Qt::Key_Down)  || pressed_keys_.contains(Qt::Key_X)) target_vx -=  linear_speed_;
+        
+        // Strafe
+        if (pressed_keys_.contains(Qt::Key_Q)) target_vy +=  linear_speed_;
+        if (pressed_keys_.contains(Qt::Key_E)) target_vy -=  linear_speed_;
+        
+        // Turn
+        if (pressed_keys_.contains(Qt::Key_Left)  || pressed_keys_.contains(Qt::Key_A)) target_vyaw += angular_speed_;
+        if (pressed_keys_.contains(Qt::Key_Right) || pressed_keys_.contains(Qt::Key_D)) target_vyaw -= angular_speed_;
+    }
 
-    vel_callback_(vx, vy, vyaw);
+    // Calculate dt
+    auto now = std::chrono::steady_clock::now();
+    double dt = 0.05; // Default dt (20Hz)
+    
+    if (first_update_) {
+        first_update_ = false;
+        smoother_vx_.reset(0.0, 0.0);
+        smoother_vy_.reset(0.0, 0.0);
+        smoother_vyaw_.reset(0.0, 0.0);
+    } else {
+        dt = std::chrono::duration<double>(now - last_time_).count();
+    }
+    last_time_ = now;
+
+    // Apply S-Curve Smoothing
+    // We update limits in case they changed via setLinearSpeed/setAngularSpeed
+    smoother_vx_.setLimits(linear_speed_, 0.6, 2.0);
+    smoother_vy_.setLimits(linear_speed_, 0.6, 2.0);
+    smoother_vyaw_.setLimits(angular_speed_, 143.24, 458.37);
+
+    float smoothed_vx = static_cast<float>(smoother_vx_.update(target_vx, dt));
+    float smoothed_vy = static_cast<float>(smoother_vy_.update(target_vy, dt));
+    float smoothed_vyaw = static_cast<float>(smoother_vyaw_.update(target_vyaw, dt));
+
+    vel_callback_(smoothed_vx, smoothed_vy, smoothed_vyaw);
 }
 
 // ─────────────────────────────────────────────
@@ -124,7 +176,7 @@ void TeleopWindow::paintEvent(QPaintEvent*) {
     lf.setPixelSize(11);
     lf.setBold(false);
     p.setFont(lf);
-    p.drawText(QRect(0, 42, width(), 18), Qt::AlignCenter, "↑↓ = Forward/Back   ←→ = Turn   A/D = Strafe");
+    p.drawText(QRect(0, 42, width(), 18), Qt::AlignCenter, "↑↓/WX = Fwd/Back   AD = Turn   QE = Strafe   S = STOP");
 
     // ── Arrow key positions ──────────────────────
     int kw = 60, kh = 52, gap = 8;
@@ -132,27 +184,43 @@ void TeleopWindow::paintEvent(QPaintEvent*) {
     int row2_y = row1_y + kh + gap;
     int cx = (width() - kw * 3 - gap * 2) / 2;
 
-    // Row 1: only UP (center)
+    // Input monitoring
     bool up_active    = pressed_keys_.contains(Qt::Key_Up)    || pressed_keys_.contains(Qt::Key_W);
-    bool down_active  = pressed_keys_.contains(Qt::Key_Down)  || pressed_keys_.contains(Qt::Key_S);
-    bool left_active  = pressed_keys_.contains(Qt::Key_Left)  || pressed_keys_.contains(Qt::Key_Q);
-    bool right_active = pressed_keys_.contains(Qt::Key_Right) || pressed_keys_.contains(Qt::Key_E);
-    bool a_active     = pressed_keys_.contains(Qt::Key_A);
-    bool d_active     = pressed_keys_.contains(Qt::Key_D);
+    bool down_active  = pressed_keys_.contains(Qt::Key_Down)  || pressed_keys_.contains(Qt::Key_X);
+    bool turn_l_active = pressed_keys_.contains(Qt::Key_Left) || pressed_keys_.contains(Qt::Key_A);
+    bool turn_r_active = pressed_keys_.contains(Qt::Key_Right)|| pressed_keys_.contains(Qt::Key_D);
+    bool strafe_l_active = pressed_keys_.contains(Qt::Key_Q);
+    bool strafe_r_active = pressed_keys_.contains(Qt::Key_E);
+    bool stop_active  = pressed_keys_.contains(Qt::Key_S);
 
-    drawKeyButton(p, cx + kw + gap,         row1_y, kw, kh, "↑  W",  up_active);
+    // Row 1: UP
+    drawKeyButton(p, cx + kw + gap, row1_y, kw, kh, "↑  W",  up_active);
 
-    // Row 2: LEFT  DOWN  RIGHT
-    drawKeyButton(p, cx,                     row2_y, kw, kh, "←  Q",  left_active);
-    drawKeyButton(p, cx + kw + gap,          row2_y, kw, kh, "↓  S",  down_active);
-    drawKeyButton(p, cx + (kw + gap) * 2,   row2_y, kw, kh, "→  E",  right_active);
+    // Row 2: TurnL  STOP  TurnR
+    {
+        // Custom draw for Emergency Stop (Red)
+        int sx = cx + kw + gap, sy = row2_y;
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor(0, 0, 0, 80));
+        p.drawRoundedRect(sx + 3, sy + 3, kw, kh, 8, 8);
 
-    // Strafe row
-    int row3_y = row2_y + kh + gap + 10;
-    int sw = 80;
-    int scx = (width() - sw * 2 - gap * 3) / 2;
-    drawKeyButton(p, scx,           row3_y, sw, kh, "A  Strafe←", a_active);
-    drawKeyButton(p, scx + sw + gap*3, row3_y, sw, kh, "D  Strafe→", d_active);
+        QColor base = stop_active ? QColor("#f38ba8") : QColor("#450000"); // Reddish
+        p.setBrush(base);
+        p.setPen(QPen(stop_active ? QColor("#eba0ac") : QColor("#2a0000"), 1.5));
+        p.drawRoundedRect(sx, sy, kw, kh, 8, 8);
+
+        p.setPen(stop_active ? QColor("#1e1e2e") : QColor("#f38ba8"));
+        p.drawText(QRect(sx, sy, kw, kh), Qt::AlignCenter, "S\nSTOP");
+    }
+
+    drawKeyButton(p, cx,                     row2_y, kw, kh, "←  A",  turn_l_active);
+    drawKeyButton(p, cx + (kw + gap) * 2,   row2_y, kw, kh, "→  D",  turn_r_active);
+
+    // Row 3: Strafe & Down
+    int row3_y = row2_y + kh + gap;
+    drawKeyButton(p, cx,                     row3_y, kw, kh, "Q",  strafe_l_active);
+    drawKeyButton(p, cx + kw + gap,          row3_y, kw, kh, "↓  X",  down_active);
+    drawKeyButton(p, cx + (kw + gap) * 2,   row3_y, kw, kh, "E",  strafe_r_active);
 
     // Speed readout
     p.setPen(QColor("#a6e3a1"));

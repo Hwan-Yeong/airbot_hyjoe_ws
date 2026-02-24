@@ -7,6 +7,8 @@
 #include <QPainter>
 #include <QSet>
 #include <functional>
+#include <chrono>
+#include "sensor_gui/s_curve_profile.hpp"
 
 // ─────────────────────────────────────────────────────────
 //  TeleopWindow
@@ -45,4 +47,11 @@ private:
 
     float linear_speed_  = 0.5f;  // m/s
     float angular_speed_ = 60.0f; // deg/s
+
+    airbot::SCurveProfile smoother_vx_;
+    airbot::SCurveProfile smoother_vy_;
+    airbot::SCurveProfile smoother_vyaw_;
+
+    std::chrono::steady_clock::time_point last_time_;
+    bool first_update_ = true;
 };
