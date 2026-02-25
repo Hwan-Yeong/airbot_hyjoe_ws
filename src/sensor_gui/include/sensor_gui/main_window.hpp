@@ -19,6 +19,7 @@
 #include "ros_node.hpp"
 #include "point_cloud_visualizer.hpp"
 #include "teleop_window.hpp"
+#include "obstacle_window.hpp"
 #include <memory>
 
 QT_BEGIN_NAMESPACE
@@ -43,16 +44,9 @@ private slots:
   void onPickBackgroundColor();
   void onToggleTheme();
   void syncTFs();
-  void onAddWall();
-  void onDeleteWall();
-  void onWallTableChanged(int row, int col);
   void onOpenTeleop();
-  void onLoadMap();
-  void onSaveMap();
-  void onObstacleMoved(int index, float x, float y);
-  void onObstacleSelected(int index);
+  void onOpenObstacleWindow();
   void onToggleSidebar();
-  void onTableSelectionChanged();
 
 private:
   void initConnections();
@@ -65,11 +59,7 @@ private:
 
   QTimer* tf_timer_;
   TeleopWindow* teleop_window_ = nullptr;
+  ObstacleWindow* obstacle_window_ = nullptr;
   
   bool is_dark_mode_ = true;
-  
-  QString last_map_path_;
-  QComboBox* createTypeComboBox(ObstacleType type);
-  void loadSettings();
-  void saveSettings();
 };

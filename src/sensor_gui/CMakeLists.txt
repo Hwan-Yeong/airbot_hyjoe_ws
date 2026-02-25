@@ -29,12 +29,14 @@ add_executable(sensor_gui
   src/ros_node.cpp
   src/point_cloud_visualizer.cpp
   src/teleop_window.cpp
+  src/obstacle_window.cpp
   src/s_curve_profile.cpp
   src/robot_model.cpp
   include/sensor_gui/main_window.hpp
   include/sensor_gui/ros_node.hpp
   include/sensor_gui/point_cloud_visualizer.hpp
   include/sensor_gui/teleop_window.hpp
+  include/sensor_gui/obstacle_window.hpp
   include/sensor_gui/s_curve_profile.hpp
 )
 

@@ -95,19 +95,7 @@ void MainWindow::initConnections() {
   connect(ui->check_bump_sim_, &QCheckBox::toggled, this, &MainWindow::onToggleBump);
   connect(ui->btn_pick_bg_, &QPushButton::clicked, this, &MainWindow::onPickBackgroundColor);
 
-  ui->table_walls_->setSelectionBehavior(QAbstractItemView::SelectRows);
-  ui->table_walls_->setSelectionMode(QAbstractItemView::SingleSelection);
-  connect(ui->table_walls_, &QTableWidget::itemSelectionChanged, this, &MainWindow::onTableSelectionChanged);
-
-  connect(ui->btn_add_wall_, &QPushButton::clicked, this, &MainWindow::onAddWall);
-  connect(ui->btn_delete_wall_, &QPushButton::clicked, this, &MainWindow::onDeleteWall);
-  connect(ui->table_walls_, &QTableWidget::cellChanged, this, &MainWindow::onWallTableChanged);
-
-  connect(ui->btn_load_map_, &QPushButton::clicked, this, &MainWindow::onLoadMap);
-  connect(ui->btn_save_map_, &QPushButton::clicked, this, &MainWindow::onSaveMap);
-
-  connect(ui->visualizer_, &PointCloudVisualizer::obstacleMoved, this, &MainWindow::onObstacleMoved);
-  connect(ui->visualizer_, &PointCloudVisualizer::obstacleSelected, this, &MainWindow::onObstacleSelected);
+  connect(ui->btn_edit_wall_, &QPushButton::clicked, this, &MainWindow::onOpenObstacleWindow);
 
   // Dynamic Bottom IR Cliff Controls
   QGroupBox* ir_group = new QGroupBox("Bottom IR CLIFF (True/False)");
@@ -130,8 +118,7 @@ void MainWindow::initConnections() {
       vbox->insertWidget(vbox->count() - 1, ir_group);
   }
 
-  // Load Maps
-  loadSettings();
+  // Obstacle Window logic moved to its own class
 
   ui->main_splitter_->setStretchFactor(1, 1);
 
@@ -307,197 +294,7 @@ void MainWindow::onToggleBump(bool checked) {
     ui->visualizer_->setObstacles(current_walls);
 }
 
-QComboBox* MainWindow::createTypeComboBox(ObstacleType type) {
-    QComboBox* combo = new QComboBox();
-    combo->addItem("Box", (int)ObstacleType::kBox);
-    combo->addItem("Cylinder", (int)ObstacleType::kCylinder);
-    combo->addItem("Cone", (int)ObstacleType::kCone);
-    
-    int index = combo->findData((int)type);
-    if (index >= 0) combo->setCurrentIndex(index);
-    
-    connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, combo](int){
-        for(int i=0; i<ui->table_walls_->rowCount(); ++i) {
-            if(ui->table_walls_->cellWidget(i, 0) == combo) {
-                onWallTableChanged(i, 0);
-                break;
-            }
-        }
-    });
-    return combo;
-}
-
-void MainWindow::onAddWall() {
-    if (!ui->visualizer_) return;
-    std::vector<SimObstacle> obs = ui->visualizer_->getObstacles();
-    
-    SimObstacle new_ob;
-    new_ob.type = ObstacleType::kBox;
-    new_ob.x = 1.0f; new_ob.y = 0.0f; new_ob.z = 0.5f;
-    new_ob.sx = 0.5f; new_ob.sy = 1.0f; new_ob.sz = 1.0f;
-    
-    // Copy from last if exists
-    if (!obs.empty()) {
-        new_ob = obs.back();
-    }
-    
-    obs.push_back(new_ob);
-    ui->visualizer_->setObstacles(obs);
-    
-    ui->table_walls_->blockSignals(true);
-    int row = ui->table_walls_->rowCount();
-    ui->table_walls_->insertRow(row);
-    
-    ui->table_walls_->setCellWidget(row, 0, createTypeComboBox(new_ob.type));
-    ui->table_walls_->setItem(row, 1, new QTableWidgetItem(QString::number(new_ob.x, 'f', 2)));
-    ui->table_walls_->setItem(row, 2, new QTableWidgetItem(QString::number(new_ob.y, 'f', 2)));
-    ui->table_walls_->setItem(row, 3, new QTableWidgetItem(QString::number(new_ob.z, 'f', 2)));
-    ui->table_walls_->setItem(row, 4, new QTableWidgetItem(QString::number(new_ob.sx, 'f', 2)));
-    ui->table_walls_->setItem(row, 5, new QTableWidgetItem(QString::number(new_ob.sy, 'f', 2)));
-    ui->table_walls_->setItem(row, 6, new QTableWidgetItem(QString::number(new_ob.sz, 'f', 2)));
-    ui->table_walls_->blockSignals(false);
-}
-
-void MainWindow::onDeleteWall() {
-    int row = ui->table_walls_->currentRow();
-    if (row >= 0 && ui->visualizer_) {
-        std::vector<SimObstacle> obs = ui->visualizer_->getObstacles();
-        if (row < (int)obs.size()) {
-            obs.erase(obs.begin() + row);
-            ui->visualizer_->setObstacles(obs);
-        }
-        ui->table_walls_->removeRow(row);
-    }
-}
-
-void MainWindow::onWallTableChanged(int row, int col) {
-    if (!ui->table_walls_ || !ui->visualizer_) return;
-    (void)col;
-    
-    std::vector<SimObstacle> obs = ui->visualizer_->getObstacles();
-    
-    if (row >= 0 && row < ui->table_walls_->rowCount() && row < (int)obs.size()) {
-        SimObstacle& ob = obs[row];
-        QWidget* widget = ui->table_walls_->cellWidget(row, 0);
-        QComboBox* combo = qobject_cast<QComboBox*>(widget);
-        if (combo) ob.type = static_cast<ObstacleType>(combo->currentData().toInt());
-        
-        if (ui->table_walls_->item(row, 1)) ob.x = ui->table_walls_->item(row, 1)->text().toFloat();
-        if (ui->table_walls_->item(row, 2)) ob.y = ui->table_walls_->item(row, 2)->text().toFloat();
-        if (ui->table_walls_->item(row, 3)) ob.z = ui->table_walls_->item(row, 3)->text().toFloat();
-        if (ui->table_walls_->item(row, 4)) ob.sx = ui->table_walls_->item(row, 4)->text().toFloat();
-        if (ui->table_walls_->item(row, 5)) ob.sy = ui->table_walls_->item(row, 5)->text().toFloat();
-        if (ui->table_walls_->item(row, 6)) ob.sz = ui->table_walls_->item(row, 6)->text().toFloat();
-    }
-    
-    ui->visualizer_->setObstacles(obs);
-}
-
-void MainWindow::onObstacleMoved(int index, float x, float y) {
-    if (index < 0 || index >= ui->table_walls_->rowCount()) return;
-    ui->table_walls_->blockSignals(true);
-    ui->table_walls_->item(index, 1)->setText(QString::number(x, 'f', 2)); // Shifted index
-    ui->table_walls_->item(index, 2)->setText(QString::number(y, 'f', 2));
-    ui->table_walls_->blockSignals(false);
-}
-
-void MainWindow::onObstacleSelected(int index) {
-    ui->table_walls_->blockSignals(true);
-    if (index >= 0) {
-        ui->table_walls_->selectRow(index);
-    } else {
-        ui->table_walls_->clearSelection();
-    }
-    ui->table_walls_->blockSignals(false);
-}
-
-void MainWindow::loadSettings() {
-    QSettings settings("Airbot", "SensorSimulator");
-    last_map_path_ = settings.value("last_map_dir", "").toString();
-}
-
-void MainWindow::saveSettings() {
-    QSettings settings("Airbot", "SensorSimulator");
-    settings.setValue("last_map_dir", last_map_path_);
-}
-
-void MainWindow::onLoadMap() {
-    QString filter = "Map Files (*.json);;All Files (*)";
-    QString path = QFileDialog::getOpenFileName(this, "Load Map JSON", last_map_path_, filter);
-    if (path.isEmpty()) return;
-
-    last_map_path_ = QFileInfo(path).path();
-    saveSettings();
-
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) return;
-
-    QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
-    QJsonArray arr = doc.array();
-
-    std::vector<SimObstacle> obs;
-    for (int i = 0; i < arr.size(); ++i) {
-        QJsonObject obj = arr[i].toObject();
-        SimObstacle o;
-        o.type = static_cast<ObstacleType>(obj["type"].toInt());
-        o.x = obj["x"].toDouble();
-        o.y = obj["y"].toDouble();
-        o.z = obj["z"].toDouble();
-        o.sx = obj["sx"].toDouble();
-        o.sy = obj["sy"].toDouble();
-        o.sz = obj["sz"].toDouble();
-        o.name = obj["name"].toString().toStdString();
-        obs.push_back(o);
-    }
-    
-    if (ui->visualizer_) ui->visualizer_->setObstacles(obs);
-    
-    ui->table_walls_->blockSignals(true);
-    ui->table_walls_->setRowCount(0);
-
-    for (size_t i = 0; i < obs.size(); ++i) {
-        int row = ui->table_walls_->rowCount();
-        ui->table_walls_->insertRow(row);
-        
-        ui->table_walls_->setCellWidget(row, 0, createTypeComboBox(obs[i].type));
-        ui->table_walls_->setItem(row, 1, new QTableWidgetItem(QString::number(obs[i].x, 'f', 2)));
-        ui->table_walls_->setItem(row, 2, new QTableWidgetItem(QString::number(obs[i].y, 'f', 2)));
-        ui->table_walls_->setItem(row, 3, new QTableWidgetItem(QString::number(obs[i].z, 'f', 2)));
-        ui->table_walls_->setItem(row, 4, new QTableWidgetItem(QString::number(obs[i].sx, 'f', 2)));
-        ui->table_walls_->setItem(row, 5, new QTableWidgetItem(QString::number(obs[i].sy, 'f', 2)));
-        ui->table_walls_->setItem(row, 6, new QTableWidgetItem(QString::number(obs[i].sz, 'f', 2)));
-    }
-    ui->table_walls_->blockSignals(false);
-}
-
-void MainWindow::onSaveMap() {
-    QString filter = "Map Files (*.json);;All Files (*)";
-    QString path = QFileDialog::getSaveFileName(this, "Save Map JSON", last_map_path_, filter);
-    if (path.isEmpty()) return;
-    if (!path.endsWith(".json")) path += ".json";
-
-    last_map_path_ = QFileInfo(path).path();
-    saveSettings();
-
-    QJsonArray arr;
-    auto obs = ui->visualizer_->getObstacles();
-    for (const auto& o : obs) {
-        QJsonObject obj;
-        obj["type"] = static_cast<int>(o.type);
-        obj["x"] = o.x;
-        obj["y"] = o.y;
-        obj["z"] = o.z;
-        obj["sx"] = o.sx;
-        obj["sy"] = o.sy;
-        obj["sz"] = o.sz;
-        obj["name"] = QString::fromStdString(o.name);
-        arr.append(obj);
-    }
-
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly)) return;
-    file.write(QJsonDocument(arr).toJson());
-}
+// Obstacle management functions have been moved to ObstacleWindow
 
 void MainWindow::onPickBackgroundColor() {
     if (!ui->visualizer_) return;
@@ -572,12 +369,13 @@ void MainWindow::onToggleSidebar() {
     }
 }
 
-void MainWindow::onTableSelectionChanged() {
-    if (!ui->visualizer_ || !ui->table_walls_) return;
-    auto items = ui->table_walls_->selectedItems();
-    if (items.isEmpty()) {
-        ui->visualizer_->setSelectedObstacleIndex(-1);
-    } else {
-        ui->visualizer_->setSelectedObstacleIndex(items.first()->row());
+void MainWindow::onOpenObstacleWindow() {
+    if (!obstacle_window_) {
+        obstacle_window_ = new ObstacleWindow(ui->visualizer_, nullptr);
+        // Note: Theme propagation to ObstacleWindow can be implemented if needed
     }
+    obstacle_window_->show();
+    obstacle_window_->raise();
+    obstacle_window_->activateWindow();
+    obstacle_window_->updateTableFromVisualizer();
 }

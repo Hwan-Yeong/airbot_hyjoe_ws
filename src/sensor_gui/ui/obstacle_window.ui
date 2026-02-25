@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Obstacles</class>
+ <widget class="QWidget" name="Obstacles">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>776</width>
+    <height>580</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Edit Obstacles</string>
+  </property>
+  <widget class="QGroupBox" name="groupBox_wall">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>20</y>
+     <width>731</width>
+     <height>441</height>
+    </rect>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>0</width>
+     <height>300</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>16777215</width>
+     <height>16777215</height>
+    </size>
+   </property>
+   <property name="title">
+    <string>Obstacle Manager (Table)</string>
+   </property>
+   <layout class="QVBoxLayout" name="vl_wall">
+    <item>
+     <widget class="QTableWidget" name="table_walls_1">
+      <property name="columnCount">
+       <number>7</number>
+      </property>
+      <column>
+       <property name="text">
+        <string>Type</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>X</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>Y</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>Z</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>SX</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>SY</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>SZ</string>
+       </property>
+      </column>
+     </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="hl_wall_btn">
+      <item>
+       <widget class="QPushButton" name="btn_add_wall_">
+        <property name="text">
+         <string>Add Obstacle</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btn_delete_wall_">
+        <property name="text">
+         <string>Delete Selected</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QGroupBox" name="groupBox_map">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>470</y>
+     <width>731</width>
+     <height>91</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Map Config (Save/Load)</string>
+   </property>
+   <layout class="QVBoxLayout" name="vl_map">
+    <item>
+     <widget class="QPushButton" name="btn_load_map_">
+      <property name="text">
+       <string>📂 Load Map JSON</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPushButton" name="btn_save_map_">
+      <property name="text">
+       <string>💾 Save Current Map</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
