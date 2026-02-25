@@ -55,7 +55,7 @@ class PointCloudGenerator {
    */
   sensor_msgs::msg::PointCloud2 GenerateCameraPointCloud2Message(
       const vision_msgs::msg::BoundingBox2DArray input_bbox_array,
-      float resolution, std::string frame);
+      float resolution, std::string frame, Pose extrinsic_pose);
 
   /**
    * @brief Generates "Empty" PointCloud2 data (for initialization and clear purposes).

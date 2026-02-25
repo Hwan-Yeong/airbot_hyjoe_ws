@@ -114,7 +114,7 @@ PointCloudGenerator::GenerateEmptyPointCloud2Message(const std::string& frame) {
 sensor_msgs::msg::PointCloud2
 PointCloudGenerator::GenerateCameraPointCloud2Message(
     const vision_msgs::msg::BoundingBox2DArray input_bbox_array,
-    float resolution, std::string frame) {
+    float resolution, std::string frame, Pose extrinsic_pose) {
   sensor_msgs::msg::PointCloud2 msg;
 
   if (input_bbox_array.boxes.empty()) {
@@ -204,6 +204,9 @@ PointCloudGenerator::GenerateCameraPointCloud2Message(
           float x = (center_x - size_x / 2) + i * resolution;
           float y = (center_y - size_y / 2) + j * resolution;
           float z = 0.0f;
+          if (!(frame == "map" || frame == "base_link")) {
+            z = -extrinsic_pose.position.z;
+          }
           memcpy(ptr, &x, sizeof(float));
           memcpy(ptr + 4, &y, sizeof(float));
           memcpy(ptr + 8, &z, sizeof(float));

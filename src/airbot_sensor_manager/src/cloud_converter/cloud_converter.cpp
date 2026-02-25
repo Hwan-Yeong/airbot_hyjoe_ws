@@ -676,7 +676,7 @@ ConverterOutput CameraCloudConverter::PcConvertImpl(const void* sensor_msg) {
     output.local_frame_clouds.push_back(
         this->pointcloud_generator_.GenerateCameraPointCloud2Message(
             this->frame_converter_.ToBBoxArray(objects_on_sensor_frame),
-            this->pointcloud_resolution_, this->child_frame_));
+            this->pointcloud_resolution_, this->child_frame_, this->sensor_extrinsic_));
     output.local_topic_suffix = "/local";
   }
 
@@ -706,7 +706,7 @@ ConverterOutput CameraCloudConverter::PcConvertImpl(const void* sensor_msg) {
     output.target_frame_clouds.push_back(
         this->pointcloud_generator_.GenerateCameraPointCloud2Message(
             this->frame_converter_.ToBBoxArray(objects_on_target_frame),
-            this->pointcloud_resolution_, this->target_frame_));
+            this->pointcloud_resolution_, this->target_frame_, this->sensor_extrinsic_));
   }
 
   return output;
