@@ -90,8 +90,6 @@ void PointCloudVisualizer::paintGL() {
     drawAxes(); // Main Origin Axes
 
     std::lock_guard<std::mutex> lock(cloud_mutex_);
-
-    drawGrid();
     
     // Draw Robot Model (Object-Oriented)
     auto it_base = tfs_.find("base_link");
@@ -117,6 +115,19 @@ void PointCloudVisualizer::paintGL() {
         glPopMatrix();
     }
 
+    auto check_axis = [](float start, float delta, float bmin, float bmax, float& tmin, float& tmax) -> bool {
+        if (std::abs(delta) < 1e-6f) {
+            if (start < bmin || start > bmax) return false;
+        } else {
+            float t1 = (bmin - start) / delta;
+            float t2 = (bmax - start) / delta;
+            if (t1 > t2) std::swap(t1, t2);
+            if (t1 > tmin) tmin = t1;
+            if (t2 < tmax) tmax = t2;
+        }
+        return true;
+    };
+
     // Draw Clouds
     glPointSize(5.0f);
     for (auto const& [name, cloud] : clouds_) {
@@ -129,6 +140,18 @@ void PointCloudVisualizer::paintGL() {
             sensor_tf = it->second;
             applyTf(sensor_tf);
             has_tf = true;
+        }
+
+        struct ObstacleCache { tf2::Quaternion q_inv; float sx, sy, sz; };
+        std::vector<ObstacleCache> ob_caches;
+        if (has_tf && !obstacles_.empty()) {
+            ob_caches.reserve(obstacles_.size());
+            for (const auto& ob : obstacles_) {
+                tf2::Quaternion q_inv = tf2::Quaternion(ob.qx, ob.qy, ob.qz, ob.qw).inverse();
+                tf2::Vector3 ray_orig(sensor_tf.x - ob.x, sensor_tf.y - ob.y, sensor_tf.z - ob.z);
+                ray_orig = tf2::quatRotate(q_inv, ray_orig);
+                ob_caches.push_back({q_inv, static_cast<float>(ray_orig.x()), static_cast<float>(ray_orig.y()), static_cast<float>(ray_orig.z())});
+            }
         }
 
         glColor3f(cloud.color.redF(), cloud.color.greenF(), cloud.color.blueF());
@@ -164,42 +187,24 @@ void PointCloudVisualizer::paintGL() {
                 }
 
                 // Clip against all obstacles
-                for (const auto& ob : obstacles_) {
-                    float sx = sensor_tf.x, sy = sensor_tf.y, sz = sensor_tf.z;
-                    float dx = wx - sx, dy = wy - sy, dz = wz - sz;
+                for (size_t k = 0; k < obstacles_.size(); ++k) {
+                    const auto& ob = obstacles_[k];
+                    const auto& cache = ob_caches[k];
                     
-                    // Inverse transform ray to obstacle local coordinate system
-                    tf2::Vector3 ray_orig(sx - ob.x, sy - ob.y, sz - ob.z);
-                    tf2::Vector3 ray_dir(dx, dy, dz);
+                    // Ray direction in world frame
+                    tf2::Vector3 ray_dir(wx - sensor_tf.x, wy - sensor_tf.y, wz - sensor_tf.z);
                     
-                    tf2::Quaternion q(ob.qx, ob.qy, ob.qz, ob.qw);
-                    tf2::Quaternion q_inv = q.inverse();
+                    // Rotate ray direction to obstacle local frame
+                    ray_dir = tf2::quatRotate(cache.q_inv, ray_dir);
                     
-                    ray_orig = tf2::quatRotate(q_inv, ray_orig);
-                    ray_dir = tf2::quatRotate(q_inv, ray_dir);
-                    
-                    // Now sx, sy, sz, dx, dy, dz are in LOCAL frame
-                    sx = ray_orig.x(); sy = ray_orig.y(); sz = ray_orig.z();
-                    dx = ray_dir.x();  dy = ray_dir.y();  dz = ray_dir.z();
+                    float sx = cache.sx, sy = cache.sy, sz = cache.sz;
+                    float dx = ray_dir.x(), dy = ray_dir.y(), dz = ray_dir.z();
                     
                     if (ob.type == ObstacleType::kBox) {
                         float tmin = -1e30f, tmax = 1e30f;
-                        auto check_axis = [&](float start, float delta, float bmin, float bmax) {
-                            if (std::abs(delta) < 1e-6f) {
-                                if (start < bmin || start > bmax) return false;
-                            } else {
-                                float t1 = (bmin - start) / delta;
-                                float t2 = (bmax - start) / delta;
-                                if (t1 > t2) std::swap(t1, t2);
-                                tmin = std::max(tmin, t1);
-                                tmax = std::min(tmax, t2);
-                            }
-                            return true;
-                        };
-
-                        if (check_axis(sx, dx, -ob.sx/2, ob.sx/2) &&
-                            check_axis(sy, dy, -ob.sy/2, ob.sy/2) &&
-                            check_axis(sz, dz, -ob.sz/2, ob.sz/2)) {
+                        if (check_axis(sx, dx, -ob.sx/2, ob.sx/2, tmin, tmax) &&
+                            check_axis(sy, dy, -ob.sy/2, ob.sy/2, tmin, tmax) &&
+                            check_axis(sz, dz, -ob.sz/2, ob.sz/2, tmin, tmax)) {
                             if (tmin <= tmax && tmax > 0.0f) {
                                 float hit_t = (tmin > 0.0f) ? tmin : 0.0f;
                                 if (hit_t < t) t = hit_t;

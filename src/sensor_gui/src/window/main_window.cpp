@@ -43,7 +43,10 @@ MainWindow::MainWindow(std::shared_ptr<RosNode> node)
   tf_timer_->start(100); // 10Hz
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow() {
+    if (teleop_window_) delete teleop_window_;
+    if (obstacle_window_) delete obstacle_window_;
+}
 
 void MainWindow::showEvent(QShowEvent *event) {
   QMainWindow::showEvent(event);
