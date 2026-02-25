@@ -32,6 +32,16 @@ void ObstacleWindow::initConnections() {
     
     connect(ui->btn_add_wall_, &QPushButton::clicked, this, &ObstacleWindow::onAddWall);
     connect(ui->btn_delete_wall_, &QPushButton::clicked, this, &ObstacleWindow::onDeleteWall);
+    
+    // Properties SpinBox changes
+    auto spinChanged = QOverload<double>::of(&QDoubleSpinBox::valueChanged);
+    connect(ui->spin_x, spinChanged, this, &ObstacleWindow::onPropertySpinBoxChanged);
+    connect(ui->spin_y, spinChanged, this, &ObstacleWindow::onPropertySpinBoxChanged);
+    connect(ui->spin_z, spinChanged, this, &ObstacleWindow::onPropertySpinBoxChanged);
+    connect(ui->spin_sx, spinChanged, this, &ObstacleWindow::onPropertySpinBoxChanged);
+    connect(ui->spin_sy, spinChanged, this, &ObstacleWindow::onPropertySpinBoxChanged);
+    connect(ui->spin_sz, spinChanged, this, &ObstacleWindow::onPropertySpinBoxChanged);
+
     connect(ui->table_walls_1, &QTableWidget::cellChanged, this, &ObstacleWindow::onWallTableChanged);
 
     connect(ui->btn_load_map_, &QPushButton::clicked, this, &ObstacleWindow::onLoadMap);
@@ -55,8 +65,9 @@ QComboBox* ObstacleWindow::createTypeComboBox(ObstacleType type) {
     
     connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, combo](int){
         for(int i=0; i<ui->table_walls_1->rowCount(); ++i) {
-            if(ui->table_walls_1->cellWidget(i, 0) == combo) {
-                onWallTableChanged(i, 0);
+            if(ui->table_walls_1->cellWidget(i, 1) == combo) {
+                onWallTableChanged(i, 1);
+                updatePropertiesPanel(i);
                 break;
             }
         }
@@ -68,6 +79,7 @@ void ObstacleWindow::updateTableFromVisualizer() {
     if (!visualizer_) return;
     
     ui->table_walls_1->blockSignals(true);
+    int current_row = ui->table_walls_1->currentRow();
     ui->table_walls_1->setRowCount(0);
     
     auto obs = visualizer_->getObstacles();
@@ -75,15 +87,19 @@ void ObstacleWindow::updateTableFromVisualizer() {
         int row = ui->table_walls_1->rowCount();
         ui->table_walls_1->insertRow(row);
         
-        ui->table_walls_1->setCellWidget(row, 0, createTypeComboBox(obs[i].type));
-        ui->table_walls_1->setItem(row, 1, new QTableWidgetItem(QString::number(obs[i].x, 'f', 2)));
-        ui->table_walls_1->setItem(row, 2, new QTableWidgetItem(QString::number(obs[i].y, 'f', 2)));
-        ui->table_walls_1->setItem(row, 3, new QTableWidgetItem(QString::number(obs[i].z, 'f', 2)));
-        ui->table_walls_1->setItem(row, 4, new QTableWidgetItem(QString::number(obs[i].sx, 'f', 2)));
-        ui->table_walls_1->setItem(row, 5, new QTableWidgetItem(QString::number(obs[i].sy, 'f', 2)));
-        ui->table_walls_1->setItem(row, 6, new QTableWidgetItem(QString::number(obs[i].sz, 'f', 2)));
+        QString default_name = QString::fromStdString(obs[i].name);
+        if (default_name.isEmpty()) default_name = QString("Obstacle_%1").arg(i);
+
+        ui->table_walls_1->setItem(row, 0, new QTableWidgetItem(default_name));
+        ui->table_walls_1->setCellWidget(row, 1, createTypeComboBox(obs[i].type));
     }
     ui->table_walls_1->blockSignals(false);
+    
+    if (current_row >= 0 && current_row < ui->table_walls_1->rowCount()) {
+        ui->table_walls_1->selectRow(current_row);
+    } else {
+        updatePropertiesPanel(-1);
+    }
 }
 
 void ObstacleWindow::onAddWall() {
@@ -142,33 +158,95 @@ void ObstacleWindow::onDeleteWall() {
 
 void ObstacleWindow::onWallTableChanged(int row, int col) {
     if (!ui->table_walls_1 || !visualizer_) return;
-    (void)col;
     
     std::vector<SimObstacle> obs = visualizer_->getObstacles();
     
     if (row >= 0 && row < ui->table_walls_1->rowCount() && row < (int)obs.size()) {
         SimObstacle& ob = obs[row];
-        QWidget* widget = ui->table_walls_1->cellWidget(row, 0);
-        QComboBox* combo = qobject_cast<QComboBox*>(widget);
-        if (combo) ob.type = static_cast<ObstacleType>(combo->currentData().toInt());
-        
-        if (ui->table_walls_1->item(row, 1)) ob.x = ui->table_walls_1->item(row, 1)->text().toFloat();
-        if (ui->table_walls_1->item(row, 2)) ob.y = ui->table_walls_1->item(row, 2)->text().toFloat();
-        if (ui->table_walls_1->item(row, 3)) ob.z = ui->table_walls_1->item(row, 3)->text().toFloat();
-        if (ui->table_walls_1->item(row, 4)) ob.sx = ui->table_walls_1->item(row, 4)->text().toFloat();
-        if (ui->table_walls_1->item(row, 5)) ob.sy = ui->table_walls_1->item(row, 5)->text().toFloat();
-        if (ui->table_walls_1->item(row, 6)) ob.sz = ui->table_walls_1->item(row, 6)->text().toFloat();
+        if (col == 0) {
+            ob.name = ui->table_walls_1->item(row, 0)->text().toStdString();
+        } else if (col == 1) {
+            QWidget* widget = ui->table_walls_1->cellWidget(row, 1);
+            QComboBox* combo = qobject_cast<QComboBox*>(widget);
+            if (combo) ob.type = static_cast<ObstacleType>(combo->currentData().toInt());
+        }
     }
+    visualizer_->setObstacles(obs);
+}
+
+void ObstacleWindow::onPropertySpinBoxChanged() {
+    int row = ui->table_walls_1->currentRow();
+    if (row < 0 || !visualizer_) return;
+
+    std::vector<SimObstacle> obs = visualizer_->getObstacles();
+    if (row >= (int)obs.size()) return;
+
+    SimObstacle& ob = obs[row];
+    ob.x = ui->spin_x->value();
+    ob.y = ui->spin_y->value();
+    ob.z = ui->spin_z->value();
+    
+    ob.sx = ui->spin_sx->value();
+    if (ui->spin_sy->isVisible()) ob.sy = ui->spin_sy->value();
+    if (ui->spin_sz->isVisible()) ob.sz = ui->spin_sz->value();
     
     visualizer_->setObstacles(obs);
 }
 
+void ObstacleWindow::updatePropertiesPanel(int index) {
+    bool enable = (index >= 0);
+    ui->groupBox_properties->setEnabled(enable);
+    if (!enable || !visualizer_) return;
+
+    std::vector<SimObstacle> obs = visualizer_->getObstacles();
+    if (index >= (int)obs.size()) return;
+
+    const SimObstacle& ob = obs[index];
+    
+    ui->spin_x->blockSignals(true); ui->spin_y->blockSignals(true); ui->spin_z->blockSignals(true);
+    ui->spin_sx->blockSignals(true); ui->spin_sy->blockSignals(true); ui->spin_sz->blockSignals(true);
+    
+    ui->spin_x->setValue(ob.x);
+    ui->spin_y->setValue(ob.y);
+    ui->spin_z->setValue(ob.z);
+    
+    ui->spin_sx->setValue(ob.sx);
+    ui->spin_sy->setValue(ob.sy);
+    ui->spin_sz->setValue(ob.sz);
+
+    // Dynamic Labels and Visibility
+    if (ob.type == ObstacleType::kBox) {
+        ui->lbl_sx->setText("Length (X):"); ui->spin_sx->setVisible(true); ui->lbl_sx->setVisible(true);
+        ui->lbl_sy->setText("Width (Y):"); ui->spin_sy->setVisible(true); ui->lbl_sy->setVisible(true);
+        ui->lbl_sz->setText("Height (Z):"); ui->spin_sz->setVisible(true); ui->lbl_sz->setVisible(true);
+    } else if (ob.type == ObstacleType::kCylinder || ob.type == ObstacleType::kCone) {
+        ui->lbl_sx->setText("Radius:"); ui->spin_sx->setVisible(true); ui->lbl_sx->setVisible(true);
+        ui->lbl_sy->setText("Width (Y):"); ui->spin_sy->setVisible(false); ui->lbl_sy->setVisible(false);
+        ui->lbl_sz->setText("Height:"); ui->spin_sz->setVisible(true); ui->lbl_sz->setVisible(true);
+    } else if (ob.type == ObstacleType::kSphere) {
+        ui->lbl_sx->setText("Radius:"); ui->spin_sx->setVisible(true); ui->lbl_sx->setVisible(true);
+        ui->lbl_sy->setText("Width (Y):"); ui->spin_sy->setVisible(false); ui->lbl_sy->setVisible(false);
+        ui->lbl_sz->setText("Height (Z):"); ui->spin_sz->setVisible(false); ui->lbl_sz->setVisible(false);
+    }
+    
+    ui->spin_x->blockSignals(false); ui->spin_y->blockSignals(false); ui->spin_z->blockSignals(false);
+    ui->spin_sx->blockSignals(false); ui->spin_sy->blockSignals(false); ui->spin_sz->blockSignals(false);
+}
+
 void ObstacleWindow::onObstacleMoved(int index, float x, float y) {
-    if (index < 0 || index >= ui->table_walls_1->rowCount()) return;
-    ui->table_walls_1->blockSignals(true);
-    ui->table_walls_1->item(index, 1)->setText(QString::number(x, 'f', 2));
-    ui->table_walls_1->item(index, 2)->setText(QString::number(y, 'f', 2));
-    ui->table_walls_1->blockSignals(false);
+    if (index < 0 || index >= ui->table_walls_1->rowCount() || !visualizer_) return;
+    
+    std::vector<SimObstacle> obs = visualizer_->getObstacles();
+    if (index < (int)obs.size()) {
+        if (ui->table_walls_1->currentRow() == index) {
+            ui->spin_x->blockSignals(true);
+            ui->spin_y->blockSignals(true);
+            ui->spin_x->setValue(x);
+            ui->spin_y->setValue(y);
+            ui->spin_x->blockSignals(false);
+            ui->spin_y->blockSignals(false);
+        }
+    }
 }
 
 void ObstacleWindow::onObstacleSelected(int index) {
@@ -186,8 +264,11 @@ void ObstacleWindow::onTableSelectionChanged() {
     auto items = ui->table_walls_1->selectedItems();
     if (items.isEmpty()) {
         visualizer_->setSelectedObstacleIndex(-1);
+        updatePropertiesPanel(-1);
     } else {
-        visualizer_->setSelectedObstacleIndex(items.first()->row());
+        int row = items.first()->row();
+        visualizer_->setSelectedObstacleIndex(row);
+        updatePropertiesPanel(row);
     }
 }
 

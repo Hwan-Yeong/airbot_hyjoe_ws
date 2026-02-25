@@ -6,109 +6,241 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>774</width>
-    <height>741</height>
+    <width>572</width>
+    <height>742</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Edit Obstacles</string>
   </property>
   <widget class="QGroupBox" name="groupBox_wall">
-   <property name="enabled">
-    <bool>true</bool>
-   </property>
    <property name="geometry">
     <rect>
-     <x>20</x>
+     <x>10</x>
      <y>89</y>
-     <width>731</width>
+     <width>551</width>
      <height>541</height>
     </rect>
    </property>
-   <property name="minimumSize">
-    <size>
-     <width>0</width>
-     <height>300</height>
-    </size>
-   </property>
-   <property name="maximumSize">
-    <size>
-     <width>16777215</width>
-     <height>16777215</height>
-    </size>
-   </property>
    <property name="title">
-    <string>Obstacle Manager (Table)</string>
+    <string>Obstacle Manager</string>
    </property>
-   <layout class="QVBoxLayout" name="verticalLayout">
+   <layout class="QHBoxLayout" name="horizontalLayout">
     <item>
-     <widget class="QTableWidget" name="table_walls_1">
-      <property name="columnCount">
-       <number>7</number>
+     <widget class="QGroupBox" name="groupBox_list">
+      <property name="title">
+       <string>Obstacle List</string>
       </property>
-      <column>
-       <property name="text">
-        <string>Type</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>X</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>Y</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>Z</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>SX</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>SY</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>SZ</string>
-       </property>
-      </column>
+      <layout class="QVBoxLayout" name="verticalLayout_list">
+       <item>
+        <widget class="QTableWidget" name="table_walls_1">
+         <property name="columnCount">
+          <number>2</number>
+         </property>
+         <column>
+          <property name="text">
+           <string>Name</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Type</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="hl_wall_btn">
+         <item>
+          <widget class="QPushButton" name="btn_add_wall_">
+           <property name="text">
+            <string>Add Obstacle</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btn_delete_wall_">
+           <property name="text">
+            <string>Delete Selected</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
      </widget>
     </item>
     <item>
-     <layout class="QHBoxLayout" name="hl_wall_btn">
-      <item>
-       <widget class="QPushButton" name="btn_add_wall_">
-        <property name="text">
-         <string>Add Obstacle</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="btn_delete_wall_">
-        <property name="text">
-         <string>Delete Selected</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
+     <widget class="QGroupBox" name="groupBox_properties">
+      <property name="title">
+       <string>Properties</string>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_props">
+       <item>
+        <widget class="QFrame" name="frame_props">
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
+         </property>
+         <layout class="QFormLayout" name="formLayout">
+          <item row="0" column="0">
+           <widget class="QLabel" name="lbl_x">
+            <property name="text">
+             <string>X (m):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QDoubleSpinBox" name="spin_x">
+            <property name="minimum">
+             <double>-100.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>100.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.100000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="lbl_y">
+            <property name="text">
+             <string>Y (m):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QDoubleSpinBox" name="spin_y">
+            <property name="minimum">
+             <double>-100.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>100.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.100000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="lbl_z">
+            <property name="text">
+             <string>Z (m):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QDoubleSpinBox" name="spin_z">
+            <property name="minimum">
+             <double>-100.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>100.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.100000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="lbl_sx">
+            <property name="text">
+             <string>Length (SX):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QDoubleSpinBox" name="spin_sx">
+            <property name="minimum">
+             <double>0.010000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>100.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.100000000000000</double>
+            </property>
+            <property name="value">
+             <double>1.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="lbl_sy">
+            <property name="text">
+             <string>Width (SY):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QDoubleSpinBox" name="spin_sy">
+            <property name="minimum">
+             <double>0.010000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>100.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.100000000000000</double>
+            </property>
+            <property name="value">
+             <double>1.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="lbl_sz">
+            <property name="text">
+             <string>Height (SZ):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QDoubleSpinBox" name="spin_sz">
+            <property name="minimum">
+             <double>0.010000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>100.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.100000000000000</double>
+            </property>
+            <property name="value">
+             <double>1.000000000000000</double>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
     </item>
    </layout>
   </widget>
   <widget class="QGroupBox" name="groupBox_map">
    <property name="geometry">
     <rect>
-     <x>20</x>
+     <x>10</x>
      <y>639</y>
-     <width>731</width>
+     <width>551</width>
      <height>91</height>
     </rect>
    </property>
@@ -135,7 +267,7 @@
   <widget class="QLabel" name="label">
    <property name="geometry">
     <rect>
-     <x>20</x>
+     <x>10</x>
      <y>9</y>
      <width>91</width>
      <height>16</height>
@@ -148,9 +280,9 @@
   <widget class="QWidget" name="layoutWidget">
    <property name="geometry">
     <rect>
-     <x>20</x>
+     <x>10</x>
      <y>40</y>
-     <width>731</width>
+     <width>551</width>
      <height>41</height>
     </rect>
    </property>

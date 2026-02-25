@@ -26,6 +26,8 @@ private slots:
     void onAddWall();
     void onDeleteWall();
     void onWallTableChanged(int row, int col);
+    void onPropertySpinBoxChanged();
+    void updatePropertiesPanel(int index);
     void onLoadMap();
     void onSaveMap();
     void onObstacleMoved(int index, float x, float y);
