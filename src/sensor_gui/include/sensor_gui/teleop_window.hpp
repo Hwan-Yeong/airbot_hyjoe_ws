@@ -14,6 +14,12 @@
 #include <functional>
 #include <chrono>
 #include "sensor_gui/s_curve_profile.hpp"
+#include <memory>
+
+QT_BEGIN_NAMESPACE
+namespace Ui { class TeleopWindow; }
+QT_END_NAMESPACE
+
 
 // ─────────────────────────────────────────────────────────
 //  TeleopWindow
@@ -27,6 +33,7 @@ public:
     using VelCallback = std::function<void(float vx, float vy, float vyaw)>;
 
     explicit TeleopWindow(QWidget* parent = nullptr);
+    ~TeleopWindow();
 
     void setVelCallback(VelCallback cb) { vel_callback_ = cb; }
     void setLinearSpeed(float s)  { linear_speed_  = s; }
@@ -36,17 +43,15 @@ public:
 protected:
     void keyPressEvent(QKeyEvent* event) override;
     void keyReleaseEvent(QKeyEvent* event) override;
-    void paintEvent(QPaintEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
     void focusOutEvent(QFocusEvent* event) override;
 
 private slots:
     void onTimer();
 
+
 private:
-    void drawArrowKey(QPainter& p, int x, int y, int w, int h,
-                      const QString& label, Qt::Key key, bool active);
-    void setupControlUi();
+    std::unique_ptr<Ui::TeleopWindow> ui;
 
     VelCallback vel_callback_;
     QTimer*     timer_;
@@ -56,8 +61,6 @@ private:
     float linear_speed_  = 0.5f;  // m/s
     float angular_speed_ = 60.0f; // deg/s
 
-    QDoubleSpinBox* spin_linear_speed_;
-    QDoubleSpinBox* spin_angular_speed_;
 
     airbot::SCurveProfile smoother_vx_;
     airbot::SCurveProfile smoother_vy_;
@@ -65,4 +68,24 @@ private:
 
     std::chrono::steady_clock::time_point last_time_;
     bool first_update_ = true;
+};
+
+
+// ─────────────────────────────────────────────────────────
+//  TeleopKeyArea (Custom Widget for paintEvent)
+// ─────────────────────────────────────────────────────────
+class TeleopKeyArea : public QWidget {
+    Q_OBJECT
+public:
+    explicit TeleopKeyArea(QWidget* parent = nullptr) : QWidget(parent) {}
+    void updateState(const QSet<int>& pressed, bool is_dark);
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
+
+private:
+    void drawKeyButton(QPainter& p, int x, int y, int w, int h, const QString& label, bool active, bool is_dark);
+
+    QSet<int> pressed_keys_;
+    bool is_dark_ = false;
 };

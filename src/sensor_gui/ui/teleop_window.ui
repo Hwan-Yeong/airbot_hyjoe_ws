@@ -1,0 +1,94 @@
+<?xml version="1.0" ?>
+<ui version="4.0">
+  <class>TeleopWindow</class>
+  <widget class="QWidget" name="TeleopWindow">
+    <property name="geometry">
+      <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>320</width>
+        <height>480</height>
+      </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout_main">
+      <item>
+        <widget class="TeleopKeyArea" name="key_area_">
+          <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+            </sizepolicy>
+          </property>
+          <property name="minimumSize">
+            <size>
+              <width>0</width>
+              <height>300</height>
+            </size>
+          </property>
+        </widget>
+      </item>
+      <item>
+        <widget class="QGroupBox" name="groupBox_speed">
+          <property name="title">
+            <string>Speed Settings</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout">
+            <item row="0" column="0">
+              <widget class="QLabel" name="label_linear">
+                <property name="text">
+                  <string>Linear (m/s):</string>
+                </property>
+              </widget>
+            </item>
+            <item row="0" column="1">
+              <widget class="QDoubleSpinBox" name="spin_linear_speed_">
+                <property name="minimum">
+                  <double>0.0</double>
+                </property>
+                <property name="maximum">
+                  <double>2.0</double>
+                </property>
+                <property name="singleStep">
+                  <double>0.1</double>
+                </property>
+                <property name="value">
+                  <double>0.5</double>
+                </property>
+              </widget>
+            </item>
+            <item row="1" column="0">
+              <widget class="QLabel" name="label_angular">
+                <property name="text">
+                  <string>Angular (°/s):</string>
+                </property>
+              </widget>
+            </item>
+            <item row="1" column="1">
+              <widget class="QDoubleSpinBox" name="spin_angular_speed_">
+                <property name="minimum">
+                  <double>0.0</double>
+                </property>
+                <property name="maximum">
+                  <double>180.0</double>
+                </property>
+                <property name="singleStep">
+                  <double>5.0</double>
+                </property>
+                <property name="value">
+                  <double>60.0</double>
+                </property>
+              </widget>
+            </item>
+          </layout>
+        </widget>
+      </item>
+    </layout>
+  </widget>
+  <customwidgets>
+    <customwidget>
+      <class>TeleopKeyArea</class>
+      <extends>QWidget</extends>
+      <header>sensor_gui/teleop_window.hpp</header>
+    </customwidget>
+  </customwidgets>
+</ui>

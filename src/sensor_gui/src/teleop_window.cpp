@@ -1,9 +1,11 @@
 #include "sensor_gui/teleop_window.hpp"
+#include "ui_teleop_window.h"
 //  Constructor
 // ─────────────────────────────────────────────
 TeleopWindow::TeleopWindow(QWidget* parent)
-    : QWidget(parent)
+    : QWidget(parent), ui(new Ui::TeleopWindow)
 {
+    ui->setupUi(this);
     setWindowTitle("Robot Teleop");
     setWindowFlags(Qt::Window | Qt::WindowStaysOnTopHint);
     setFixedSize(320, 480); // Increased height for speed controls
@@ -50,8 +52,20 @@ TeleopWindow::TeleopWindow(QWidget* parent)
     // Angular limits converted from rad to deg (45 deg/s, 143.24 deg/s^2, 458.37 deg/s^3)
     smoother_vyaw_.setLimits(angular_speed_, 143.24, 458.37);
 
-    setupControlUi();
+    ui->spin_linear_speed_->setValue(linear_speed_);
+    ui->spin_angular_speed_->setValue(angular_speed_);
+
+    connect(ui->spin_linear_speed_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double val){
+        linear_speed_ = static_cast<float>(val);
+        // smoother limit takes place in onTimer
+    });
+    connect(ui->spin_angular_speed_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double val){
+        angular_speed_ = static_cast<float>(val);
+    });
 }
+
+TeleopWindow::~TeleopWindow() = default;
+
 
 // ─────────────────────────────────────────────
 //  Key Events
@@ -59,14 +73,14 @@ TeleopWindow::TeleopWindow(QWidget* parent)
 void TeleopWindow::keyPressEvent(QKeyEvent* event) {
     if (!event->isAutoRepeat()) {
         pressed_keys_.insert(event->key());
-        update();
+        ui->key_area_->updateState(pressed_keys_, is_dark_);
     }
 }
 
 void TeleopWindow::keyReleaseEvent(QKeyEvent* event) {
     if (!event->isAutoRepeat()) {
         pressed_keys_.remove(event->key());
-        update();
+        ui->key_area_->updateState(pressed_keys_, is_dark_);
     }
 }
 
@@ -80,7 +94,7 @@ void TeleopWindow::focusOutEvent(QFocusEvent* event) {
         smoother_vyaw_.reset();
         first_update_ = true;
     }
-    update();
+    ui->key_area_->updateState(pressed_keys_, is_dark_);
     QWidget::focusOutEvent(event);
 }
 
@@ -158,7 +172,7 @@ void TeleopWindow::onTimer() {
 // ─────────────────────────────────────────────
 //  Paint: arrow key layout
 // ─────────────────────────────────────────────
-static void drawKeyButton(QPainter& p, int x, int y, int w, int h,
+void TeleopKeyArea::drawKeyButton(QPainter& p, int x, int y, int w, int h,
                           const QString& label, bool active, bool is_dark)
 {
     // Shadow
@@ -191,7 +205,7 @@ static void drawKeyButton(QPainter& p, int x, int y, int w, int h,
     p.drawText(QRect(x, y, w, h), Qt::AlignCenter, label);
 }
 
-void TeleopWindow::paintEvent(QPaintEvent*) {
+void TeleopKeyArea::paintEvent(QPaintEvent*) {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
 
@@ -274,45 +288,6 @@ void TeleopWindow::paintEvent(QPaintEvent*) {
                hasFocus() ? "▶  Keys active" : "⚠  Click here to activate");
 }
 
-void TeleopWindow::setupControlUi() {
-    QVBoxLayout* main_layout = new QVBoxLayout(this);
-    // Add stretch at the top to reserve space for the drawn keyboard (about 330px)
-    main_layout->addSpacing(330);
-
-    QGroupBox* speed_group = new QGroupBox("Speed Settings");
-    QGridLayout* grid = new QGridLayout();
-
-    // Linear Speed
-    grid->addWidget(new QLabel("Linear (m/s):"), 0, 0);
-    spin_linear_speed_ = new QDoubleSpinBox();
-    spin_linear_speed_->setRange(0.0, 2.0);
-    spin_linear_speed_->setSingleStep(0.1);
-    spin_linear_speed_->setValue(linear_speed_);
-    grid->addWidget(spin_linear_speed_, 0, 1);
-
-    // Angular Speed
-    grid->addWidget(new QLabel("Angular (°/s):"), 1, 0);
-    spin_angular_speed_ = new QDoubleSpinBox();
-    spin_angular_speed_->setRange(0.0, 180.0);
-    spin_angular_speed_->setSingleStep(5.0);
-    spin_angular_speed_->setValue(angular_speed_);
-    grid->addWidget(spin_angular_speed_, 1, 1);
-
-    speed_group->setLayout(grid);
-    main_layout->addWidget(speed_group);
-    main_layout->addStretch();
-
-    // Connect signals to update variables
-    connect(spin_linear_speed_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double val){
-        linear_speed_ = static_cast<float>(val);
-        update();
-    });
-    connect(spin_angular_speed_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double val){
-        angular_speed_ = static_cast<float>(val);
-        update();
-    });
-}
-
 void TeleopWindow::setTheme(bool is_dark) {
     is_dark_ = is_dark;
     if (is_dark) {
@@ -332,5 +307,11 @@ void TeleopWindow::setTheme(bool is_dark) {
             QDoubleSpinBox { background-color: #FFFFFF; color: #2C2C2C; border: 1px solid #D1D1D1; border-radius: 4px; padding: 2px; }
         )");
     }
+    ui->key_area_->updateState(pressed_keys_, is_dark_);
+}
+
+void TeleopKeyArea::updateState(const QSet<int>& pressed, bool is_dark) {
+    pressed_keys_ = pressed;
+    is_dark_ = is_dark;
     update();
 }
