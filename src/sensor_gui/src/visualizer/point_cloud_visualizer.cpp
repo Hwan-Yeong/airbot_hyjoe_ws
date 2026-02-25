@@ -387,21 +387,23 @@ void PointCloudVisualizer::mouseMoveEvent(QMouseEvent* event) {
 
     if (event->buttons() & Qt::LeftButton) {
         // Use Shift for Dragging to avoid blocking Camera Rotation
-        if ((event->modifiers() & Qt::ShiftModifier) && selected_idx_ >= 0 && selected_idx_ < (int)obstacles_.size()) {
+        if (selected_idx_ >= 0 && selected_idx_ < (int)obstacles_.size()) {
             float rad = yaw_ * M_PI / 180.0f;
             float cos_y = std::cos(rad);
             float sin_y = std::sin(rad);
             
-            // Adjust factor by pitch to keep it roughly screen-consistent
-            // pitch_ is 0 (horizontal) to -90 (vertical down)
             float pitch_rad = pitch_ * M_PI / 180.0f;
-            float pitch_factor = std::abs(std::sin(pitch_rad));
-            if (pitch_factor < 0.1f) pitch_factor = 0.1f;
+            float cos_p = std::abs(std::cos(pitch_rad));
+            if (cos_p < 0.1f) cos_p = 0.1f;
             
-            float factor = 0.001f * distance_ / pitch_factor;
+            float factor_x = 0.001f * distance_;
+            float factor_y = factor_x / cos_p;
             
-            float move_x = (dx * cos_y + dy * sin_y) * factor;
-            float move_y = (-dx * sin_y - dy * cos_y) * factor;
+            float dx_cam = dx * factor_x;
+            float dy_cam = -dy * factor_y;
+            
+            float move_x = cos_y * dx_cam + sin_y * dy_cam;
+            float move_y = -sin_y * dx_cam + cos_y * dy_cam;
             
             obstacles_[selected_idx_].x += move_x;
             obstacles_[selected_idx_].y += move_y;
@@ -421,14 +423,19 @@ void PointCloudVisualizer::mouseMoveEvent(QMouseEvent* event) {
         float sin_y = std::sin(rad);
         
         float pitch_rad = pitch_ * M_PI / 180.0f;
-        float pitch_factor = std::abs(std::sin(pitch_rad));
-        if (pitch_factor < 0.1f) pitch_factor = 0.1f;
+        float cos_p = std::abs(std::cos(pitch_rad));
+        if (cos_p < 0.1f) cos_p = 0.1f;
         
-        float factor = 0.001f * distance_ / pitch_factor;
+        float factor_x = 0.001f * distance_;
+        float factor_y = factor_x / cos_p;
         
-        float move_x = (dx * cos_y + dy * sin_y) * factor;
-        float move_y = (-dx * sin_y - dy * cos_y) * factor;
+        float dx_cam = dx * factor_x;
+        float dy_cam = -dy * factor_y;
+        
+        float move_x = cos_y * dx_cam + sin_y * dy_cam;
+        float move_y = -sin_y * dx_cam + cos_y * dy_cam;
 
+        // For pan, camera moves opposite to world movement
         pan_x_ -= move_x;
         pan_y_ -= move_y;
         update();
