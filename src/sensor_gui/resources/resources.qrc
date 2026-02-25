@@ -1,0 +1,8 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource prefix="/">
+    <file>icons/box.svg</file>
+    <file>icons/cylinder.svg</file>
+    <file>icons/cone.svg</file>
+    <file>icons/sphere.svg</file>
+</qresource>
+</RCC>

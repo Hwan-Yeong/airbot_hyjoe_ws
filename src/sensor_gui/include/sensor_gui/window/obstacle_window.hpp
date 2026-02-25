@@ -22,6 +22,7 @@ public:
     void updateTableFromVisualizer();
 
 private slots:
+    void onSpawnShape(ObstacleType type);
     void onAddWall();
     void onDeleteWall();
     void onWallTableChanged(int row, int col);

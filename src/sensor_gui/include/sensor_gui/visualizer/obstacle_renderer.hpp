@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-enum class ObstacleType { kBox, kCylinder, kCone };
+enum class ObstacleType { kBox, kCylinder, kCone, kSphere };
 
 struct SimObstacle {
     ObstacleType type = ObstacleType::kBox;
@@ -113,6 +113,23 @@ public:
             glVertex3f(std::cos(rad) * R, std::sin(rad) * R, 0);
         }
         glEnd();
+        glPopMatrix();
+    }
+};
+
+class SphereRenderer : public IObstacleRenderer {
+public:
+    void draw(const SimObstacle& ob, bool selected) override {
+        glPushMatrix();
+        glTranslatef(ob.x, ob.y, ob.z);
+        QColor color = selected ? QColor("#ff4444") : QColor("#cc88ff");
+        glColor4f(color.redF(), color.greenF(), color.blueF(), 0.4f);
+        
+        float R = ob.sx; // Using sx as the sphere radius
+        GLUquadric* quadric = gluNewQuadric();
+        gluQuadricDrawStyle(quadric, GLU_FILL);
+        gluSphere(quadric, R, 24, 24);
+        gluDeleteQuadric(quadric);
         glPopMatrix();
     }
 };

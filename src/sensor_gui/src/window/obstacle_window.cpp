@@ -25,6 +25,11 @@ void ObstacleWindow::initConnections() {
     ui->table_walls_1->setSelectionMode(QAbstractItemView::SingleSelection);
 
     connect(ui->table_walls_1, &QTableWidget::itemSelectionChanged, this, &ObstacleWindow::onTableSelectionChanged);
+    connect(ui->btn_spawn_box, &QPushButton::clicked, this, [this](){ onSpawnShape(ObstacleType::kBox); });
+    connect(ui->btn_spawn_cylinder, &QPushButton::clicked, this, [this](){ onSpawnShape(ObstacleType::kCylinder); });
+    connect(ui->btn_spawn_cone, &QPushButton::clicked, this, [this](){ onSpawnShape(ObstacleType::kCone); });
+    connect(ui->btn_spawn_sphere, &QPushButton::clicked, this, [this](){ onSpawnShape(ObstacleType::kSphere); });
+    
     connect(ui->btn_add_wall_, &QPushButton::clicked, this, &ObstacleWindow::onAddWall);
     connect(ui->btn_delete_wall_, &QPushButton::clicked, this, &ObstacleWindow::onDeleteWall);
     connect(ui->table_walls_1, &QTableWidget::cellChanged, this, &ObstacleWindow::onWallTableChanged);
@@ -43,6 +48,7 @@ QComboBox* ObstacleWindow::createTypeComboBox(ObstacleType type) {
     combo->addItem("Box", (int)ObstacleType::kBox);
     combo->addItem("Cylinder", (int)ObstacleType::kCylinder);
     combo->addItem("Cone", (int)ObstacleType::kCone);
+    combo->addItem("Sphere", (int)ObstacleType::kSphere);
     
     int index = combo->findData((int)type);
     if (index >= 0) combo->setCurrentIndex(index);
@@ -92,6 +98,28 @@ void ObstacleWindow::onAddWall() {
     // Copy from last if exists
     if (!obs.empty()) {
         new_ob = obs.back();
+    }
+    
+    obs.push_back(new_ob);
+    visualizer_->setObstacles(obs);
+    
+    updateTableFromVisualizer();
+}
+
+void ObstacleWindow::onSpawnShape(ObstacleType type) {
+    if (!visualizer_) return;
+    std::vector<SimObstacle> obs = visualizer_->getObstacles();
+    
+    SimObstacle new_ob;
+    new_ob.type = type;
+    new_ob.x = 1.0f; new_ob.y = 0.0f; new_ob.z = 0.5f;
+    new_ob.sx = 0.5f; new_ob.sy = 1.0f; new_ob.sz = 1.0f;
+    
+    if (!obs.empty()) {
+        new_ob.sx = obs.back().sx;
+        new_ob.sy = obs.back().sy;
+        new_ob.sz = obs.back().sz;
+        new_ob.z = obs.back().z;
     }
     
     obs.push_back(new_ob);

@@ -38,6 +38,7 @@ add_executable(sensor_gui
   include/sensor_gui/window/teleop_window.hpp
   include/sensor_gui/window/obstacle_window.hpp
   include/sensor_gui/util/s_curve_profile.hpp
+  resources/resources.qrc
 )
 
 ament_target_dependencies(sensor_gui

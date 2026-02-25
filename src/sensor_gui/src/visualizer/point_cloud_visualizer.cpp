@@ -14,6 +14,7 @@ PointCloudVisualizer::PointCloudVisualizer(QWidget* parent)
     renderers_[ObstacleType::kBox] = std::make_unique<BoxRenderer>();
     renderers_[ObstacleType::kCylinder] = std::make_unique<CylinderRenderer>();
     renderers_[ObstacleType::kCone] = std::make_unique<ConeRenderer>();
+    renderers_[ObstacleType::kSphere] = std::make_unique<SphereRenderer>();
 }
 
 PointCloudVisualizer::~PointCloudVisualizer() {}
@@ -197,12 +198,25 @@ void PointCloudVisualizer::paintGL() {
                         float B = 2.0f * (dx*ox + dy*oy);
                         float C = ox*ox + oy*oy - R*R;
                         float disc = B*B - 4.0f*A*C;
-                        if (disc >= 0) {
+                        if (disc >= 0 && A > 1e-6f) {
                             float t1 = (-B - std::sqrt(disc)) / (2.0f*A);
                             if (t1 > 0 && t1 < t) {
                                 float hit_z = sz + t1 * dz;
                                 if (hit_z > ob.z - ob.sz/2 && hit_z < ob.z + ob.sz/2) t = t1;
                             }
+                        }
+                    } else if (ob.type == ObstacleType::kSphere) {
+                        float ox = sx - ob.x;
+                        float oy = sy - ob.y;
+                        float oz = sz - ob.z;
+                        float R = ob.sx;
+                        float A = dx*dx + dy*dy + dz*dz;
+                        float B = 2.0f * (dx*ox + dy*oy + dz*oz);
+                        float C = ox*ox + oy*oy + oz*oz - R*R;
+                        float disc = B*B - 4.0f*A*C;
+                        if (disc >= 0 && A > 1e-6f) {
+                            float t1 = (-B - std::sqrt(disc)) / (2.0f*A);
+                            if (t1 > 0 && t1 < t) t = t1;
                         }
                     }
                 }
