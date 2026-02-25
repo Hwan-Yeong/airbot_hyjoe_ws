@@ -240,6 +240,59 @@ void PointCloudVisualizer::paintGL() {
                             float t1 = (-B - std::sqrt(disc)) / (2.0f*A);
                             if (t1 > 0 && t1 < t) t = t1;
                         }
+                    } else if (ob.type == ObstacleType::kCone) {
+                        float H = ob.sz;
+                        float R = ob.sx;
+                        float k = R / H;
+                        float k2 = k * k;
+                        float V = H / 2.0f - sz;
+                        
+                        float A = dx*dx + dy*dy - k2*dz*dz;
+                        float B = 2.0f * (sx*dx + sy*dy + k2*V*dz);
+                        float C = sx*sx + sy*sy - k2*V*V;
+                        
+                        float hit_t = 1e30f;
+                        
+                        // Check side surface
+                        if (std::abs(A) > 1e-6f) {
+                            float disc = B*B - 4.0f*A*C;
+                            if (disc >= 0) {
+                                float sq_disc = std::sqrt(disc);
+                                float t1 = (-B - sq_disc) / (2.0f*A);
+                                float t2 = (-B + sq_disc) / (2.0f*A);
+                                
+                                if (t1 > 0) {
+                                    float hz1 = sz + t1*dz;
+                                    if (hz1 >= -H/2.0f && hz1 <= H/2.0f) hit_t = std::min(hit_t, t1);
+                                }
+                                if (t2 > 0) {
+                                    float hz2 = sz + t2*dz;
+                                    if (hz2 >= -H/2.0f && hz2 <= H/2.0f) hit_t = std::min(hit_t, t2);
+                                }
+                            }
+                        } else if (std::abs(B) > 1e-6f) {
+                            float t1 = -C / B;
+                            if (t1 > 0) {
+                                float hz1 = sz + t1*dz;
+                                if (hz1 >= -H/2.0f && hz1 <= H/2.0f) hit_t = std::min(hit_t, t1);
+                            }
+                        }
+                        
+                        // Check base cap at z = -H/2
+                        if (std::abs(dz) > 1e-6f) {
+                            float t_base = (-H/2.0f - sz) / dz;
+                            if (t_base > 0 && t_base < hit_t) {
+                                float hx = sx + t_base*dx;
+                                float hy = sy + t_base*dy;
+                                if (hx*hx + hy*hy <= R*R) {
+                                    hit_t = std::min(hit_t, t_base);
+                                }
+                            }
+                        }
+                        
+                        if (hit_t > 0 && hit_t < t) {
+                            t = hit_t;
+                        }
                     }
                 }
 
