@@ -13,8 +13,9 @@
 #include <QSet>
 #include <functional>
 #include <chrono>
-#include "sensor_gui/util/s_curve_profile.hpp"
 #include <memory>
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/twist.hpp>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class TeleopWindow; }
@@ -35,7 +36,6 @@ public:
     explicit TeleopWindow(QWidget* parent = nullptr);
     ~TeleopWindow();
 
-    void setVelCallback(VelCallback cb) { vel_callback_ = cb; }
     void setLinearSpeed(float s)  { linear_speed_  = s; }
     void setAngularSpeed(float s) { angular_speed_ = s; }
     void setTheme(bool is_dark);
@@ -53,21 +53,17 @@ private slots:
 private:
     std::unique_ptr<Ui::TeleopWindow> ui;
 
-    VelCallback vel_callback_;
-    QTimer*     timer_;
     QSet<int>   pressed_keys_;
     bool        is_dark_ = false;
 
     float linear_speed_  = 0.5f;  // m/s
     float angular_speed_ = 60.0f; // deg/s
 
+    // ROS2 Node and Publisher for /cmd_vel
+    rclcpp::Node::SharedPtr teleop_node_;
+    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
 
-    airbot::SCurveProfile smoother_vx_;
-    airbot::SCurveProfile smoother_vy_;
-    airbot::SCurveProfile smoother_vyaw_;
-
-    std::chrono::steady_clock::time_point last_time_;
-    bool first_update_ = true;
+    void publishCmdVel(float vx, float vy, float vyaw);
 };
 
 

@@ -11,6 +11,10 @@ TeleopWindow::TeleopWindow(QWidget* parent)
     setFixedSize(320, 480); // Increased height for speed controls
     setFocusPolicy(Qt::StrongFocus);
 
+    // Initialize ROS Node for /cmd_vel publishing
+    teleop_node_ = std::make_shared<rclcpp::Node>("teleop_window_node");
+    cmd_vel_pub_ = teleop_node_->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+
     // Background style
     setStyleSheet(R"(
         QWidget {
@@ -42,22 +46,15 @@ TeleopWindow::TeleopWindow(QWidget* parent)
     )");
 
     // Timer: 20Hz velocity publish
-    timer_ = new QTimer(this);
+    QTimer* timer_ = new QTimer(this);
     connect(timer_, &QTimer::timeout, this, &TeleopWindow::onTimer);
     timer_->start(50);
-
-    // Initialize smoothers with default limits derived from airbot_teleop_velocity_smoother
-    smoother_vx_.setLimits(linear_speed_, 0.6, 2.0);
-    smoother_vy_.setLimits(linear_speed_, 0.6, 2.0);
-    // Angular limits converted from rad to deg (45 deg/s, 143.24 deg/s^2, 458.37 deg/s^3)
-    smoother_vyaw_.setLimits(angular_speed_, 143.24, 458.37);
 
     ui->spin_linear_speed_->setValue(linear_speed_);
     ui->spin_angular_speed_->setValue(angular_speed_);
 
     connect(ui->spin_linear_speed_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double val){
         linear_speed_ = static_cast<float>(val);
-        // smoother limit takes place in onTimer
     });
     connect(ui->spin_angular_speed_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double val){
         angular_speed_ = static_cast<float>(val);
@@ -87,13 +84,7 @@ void TeleopWindow::keyReleaseEvent(QKeyEvent* event) {
 void TeleopWindow::focusOutEvent(QFocusEvent* event) {
     // 창이 포커스를 잃으면 모든 키 해제 (안전 정지)
     pressed_keys_.clear();
-    if (vel_callback_) {
-        vel_callback_(0.0f, 0.0f, 0.0f);
-        smoother_vx_.reset();
-        smoother_vy_.reset();
-        smoother_vyaw_.reset();
-        first_update_ = true;
-    }
+    publishCmdVel(0.0f, 0.0f, 0.0f);
     ui->key_area_->updateState(pressed_keys_, is_dark_);
     QWidget::focusOutEvent(event);
 }
@@ -101,33 +92,30 @@ void TeleopWindow::focusOutEvent(QFocusEvent* event) {
 void TeleopWindow::closeEvent(QCloseEvent* event) {
     // 창 닫을 때 로봇 정지
     pressed_keys_.clear();
-    if (vel_callback_) {
-        vel_callback_(0.0f, 0.0f, 0.0f);
-        smoother_vx_.reset();
-        smoother_vy_.reset();
-        smoother_vyaw_.reset();
-        first_update_ = true;
-    }
+    publishCmdVel(0.0f, 0.0f, 0.0f);
     QWidget::closeEvent(event);
 }
 
 // ─────────────────────────────────────────────
 //  Timer → VelCallback
 // ─────────────────────────────────────────────
-void TeleopWindow::onTimer() {
-    if (!vel_callback_) return;
+void TeleopWindow::publishCmdVel(float vx, float vy, float vyaw) {
+    auto twist = geometry_msgs::msg::Twist();
+    twist.linear.x = vx;
+    twist.linear.y = vy;
+    twist.angular.z = vyaw * M_PI / 180.0; // deg to rad
+    cmd_vel_pub_->publish(twist);
+}
 
+void TeleopWindow::onTimer() {
     float target_vx = 0.0f, target_vy = 0.0f, target_vyaw = 0.0f;
     bool emergency_stop = pressed_keys_.contains(Qt::Key_S);
 
     if (emergency_stop) {
-        // Emergency stop: target 0 and reset smoothers immediately
+        // Emergency stop: target 0 immediately
         target_vx = 0.0f;
         target_vy = 0.0f;
         target_vyaw = 0.0f;
-        smoother_vx_.reset(0.0, 0.0);
-        smoother_vy_.reset(0.0, 0.0);
-        smoother_vyaw_.reset(0.0, 0.0);
     } else {
         // Forward/Backward
         if (pressed_keys_.contains(Qt::Key_Up)    || pressed_keys_.contains(Qt::Key_W)) target_vx +=  linear_speed_;
@@ -142,31 +130,7 @@ void TeleopWindow::onTimer() {
         if (pressed_keys_.contains(Qt::Key_Right) || pressed_keys_.contains(Qt::Key_D)) target_vyaw -= angular_speed_;
     }
 
-    // Calculate dt
-    auto now = std::chrono::steady_clock::now();
-    double dt = 0.05; // Default dt (20Hz)
-    
-    if (first_update_) {
-        first_update_ = false;
-        smoother_vx_.reset(0.0, 0.0);
-        smoother_vy_.reset(0.0, 0.0);
-        smoother_vyaw_.reset(0.0, 0.0);
-    } else {
-        dt = std::chrono::duration<double>(now - last_time_).count();
-    }
-    last_time_ = now;
-
-    // Apply S-Curve Smoothing
-    // We update limits in case they changed via setLinearSpeed/setAngularSpeed
-    smoother_vx_.setLimits(linear_speed_, 0.6, 2.0);
-    smoother_vy_.setLimits(linear_speed_, 0.6, 2.0);
-    smoother_vyaw_.setLimits(angular_speed_, 143.24, 458.37);
-
-    float smoothed_vx = static_cast<float>(smoother_vx_.update(target_vx, dt));
-    float smoothed_vy = static_cast<float>(smoother_vy_.update(target_vy, dt));
-    float smoothed_vyaw = static_cast<float>(smoother_vyaw_.update(target_vyaw, dt));
-
-    vel_callback_(smoothed_vx, smoothed_vy, smoothed_vyaw);
+    publishCmdVel(target_vx, target_vy, target_vyaw);
 }
 
 // ─────────────────────────────────────────────

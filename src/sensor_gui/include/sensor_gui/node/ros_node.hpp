@@ -11,9 +11,12 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <geometry_msgs/msg/twist.hpp>
 #include <map>
 #include <functional>
 #include <atomic>
+#include "sensor_gui/util/s_curve_profile.hpp"
+#include <chrono>
 
 enum class SensorType {
   kTofMono,
@@ -54,10 +57,14 @@ public:
   }
   void setRobotZ(float z) { robot_z_ = z; }
   void setVelocities(float vx, float vy, float vyaw) {
-    vx_ = vx;
-    vy_ = vy;
-    vyaw_ = vyaw;
+    target_vx_ = vx;
+    target_vy_ = vy;
+    target_vyaw_ = vyaw;
   }
+
+  // Linear and Angular Speed Configurations
+  void setLinearSpeed(float s)  { linear_speed_  = s; }
+  void setAngularSpeed(float s) { angular_speed_ = s; }
 
   float getRobotX() const { return robot_x_; }
   float getRobotY() const { return robot_y_; }
@@ -72,8 +79,10 @@ public:
 
 private:
   void publishFakeData();
+  void cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg);
 
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr sensor_manager_cmd_pub_;
+  rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
   
   rclcpp::Publisher<robot_custom_msgs::msg::TofData>::SharedPtr tof_pub_;
   rclcpp::Publisher<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_pub_;
@@ -108,7 +117,23 @@ private:
   std::atomic<float> robot_y_{0.0f};
   std::atomic<float> robot_yaw_{0.0f};
   std::atomic<float> robot_z_{0.045f};
-  std::atomic<float> vx_{0.0f}, vy_{0.0f}, vyaw_{0.0f};
+
+  // Target velocities from /cmd_vel
+  std::atomic<float> target_vx_{0.0f};
+  std::atomic<float> target_vy_{0.0f};
+  std::atomic<float> target_vyaw_{0.0f};
+
+  // Speed Limits
+  float linear_speed_  = 0.5f;
+  float angular_speed_ = 60.0f;
+
+  // Smoothing
+  airbot::SCurveProfile smoother_vx_;
+  airbot::SCurveProfile smoother_vy_;
+  airbot::SCurveProfile smoother_vyaw_;
+  
+  std::chrono::steady_clock::time_point last_time_;
+  bool first_update_ = true;
 
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;

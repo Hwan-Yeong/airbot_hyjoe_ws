@@ -346,9 +346,7 @@ void MainWindow::onToggleTheme() {
 void MainWindow::onOpenTeleop() {
     if (!teleop_window_) {
         teleop_window_ = new TeleopWindow(nullptr); // 독립 창
-        teleop_window_->setVelCallback([this](float vx, float vy, float vyaw) {
-            if (ros_node_) ros_node_->setVelocities(vx, vy, vyaw);
-        });
+        // No callback setting, TeleopWindow uses dedicated /cmd_vel publisher
         teleop_window_->setTheme(is_dark_mode_);
     }
     teleop_window_->show();

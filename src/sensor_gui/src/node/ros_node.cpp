@@ -12,8 +12,19 @@ RosNode::RosNode() : Node("sensor_simulator") {
   bottom_ir_pub_ = this->create_publisher<robot_custom_msgs::msg::BottomIrData>("/bottom_ir_data", 10);
   collision_pub_ = this->create_publisher<robot_custom_msgs::msg::AbnormalEventData>("/collision_detected", 10);
 
-  vx_ = 0.0f; vy_ = 0.0f; vyaw_ = 0.0f;
+  collision_pub_ = this->create_publisher<robot_custom_msgs::msg::AbnormalEventData>("/collision_detected", 10);
+
+  // Subscriber
+  cmd_vel_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
+    "/cmd_vel", 10, std::bind(&RosNode::cmdVelCallback, this, std::placeholders::_1));
+
   robot_z_ = 0.05f;
+
+  smoother_vx_.setLimits(linear_speed_, 0.6, 2.0);
+  smoother_vy_.setLimits(linear_speed_, 0.6, 2.0);
+  smoother_vyaw_.setLimits(angular_speed_, 143.24, 458.37);
+
+  last_time_ = std::chrono::steady_clock::now();
 
   timer_ = this->create_wall_timer(
     std::chrono::milliseconds(100),
@@ -82,16 +93,38 @@ bool RosNode::getSensorState(SensorType type) const {
   return false;
 }
 
+void RosNode::cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg) {
+  target_vx_ = msg->linear.x;
+  target_vy_ = msg->linear.y;
+  target_vyaw_ = msg->angular.z * 180.0 / M_PI; // rad to deg for internal calc
+}
+
 void RosNode::publishFakeData() {
   auto now = this->now();
 
   // 0. Publish map -> base_link transform
-  // Velocity Integration
-  float dt = 0.1f; // timer is 100ms
-  float vx = vx_.load();
-  float vy = vy_.load();
-  float vyaw = vyaw_.load();
+  // Apply S-Curve Smoothing
+  auto now_time = std::chrono::steady_clock::now();
+  double dt = 0.1; // fallback
+  if (first_update_) {
+      first_update_ = false;
+      smoother_vx_.reset(0.0, 0.0);
+      smoother_vy_.reset(0.0, 0.0);
+      smoother_vyaw_.reset(0.0, 0.0);
+  } else {
+      dt = std::chrono::duration<double>(now_time - last_time_).count();
+  }
+  last_time_ = now_time;
+
+  smoother_vx_.setLimits(linear_speed_, 0.6, 2.0);
+  smoother_vy_.setLimits(linear_speed_, 0.6, 2.0);
+  smoother_vyaw_.setLimits(angular_speed_, 143.24, 458.37);
+
+  float vx = static_cast<float>(smoother_vx_.update(target_vx_.load(), dt));
+  float vy = static_cast<float>(smoother_vy_.update(target_vy_.load(), dt));
+  float vyaw = static_cast<float>(smoother_vyaw_.update(target_vyaw_.load(), dt));
   
+  // Velocity Integration
   if (std::abs(vx) > 0.001f || std::abs(vy) > 0.001f || std::abs(vyaw) > 0.001f) {
       float cy = std::cos(robot_yaw_.load() * M_PI / 180.0f);
       float sy = std::sin(robot_yaw_.load() * M_PI / 180.0f);
