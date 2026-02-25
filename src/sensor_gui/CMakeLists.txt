@@ -25,19 +25,19 @@ include_directories(include ${tinyxml2_INCLUDE_DIRS})
 
 add_executable(sensor_gui
   src/main.cpp
-  src/main_window.cpp
-  src/ros_node.cpp
-  src/point_cloud_visualizer.cpp
-  src/teleop_window.cpp
-  src/obstacle_window.cpp
-  src/s_curve_profile.cpp
-  src/robot_model.cpp
-  include/sensor_gui/main_window.hpp
-  include/sensor_gui/ros_node.hpp
-  include/sensor_gui/point_cloud_visualizer.hpp
-  include/sensor_gui/teleop_window.hpp
-  include/sensor_gui/obstacle_window.hpp
-  include/sensor_gui/s_curve_profile.hpp
+  src/window/main_window.cpp
+  src/node/ros_node.cpp
+  src/visualizer/point_cloud_visualizer.cpp
+  src/window/teleop_window.cpp
+  src/window/obstacle_window.cpp
+  src/util/s_curve_profile.cpp
+  src/visualizer/robot_model.cpp
+  include/sensor_gui/window/main_window.hpp
+  include/sensor_gui/node/ros_node.hpp
+  include/sensor_gui/visualizer/point_cloud_visualizer.hpp
+  include/sensor_gui/window/teleop_window.hpp
+  include/sensor_gui/window/obstacle_window.hpp
+  include/sensor_gui/util/s_curve_profile.hpp
 )
 
 ament_target_dependencies(sensor_gui

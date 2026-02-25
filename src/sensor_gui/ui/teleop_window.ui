@@ -88,7 +88,7 @@
     <customwidget>
       <class>TeleopKeyArea</class>
       <extends>QWidget</extends>
-      <header>sensor_gui/teleop_window.hpp</header>
+      <header>sensor_gui/window/teleop_window.hpp</header>
     </customwidget>
   </customwidgets>
 </ui>

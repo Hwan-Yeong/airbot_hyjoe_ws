@@ -1,4 +1,4 @@
-#include "sensor_gui/ros_node.hpp"
+#include "sensor_gui/node/ros_node.hpp"
 
 
 RosNode::RosNode() : Node("sensor_simulator") {

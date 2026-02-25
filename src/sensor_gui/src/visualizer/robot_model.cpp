@@ -3,8 +3,8 @@
 #include <sstream>
 #include <vector>
 #include <cmath>
-#include "sensor_gui/robot_model.hpp"
-#include "sensor_gui/point_cloud_visualizer.hpp"
+#include "sensor_gui/visualizer/robot_model.hpp"
+#include "sensor_gui/visualizer/point_cloud_visualizer.hpp"
 
 RobotModel::RobotModel() {
     // Basic materials from provided URDF as defaults

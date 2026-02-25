@@ -13,7 +13,7 @@
 #include <QSet>
 #include <functional>
 #include <chrono>
-#include "sensor_gui/s_curve_profile.hpp"
+#include "sensor_gui/util/s_curve_profile.hpp"
 #include <memory>
 
 QT_BEGIN_NAMESPACE

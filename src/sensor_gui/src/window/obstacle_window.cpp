@@ -1,4 +1,4 @@
-#include "sensor_gui/obstacle_window.hpp"
+#include "sensor_gui/window/obstacle_window.hpp"
 #include "ui_obstacle_window.h"
 #include <QFileDialog>
 #include <QSettings>

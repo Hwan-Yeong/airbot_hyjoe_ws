@@ -2,7 +2,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <thread>
 
-#include "sensor_gui/main_window.hpp"
+#include "sensor_gui/window/main_window.hpp"
 
 int main(int argc, char** argv) {
   printf("[DEBUG] main() started\n"); fflush(stdout);

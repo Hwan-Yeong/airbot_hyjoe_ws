@@ -16,10 +16,10 @@
 #include <QSplitter>
 #include <QScrollArea>
 #include <QComboBox>
-#include "ros_node.hpp"
-#include "point_cloud_visualizer.hpp"
-#include "teleop_window.hpp"
-#include "obstacle_window.hpp"
+#include "sensor_gui/node/ros_node.hpp"
+#include "sensor_gui/visualizer/point_cloud_visualizer.hpp"
+#include "sensor_gui/window/teleop_window.hpp"
+#include "sensor_gui/window/obstacle_window.hpp"
 #include <memory>
 
 QT_BEGIN_NAMESPACE

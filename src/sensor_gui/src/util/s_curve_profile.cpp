@@ -1,4 +1,4 @@
-#include "sensor_gui/s_curve_profile.hpp"
+#include "sensor_gui/util/s_curve_profile.hpp"
 
 namespace airbot {
 

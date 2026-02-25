@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 #include <QString>
-#include "point_cloud_visualizer.hpp"
+#include "sensor_gui/visualizer/point_cloud_visualizer.hpp"
 #include <QComboBox>
 #include <QTableWidgetItem>
 

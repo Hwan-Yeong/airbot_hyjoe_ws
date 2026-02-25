@@ -1,4 +1,4 @@
-#include "sensor_gui/teleop_window.hpp"
+#include "sensor_gui/window/teleop_window.hpp"
 #include "ui_teleop_window.h"
 //  Constructor
 // ─────────────────────────────────────────────

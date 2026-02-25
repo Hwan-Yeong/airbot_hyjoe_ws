@@ -1,5 +1,5 @@
 #include <sensor_msgs/point_cloud2_iterator.hpp>
-#include "sensor_gui/main_window.hpp"
+#include "sensor_gui/window/main_window.hpp"
 #include "ui_main_window.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -23,7 +23,7 @@
 #include <functional>
 #include <tf2/utils.h>
 #include <ament_index_cpp/get_package_share_directory.hpp>
-#include "sensor_gui/robot_model.hpp"
+#include "sensor_gui/visualizer/robot_model.hpp"
 #include <QComboBox>
 
 MainWindow::MainWindow(std::shared_ptr<RosNode> node)

@@ -549,7 +549,7 @@
   <customwidget>
    <class>PointCloudVisualizer</class>
    <extends>QOpenGLWidget</extends>
-   <header>sensor_gui/point_cloud_visualizer.hpp</header>
+   <header>sensor_gui/visualizer/point_cloud_visualizer.hpp</header>
   </customwidget>
  </customwidgets>
  <resources/>

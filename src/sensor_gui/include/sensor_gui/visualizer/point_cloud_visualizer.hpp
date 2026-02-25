@@ -9,7 +9,7 @@
 #include <mutex>
 #include <QColor>
 #include <memory>
-#include "obstacle_renderer.hpp"
+#include "sensor_gui/visualizer/obstacle_renderer.hpp"
 
 struct ColoredCloud {
     std::string frame_id;
