@@ -1,6 +1,10 @@
 #include "sensor_gui/window/obstacle_window.hpp"
 #include "ui_obstacle_window.h"
 #include <QFileDialog>
+#include <QMessageBox>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <QFileDialog>
 #include <QSettings>
 #include <QJsonDocument>
 #include <QJsonArray>
@@ -41,6 +45,10 @@ void ObstacleWindow::initConnections() {
     connect(ui->spin_sx, spinChanged, this, &ObstacleWindow::onPropertySpinBoxChanged);
     connect(ui->spin_sy, spinChanged, this, &ObstacleWindow::onPropertySpinBoxChanged);
     connect(ui->spin_sz, spinChanged, this, &ObstacleWindow::onPropertySpinBoxChanged);
+    
+    connect(ui->spin_roll, spinChanged, this, &ObstacleWindow::onPropertySpinBoxChanged);
+    connect(ui->spin_pitch, spinChanged, this, &ObstacleWindow::onPropertySpinBoxChanged);
+    connect(ui->spin_yaw, spinChanged, this, &ObstacleWindow::onPropertySpinBoxChanged);
 
     connect(ui->table_walls_1, &QTableWidget::cellChanged, this, &ObstacleWindow::onWallTableChanged);
 
@@ -184,11 +192,34 @@ void ObstacleWindow::onPropertySpinBoxChanged() {
     SimObstacle& ob = obs[row];
     ob.x = ui->spin_x->value();
     ob.y = ui->spin_y->value();
-    ob.z = ui->spin_z->value();
+    
+    float new_sz = ui->spin_sz->isVisible() ? ui->spin_sz->value() : ob.sz;
+    if (std::abs(new_sz - ob.sz) > 1e-6f) {
+        float dz = new_sz - ob.sz;
+        ob.z += dz / 2.0f;
+        
+        ui->spin_z->blockSignals(true);
+        ui->spin_z->setValue(ob.z);
+        ui->spin_z->blockSignals(false);
+    } else {
+        ob.z = ui->spin_z->value();
+    }
     
     ob.sx = ui->spin_sx->value();
     if (ui->spin_sy->isVisible()) ob.sy = ui->spin_sy->value();
-    if (ui->spin_sz->isVisible()) ob.sz = ui->spin_sz->value();
+    ob.sz = new_sz;
+    
+    // RPY to Quaternion
+    tf2::Quaternion q;
+    q.setRPY(
+        ui->spin_roll->value() * M_PI / 180.0,
+        ui->spin_pitch->value() * M_PI / 180.0,
+        ui->spin_yaw->value() * M_PI / 180.0
+    );
+    ob.qw = q.w();
+    ob.qx = q.x();
+    ob.qy = q.y();
+    ob.qz = q.z();
     
     visualizer_->setObstacles(obs);
 }
@@ -229,8 +260,20 @@ void ObstacleWindow::updatePropertiesPanel(int index) {
         ui->lbl_sz->setText("Height (Z):"); ui->spin_sz->setVisible(false); ui->lbl_sz->setVisible(false);
     }
     
+    // Quaternion to RPY
+    tf2::Quaternion q(ob.qx, ob.qy, ob.qz, ob.qw);
+    tf2::Matrix3x3 m(q);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+    
+    ui->spin_roll->blockSignals(true); ui->spin_pitch->blockSignals(true); ui->spin_yaw->blockSignals(true);
+    ui->spin_roll->setValue(roll * 180.0 / M_PI);
+    ui->spin_pitch->setValue(pitch * 180.0 / M_PI);
+    ui->spin_yaw->setValue(yaw * 180.0 / M_PI);
+    
     ui->spin_x->blockSignals(false); ui->spin_y->blockSignals(false); ui->spin_z->blockSignals(false);
     ui->spin_sx->blockSignals(false); ui->spin_sy->blockSignals(false); ui->spin_sz->blockSignals(false);
+    ui->spin_roll->blockSignals(false); ui->spin_pitch->blockSignals(false); ui->spin_yaw->blockSignals(false);
 }
 
 void ObstacleWindow::onObstacleMoved(int index, float x, float y) {

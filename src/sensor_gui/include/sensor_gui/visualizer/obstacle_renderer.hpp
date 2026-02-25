@@ -6,6 +6,8 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
 
 enum class ObstacleType { kBox, kCylinder, kCone, kSphere };
 
@@ -13,6 +15,7 @@ struct SimObstacle {
     ObstacleType type = ObstacleType::kBox;
     float x = 0, y = 0, z = 0;
     float sx = 1, sy = 1, sz = 1;
+    double qx = 0.0, qy = 0.0, qz = 0.0, qw = 1.0;
     std::string name;
 };
 
@@ -27,6 +30,11 @@ public:
     void draw(const SimObstacle& ob, bool selected) override {
         glPushMatrix();
         glTranslatef(ob.x, ob.y, ob.z);
+        
+        tf2::Quaternion q(ob.qx, ob.qy, ob.qz, ob.qw);
+        double angle = q.getAngle() * 180.0 / M_PI;
+        tf2::Vector3 axis = q.getAxis();
+        if (q.getAngle() > 1e-6) glRotatef(angle, axis.x(), axis.y(), axis.z());
         
         QColor color = selected ? QColor("#ff4444") : QColor("#8888ff");
         glColor4f(color.redF(), color.greenF(), color.blueF(), selected ? 0.6f : 0.4f);
@@ -61,7 +69,15 @@ class CylinderRenderer : public IObstacleRenderer {
 public:
     void draw(const SimObstacle& ob, bool selected) override {
         glPushMatrix();
-        glTranslatef(ob.x, ob.y, ob.z - ob.sz/2);
+        glTranslatef(ob.x, ob.y, ob.z);
+        
+        tf2::Quaternion q(ob.qx, ob.qy, ob.qz, ob.qw);
+        double angle = q.getAngle() * 180.0 / M_PI;
+        tf2::Vector3 axis = q.getAxis();
+        if (q.getAngle() > 1e-6) glRotatef(angle, axis.x(), axis.y(), axis.z());
+        
+        glTranslatef(0, 0, -ob.sz/2); // Local center offset
+        
         QColor color = selected ? QColor("#ff4444") : QColor("#88ff88");
         glColor4f(color.redF(), color.greenF(), color.blueF(), 0.4f);
         
@@ -99,7 +115,15 @@ class ConeRenderer : public IObstacleRenderer {
 public:
     void draw(const SimObstacle& ob, bool selected) override {
         glPushMatrix();
-        glTranslatef(ob.x, ob.y, ob.z - ob.sz/2);
+        glTranslatef(ob.x, ob.y, ob.z);
+        
+        tf2::Quaternion q(ob.qx, ob.qy, ob.qz, ob.qw);
+        double angle = q.getAngle() * 180.0 / M_PI;
+        tf2::Vector3 axis = q.getAxis();
+        if (q.getAngle() > 1e-6) glRotatef(angle, axis.x(), axis.y(), axis.z());
+        
+        glTranslatef(0, 0, -ob.sz/2); // Local center offset
+        
         QColor color = selected ? QColor("#ff4444") : QColor("#ffff88");
         glColor4f(color.redF(), color.greenF(), color.blueF(), 0.4f);
         
@@ -122,6 +146,12 @@ public:
     void draw(const SimObstacle& ob, bool selected) override {
         glPushMatrix();
         glTranslatef(ob.x, ob.y, ob.z);
+        
+        tf2::Quaternion q(ob.qx, ob.qy, ob.qz, ob.qw);
+        double angle = q.getAngle() * 180.0 / M_PI;
+        tf2::Vector3 axis = q.getAxis();
+        if (q.getAngle() > 1e-6) glRotatef(angle, axis.x(), axis.y(), axis.z());
+        
         QColor color = selected ? QColor("#ff4444") : QColor("#cc88ff");
         glColor4f(color.redF(), color.greenF(), color.blueF(), 0.4f);
         

@@ -213,8 +213,68 @@
              <double>1.000000000000000</double>
             </property>
            </widget>
-          </item>
-         </layout>
+           </item>
+           <item row="6" column="0">
+            <widget class="QLabel" name="lbl_roll">
+             <property name="text">
+              <string>Roll (deg):</string>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="1">
+            <widget class="QDoubleSpinBox" name="spin_roll">
+             <property name="minimum">
+              <double>-180.0</double>
+             </property>
+             <property name="maximum">
+              <double>180.0</double>
+             </property>
+             <property name="singleStep">
+              <double>1.0</double>
+             </property>
+            </widget>
+           </item>
+           <item row="7" column="0">
+            <widget class="QLabel" name="lbl_pitch">
+             <property name="text">
+              <string>Pitch (deg):</string>
+             </property>
+            </widget>
+           </item>
+           <item row="7" column="1">
+            <widget class="QDoubleSpinBox" name="spin_pitch">
+             <property name="minimum">
+              <double>-180.0</double>
+             </property>
+             <property name="maximum">
+              <double>180.0</double>
+             </property>
+             <property name="singleStep">
+              <double>1.0</double>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="0">
+            <widget class="QLabel" name="lbl_yaw">
+             <property name="text">
+              <string>Yaw (deg):</string>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="1">
+            <widget class="QDoubleSpinBox" name="spin_yaw">
+             <property name="minimum">
+              <double>-180.0</double>
+             </property>
+             <property name="maximum">
+              <double>180.0</double>
+             </property>
+             <property name="singleStep">
+              <double>1.0</double>
+             </property>
+            </widget>
+           </item>
+          </layout>
         </widget>
        </item>
        <item>

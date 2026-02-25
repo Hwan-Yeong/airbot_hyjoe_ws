@@ -6,6 +6,9 @@
 #include <cmath>
 #include <GL/gl.h>
 #include <GL/glu.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Vector3.h>
 
 PointCloudVisualizer::PointCloudVisualizer(QWidget* parent)
     : QOpenGLWidget(parent) {
@@ -165,6 +168,20 @@ void PointCloudVisualizer::paintGL() {
                     float sx = sensor_tf.x, sy = sensor_tf.y, sz = sensor_tf.z;
                     float dx = wx - sx, dy = wy - sy, dz = wz - sz;
                     
+                    // Inverse transform ray to obstacle local coordinate system
+                    tf2::Vector3 ray_orig(sx - ob.x, sy - ob.y, sz - ob.z);
+                    tf2::Vector3 ray_dir(dx, dy, dz);
+                    
+                    tf2::Quaternion q(ob.qx, ob.qy, ob.qz, ob.qw);
+                    tf2::Quaternion q_inv = q.inverse();
+                    
+                    ray_orig = tf2::quatRotate(q_inv, ray_orig);
+                    ray_dir = tf2::quatRotate(q_inv, ray_dir);
+                    
+                    // Now sx, sy, sz, dx, dy, dz are in LOCAL frame
+                    sx = ray_orig.x(); sy = ray_orig.y(); sz = ray_orig.z();
+                    dx = ray_dir.x();  dy = ray_dir.y();  dz = ray_dir.z();
+                    
                     if (ob.type == ObstacleType::kBox) {
                         float tmin = -1e30f, tmax = 1e30f;
                         auto check_axis = [&](float start, float delta, float bmin, float bmax) {
@@ -180,9 +197,9 @@ void PointCloudVisualizer::paintGL() {
                             return true;
                         };
 
-                        if (check_axis(sx, dx, ob.x - ob.sx/2, ob.x + ob.sx/2) &&
-                            check_axis(sy, dy, ob.y - ob.sy/2, ob.y + ob.sy/2) &&
-                            check_axis(sz, dz, ob.z - ob.sz/2, ob.z + ob.sz/2)) {
+                        if (check_axis(sx, dx, -ob.sx/2, ob.sx/2) &&
+                            check_axis(sy, dy, -ob.sy/2, ob.sy/2) &&
+                            check_axis(sz, dz, -ob.sz/2, ob.sz/2)) {
                             if (tmin <= tmax && tmax > 0.0f) {
                                 float hit_t = (tmin > 0.0f) ? tmin : 0.0f;
                                 if (hit_t < t) t = hit_t;
@@ -190,9 +207,9 @@ void PointCloudVisualizer::paintGL() {
                         }
                     } else if (ob.type == ObstacleType::kCylinder) {
                         // Ray-Cylinder intersection (Infinite cylinder first)
-                        // (sx-ox)^2 + (sy-oy)^2 = R^2
-                        float ox = sx - ob.x;
-                        float oy = sy - ob.y;
+                        // Ray-Cylinder intersection in local frame
+                        float ox = sx;
+                        float oy = sy;
                         float R = ob.sx;
                         float A = dx*dx + dy*dy;
                         float B = 2.0f * (dx*ox + dy*oy);
@@ -202,13 +219,13 @@ void PointCloudVisualizer::paintGL() {
                             float t1 = (-B - std::sqrt(disc)) / (2.0f*A);
                             if (t1 > 0 && t1 < t) {
                                 float hit_z = sz + t1 * dz;
-                                if (hit_z > ob.z - ob.sz/2 && hit_z < ob.z + ob.sz/2) t = t1;
+                                if (hit_z > -ob.sz/2 && hit_z < ob.sz/2) t = t1;
                             }
                         }
                     } else if (ob.type == ObstacleType::kSphere) {
-                        float ox = sx - ob.x;
-                        float oy = sy - ob.y;
-                        float oz = sz - ob.z;
+                        float ox = sx;
+                        float oy = sy;
+                        float oz = sz;
                         float R = ob.sx;
                         float A = dx*dx + dy*dy + dz*dz;
                         float B = 2.0f * (dx*ox + dy*oy + dz*oz);
