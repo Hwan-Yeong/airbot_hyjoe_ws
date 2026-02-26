@@ -27,6 +27,16 @@ public:
     bool loadFromFile(const std::string& path);
 
     /**
+     * @brief Get wheelbase extracted from URDF (distance between wheels)
+     */
+    float getWheelbase() const { return wheelbase_; }
+
+    /**
+     * @brief Get wheel radius extracted from URDF
+     */
+    float getWheelRadius() const { return wheel_radius_; }
+
+    /**
      * @brief Render the entire robot model at the given base_link transform
      * @param base_tf The transform data for base_link
      * @param body_alpha Transparency for the robot body (0.0 to 1.0)
@@ -41,4 +51,8 @@ private:
     // Internal helper to find color by material name
     struct Material { float r, g, b, a; };
     std::map<std::string, Material> materials_;
+
+    // Parsed physics parameters
+    float wheelbase_ = 0.38f; // Default fallback
+    float wheel_radius_ = 0.045f; // Default fallback
 };

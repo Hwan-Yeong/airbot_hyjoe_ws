@@ -20,6 +20,8 @@
 #include "sensor_gui/visualizer/point_cloud_visualizer.hpp"
 #include "sensor_gui/window/teleop_window.hpp"
 #include "sensor_gui/window/obstacle_window.hpp"
+#include "sensor_gui/window/robot_model_window.hpp"
+#include "sensor_gui/physics/physics_world.hpp"
 #include <memory>
 
 QT_BEGIN_NAMESPACE
@@ -46,7 +48,9 @@ private slots:
   void syncTFs();
   void onOpenTeleop();
   void onOpenObstacleWindow();
+  void onOpenRobotModelEditor();
   void onToggleSidebar();
+  void stepPhysics();
 
 private:
   void initConnections();
@@ -60,6 +64,10 @@ private:
   QTimer* tf_timer_;
   TeleopWindow* teleop_window_ = nullptr;
   ObstacleWindow* obstacle_window_ = nullptr;
+  RobotModelWindow* robot_model_window_ = nullptr;
+  
+  std::shared_ptr<PhysicsWorld> physics_world_;
+  QTimer* physics_timer_ = nullptr;
   
   bool is_dark_mode_ = true;
 };

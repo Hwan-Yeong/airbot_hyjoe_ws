@@ -30,12 +30,22 @@ MainWindow::MainWindow(std::shared_ptr<RosNode> node)
     : QMainWindow(nullptr), ui(new Ui::MainWindow), ros_node_(node)
 {
   ui->setupUi(this);
+
+  ros_node_->setUsePhysics(true);
+  physics_world_ = std::make_shared<PhysicsWorld>();
+  physics_world_->init();
+  // URDF loading in initConnections requires physics_world_ to be initialized
+
   initConnections();
   ros_node_->setCloudCallback([this](const std::string& name, const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
       QMetaObject::invokeMethod(this, [this, name, msg]() {
           processCloud(name, msg);
       }, Qt::QueuedConnection);
   });
+
+  physics_timer_ = new QTimer(this);
+  connect(physics_timer_, &QTimer::timeout, this, &MainWindow::stepPhysics);
+  physics_timer_->start(16); // ~60Hz
 
   // TF Sync Timer
   tf_timer_ = new QTimer(this);
@@ -98,7 +108,8 @@ void MainWindow::initConnections() {
   connect(ui->check_bump_sim_, &QCheckBox::toggled, this, &MainWindow::onToggleBump);
   connect(ui->btn_pick_bg_, &QPushButton::clicked, this, &MainWindow::onPickBackgroundColor);
 
-  connect(ui->btn_edit_wall_, &QPushButton::clicked, this, &MainWindow::onOpenObstacleWindow);
+  connect(ui->btn_edit_wall, &QPushButton::clicked, this, &MainWindow::onOpenObstacleWindow);
+  connect(ui->btn_edit_robot_model, &QPushButton::clicked, this, &MainWindow::onOpenRobotModelEditor);
 
   // Dynamic Bottom IR Cliff Controls
   QGroupBox* ir_group = new QGroupBox("Bottom IR CLIFF (True/False)");
@@ -139,6 +150,15 @@ void MainWindow::initConnections() {
               std::cerr << "Failed to load URDF from: " << urdf_path << std::endl;
           } else {
               std::cout << "Successfully loaded URDF: " << urdf_path << std::endl;
+              // Pass the URDF parameters to physics
+              if (physics_world_ && ui->visualizer_->getRobotModel()) {
+                  float wheelbase = ui->visualizer_->getRobotModel()->getWheelbase();
+                  float radius = ui->visualizer_->getRobotModel()->getWheelRadius();
+                  float robot_mass = ros_node_ ? ros_node_->getRobotMass() : 10.0f;
+                  std::cout << "[DEBUG] Initializing Physics Robot: Radius=" << radius 
+                            << ", Wheelbase=" << wheelbase << ", Mass=" << robot_mass << std::endl;
+                  physics_world_->initRobot(radius, wheelbase, robot_mass);
+              }
           }
       }
   } catch (...) {
@@ -239,7 +259,10 @@ void MainWindow::syncTFs() {
     
     // Determine Nickname
     std::string nickname = frame;
-    if (frame == "base_link") nickname = "{base_link}";
+    if (frame == "base_link") {
+        if (ros_node_->getUsePhysics()) continue; // Skip sync if physics simulates it directly
+        nickname = "{base_link}";
+    }
     else if (frame == "tof_mono_link") nickname = "{1d}";
     else if (frame.find("tof_multi") != std::string::npos) nickname = "{multi}";
     else if (frame == "tof_camera_link") nickname = "{cam}";
@@ -265,20 +288,62 @@ void MainWindow::syncTFs() {
     }
   }
   ui->visualizer_->updateTFs(tfs);
+}
 
-  // Ground Following Logic (Implementation)
-  float rx = ros_node_->getRobotX();
-  float ground_z = 0.0f;
-  
-  if (ui->check_bump_sim_ && ui->check_bump_sim_->isChecked()) {
-      // Bump at X=[0.8, 1.2], Width=0.4m, Height=0.03m
-      if (rx > 0.8f && rx < 1.2f) {
-          ground_z = 0.03f;
-      }
-  }
+void MainWindow::stepPhysics() {
+    if (!physics_world_ || !ui->visualizer_ || !ros_node_) return;
 
-  float target_robot_z = ground_z + 0.045f; // Add wheel radius
-  ros_node_->setRobotZ(target_robot_z);
+    // Send velocity command to physics
+    float vx = ros_node_->getTargetVx();
+    float vyaw = ros_node_->getTargetVyawRad();
+    physics_world_->setRobotVelocity(vx, vyaw);
+
+    // Sync obstacles (read from UI)
+    auto obs = ui->visualizer_->getObstacles();
+    physics_world_->syncObstacles(obs);
+    
+    // Step simulation
+    physics_world_->stepSimulation(0.016f); // 16ms
+    
+    // Update visualizer with new object positions
+    ui->visualizer_->setObstacles(obs);
+
+    // Update Robot pose in RosNode
+    // Physics 'rz' is the center of the chassis, which is at 0.15m height.
+    // The visual 'base_link' expects to be around 0.045m (wheel radius).
+    // So we subtract the difference: chassis_z_center - wheel_radius
+    float rx = 0.0f, ry = 0.0f, rz = 0.0f, roll = 0.0f, pitch = 0.0f, yaw = 0.0f;
+    physics_world_->getRobotPose(rx, ry, rz, roll, pitch, yaw);
+    ros_node_->setRobotPose(rx, ry, yaw * 180.0f / M_PI);
+    
+    float radius = 0.045f;
+    if (ui->visualizer_->getRobotModel()) {
+        radius = ui->visualizer_->getRobotModel()->getWheelRadius();
+    }
+    float visual_z = rz - 0.105f;
+    ros_node_->setRobotZ(visual_z); 
+
+    // Directly update the visualizer's base_link at 60Hz for smooth rendering (avoids 10Hz TF lag)
+    if (ui->visualizer_) {
+        TfData base_tf;
+        base_tf.frame_id = "base_link";
+        base_tf.displayName = "{base_link}";
+        base_tf.x = rx; base_tf.y = ry; base_tf.z = visual_z;
+        tf2::Quaternion q; q.setRPY(roll, pitch, yaw);
+        base_tf.qx = q.x(); base_tf.qy = q.y(); base_tf.qz = q.z(); base_tf.qw = q.w();
+        ui->visualizer_->updateSingleTf(base_tf);
+    }
+
+    // Sync Wheel Pos to Visualizer
+    float lx = 0, ly = 0, lz = 0, lqx = 0, lqy = 0, lqz = 0, lqw = 1;
+    float wrx = 0, wry = 0, wrz = 0, wrqx = 0, wrqy = 0, wrqz = 0, wrqw = 1;
+    physics_world_->getWheelPoses(lx, ly, lz, lqx, lqy, lqz, lqw, 
+                                  wrx, wry, wrz, wrqx, wrqy, wrqz, wrqw);
+    
+    TfData left_td, right_td;
+    left_td.x = lx; left_td.y = ly; left_td.z = lz; left_td.qx = lqx; left_td.qy = lqy; left_td.qz = lqz; left_td.qw = lqw;
+    right_td.x = wrx; right_td.y = wry; right_td.z = wrz; right_td.qx = wrqx; right_td.qy = wrqy; right_td.qz = wrqz; right_td.qw = wrqw;
+    ui->visualizer_->setWheelPoses(left_td, right_td);
 }
 
 void MainWindow::onToggleBump(bool checked) {
@@ -368,6 +433,27 @@ void MainWindow::onToggleSidebar() {
     } else {
         ui->btn_sidebar_toggle_->setText("◀ Hide Sidebar");
     }
+}
+
+void MainWindow::onOpenRobotModelEditor() {
+    if (!robot_model_window_) {
+        robot_model_window_ = new RobotModelWindow(this);
+        connect(robot_model_window_, &RobotModelWindow::parametersApplied, [this](const std::map<std::string, float>& params) {
+            if (physics_world_) {
+                physics_world_->setPhysicsParams(params);
+                std::cout << "Applied new physics parameters." << std::endl;
+            }
+        });
+    }
+    
+    // Refresh parameters from physics world before showing
+    if (physics_world_) {
+        robot_model_window_->setParameters(physics_world_->getPhysicsParams());
+    }
+    
+    robot_model_window_->show();
+    robot_model_window_->activateWindow();
+    robot_model_window_->raise();
 }
 
 void MainWindow::onOpenObstacleWindow() {

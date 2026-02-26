@@ -18,6 +18,10 @@ RosNode::RosNode() : Node("sensor_simulator") {
   cmd_vel_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
     "/cmd_vel", 10, std::bind(&RosNode::cmdVelCallback, this, std::placeholders::_1));
 
+  // Declare Parameters
+  this->declare_parameter<double>("physics.robot_mass", 10.0);
+  robot_mass_ = this->get_parameter("physics.robot_mass").as_double();
+
   robot_z_ = 0.05f;
 
   smoother_vx_.setLimits(linear_speed_, 0.6, 2.0);
@@ -124,18 +128,20 @@ void RosNode::publishFakeData() {
   float vy = static_cast<float>(smoother_vy_.update(target_vy_.load(), dt));
   float vyaw = static_cast<float>(smoother_vyaw_.update(target_vyaw_.load(), dt));
   
-  // Velocity Integration
-  if (std::abs(vx) > 0.001f || std::abs(vy) > 0.001f || std::abs(vyaw) > 0.001f) {
-      float cy = std::cos(robot_yaw_.load() * M_PI / 180.0f);
-      float sy = std::sin(robot_yaw_.load() * M_PI / 180.0f);
-      
-      float dx = (vx * cy - vy * sy) * dt;
-      float dy = (vx * sy + vy * cy) * dt;
-      float dyaw = vyaw * dt;
-      
-      robot_x_.store(robot_x_.load() + dx);
-      robot_y_.store(robot_y_.load() + dy);
-      robot_yaw_.store(robot_yaw_.load() + dyaw);
+  if (!use_physics_) {
+      // Velocity Integration
+      if (std::abs(vx) > 0.001f || std::abs(vy) > 0.001f || std::abs(vyaw) > 0.001f) {
+          float cy = std::cos(robot_yaw_.load() * M_PI / 180.0f);
+          float sy = std::sin(robot_yaw_.load() * M_PI / 180.0f);
+          
+          float dx = (vx * cy - vy * sy) * dt;
+          float dy = (vx * sy + vy * cy) * dt;
+          float dyaw = vyaw * dt;
+          
+          robot_x_.store(robot_x_.load() + dx);
+          robot_y_.store(robot_y_.load() + dy);
+          robot_yaw_.store(robot_yaw_.load() + dyaw);
+      }
   }
 
   geometry_msgs::msg::TransformStamped t;

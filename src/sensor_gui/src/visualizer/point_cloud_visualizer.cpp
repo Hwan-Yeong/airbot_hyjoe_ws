@@ -41,7 +41,21 @@ void PointCloudVisualizer::updateCloud(const std::string& name, const std::strin
  */
 void PointCloudVisualizer::updateTFs(const std::map<std::string, TfData>& tfs) {
     std::lock_guard<std::mutex> lock(cloud_mutex_);
+    
+    // Preserve base_link if we currently have it but it's not in the incoming ROS TF updates
+    // This happens because Physics step updates base_link directly at 60Hz and syncTFs skips it.
+    bool has_base_link = tfs_.count("base_link");
+    TfData base_tf;
+    if (has_base_link) {
+        base_tf = tfs_["base_link"];
+    }
+    
     tfs_ = tfs;
+    
+    if (has_base_link && !tfs_.count("base_link")) {
+        tfs_["base_link"] = base_tf;
+    }
+    
     update();
 }
 
@@ -98,6 +112,7 @@ void PointCloudVisualizer::paintGL() {
     }
     
     drawRobotFootprint();
+    drawWheels();
     drawObstacles();
 
     // Draw TFs
@@ -379,6 +394,80 @@ void PointCloudVisualizer::drawRobotFootprint() {
     }
     glEnd();
     glPopMatrix();
+}
+
+void PointCloudVisualizer::drawWheels() {
+    if (!draw_wheels_) return;
+
+    auto drawOneWheel = [this](const TfData& tf) {
+        glPushMatrix();
+        glTranslatef(tf.x, tf.y, tf.z);
+        // Apply quaternion rotation
+        float x = tf.qx, y = tf.qy, z = tf.qz, w = tf.qw;
+        float mat[16];
+        mat[0]  = 1.0f - 2.0f * (y * y + z * z);
+        mat[1]  = 2.0f * (x * y + z * w);
+        mat[2]  = 2.0f * (x * z - y * w);
+        mat[3]  = 0.0f;
+        mat[4]  = 2.0f * (x * y - z * w);
+        mat[5]  = 1.0f - 2.0f * (x * x + z * z);
+        mat[6]  = 2.0f * (y * z + x * w);
+        mat[7]  = 0.0f;
+        mat[8]  = 2.0f * (x * z + y * w);
+        mat[9]  = 2.0f * (y * z - x * w);
+        mat[10] = 1.0f - 2.0f * (x * x + y * y);
+        mat[11] = 0.0f;
+        mat[12] = 0.0f; mat[13] = 0.0f; mat[14] = 0.0f; mat[15] = 1.0f;
+        glMultMatrixf(mat);
+
+        float radius = 0.045f;
+        float width = 0.04f;
+        
+        // Solid black wheel cylinder
+        glColor3f(0.2f, 0.2f, 0.2f);
+        int slices = 16;
+        float halfLen = width / 2.0f;
+        glBegin(GL_TRIANGLE_STRIP);
+        for (int i = 0; i <= slices; ++i) {
+            float angle = i * 2.0f * M_PI / slices;
+            float cx = std::cos(angle) * radius;
+            float cz = std::sin(angle) * radius;
+            // cylinder aligned along Y axis
+            glVertex3f(cx, -halfLen, cz);
+            glVertex3f(cx, halfLen, cz);
+        }
+        glEnd();
+        // End caps
+        glBegin(GL_TRIANGLE_FAN);
+        glVertex3f(0, halfLen, 0);
+        for (int i = 0; i <= slices; ++i) {
+            float angle = i * 2.0f * M_PI / slices;
+            glVertex3f(std::cos(angle) * radius, halfLen, std::sin(angle) * radius);
+        }
+        glEnd();
+        glBegin(GL_TRIANGLE_FAN);
+        glVertex3f(0, -halfLen, 0);
+        for (int i = 0; i <= slices; ++i) {
+            float angle = i * 2.0f * M_PI / slices;
+            glVertex3f(std::cos(angle) * radius, -halfLen, -std::sin(angle) * radius);
+        }
+        glEnd();
+
+        // White line indicating rotation along the diameter
+        glColor3f(1.0f, 1.0f, 1.0f);
+        glLineWidth(3.0f);
+        glBegin(GL_LINES);
+        glVertex3f(-radius, halfLen + 0.001f, 0);
+        glVertex3f(radius, halfLen + 0.001f, 0);
+        glVertex3f(-radius, -halfLen - 0.001f, 0);
+        glVertex3f(radius, -halfLen - 0.001f, 0);
+        glEnd();
+
+        glPopMatrix();
+    };
+
+    drawOneWheel(left_wheel_);
+    drawOneWheel(right_wheel_);
 }
 
 void PointCloudVisualizer::applyTf(const TfData& tf) {

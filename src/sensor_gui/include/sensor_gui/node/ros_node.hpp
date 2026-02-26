@@ -71,6 +71,15 @@ public:
   float getRobotYaw() const { return robot_yaw_; }
   float getRobotZ() const { return robot_z_; }
 
+  float getTargetVx() const { return target_vx_.load(); }
+  float getTargetVyawRad() const { return target_vyaw_.load() * M_PI / 180.0f; }
+
+  void setUsePhysics(bool use) { use_physics_ = use; }
+  bool getUsePhysics() const { return use_physics_; }
+  
+  // Physics Parameters
+  float getRobotMass() const { return robot_mass_; }
+
   // Callback type for Cloud data
   using CloudCallback = std::function<void(const std::string&, const sensor_msgs::msg::PointCloud2::SharedPtr)>;
   void setCloudCallback(CloudCallback cb) { cloud_callback_ = cb; }
@@ -138,4 +147,9 @@ private:
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+
+  bool use_physics_ = false;
+
+  // Parameters
+  float robot_mass_ = 10.0f;
 };

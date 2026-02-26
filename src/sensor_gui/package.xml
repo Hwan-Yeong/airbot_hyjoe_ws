@@ -23,6 +23,7 @@
   <depend>libglu1-mesa-dev</depend>
   <depend>robot_custom_msgs</depend>
   <depend>tinyxml2_vendor</depend>
+  <depend>libbullet-dev</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

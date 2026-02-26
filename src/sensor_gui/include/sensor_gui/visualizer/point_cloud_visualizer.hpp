@@ -35,6 +35,7 @@ public:
 
     void updateCloud(const std::string& name, const std::string& frame_id, const std::vector<float>& points, QColor color = Qt::white);
     void updateTFs(const std::map<std::string, TfData>& tfs);
+    void updateSingleTf(const TfData& tf) { std::lock_guard<std::mutex> lock(cloud_mutex_); tfs_[tf.frame_id] = tf; update(); }
     bool setRobotModelFromUrdf(const std::string& path);
     void setTfScale(float s) { tf_scale_ = s; update(); }
     void setFootprintRadius(float r) { footprint_radius_ = r; update(); }
@@ -43,7 +44,9 @@ public:
     void setBackgroundColor(const QColor& color);
     void setWallPosition(float x) { wall_x_ = x; update(); }
     void setObstacles(const std::vector<SimObstacle>& obs) { obstacles_ = obs; update(); }
+    void setWheelPoses(const TfData& left, const TfData& right) { left_wheel_ = left; right_wheel_ = right; draw_wheels_ = true; update(); }
     std::vector<SimObstacle> getObstacles() const { return obstacles_; }
+    const std::unique_ptr<RobotModel>& getRobotModel() const { return robot_model_; }
 
     int getSelectedObstacleIndex() const { return selected_idx_; }
     void setSelectedObstacleIndex(int idx) { selected_idx_ = idx; update(); }
@@ -62,6 +65,7 @@ private:
     void drawAxes();
     void drawGrid();
     void drawRobotFootprint();
+    void drawWheels();
     void drawObstacles();
     void applyTf(const TfData& tf);
     void transformPoint(const TfData& tf, float lx, float ly, float lz, float& wx, float& wy, float& wz);
@@ -77,6 +81,9 @@ private:
     bool wall_sim_ = false;
     float wall_x_ = 2.0f;
     QColor bg_color_ = QColor(242, 242, 230); // Default Ivory
+
+    TfData left_wheel_, right_wheel_;
+    bool draw_wheels_ = false;
 
     // Camera state
     float yaw_ = -45.0f;   // degrees

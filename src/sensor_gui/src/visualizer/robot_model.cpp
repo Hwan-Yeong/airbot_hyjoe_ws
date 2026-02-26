@@ -137,7 +137,25 @@ bool RobotModel::loadFromFile(const std::string& path) {
                 seg.cr = 0.5f; seg.cg = 0.5f; seg.cb = 0.5f; seg.ca = 1.0f;
             }
             segments_.push_back(seg);
+
+            // Extract Physics Parameters
+            if (name == "wheel_left_link" || name == "wheel_right_link") {
+                if (li.radius > 0.001f) {
+                    wheel_radius_ = li.radius;
+                }
+            }
         }
+    }
+
+    // Calculate wheelbase from left and right wheel joint Y offsets
+    float left_y = 0.0f, right_y = 0.0f;
+    bool found_left = false, found_right = false;
+    for (const auto& j : joints) {
+        if (j.child == "wheel_left_link") { left_y = j.y; found_left = true; }
+        if (j.child == "wheel_right_link") { right_y = j.y; found_right = true; }
+    }
+    if (found_left && found_right) {
+        wheelbase_ = std::abs(left_y - right_y);
     }
 
     return true;
