@@ -28,11 +28,13 @@ void RobotModelWindow::setParameters(const std::map<std::string, float>& params)
         QTableWidgetItem* valueItem = new QTableWidgetItem(QString::number(value, 'f', 4));
         
         std::string unit = "";
-        if (key == "robot_mass" || key == "wheel_mass") unit = "kg";
+        if (key == "robot_mass" || key == "wheel_mass" || key == "caster_mass") unit = "kg";
         else if (key == "wheel_friction") unit = "μ";
         else if (key == "max_motor_impulse") unit = "Nm";
         else if (key == "solver_iterations") unit = "iter";
         else if (key == "damping") unit = "ratio";
+        else if (key == "suspension_stiffness") unit = "N/m";
+        else if (key == "suspension_damping") unit = "Ns/m";
         else unit = "";
         
         QTableWidgetItem* unitItem = new QTableWidgetItem(QString::fromStdString(unit));

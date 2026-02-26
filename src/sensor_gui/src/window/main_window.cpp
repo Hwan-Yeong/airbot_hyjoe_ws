@@ -344,6 +344,17 @@ void MainWindow::stepPhysics() {
     left_td.x = lx; left_td.y = ly; left_td.z = lz; left_td.qx = lqx; left_td.qy = lqy; left_td.qz = lqz; left_td.qw = lqw;
     right_td.x = wrx; right_td.y = wry; right_td.z = wrz; right_td.qx = wrqx; right_td.qy = wrqy; right_td.qz = wrqz; right_td.qw = wrqw;
     ui->visualizer_->setWheelPoses(left_td, right_td);
+
+    // Sync Caster Pos to Visualizer
+    float fx = 0, fy = 0, fz = 0, fqx = 0, fqy = 0, fqz = 0, fqw = 1;
+    float rx_ = 0, ry_ = 0, rz_ = 0, rqx_ = 0, rqy_ = 0, rqz_ = 0, rqw_ = 1;
+    physics_world_->getCasterPoses(fx, fy, fz, fqx, fqy, fqz, fqw,
+                                   rx_, ry_, rz_, rqx_, rqy_, rqz_, rqw_);
+    
+    TfData front_td, rear_td;
+    front_td.x = fx; front_td.y = fy; front_td.z = fz; front_td.qx = fqx; front_td.qy = fqy; front_td.qz = fqz; front_td.qw = fqw;
+    rear_td.x = rx_; rear_td.y = ry_; rear_td.z = rz_; rear_td.qx = rqx_; rear_td.qy = rqy_; rear_td.qz = rqz_; rear_td.qw = rqw_;
+    ui->visualizer_->setCasterPoses(front_td, rear_td);
 }
 
 void MainWindow::onToggleBump(bool checked) {

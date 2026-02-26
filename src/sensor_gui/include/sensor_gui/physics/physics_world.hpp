@@ -1,6 +1,7 @@
 #pragma once
 
 #include <btBulletDynamicsCommon.h>
+#include <BulletDynamics/ConstraintSolver/btGeneric6DofSpring2Constraint.h>
 #include <memory>
 #include <vector>
 #include <map>
@@ -25,6 +26,9 @@ public:
     
     void getWheelPoses(float& lx, float& ly, float& lz, float& lqx, float& lqy, float& lqz, float& lqw,
                        float& rx, float& ry, float& rz, float& rqx, float& rqy, float& rqz, float& rqw);
+
+    void getCasterPoses(float& fx, float& fy, float& fz, float& fqx, float& fqy, float& fqz, float& fqw,
+                        float& rx, float& ry, float& rz, float& rqx, float& rqy, float& rqz, float& rqw);
 
     // Dynamic Physics Parameters
     std::map<std::string, float> getPhysicsParams() const;
@@ -55,8 +59,14 @@ private:
     btRigidBody* left_wheel_body_ = nullptr;
     btRigidBody* right_wheel_body_ = nullptr;
     
+    btRigidBody* caster_front_body_ = nullptr;
+    btRigidBody* caster_rear_body_ = nullptr;
+    
     btHingeConstraint* left_hinge_ = nullptr;
     btHingeConstraint* right_hinge_ = nullptr;
+
+    btGeneric6DofSpring2Constraint* caster_front_spring_ = nullptr;
+    btGeneric6DofSpring2Constraint* caster_rear_spring_ = nullptr;
 
     float wheel_radius_ = 0.045f;
     float wheelbase_ = 0.38f;
@@ -68,6 +78,10 @@ private:
     float damping_ = 0.5f;
     float max_motor_impulse_ = 100.0f;
     float solver_iterations_ = 50.0f; // float for map compatibility
+    
+    float suspension_stiffness_ = 20000.0f;
+    float suspension_damping_ = 200.0f;
+    float caster_mass_ = 0.5f;
     
     float robot_linear_vel_x_ = 0.0f;
     float robot_angular_vel_z_ = 0.0f;

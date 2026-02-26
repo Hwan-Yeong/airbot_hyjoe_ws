@@ -7,11 +7,17 @@
 
 struct TfData; // Forward declaration
 
+enum class ShapeType {
+    CYLINDER,
+    SPHERE
+};
+
 struct VisualSegment {
     std::string name;
     float x, y, z;
     float rx, ry, rz; // RPY in radians
-    float radius, length; // Assuming cylinder for now
+    ShapeType shape_type = ShapeType::CYLINDER;
+    float radius, length; // Assuming cylinder or sphere radius
     float cr, cg, cb, ca; // Color
 };
 
@@ -44,6 +50,7 @@ public:
     void draw(const TfData& base_tf, float body_alpha = 0.5f);
 
     static void drawCylinder(float radius, float length, float r, float g, float b, float a);
+    static void drawSphere(float radius, float r, float g, float b, float a);
 
 private:
     std::vector<VisualSegment> segments_;

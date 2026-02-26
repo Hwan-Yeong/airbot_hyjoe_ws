@@ -40,12 +40,16 @@ PhysicsWorld::~PhysicsWorld() {
 
         safelyRemoveBody(left_wheel_body_);
         safelyRemoveBody(right_wheel_body_);
+        safelyRemoveBody(caster_front_body_);
+        safelyRemoveBody(caster_rear_body_);
         safelyRemoveBody(robot_body_);
         safelyRemoveBody(ground_body_);
     }
 
     if (left_hinge_) delete left_hinge_;
     if (right_hinge_) delete right_hinge_;
+    if (caster_front_spring_) delete caster_front_spring_;
+    if (caster_rear_spring_) delete caster_rear_spring_;
 }
 
 void PhysicsWorld::init() {
@@ -219,7 +223,7 @@ void PhysicsWorld::initRobot(float wheel_radius, float wheelbase, float mass) {
     wheel_radius_ = wheel_radius;
     wheelbase_ = wheelbase;
 
-    // 1. Chassis (Compound Shape: Box + 2 Caster Spheres)
+    // 1. Chassis (Box Only, no fixed casters anymore)
     float chassis_x = 0.38f;
     float chassis_y = wheelbase_ - 0.05f; // slightly inside wheels
     float chassis_z = 0.15f; 
@@ -232,22 +236,6 @@ void PhysicsWorld::initRobot(float wheel_radius, float wheelbase, float mass) {
     btTransform box_trans;
     box_trans.setIdentity();
     chassis_compound->addChildShape(box_trans, box_shape);
-
-    // Front/Rear Caster Spheres (radius = wheel_radius, so they touch the ground)
-    float caster_radius = wheel_radius_;
-    btSphereShape* caster_shape = new btSphereShape(caster_radius);
-    
-    // Front caster position
-    btTransform front_trans;
-    front_trans.setIdentity();
-    front_trans.setOrigin(btVector3(chassis_x/2.0f - caster_radius, 0, -(clearance + chassis_z/2.0f) + caster_radius));
-    chassis_compound->addChildShape(front_trans, caster_shape);
-
-    // Rear caster position
-    btTransform rear_trans;
-    rear_trans.setIdentity();
-    rear_trans.setOrigin(btVector3(-chassis_x/2.0f + caster_radius, 0, -(clearance + chassis_z/2.0f) + caster_radius));
-    chassis_compound->addChildShape(rear_trans, caster_shape);
 
     btVector3 localInertia(0, 0, 0);
     chassis_compound->calculateLocalInertia(mass, localInertia);
@@ -308,7 +296,35 @@ void PhysicsWorld::initRobot(float wheel_radius, float wheelbase, float mass) {
     left_wheel_body_ = createWheel(wheelbase_ / 2.0f);
     right_wheel_body_ = createWheel(-wheelbase_ / 2.0f);
 
-    // 3. Constraints (Hinges)
+    // 3. Casters
+    auto createCaster = [&](float x_offset) -> btRigidBody* {
+        float c_radius = 0.015f;
+        btCollisionShape* c_shape = new btSphereShape(c_radius);
+        
+        btVector3 c_inertia(0, 0, 0);
+        c_shape->calculateLocalInertia(caster_mass_, c_inertia);
+        
+        btTransform c_trans;
+        c_trans.setIdentity();
+        c_trans.setOrigin(btVector3(x_offset, 0.0f, c_radius));
+        
+        btDefaultMotionState* motionState = new btDefaultMotionState(c_trans);
+        btRigidBody::btRigidBodyConstructionInfo cInfo(caster_mass_, motionState, c_shape, c_inertia);
+        cInfo.m_friction = 0.0f; // frictionless
+        cInfo.m_rollingFriction = 0.0f;
+        
+        btRigidBody* body = new btRigidBody(cInfo);
+        body->setDamping(0.1f, 0.1f);
+        body->setActivationState(DISABLE_DEACTIVATION);
+        dynamics_world_->addRigidBody(body);
+        return body;
+    };
+
+    float caster_x_offset = 0.135f;
+    caster_front_body_ = createCaster(caster_x_offset);
+    caster_rear_body_ = createCaster(-caster_x_offset);
+
+    // 4. Constraints (Hinges for wheels)
     btVector3 parentAxis(0, 1, 0); // Rotation around Y axis
     btVector3 childAxis(0, 1, 0);
 
@@ -321,6 +337,44 @@ void PhysicsWorld::initRobot(float wheel_radius, float wheelbase, float mass) {
     btVector3 pivotInWheelRight(0, 0, 0);
     right_hinge_ = new btHingeConstraint(*robot_body_, *right_wheel_body_, pivotInChassisRight, pivotInWheelRight, parentAxis, childAxis);
     dynamics_world_->addConstraint(right_hinge_, true);
+
+    // 5. Constraints (Spring Sliders for casters)
+    // Connects caster to chassis allowing only Z-axis translation
+    auto addCasterSpring = [&](btRigidBody* caster_body, float offset_x) -> btGeneric6DofSpring2Constraint* {
+        btTransform localA, localB;
+        localA.setIdentity();
+        localB.setIdentity();
+        
+        // Pivot in Chassis
+        localA.setOrigin(btVector3(offset_x, 0, -(clearance + chassis_z/2.0f) + (0.015f - wheel_radius_)));
+        
+        // Pivot in Caster (Center of the sphere)
+        localB.setOrigin(btVector3(0, 0, 0));
+        
+        btGeneric6DofSpring2Constraint* spring = new btGeneric6DofSpring2Constraint(*robot_body_, *caster_body, localA, localB);
+        
+        // Lock X, Y translation. Allow Z translation (Suspension travel)
+        spring->setLinearLowerLimit(btVector3(0, 0, -0.005f)); // 5mm expansion
+        spring->setLinearUpperLimit(btVector3(0, 0, 0.005f));  // 5mm compression
+        
+        // Lock all rotations for the sphere (it's frictionless, so it just slides)
+        spring->setAngularLowerLimit(btVector3(0, 0, 0));
+        spring->setAngularUpperLimit(btVector3(0, 0, 0));
+        
+        // Enable Spring on Z axis (index 2)
+        spring->enableSpring(2, true);
+        spring->setStiffness(2, suspension_stiffness_);
+        spring->setDamping(2, suspension_damping_);
+        
+        // Equilibrium point
+        spring->setEquilibriumPoint(2, 0.0f);
+        
+        dynamics_world_->addConstraint(spring, true);
+        return spring;
+    };
+
+    caster_front_spring_ = addCasterSpring(caster_front_body_, caster_x_offset);
+    caster_rear_spring_ = addCasterSpring(caster_rear_body_, -caster_x_offset);
 }
 
 void PhysicsWorld::setRobotPose(float x, float y, float z, float roll, float pitch, float yaw) {
@@ -365,6 +419,30 @@ void PhysicsWorld::setRobotPose(float x, float y, float z, float roll, float pit
         right_wheel_body_->setLinearVelocity(btVector3(0,0,0));
         right_wheel_body_->setAngularVelocity(btVector3(0,0,0));
         right_wheel_body_->clearForces();
+        
+        if (caster_front_body_) {
+            btTransform frontCasterTrans = transform;
+            frontCasterTrans.getOrigin() += frontCasterTrans.getBasis().getColumn(0) * 0.135f; // move X
+            frontCasterTrans.getOrigin() -= frontCasterTrans.getBasis().getColumn(2) * (z - 0.015f); // move down Z to touch ground
+            
+            caster_front_body_->setWorldTransform(frontCasterTrans);
+            if (caster_front_body_->getMotionState()) caster_front_body_->getMotionState()->setWorldTransform(frontCasterTrans);
+            caster_front_body_->setLinearVelocity(btVector3(0,0,0));
+            caster_front_body_->setAngularVelocity(btVector3(0,0,0));
+            caster_front_body_->clearForces();
+        }
+        
+        if (caster_rear_body_) {
+            btTransform rearCasterTrans = transform;
+            rearCasterTrans.getOrigin() -= rearCasterTrans.getBasis().getColumn(0) * 0.135f; // move X
+            rearCasterTrans.getOrigin() -= rearCasterTrans.getBasis().getColumn(2) * (z - 0.015f); // move down Z
+            
+            caster_rear_body_->setWorldTransform(rearCasterTrans);
+            if (caster_rear_body_->getMotionState()) caster_rear_body_->getMotionState()->setWorldTransform(rearCasterTrans);
+            caster_rear_body_->setLinearVelocity(btVector3(0,0,0));
+            caster_rear_body_->setAngularVelocity(btVector3(0,0,0));
+            caster_rear_body_->clearForces();
+        }
     }
 }
 
@@ -414,6 +492,35 @@ void PhysicsWorld::getWheelPoses(float& lx, float& ly, float& lz, float& lqx, fl
     }
 }
 
+void PhysicsWorld::getCasterPoses(float& fx, float& fy, float& fz, float& fqx, float& fqy, float& fqz, float& fqw,
+                                  float& rx, float& ry, float& rz, float& rqx, float& rqy, float& rqz, float& rqw) {
+    if (caster_front_body_ && caster_rear_body_) {
+        btTransform transF;
+        if (caster_front_body_->getMotionState()) {
+            caster_front_body_->getMotionState()->getWorldTransform(transF);
+        } else {
+            transF = caster_front_body_->getWorldTransform();
+        }
+        fx = transF.getOrigin().getX();
+        fy = transF.getOrigin().getY();
+        fz = transF.getOrigin().getZ();
+        btQuaternion qF = transF.getRotation();
+        fqx = qF.getX(); fqy = qF.getY(); fqz = qF.getZ(); fqw = qF.getW();
+
+        btTransform transR;
+        if (caster_rear_body_->getMotionState()) {
+            caster_rear_body_->getMotionState()->getWorldTransform(transR);
+        } else {
+            transR = caster_rear_body_->getWorldTransform();
+        }
+        rx = transR.getOrigin().getX();
+        ry = transR.getOrigin().getY();
+        rz = transR.getOrigin().getZ();
+        btQuaternion qR = transR.getRotation();
+        rqx = qR.getX(); rqy = qR.getY(); rqz = qR.getZ(); rqw = qR.getW();
+    }
+}
+
 void PhysicsWorld::setRobotVelocity(float linear_x, float angular_z) {
     robot_linear_vel_x_ = linear_x;
     robot_angular_vel_z_ = angular_z;
@@ -427,6 +534,9 @@ std::map<std::string, float> PhysicsWorld::getPhysicsParams() const {
     params["damping"] = damping_;
     params["max_motor_impulse"] = max_motor_impulse_;
     params["solver_iterations"] = solver_iterations_;
+    params["suspension_stiffness"] = suspension_stiffness_;
+    params["suspension_damping"] = suspension_damping_;
+    params["caster_mass"] = caster_mass_;
     return params;
 }
 
@@ -441,6 +551,9 @@ void PhysicsWorld::setPhysicsParams(const std::map<std::string, float>& params) 
     updateIfPresent("damping", damping_);
     updateIfPresent("max_motor_impulse", max_motor_impulse_);
     updateIfPresent("solver_iterations", solver_iterations_);
+    updateIfPresent("suspension_stiffness", suspension_stiffness_);
+    updateIfPresent("suspension_damping", suspension_damping_);
+    updateIfPresent("caster_mass", caster_mass_);
 
     // Apply immediate changes where possible without respawning
     if (dynamics_world_) {
@@ -458,5 +571,17 @@ void PhysicsWorld::setPhysicsParams(const std::map<std::string, float>& params) 
     if (right_wheel_body_) {
         right_wheel_body_->setFriction(wheel_friction_);
         right_wheel_body_->setDamping(damping_, damping_);
+    }
+    
+    if (caster_front_body_) caster_front_body_->setDamping(0.1f, 0.1f);
+    if (caster_rear_body_) caster_rear_body_->setDamping(0.1f, 0.1f);
+    
+    if (caster_front_spring_) {
+        caster_front_spring_->setStiffness(2, suspension_stiffness_);
+        caster_front_spring_->setDamping(2, suspension_damping_);
+    }
+    if (caster_rear_spring_) {
+        caster_rear_spring_->setStiffness(2, suspension_stiffness_);
+        caster_rear_spring_->setDamping(2, suspension_damping_);
     }
 }

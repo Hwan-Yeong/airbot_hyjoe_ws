@@ -42,6 +42,7 @@ bool RobotModel::loadFromFile(const std::string& path) {
     struct LinkInfo {
         float ox = 0, oy = 0, oz = 0;
         float orx = 0, ory = 0, orz = 0;
+        ShapeType type = ShapeType::CYLINDER;
         float radius = 0, length = 0;
         std::string material;
     };
@@ -66,8 +67,16 @@ bool RobotModel::loadFromFile(const std::string& path) {
             if (geometry) {
                 auto* cyl = geometry->FirstChildElement("cylinder");
                 if (cyl) {
+                    info.type = ShapeType::CYLINDER;
                     info.radius = cyl->FloatAttribute("radius");
                     info.length = cyl->FloatAttribute("length");
+                } else {
+                    auto* sph = geometry->FirstChildElement("sphere");
+                    if (sph) {
+                        info.type = ShapeType::SPHERE;
+                        info.radius = sph->FloatAttribute("radius");
+                        info.length = 0;
+                    }
                 }
             }
             auto* mat = visual->FirstChildElement("material");
@@ -128,6 +137,7 @@ bool RobotModel::loadFromFile(const std::string& path) {
             // Cumulative offset
             seg.x = tf.x + li.ox; seg.y = tf.y + li.oy; seg.z = tf.z + li.oz;
             seg.rx = tf.rx + li.orx; seg.ry = tf.ry + li.ory; seg.rz = tf.rz + li.orz;
+            seg.shape_type = li.type;
             seg.radius = li.radius; seg.length = li.length;
             
             if (materials_.count(li.material)) {
@@ -197,8 +207,18 @@ void RobotModel::draw(const TfData& base_tf, float body_alpha) {
         float alpha = seg.ca;
         if (seg.name == "base_link") alpha *= body_alpha;
         
+        // Skip rendering static casters, as they are rendered dynamically by PointCloudVisualizer
+        if (seg.name == "caster_front_link" || seg.name == "caster_rear_link") {
+            glPopMatrix();
+            continue;
+        }
+
         if (seg.radius > 0) {
-            drawCylinder(seg.radius, seg.length, seg.cr, seg.cg, seg.cb, alpha);
+            if (seg.shape_type == ShapeType::CYLINDER) {
+                drawCylinder(seg.radius, seg.length, seg.cr, seg.cg, seg.cb, alpha);
+            } else if (seg.shape_type == ShapeType::SPHERE) {
+                drawSphere(seg.radius, seg.cr, seg.cg, seg.cb, alpha);
+            }
         }
         glPopMatrix();
     }
@@ -238,4 +258,11 @@ void RobotModel::drawCylinder(float radius, float length, float r, float g, floa
         glVertex3f(std::cos(angle) * radius, -std::sin(angle) * radius, -halfLen);
     }
     glEnd();
+}
+
+void RobotModel::drawSphere(float radius, float r, float g, float b, float a) {
+    glColor4f(r, g, b, a);
+    GLUquadric* quad = gluNewQuadric();
+    gluSphere(quad, radius, 16, 16);
+    gluDeleteQuadric(quad);
 }
