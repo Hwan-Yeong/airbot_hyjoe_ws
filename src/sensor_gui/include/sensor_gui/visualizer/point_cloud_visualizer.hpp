@@ -45,9 +45,10 @@ public:
     void setWallPosition(float x) { wall_x_ = x; update(); }
     void setObstacles(const std::vector<SimObstacle>& obs) { obstacles_ = obs; update(); }
     void setWheelPoses(const TfData& left, const TfData& right) { left_wheel_ = left; right_wheel_ = right; draw_wheels_ = true; update(); }
-    void setCasterPoses(const TfData& front, const TfData& rear) { caster_front_ = front; caster_rear_ = rear; draw_casters_ = true; update(); }
     std::vector<SimObstacle> getObstacles() const { return obstacles_; }
     const std::unique_ptr<RobotModel>& getRobotModel() const { return robot_model_; }
+    void setTopView();
+    void setSideView();
 
     int getSelectedObstacleIndex() const { return selected_idx_; }
     void setSelectedObstacleIndex(int idx) { selected_idx_ = idx; update(); }
@@ -67,7 +68,6 @@ private:
     void drawGrid();
     void drawRobotFootprint();
     void drawWheels();
-    void drawCasters();
     void drawObstacles();
     void loadGroundTexture();
     void applyTf(const TfData& tf);
@@ -88,10 +88,6 @@ private:
     TfData left_wheel_;
     TfData right_wheel_;
     bool draw_wheels_ = false;
-
-    bool draw_casters_ = false;
-    TfData caster_front_;
-    TfData caster_rear_;
 
     GLuint ground_texture_ = 0;
 

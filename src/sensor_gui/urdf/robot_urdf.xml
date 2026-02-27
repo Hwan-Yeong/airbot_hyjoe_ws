@@ -71,23 +71,39 @@
       <material name="black"/>
     </visual>
   </link>
-  
-  <link name="caster_front_link">
+
+  <link name="caster_front_horizon_link">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><sphere radius="0.018" /></geometry>
-      <material name="white"/>
+      <geometry><cylinder length="0.02" radius="0.036" /></geometry>
+      <material name="dark"/>
+    </visual>
+  </link>
+  
+  <link name="caster_front_vertical_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder length="0.015" radius="0.018" /></geometry>
+      <material name="grey"/>
     </visual>
   </link>
 
-  <link name="caster_rear_link">
+  <link name="caster_rear_horizon_link">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><sphere radius="0.018" /></geometry>
-      <material name="white"/>
+      <geometry><cylinder length="0.02" radius="0.036" /></geometry>
+      <material name="dark"/>
     </visual>
   </link>
   
+  <link name="caster_rear_vertical_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder length="0.015" radius="0.018" /></geometry>
+      <material name="grey"/>
+    </visual>
+  </link>
+
   <link name="imu_link"/>
   <link name="base_scan"/>
 
@@ -157,6 +173,8 @@
   </link>
 
   <!-- Joints -->
+
+  <!-- Body -->
   <joint name="base_body_joint" type="fixed">
     <parent link="base_link"/>
     <child link="base_body"/>
@@ -181,6 +199,7 @@
     <origin xyz="0 0 0.345" rpy="0 0 0"/>
   </joint>
 
+  <!-- Wheel -->
   <joint name="wheel_left_joint" type="continuous">
     <parent link="base_link"/>
     <child link="wheel_left_link"/>
@@ -195,19 +214,36 @@
     <axis xyz="0 0 1"/>
   </joint>
 
-  <joint name="caster_front_joint" type="fixed">
+  <!-- Caster -->
+  <joint name="caster_front_horizon_joint" type="continuous">
     <parent link="base_link"/>
-    <child link="caster_front_link"/>
-    <!-- Positioned at X=0.135, Z=-(0.045 - 0.015) = -0.03 relative to wheel center / base_link -->
-    <origin xyz="0.135 0 -0.03" rpy="0 0 0"/>
+    <child link="caster_front_horizon_link"/>
+    <origin xyz="0.135 0 -0.035" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
   </joint>
 
-  <joint name="caster_rear_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="caster_rear_link"/>
-    <origin xyz="-0.135 0 -0.03" rpy="0 0 0"/>
+  <joint name="caster_front_vertical_joint" type="continuous">
+    <parent link="caster_front_horizon_link"/>
+    <child link="caster_front_vertical_link"/>
+    <origin xyz="0 0 0.003" rpy="-1.5707963 0 0"/>
+    <axis xyz="0 0 1"/>
   </joint>
 
+  <joint name="caster_rear_horizon_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="caster_rear_horizon_link"/>
+    <origin xyz="-0.135 0 -0.035" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <joint name="caster_rear_vertical_joint" type="continuous">
+    <parent link="caster_rear_horizon_link"/>
+    <child link="caster_rear_vertical_link"/>
+    <origin xyz="0 0 0.003" rpy="-1.5707963 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <!-- Sensor -->
   <joint name="imu_joint" type="fixed">
     <parent link="base_link"/>
     <child link="imu_link"/>
@@ -232,7 +268,6 @@
     <origin xyz="-0.1475 0 0" rpy="0 0 0"/>
   </joint>
 
-  <!-- Additions for Mtof and Eye-module Joints -->
   <joint name="mtof_left_joint" type="fixed">
     <parent link="base_link"/>
     <child link="mtof_left_link"/>
@@ -245,7 +280,7 @@
     <origin xyz="0.155 -0.08 0.03" rpy="0 0 -0.43"/>
   </joint>
 
-  <joint name="camera_joint" type="fixed">
+  <joint name="eye_module_joint" type="fixed">
     <parent link="base_link"/>
     <child link="eye_module_link"/>
     <origin xyz="0.17 0 0.53" rpy="0 0 0"/>
@@ -263,7 +298,7 @@
     <origin xyz="0 -0.05 0" rpy="0 0 0"/>
   </joint>
 
-  <joint name="nose_joint" type="fixed">
+  <joint name="camera_joint" type="fixed">
     <parent link="eye_module_link"/>
     <child link="camera_link"/>
     <origin xyz="0.005 0 0" rpy="0 0 0"/>

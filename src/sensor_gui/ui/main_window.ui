@@ -536,6 +536,20 @@
               </property>
              </widget>
             </item>
+            <item>
+             <widget class="QPushButton" name="btn_top_view_">
+              <property name="text">
+               <string>🚁 Set Top View (Look Down)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btn_side_view_">
+              <property name="text">
+               <string>📐 Set Side View (Horizontal)</string>
+              </property>
+             </widget>
+            </item>
            </layout>
           </widget>
          </item>

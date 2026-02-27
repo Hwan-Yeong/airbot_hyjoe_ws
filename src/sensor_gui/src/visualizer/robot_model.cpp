@@ -235,12 +235,6 @@ void RobotModel::draw(const TfData& base_tf, float body_alpha) {
         
         float alpha = seg.ca;
         
-        // Skip rendering static casters, as they are rendered dynamically by PointCloudVisualizer
-        if (seg.name == "caster_front_link" || seg.name == "caster_rear_link") {
-            glPopMatrix();
-            continue;
-        }
-
         if (seg.shape_type == ShapeType::CYLINDER && seg.radius > 0) {
             drawCylinder(seg.radius, seg.length, seg.cr, seg.cg, seg.cb, alpha);
         } else if (seg.shape_type == ShapeType::BARREL && seg.radius > 0) {

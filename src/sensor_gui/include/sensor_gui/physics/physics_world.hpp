@@ -27,9 +27,6 @@ public:
     void getWheelPoses(float& lx, float& ly, float& lz, float& lqx, float& lqy, float& lqz, float& lqw,
                        float& rx, float& ry, float& rz, float& rqx, float& rqy, float& rqz, float& rqw);
 
-    void getCasterPoses(float& fx, float& fy, float& fz, float& fqx, float& fqy, float& fqz, float& fqw,
-                        float& rx, float& ry, float& rz, float& rqx, float& rqy, float& rqz, float& rqw);
-
     // Dynamic Physics Parameters
     std::map<std::string, float> getPhysicsParams() const;
     void setPhysicsParams(const std::map<std::string, float>& params);

@@ -116,9 +116,6 @@ void PointCloudVisualizer::paintGL() {
         
         // Draw physical wheels overlay
         drawWheels();
-        
-        // Draw physical casters overlay
-        drawCasters();
     }
     drawObstacles();
 
@@ -477,69 +474,7 @@ void PointCloudVisualizer::drawWheels() {
     drawOneWheel(right_wheel_);
 }
 
-void PointCloudVisualizer::drawCasters() {
-    if (!draw_casters_) return;
 
-    auto drawOneCaster = [this](const TfData& tf) {
-        glPushMatrix();
-        glTranslatef(tf.x, tf.y, tf.z);
-        // Apply quaternion rotation
-        float x = tf.qx, y = tf.qy, z = tf.qz, w = tf.qw;
-        float mat[16];
-        mat[0]  = 1.0f - 2.0f * (y * y + z * z);
-        mat[1]  = 2.0f * (x * y + z * w);
-        mat[2]  = 2.0f * (x * z - y * w);
-        mat[3]  = 0.0f;
-        mat[4]  = 2.0f * (x * y - z * w);
-        mat[5]  = 1.0f - 2.0f * (x * x + z * z);
-        mat[6]  = 2.0f * (y * z + x * w);
-        mat[7]  = 0.0f;
-        mat[8]  = 2.0f * (x * z + y * w);
-        mat[9]  = 2.0f * (y * z - x * w);
-        mat[10] = 1.0f - 2.0f * (x * x + y * y);
-        mat[11] = 0.0f;
-        mat[12] = 0.0f; mat[13] = 0.0f; mat[14] = 0.0f; mat[15] = 1.0f;
-        glMultMatrixf(mat);
-
-        float radius = 0.015f;
-        
-        // Solid white caster sphere
-        glColor3f(1.0f, 1.0f, 1.0f);
-        GLUquadric* quad = gluNewQuadric();
-        gluSphere(quad, radius, 16, 16);
-        
-        // Draw the inner piston strut (connecting the caster to the chassis)
-        // length = 0.08m, points UP (+Z) into the chassis
-        glColor3f(0.6f, 0.6f, 0.6f); // Grey metallic
-        gluCylinder(quad, 0.006, 0.006, 0.08, 16, 1);
-        
-        // Draw a spiral spring around the strut
-        glColor3f(0.8f, 0.2f, 0.2f); // Red spring for high visibility
-        glLineWidth(3.0f);
-        glBegin(GL_LINE_STRIP);
-        float spring_radius = 0.012f;
-        float spring_length = 0.06f; // Length of the spring
-        int coils = 6;
-        int segments_per_coil = 20;
-        int total_segments = coils * segments_per_coil;
-        for (int i = 0; i <= total_segments; ++i) {
-            float t = (float)i / total_segments;
-            float angle = t * coils * 2.0f * M_PI;
-            float cx = std::cos(angle) * spring_radius;
-            float cy = std::sin(angle) * spring_radius;
-            float cz = t * spring_length + 0.008f; // Start slightly above the sphere
-            glVertex3f(cx, cy, cz);
-        }
-        glEnd();
-
-        gluDeleteQuadric(quad);
-
-        glPopMatrix();
-    };
-
-    drawOneCaster(caster_front_);
-    drawOneCaster(caster_rear_);
-}
 
 void PointCloudVisualizer::applyTf(const TfData& tf) {
     glTranslatef(tf.x, tf.y, tf.z);
@@ -648,8 +583,8 @@ void PointCloudVisualizer::mouseMoveEvent(QMouseEvent* event) {
             // Normal Camera Rotation
             yaw_ += dx * 0.5f;
             pitch_ += dy * 0.5f;
-            if (pitch_ > -5.0f) pitch_ = -5.0f;
-            if (pitch_ < -89.0f) pitch_ = -89.0f;
+            if (pitch_ > 0.0f) pitch_ = 0.0f;
+            if (pitch_ < -90.0f) pitch_ = -90.0f;
             update();
         }
     } else if (event->buttons() & Qt::MiddleButton) {
@@ -682,5 +617,25 @@ void PointCloudVisualizer::wheelEvent(QWheelEvent* event) {
     float delta = event->angleDelta().y() / 120.0f;
     distance_ -= delta * 0.5f;
     if (distance_ < 0.1f) distance_ = 0.1f;
+    update();
+}
+
+void PointCloudVisualizer::setTopView() {
+    yaw_ = -90.0f; // Look from the side (top-down)
+    pitch_ = 0.0f; // Look perfectly straight down
+    pan_x_ = 0.0f;
+    pan_y_ = 0.0f;
+    pan_z_ = 0.0f;
+    distance_ = 1.0f;
+    update();
+}
+
+void PointCloudVisualizer::setSideView() {
+    yaw_ = -90.0f; 
+    pitch_ = -90.0f; // Look perfectly horizontal (prevent gimble lock by 89 instead of 90 occasionally, but 89 is low enough)
+    pan_x_ = 0.0f;
+    pan_y_ = 0.0f;
+    pan_z_ = 0.0f; // Look precisely at Z=0 to align ground with the screen center
+    distance_ = 1.0f; // Optimal distance to inspect robot clearance
     update();
 }
