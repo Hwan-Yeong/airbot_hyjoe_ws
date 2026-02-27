@@ -38,12 +38,24 @@ bool RobotModel::loadFromFile(const std::string& path) {
             }
         }
     }
+    
+    // 1-1. Parse Global Color Settings (User Custom Macro)
+    // <color_settings body_color="light_black" /> 와 같이 지정하면 body_color가 특정 material을 가리키도록 함
+    for (auto* cs = root->FirstChildElement("color_settings"); cs; cs = cs->NextSiblingElement("color_settings")) {
+        const char* body_color_ref = cs->Attribute("body_color");
+        if (body_color_ref && materials_.count(body_color_ref)) {
+            // body_color라는 이름으로 참조된 색상을 복사
+            materials_["body_color"] = materials_[body_color_ref];
+        }
+    }
 
     struct LinkInfo {
         float ox = 0, oy = 0, oz = 0;
         float orx = 0, ory = 0, orz = 0;
         ShapeType type = ShapeType::CYLINDER;
         float radius = 0, length = 0;
+        float center_radius = 0;
+        float sx = 0, sy = 0, sz = 0;
         std::string material;
     };
     std::map<std::string, LinkInfo> link_map;
@@ -65,18 +77,28 @@ bool RobotModel::loadFromFile(const std::string& path) {
             }
             auto* geometry = visual->FirstChildElement("geometry");
             if (geometry) {
-                auto* cyl = geometry->FirstChildElement("cylinder");
-                if (cyl) {
+                if (auto* cyl = geometry->FirstChildElement("cylinder")) {
                     info.type = ShapeType::CYLINDER;
                     info.radius = cyl->FloatAttribute("radius");
                     info.length = cyl->FloatAttribute("length");
-                } else {
-                    auto* sph = geometry->FirstChildElement("sphere");
-                    if (sph) {
-                        info.type = ShapeType::SPHERE;
-                        info.radius = sph->FloatAttribute("radius");
-                        info.length = 0;
+                } else if (auto* sph = geometry->FirstChildElement("sphere")) {
+                    info.type = ShapeType::SPHERE;
+                    info.radius = sph->FloatAttribute("radius");
+                    info.length = 0;
+                } else if (auto* box = geometry->FirstChildElement("box")) {
+                    info.type = ShapeType::BOX;
+                    const char* size_str = box->Attribute("size");
+                    if (size_str) {
+                        std::stringstream ss(size_str);
+                        ss >> info.sx >> info.sy >> info.sz;
                     }
+                    info.radius = 0;
+                    info.length = 0;
+                } else if (auto* barrel = geometry->FirstChildElement("barrel")) {
+                    info.type = ShapeType::BARREL;
+                    info.radius = barrel->FloatAttribute("radius");
+                    info.center_radius = barrel->FloatAttribute("center_radius");
+                    info.length = barrel->FloatAttribute("length");
                 }
             }
             auto* mat = visual->FirstChildElement("material");
@@ -139,6 +161,8 @@ bool RobotModel::loadFromFile(const std::string& path) {
             seg.rx = tf.rx + li.orx; seg.ry = tf.ry + li.ory; seg.rz = tf.rz + li.orz;
             seg.shape_type = li.type;
             seg.radius = li.radius; seg.length = li.length;
+            seg.center_radius = li.center_radius;
+            seg.sx = li.sx; seg.sy = li.sy; seg.sz = li.sz;
             
             if (materials_.count(li.material)) {
                 auto m = materials_[li.material];
@@ -193,8 +217,12 @@ void RobotModel::draw(const TfData& base_tf, float body_alpha) {
     mat[12] = 0.0f; mat[13] = 0.0f; mat[14] = 0.0f; mat[15] = 1.0f;
     glMultMatrixf(mat);
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // 반투명 렌더링이 필요한 부분 외에는 BLEND를 사용하지 않음
+    // glEnable(GL_BLEND);
+    // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    // 깊이 테스트 활성화 (겹친 불투명체들이 올바르게 보이도록)
+    glEnable(GL_DEPTH_TEST);
 
     for (const auto& seg : segments_) {
         glPushMatrix();
@@ -205,7 +233,6 @@ void RobotModel::draw(const TfData& base_tf, float body_alpha) {
         glRotatef(seg.rx * 180.0f / M_PI, 1, 0, 0);
         
         float alpha = seg.ca;
-        if (seg.name == "base_link") alpha *= body_alpha;
         
         // Skip rendering static casters, as they are rendered dynamically by PointCloudVisualizer
         if (seg.name == "caster_front_link" || seg.name == "caster_rear_link") {
@@ -213,17 +240,19 @@ void RobotModel::draw(const TfData& base_tf, float body_alpha) {
             continue;
         }
 
-        if (seg.radius > 0) {
-            if (seg.shape_type == ShapeType::CYLINDER) {
-                drawCylinder(seg.radius, seg.length, seg.cr, seg.cg, seg.cb, alpha);
-            } else if (seg.shape_type == ShapeType::SPHERE) {
-                drawSphere(seg.radius, seg.cr, seg.cg, seg.cb, alpha);
-            }
+        if (seg.shape_type == ShapeType::CYLINDER && seg.radius > 0) {
+            drawCylinder(seg.radius, seg.length, seg.cr, seg.cg, seg.cb, alpha);
+        } else if (seg.shape_type == ShapeType::BARREL && seg.radius > 0) {
+            drawBarrel(seg.radius, seg.center_radius, seg.length, seg.cr, seg.cg, seg.cb, alpha);
+        } else if (seg.shape_type == ShapeType::SPHERE && seg.radius > 0) {
+            drawSphere(seg.radius, seg.cr, seg.cg, seg.cb, alpha);
+        } else if (seg.shape_type == ShapeType::BOX && (seg.sx > 0 || seg.sy > 0 || seg.sz > 0)) {
+            drawBox(seg.sx, seg.sy, seg.sz, seg.cr, seg.cg, seg.cb, alpha);
         }
         glPopMatrix();
     }
 
-    glDisable(GL_BLEND);
+    // glDisable(GL_BLEND);
     glPopMatrix();
 }
 void RobotModel::drawCylinder(float radius, float length, float r, float g, float b, float a) {
@@ -260,9 +289,100 @@ void RobotModel::drawCylinder(float radius, float length, float r, float g, floa
     glEnd();
 }
 
+void RobotModel::drawBarrel(float radius, float center_radius, float length, float r, float g, float b, float a) {
+    glColor4f(r, g, b, a);
+    int slices = 16;
+    int stacks = 10;
+    float halfLen = length / 2.0f;
+    
+    // 측면을 여러 단(stack)으로 나누어 그림
+    for (int j = 0; j < stacks; ++j) {
+        float z1 = -halfLen + (float)j / stacks * length;
+        float z2 = -halfLen + (float)(j + 1) / stacks * length;
+
+        // 이차 함수(포물선)를 이용해 각 Z 위치에서의 반지름 계산
+        // z가 0일 때 가장 볼록/오목하게 (center_radius)
+        // z가 +/- halfLen일 때 radius
+        float t1 = z1 / halfLen;
+        float r1 = center_radius + (radius - center_radius) * (t1 * t1);
+        
+        float t2 = z2 / halfLen;
+        float r2 = center_radius + (radius - center_radius) * (t2 * t2);
+
+        glBegin(GL_QUAD_STRIP);
+        for (int i = 0; i <= slices; ++i) {
+            float angle = i * 2.0f * M_PI / slices;
+            float cosA = std::cos(angle);
+            float sinA = std::sin(angle);
+            
+            glVertex3f(cosA * r2, sinA * r2, z2);
+            glVertex3f(cosA * r1, sinA * r1, z1);
+        }
+        glEnd();
+    }
+    
+    // 윗면 캡 (Top cap)
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(0, 0, halfLen);
+    for (int i = 0; i <= slices; ++i) {
+        float angle = i * 2.0f * M_PI / slices;
+        glVertex3f(std::cos(angle) * radius, std::sin(angle) * radius, halfLen);
+    }
+    glEnd();
+    
+    // 아랫면 캡 (Bottom cap)
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(0, 0, -halfLen);
+    for (int i = 0; i <= slices; ++i) {
+        float angle = i * 2.0f * M_PI / slices;
+        glVertex3f(std::cos(angle) * radius, -std::sin(angle) * radius, -halfLen);
+    }
+    glEnd();
+}
+
 void RobotModel::drawSphere(float radius, float r, float g, float b, float a) {
     glColor4f(r, g, b, a);
     GLUquadric* quad = gluNewQuadric();
     gluSphere(quad, radius, 16, 16);
     gluDeleteQuadric(quad);
+}
+
+void RobotModel::drawBox(float sx, float sy, float sz, float r, float g, float b, float a) {
+    glColor4f(r, g, b, a);
+    float hx = sx / 2.0f;
+    float hy = sy / 2.0f;
+    float hz = sz / 2.0f;
+
+    glBegin(GL_QUADS);
+    // 앞면 (Front)
+    glVertex3f(-hx, -hy,  hz);
+    glVertex3f( hx, -hy,  hz);
+    glVertex3f( hx,  hy,  hz);
+    glVertex3f(-hx,  hy,  hz);
+    // 뒷면 (Back)
+    glVertex3f(-hx, -hy, -hz);
+    glVertex3f(-hx,  hy, -hz);
+    glVertex3f( hx,  hy, -hz);
+    glVertex3f( hx, -hy, -hz);
+    // 윗면 (Top)
+    glVertex3f(-hx,  hy,  hz);
+    glVertex3f(-hx,  hy, -hz);
+    glVertex3f( hx,  hy, -hz);
+    glVertex3f( hx,  hy,  hz);
+    // 아랫면 (Bottom)
+    glVertex3f(-hx, -hy, -hz);
+    glVertex3f( hx, -hy, -hz);
+    glVertex3f( hx, -hy,  hz);
+    glVertex3f(-hx, -hy,  hz);
+    // 오른쪽 면 (Right)
+    glVertex3f( hx, -hy, -hz);
+    glVertex3f( hx,  hy, -hz);
+    glVertex3f( hx,  hy,  hz);
+    glVertex3f( hx, -hy,  hz);
+    // 왼쪽 면 (Left)
+    glVertex3f(-hx, -hy, -hz);
+    glVertex3f(-hx, -hy,  hz);
+    glVertex3f(-hx,  hy,  hz);
+    glVertex3f(-hx,  hy, -hz);
+    glEnd();
 }

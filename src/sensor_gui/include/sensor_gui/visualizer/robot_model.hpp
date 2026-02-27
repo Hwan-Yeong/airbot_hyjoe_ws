@@ -9,7 +9,9 @@ struct TfData; // Forward declaration
 
 enum class ShapeType {
     CYLINDER,
-    SPHERE
+    SPHERE,
+    BOX,
+    BARREL
 };
 
 struct VisualSegment {
@@ -18,6 +20,8 @@ struct VisualSegment {
     float rx, ry, rz; // RPY in radians
     ShapeType shape_type = ShapeType::CYLINDER;
     float radius, length; // Assuming cylinder or sphere radius
+    float center_radius; // Used for BARREL shapes
+    float sx, sy, sz; // Box size
     float cr, cg, cb, ca; // Color
 };
 
@@ -50,7 +54,9 @@ public:
     void draw(const TfData& base_tf, float body_alpha = 0.5f);
 
     static void drawCylinder(float radius, float length, float r, float g, float b, float a);
+    static void drawBarrel(float radius, float center_radius, float length, float r, float g, float b, float a);
     static void drawSphere(float radius, float r, float g, float b, float a);
+    static void drawBox(float sx, float sy, float sz, float r, float g, float b, float a);
 
 private:
     std::vector<VisualSegment> segments_;
