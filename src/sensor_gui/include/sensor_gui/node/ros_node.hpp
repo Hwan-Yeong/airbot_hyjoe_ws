@@ -74,6 +74,9 @@ public:
   float getTargetVx() const { return target_vx_.load(); }
   float getTargetVyawRad() const { return target_vyaw_.load() * M_PI / 180.0f; }
 
+  float getSmoothedVx() const { return smoothed_vx_.load(); }
+  float getSmoothedVyawRad() const { return smoothed_vyaw_rad_.load(); }
+
   void setUsePhysics(bool use) { use_physics_ = use; }
   bool getUsePhysics() const { return use_physics_; }
   
@@ -131,6 +134,10 @@ private:
   std::atomic<float> target_vx_{0.0f};
   std::atomic<float> target_vy_{0.0f};
   std::atomic<float> target_vyaw_{0.0f};
+
+  // Smoothed outputs
+  std::atomic<float> smoothed_vx_{0.0f};
+  std::atomic<float> smoothed_vyaw_rad_{0.0f};
 
   // Speed Limits
   float linear_speed_  = 0.5f;

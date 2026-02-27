@@ -294,8 +294,8 @@ void MainWindow::stepPhysics() {
     if (!physics_world_ || !ui->visualizer_ || !ros_node_) return;
 
     // Send velocity command to physics
-    float vx = ros_node_->getTargetVx();
-    float vyaw = ros_node_->getTargetVyawRad();
+    float vx = ros_node_->getSmoothedVx();
+    float vyaw = ros_node_->getSmoothedVyawRad();
     physics_world_->setRobotVelocity(vx, vyaw);
 
     // Sync obstacles (read from UI)

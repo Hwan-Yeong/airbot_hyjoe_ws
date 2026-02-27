@@ -128,6 +128,9 @@ void RosNode::publishFakeData() {
   float vy = static_cast<float>(smoother_vy_.update(target_vy_.load(), dt));
   float vyaw = static_cast<float>(smoother_vyaw_.update(target_vyaw_.load(), dt));
   
+  smoothed_vx_.store(vx);
+  smoothed_vyaw_rad_.store(vyaw * M_PI / 180.0f);
+
   if (!use_physics_) {
       // Velocity Integration
       if (std::abs(vx) > 0.001f || std::abs(vy) > 0.001f || std::abs(vyaw) > 0.001f) {

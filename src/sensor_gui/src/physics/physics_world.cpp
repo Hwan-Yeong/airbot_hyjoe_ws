@@ -69,6 +69,7 @@ void PhysicsWorld::init() {
     btRigidBody::btRigidBodyConstructionInfo ground_info(0, ground_motion_state, ground_shape, btVector3(0, 0, 0));
     ground_info.m_restitution = 0.5f;
     ground_info.m_friction = 0.8f;
+    ground_info.m_rollingFriction = 0.1f; // Add rolling friction to ground
     ground_body_ = new btRigidBody(ground_info);
     dynamics_world_->addRigidBody(ground_body_);
 }
@@ -76,31 +77,57 @@ void PhysicsWorld::init() {
 void PhysicsWorld::stepSimulation(float dt) {
     if (dynamics_world_) {
         if (robot_body_ && left_hinge_ && right_hinge_) {
-            // Wake up wheels and chassis
-            robot_body_->activate(true);
-            left_wheel_body_->activate(true);
-            right_wheel_body_->activate(true);
-            
-            // Differential Drive Kinematics
-            // v = (v_R + v_L) / 2
-            // w = (v_R - v_L) / L
-            // v_L = v - w * L / 2
-            // v_R = v + w * L / 2
-            // omega = v / R
-
             float v_left = robot_linear_vel_x_ - robot_angular_vel_z_ * wheelbase_ / 2.0f;
             float v_right = robot_linear_vel_x_ + robot_angular_vel_z_ * wheelbase_ / 2.0f;
 
-            // Wheel targets are negated because positive rotation around +Y moves the bottom of the wheel backward
-            // Negating it ensures that positive forward velocity moves the robot forward.
+            // Wake up wheels and chassis only if we want to move
+            if (std::abs(v_left) > 0.001f || std::abs(v_right) > 0.001f || std::abs(robot_angular_vel_z_) > 0.001f) {
+                robot_body_->activate(true);
+                left_wheel_body_->activate(true);
+                right_wheel_body_->activate(true);
+            }
+
+            // Wheel targets
             float w_left = -v_left / wheel_radius_;
             float w_right = -v_right / wheel_radius_;
 
             // Enable Motors and set target velocity
             float max_motor_impulse = max_motor_impulse_; // Configurable torque
             
-            left_hinge_->enableAngularMotor(true, w_left, max_motor_impulse);
-            right_hinge_->enableAngularMotor(true, w_right, max_motor_impulse);
+            if (std::abs(v_left) < 0.001f && std::abs(v_right) < 0.001f && std::abs(robot_angular_vel_z_) < 0.001f) {
+                // Apply Parking Brake / High Damping when idle
+                left_hinge_->enableAngularMotor(true, 0.0f, max_motor_impulse * 5.0f);
+                right_hinge_->enableAngularMotor(true, 0.0f, max_motor_impulse * 5.0f);
+                
+                // For perfectly stopping Bullet bodies, we MUST clear all forces and clamp velocities to exact zero.
+                robot_body_->setLinearVelocity(btVector3(0, 0, robot_body_->getLinearVelocity().z())); // Preserve gravity Z
+                robot_body_->setAngularVelocity(btVector3(0, 0, 0));
+                robot_body_->clearForces();
+                
+                left_wheel_body_->setLinearVelocity(btVector3(0, 0, left_wheel_body_->getLinearVelocity().z()));
+                left_wheel_body_->setAngularVelocity(btVector3(0, 0, 0));
+                left_wheel_body_->clearForces();
+
+                right_wheel_body_->setLinearVelocity(btVector3(0, 0, right_wheel_body_->getLinearVelocity().z()));
+                right_wheel_body_->setAngularVelocity(btVector3(0, 0, 0));
+                right_wheel_body_->clearForces();
+
+                if (caster_front_body_) {
+                    caster_front_body_->setLinearVelocity(btVector3(0, 0, caster_front_body_->getLinearVelocity().z()));
+                    caster_front_body_->setAngularVelocity(btVector3(0, 0, 0));
+                    caster_front_body_->clearForces();
+                }
+                if (caster_rear_body_) {
+                    caster_rear_body_->setLinearVelocity(btVector3(0, 0, caster_rear_body_->getLinearVelocity().z()));
+                    caster_rear_body_->setAngularVelocity(btVector3(0, 0, 0));
+                    caster_rear_body_->clearForces();
+                }
+
+                // Also let them sleep naturally by allowing deactivation
+            } else {
+                left_hinge_->enableAngularMotor(true, w_left, max_motor_impulse);
+                right_hinge_->enableAngularMotor(true, w_right, max_motor_impulse);
+            }
         }
 
         dynamics_world_->stepSimulation(dt, 10);
@@ -252,6 +279,10 @@ void PhysicsWorld::initRobot(float wheel_radius, float wheelbase, float mass) {
     robot_body_ = new btRigidBody(rbInfo);
     robot_body_->setDamping(damping_, damping_); // Add damping to reduce idle sliding
     robot_body_->setActivationState(DISABLE_DEACTIVATION);
+    
+    // Additional friction to prevent body sliding over casters
+    robot_body_->setFriction(0.8f);
+    
     dynamics_world_->addRigidBody(robot_body_);
 
 
@@ -289,6 +320,10 @@ void PhysicsWorld::initRobot(float wheel_radius, float wheelbase, float mass) {
         btRigidBody* wheel_body = new btRigidBody(wInfo);
         wheel_body->setDamping(damping_, damping_); // Add damping
         wheel_body->setActivationState(DISABLE_DEACTIVATION);
+        
+        // Ensure lateral friction is high enough
+        wheel_body->setFriction(wheel_friction_);
+
         dynamics_world_->addRigidBody(wheel_body);
         return wheel_body;
     };
@@ -368,6 +403,10 @@ void PhysicsWorld::initRobot(float wheel_radius, float wheelbase, float mass) {
         
         // Equilibrium point
         spring->setEquilibriumPoint(2, 0.0f);
+        
+        // Tweak ERP (Error Reduction Parameter) to prevent suspension jitter
+        spring->setParam(BT_CONSTRAINT_ERP, 0.2f, 2); // Default is ~0.2, lower might make it softer but less jittery
+        spring->setParam(BT_CONSTRAINT_CFM, 0.001f, 2); // Constraint Force Mixing to soften the hard limit impact
         
         dynamics_world_->addConstraint(spring, true);
         return spring;

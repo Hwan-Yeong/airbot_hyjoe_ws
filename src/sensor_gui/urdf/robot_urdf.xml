@@ -124,7 +124,7 @@
     </visual>
   </link>
 
-  <link name="camera_link">
+  <link name="eye_module_link">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry><box size="0.005 0.20 0.05" /></geometry>
@@ -148,7 +148,7 @@
     </visual>
   </link>
 
-  <link name="nose_link">
+  <link name="camera_link">
     <visual>
       <origin xyz="0 0 0" rpy="0 1.5707 0"/>
       <geometry><cylinder length="0.015" radius="0.01" /></geometry>
@@ -247,25 +247,25 @@
 
   <joint name="camera_joint" type="fixed">
     <parent link="base_link"/>
-    <child link="camera_link"/>
+    <child link="eye_module_link"/>
     <origin xyz="0.17 0 0.53" rpy="0 0 0"/>
   </joint>
 
   <joint name="eye_left_joint" type="fixed">
-    <parent link="camera_link"/>
+    <parent link="eye_module_link"/>
     <child link="eye_left_link"/>
     <origin xyz="0 0.05 0" rpy="0 0 0"/>
   </joint>
 
   <joint name="eye_right_joint" type="fixed">
-    <parent link="camera_link"/>
+    <parent link="eye_module_link"/>
     <child link="eye_right_link"/>
     <origin xyz="0 -0.05 0" rpy="0 0 0"/>
   </joint>
 
   <joint name="nose_joint" type="fixed">
-    <parent link="camera_link"/>
-    <child link="nose_link"/>
+    <parent link="eye_module_link"/>
+    <child link="camera_link"/>
     <origin xyz="0.005 0 0" rpy="0 0 0"/>
   </joint>
 
