@@ -163,6 +163,7 @@ bool RobotModel::loadFromFile(const std::string& path) {
             seg.radius = li.radius; seg.length = li.length;
             seg.center_radius = li.center_radius;
             seg.sx = li.sx; seg.sy = li.sy; seg.sz = li.sz;
+            seg.material_name = li.material;
             
             if (materials_.count(li.material)) {
                 auto m = materials_[li.material];
@@ -345,6 +346,18 @@ void RobotModel::drawSphere(float radius, float r, float g, float b, float a) {
     GLUquadric* quad = gluNewQuadric();
     gluSphere(quad, radius, 16, 16);
     gluDeleteQuadric(quad);
+}
+
+void RobotModel::setMaterialColor(const std::string& name, float r, float g, float b, float a) {
+    if (materials_.count(name)) {
+        materials_[name] = {r, g, b, a};
+        // Update existing segments that use this material
+        for (auto& seg : segments_) {
+            if (seg.material_name == name) {
+                seg.cr = r; seg.cg = g; seg.cb = b; seg.ca = a;
+            }
+        }
+    }
 }
 
 void RobotModel::drawBox(float sx, float sy, float sz, float r, float g, float b, float a) {

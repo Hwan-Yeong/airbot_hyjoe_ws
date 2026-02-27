@@ -14,7 +14,7 @@
   <material name="white"><color rgba="1.0 1.0 1.0 1.0"/></material>
 
   <!-- Body color : light_black, dark, grey ... -->
-  <color_settings body_color="white" />
+  <color_settings body_color="grey" />
 
   <!-- Links -->
   <link name="base_link">
@@ -107,6 +107,55 @@
     </visual>
   </link>
 
+  <!-- Additions for Mtof and Eye-module -->
+  <link name="mtof_left_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 1.5707 0"/>
+      <geometry><cylinder length="0.001" radius="0.015" /></geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+
+  <link name="mtof_right_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 1.5707 0"/>
+      <geometry><cylinder length="0.001" radius="0.015" /></geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+
+  <link name="camera_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.005 0.20 0.05" /></geometry>
+      <material name="dark"/>
+    </visual>
+  </link>
+
+  <link name="eye_left_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.011 0.02 0.03" /></geometry>
+      <material name="white"/>
+    </visual>
+  </link>
+
+  <link name="eye_right_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.011 0.02 0.03" /></geometry>
+      <material name="white"/>
+    </visual>
+  </link>
+
+  <link name="nose_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 1.5707 0"/>
+      <geometry><cylinder length="0.015" radius="0.01" /></geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+
   <!-- Joints -->
   <joint name="base_body_joint" type="fixed">
     <parent link="base_link"/>
@@ -181,6 +230,43 @@
     <parent link="base_scan"/>
     <child link="base_scan_back"/>
     <origin xyz="-0.1475 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Additions for Mtof and Eye-module Joints -->
+  <joint name="mtof_left_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="mtof_left_link"/>
+    <origin xyz="0.155 0.08 0.03" rpy="0 0 0.43"/>
+  </joint>
+
+  <joint name="mtof_right_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="mtof_right_link"/>
+    <origin xyz="0.155 -0.08 0.03" rpy="0 0 -0.43"/>
+  </joint>
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="0.17 0 0.53" rpy="0 0 0"/>
+  </joint>
+
+  <joint name="eye_left_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="eye_left_link"/>
+    <origin xyz="0 0.05 0" rpy="0 0 0"/>
+  </joint>
+
+  <joint name="eye_right_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="eye_right_link"/>
+    <origin xyz="0 -0.05 0" rpy="0 0 0"/>
+  </joint>
+
+  <joint name="nose_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="nose_link"/>
+    <origin xyz="0.005 0 0" rpy="0 0 0"/>
   </joint>
 
 </robot>

@@ -455,11 +455,28 @@ void MainWindow::onOpenRobotModelEditor() {
                 std::cout << "Applied new physics parameters." << std::endl;
             }
         });
+        
+        connect(robot_model_window_, &RobotModelWindow::colorChanged, [this](const std::string& name, float r, float g, float b, float a) {
+            if (ui->visualizer_ && ui->visualizer_->getRobotModel()) {
+                ui->visualizer_->getRobotModel()->setMaterialColor(name, r, g, b, a);
+                ui->visualizer_->update(); // 즉각 렌더링하도록 확실하게 update 호출
+            }
+        });
     }
-    
+
     // Refresh parameters from physics world before showing
     if (physics_world_) {
         robot_model_window_->setParameters(physics_world_->getPhysicsParams());
+    }
+
+    // Refresh colors only if the layout_colors is empty (prevents breaking states during consecutive double clicks)
+    if (ui->visualizer_ && ui->visualizer_->getRobotModel() && robot_model_window_->layout()->count() > 0) {
+        auto mats = ui->visualizer_->getRobotModel()->getMaterials();
+        std::map<std::string, std::array<float, 4>> colors;
+        for (const auto& [k, v] : mats) {
+             colors[k] = {v.r, v.g, v.b, v.a};
+        }
+        robot_model_window_->setColors(colors);
     }
     
     robot_model_window_->show();

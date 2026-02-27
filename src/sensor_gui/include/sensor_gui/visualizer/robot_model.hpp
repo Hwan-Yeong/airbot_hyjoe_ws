@@ -22,6 +22,7 @@ struct VisualSegment {
     float radius, length; // Assuming cylinder or sphere radius
     float center_radius; // Used for BARREL shapes
     float sx, sy, sz; // Box size
+    std::string material_name; // Name of the material used by this segment
     float cr, cg, cb, ca; // Color
 };
 
@@ -58,11 +59,15 @@ public:
     static void drawSphere(float radius, float r, float g, float b, float a);
     static void drawBox(float sx, float sy, float sz, float r, float g, float b, float a);
 
+    // Material Getter/Setter for runtime UI updates
+    struct Material { float r, g, b, a; };
+    std::map<std::string, Material> getMaterials() const { return materials_; }
+    void setMaterialColor(const std::string& name, float r, float g, float b, float a);
+
 private:
     std::vector<VisualSegment> segments_;
     
     // Internal helper to find color by material name
-    struct Material { float r, g, b, a; };
     std::map<std::string, Material> materials_;
 
     // Parsed physics parameters
