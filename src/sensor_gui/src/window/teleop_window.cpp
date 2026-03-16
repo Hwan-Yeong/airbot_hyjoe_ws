@@ -85,6 +85,7 @@ void TeleopWindow::focusOutEvent(QFocusEvent* event) {
     // 창이 포커스를 잃으면 모든 키 해제 (안전 정지)
     pressed_keys_.clear();
     publishCmdVel(0.0f, 0.0f, 0.0f);
+    was_moving_ = false;
     ui->key_area_->updateState(pressed_keys_, is_dark_);
     QWidget::focusOutEvent(event);
 }
@@ -93,6 +94,7 @@ void TeleopWindow::closeEvent(QCloseEvent* event) {
     // 창 닫을 때 로봇 정지
     pressed_keys_.clear();
     publishCmdVel(0.0f, 0.0f, 0.0f);
+    was_moving_ = false;
     QWidget::closeEvent(event);
 }
 
@@ -130,7 +132,16 @@ void TeleopWindow::onTimer() {
         if (pressed_keys_.contains(Qt::Key_Right) || pressed_keys_.contains(Qt::Key_D)) target_vyaw -= angular_speed_;
     }
 
-    publishCmdVel(target_vx, target_vy, target_vyaw);
+    bool is_moving = (target_vx != 0.0f || target_vy != 0.0f || target_vyaw != 0.0f);
+
+    if (is_moving || emergency_stop) {
+        publishCmdVel(target_vx, target_vy, target_vyaw);
+        was_moving_ = true;
+    } else if (was_moving_) {
+        // Publish stop command once, then stop publishing
+        publishCmdVel(0.0f, 0.0f, 0.0f);
+        was_moving_ = false;
+    }
 }
 
 // ─────────────────────────────────────────────

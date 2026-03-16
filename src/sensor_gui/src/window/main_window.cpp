@@ -301,8 +301,9 @@ void MainWindow::stepPhysics() {
 
     // Send velocity command to physics
     float vx = ros_node_->getSmoothedVx();
+    float vy = ros_node_->getSmoothedVy();
     float vyaw = ros_node_->getSmoothedVyawRad();
-    physics_world_->setRobotVelocity(vx, vyaw);
+    physics_world_->setRobotVelocity(vx, vy, vyaw);
 
     // Sync obstacles (read from UI)
     auto obs = ui->visualizer_->getObstacles();

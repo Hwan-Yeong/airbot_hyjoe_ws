@@ -69,7 +69,8 @@ void PhysicsWorld::init() {
     btRigidBody::btRigidBodyConstructionInfo ground_info(0, ground_motion_state, ground_shape, btVector3(0, 0, 0));
     ground_info.m_restitution = 0.0f; // Prevent micro-bouncing
     ground_info.m_friction = 1.0f;
-    ground_info.m_rollingFriction = 0.1f; // Add rolling friction to ground
+    // ground_info.m_rollingFriction = 0.1f; // Increased rolling friction on ground to stop drift
+    // ground_info.m_spinningFriction = 0.01f; // Add spinning friction to stop yaw drifting
     ground_body_ = new btRigidBody(ground_info);
     dynamics_world_->addRigidBody(ground_body_);
 }
@@ -80,21 +81,21 @@ void PhysicsWorld::stepSimulation(float dt) {
             float v_left = robot_linear_vel_x_ - robot_angular_vel_z_ * wheelbase_ / 2.0f;
             float v_right = robot_linear_vel_x_ + robot_angular_vel_z_ * wheelbase_ / 2.0f;
 
+            bool moving = std::abs(robot_linear_vel_x_) > 0.001f || std::abs(robot_linear_vel_y_) > 0.001f || std::abs(robot_angular_vel_z_) > 0.001f;
+
             // Wake up wheels and chassis only if we want to move
-            if (std::abs(v_left) > 0.001f || std::abs(v_right) > 0.001f || std::abs(robot_angular_vel_z_) > 0.001f) {
+            if (moving) {
                 robot_body_->activate(true);
                 left_wheel_body_->activate(true);
                 right_wheel_body_->activate(true);
             }
 
-            // Wheel targets
+            // Wheel targets (Visual effect only since we forcefully move chassis now)
             float w_left = -v_left / wheel_radius_;
             float w_right = -v_right / wheel_radius_;
-
-            // Enable Motors and set target velocity
             float max_motor_impulse = max_motor_impulse_; // Configurable torque
             
-            if (std::abs(v_left) < 0.001f && std::abs(v_right) < 0.001f && std::abs(robot_angular_vel_z_) < 0.001f) {
+            if (!moving) {
                 // Apply Parking Brake / High Damping when idle
                 left_hinge_->enableAngularMotor(true, 0.0f, max_motor_impulse * 5.0f);
                 right_hinge_->enableAngularMotor(true, 0.0f, max_motor_impulse * 5.0f);
@@ -122,11 +123,28 @@ void PhysicsWorld::stepSimulation(float dt) {
                     caster_rear_body_->setAngularVelocity(btVector3(0, 0, 0));
                     caster_rear_body_->clearForces();
                 }
-
-                // Also let them sleep naturally by allowing deactivation
             } else {
                 left_hinge_->enableAngularMotor(true, w_left, max_motor_impulse);
                 right_hinge_->enableAngularMotor(true, w_right, max_motor_impulse);
+
+                // Override physics with kinematic motion for reliable omnidirectional translation / yaw
+                btTransform transform;
+                if (robot_body_->getMotionState()) {
+                    robot_body_->getMotionState()->getWorldTransform(transform);
+                } else {
+                    transform = robot_body_->getWorldTransform();
+                }
+                
+                // Get the local forward(X) and left(Y) vectors from current Rotation
+                btVector3 forward = transform.getBasis().getColumn(0);
+                btVector3 left    = transform.getBasis().getColumn(1);
+                
+                btVector3 target_linear_vel = forward * robot_linear_vel_x_ + left * robot_linear_vel_y_;
+                // Preserve gravity Z component
+                target_linear_vel.setZ(robot_body_->getLinearVelocity().z()); 
+                
+                robot_body_->setLinearVelocity(target_linear_vel);
+                robot_body_->setAngularVelocity(btVector3(0, 0, robot_angular_vel_z_));
             }
         }
 
@@ -299,8 +317,8 @@ void PhysicsWorld::initRobot(float wheel_radius, float wheelbase, float mass) {
     robot_body_->setDamping(damping_, damping_); // Add damping to reduce idle sliding
     robot_body_->setActivationState(DISABLE_DEACTIVATION);
     
-    // Additional friction to prevent body sliding over casters
-    robot_body_->setFriction(0.8f);
+    // Keep friction at 0.0 to allow casters to slide smoothly
+    robot_body_->setFriction(0.0f);
     
     dynamics_world_->addRigidBody(robot_body_);
 
@@ -334,10 +352,12 @@ void PhysicsWorld::initRobot(float wheel_radius, float wheelbase, float mass) {
         btRigidBody::btRigidBodyConstructionInfo wInfo(wheel_mass_, motionState, wheel_shape, wheelInertia);
         // High lateral friction
         wInfo.m_friction = wheel_friction_;
-        wInfo.m_rollingFriction = 0.05f;
+        wInfo.m_rollingFriction = 0.05f; // Increased rolling friction on wheels
+        wInfo.m_spinningFriction = 0.01f; // Add spinning friction for wheels
 
         btRigidBody* wheel_body = new btRigidBody(wInfo);
-        wheel_body->setDamping(damping_, damping_); // Add damping
+        // Increased linear and angular damping for wheels to firmly stop drifting
+        wheel_body->setDamping(damping_, damping_ > 0.5f ? damping_ : 0.8f); 
         wheel_body->setActivationState(DISABLE_DEACTIVATION);
         
         // Ensure lateral friction is high enough
@@ -484,8 +504,9 @@ void PhysicsWorld::getWheelPoses(float& lx, float& ly, float& lz, float& lqx, fl
 }
 
 
-void PhysicsWorld::setRobotVelocity(float linear_x, float angular_z) {
+void PhysicsWorld::setRobotVelocity(float linear_x, float linear_y, float angular_z) {
     robot_linear_vel_x_ = linear_x;
+    robot_linear_vel_y_ = linear_y;
     robot_angular_vel_z_ = angular_z;
 }
 

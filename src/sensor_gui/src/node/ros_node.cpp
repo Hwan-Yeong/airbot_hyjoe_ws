@@ -129,6 +129,7 @@ void RosNode::publishFakeData() {
   float vyaw = static_cast<float>(smoother_vyaw_.update(target_vyaw_.load(), dt));
   
   smoothed_vx_.store(vx);
+  smoothed_vy_.store(vy);
   smoothed_vyaw_rad_.store(vyaw * M_PI / 180.0f);
 
   if (!use_physics_) {

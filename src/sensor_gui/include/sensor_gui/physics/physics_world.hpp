@@ -22,7 +22,7 @@ public:
     // Robot management
     void setRobotPose(float x, float y, float z, float roll, float pitch, float yaw);
     void getRobotPose(float& x, float& y, float& z, float& roll, float& pitch, float& yaw);
-    void setRobotVelocity(float linear_x, float angular_z);
+    void setRobotVelocity(float linear_x, float linear_y, float angular_z);
     
     void getWheelPoses(float& lx, float& ly, float& lz, float& lqx, float& lqy, float& lqz, float& lqw,
                        float& rx, float& ry, float& rz, float& rqx, float& rqy, float& rqz, float& rqw);
@@ -81,5 +81,6 @@ private:
     float caster_mass_ = 0.5f;
     
     float robot_linear_vel_x_ = 0.0f;
+    float robot_linear_vel_y_ = 0.0f;
     float robot_angular_vel_z_ = 0.0f;
 };

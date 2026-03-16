@@ -58,6 +58,8 @@ private:
 
     float linear_speed_  = 0.5f;  // m/s
     float angular_speed_ = 60.0f; // deg/s
+    bool  was_moving_    = false;
+
 
     // ROS2 Node and Publisher for /cmd_vel
     rclcpp::Node::SharedPtr teleop_node_;
