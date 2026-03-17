@@ -18,10 +18,10 @@ class CloudConverterFactory {
   CloudConverterFactory() = default;
   ~CloudConverterFactory() = default;
 
-  static CloudConverterPtr Create(std::shared_ptr<SensorManagerNode> node_ptr,
+  static CloudConverterPtr Create(SensorManagerNode* node_ptr,
                                   const std::string& type,
                                   const YAML::Node& config);
-  static CloudConverterPtr Create(std::shared_ptr<SensorManagerNode> node_ptr,
+  static CloudConverterPtr Create(SensorManagerNode* node_ptr,
                                   const YAML::Node& config);
 };
 

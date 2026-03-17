@@ -36,7 +36,7 @@ struct ConverterOutput {
  */
 class CloudConverterStrategy {
  public:
-  CloudConverterStrategy(std::shared_ptr<SensorManagerNode> node_ptr);
+  CloudConverterStrategy(SensorManagerNode* node_ptr);
 
   virtual ~CloudConverterStrategy() = default;
 
@@ -78,11 +78,11 @@ class CloudConverterStrategy {
   virtual std::optional<geometry_msgs::msg::TransformStamped> GetStaticTf();
 
   /**
-   * @brief Returns the SensorManagerNode smart pointer referenced by the filter.
+   * @brief Returns the SensorManagerNode raw pointer by the filter.
    *
-   * @return std::shared_ptr<SensorManagerNode>
+   * @return SensorManagerNode*
    */
-  std::shared_ptr<SensorManagerNode> GetNodePtr() const;
+SensorManagerNode* GetNodePtr() const;
 
   /**
    * @brief Get target frame id
@@ -128,7 +128,7 @@ class CloudConverterStrategy {
    */
   std::string GetCommonConfigInfo(const std::string& sensor_type);
 
-  std::shared_ptr<SensorManagerNode> node_ptr_{};
+  SensorManagerNode* node_ptr_{nullptr};
   std::chrono::steady_clock::time_point last_call_time_;
   double timeout_limit_sec_ =
       -1.0;  // converter reset timeout time (default: -1, disabled)

@@ -342,9 +342,6 @@ void SensorManagerNode::InitPublisher(const YAML::Node& config) {
 }
 
 void SensorManagerNode::InitConverters(const YAML::Node& config) {
-  auto pnode =
-      std::dynamic_pointer_cast<SensorManagerNode>(this->shared_from_this());
-
   static_tf_broadcaster_ =
       std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
   std::vector<geometry_msgs::msg::TransformStamped> static_transforms;
@@ -354,7 +351,7 @@ void SensorManagerNode::InitConverters(const YAML::Node& config) {
     const YAML::Node& sensor_config = sensor.second;
 
     auto converter = sensor_manager::CloudConverterFactory::Create(
-        pnode, sensor_name, sensor_config);
+        this, sensor_name, sensor_config);
     this->converters_[sensor_name] = converter;
 
     if (converter != nullptr) {

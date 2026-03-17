@@ -1,4 +1,5 @@
 #include "cloud_converter/cloud_converter_factory.hpp"
+#include "sensor_manager_node.hpp"
 
 #include "cloud_converter/empty_converter.hpp"
 #include "cloud_converter/sensors/bottom_ir.hpp"
@@ -10,56 +11,52 @@
 namespace sensor_manager {
 
 CloudConverterPtr CloudConverterFactory::Create(
-    std::shared_ptr<SensorManagerNode> node_ptr, const std::string& type,
+    SensorManagerNode* node_ptr, const std::string& type,
     const YAML::Node& config) {
-  using ConverterCreator =
-      std::function<std::shared_ptr<CloudConverterStrategy>()>;
+  using ConverterCreator = std::function<CloudConverterPtr(
+      SensorManagerNode*, const YAML::Node&)>;
+
   static const std::unordered_map<std::string, ConverterCreator> factory = {
-      {"tof_mono",
-       [&]() {
-         return std::make_shared<TofMonoCloudConverter>(node_ptr, config);
+      {"tof_mono", [](auto n, auto c) {
+         return std::make_shared<TofMonoCloudConverter>(n, c);
        }},
-      {"tof_multi", [&]() { return nullptr; }},
-      {"tof_multi_left",
-       [&]() {
-         return std::make_shared<TofMultiLeftCloudConverter>(node_ptr, config);
+      // {"tof_multi", [&]() { return nullptr; }},
+      {"tof_multi_left", [](auto n, auto c) {
+         return std::make_shared<TofMultiLeftCloudConverter>(n, c);
        }},
-      {"tof_multi_right",
-       [&]() {
-         return std::make_shared<TofMultiRightCloudConverter>(node_ptr, config);
+      {"tof_multi_right", [](auto n, auto c) {
+         return std::make_shared<TofMultiRightCloudConverter>(n, c);
        }},
-      {"camera",
-       [&]() {
-         return std::make_shared<CameraCloudConverter>(node_ptr, config);
+      {"camera", [](auto n, auto c) {
+         return std::make_shared<CameraCloudConverter>(n, c);
        }},
-      {"bottom_ir",
-       [&]() {
-         return std::make_shared<BottomIrCloudConverter>(node_ptr, config);
+      {"bottom_ir", [](auto n, auto c) {
+         return std::make_shared<BottomIrCloudConverter>(n, c);
        }},
-      {"collision_front",
-       [&]() {
-         return std::make_shared<CollisionCloudConverter>(node_ptr, config);
+      {"collision_front", [](auto n, auto c) {
+         return std::make_shared<CollisionCloudConverter>(n, c);
        }},
-      {"collision_rear",
-       [&]() {
-         return std::make_shared<CollisionCloudConverter>(node_ptr, config);
+      {"collision_rear", [](auto n, auto c) {
+         return std::make_shared<CollisionCloudConverter>(n, c);
        }},
-      {"empty", [&]() {
-         return std::make_shared<EmptyCloudConverter>(node_ptr, config);
+      {"empty", [](auto n, auto c) {
+         return std::make_shared<EmptyCloudConverter>(n, c);
        }}};
 
   auto it = factory.find(type);
   if (it != factory.end()) {
-    return it->second();
+    return it->second(node_ptr, config);
   } else {
-    throw std::runtime_error("Unknown Sensor type: " + type);
+    RCLCPP_WARN(node_ptr->get_logger(),
+      "Unknown Sensor type: %s", type.c_str());
+    return nullptr;
+    // throw std::runtime_error("Unknown Sensor type: " + type);
   }
 }
 
 CloudConverterPtr CloudConverterFactory::Create(
-    std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config) {
+    SensorManagerNode* node_ptr, const YAML::Node& config) {
   if (!config.IsMap() || config.size() != 1) {
-    auto s = YAML::Dump(config);
     throw std::runtime_error("Invalid sensor config format.");
   }
 

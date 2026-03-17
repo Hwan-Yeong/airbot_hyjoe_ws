@@ -5,7 +5,7 @@
 namespace sensor_manager {
 
 TofMultiLeftCloudConverter::TofMultiLeftCloudConverter(
-    std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config)
+    SensorManagerNode* node_ptr, const YAML::Node& config)
     : CloudConverterStrategy(node_ptr) {
   if (!config.IsMap()) {
     auto s = YAML::Dump(config);
@@ -154,7 +154,7 @@ std_msgs::msg::Float32MultiArray TofMultiLeftCloudConverter::CalibrationConvert(
 }
 
 TofMultiRightCloudConverter::TofMultiRightCloudConverter(
-    std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config)
+    SensorManagerNode* node_ptr, const YAML::Node& config)
     : CloudConverterStrategy(node_ptr) {
   if (!config.IsMap()) {
     auto s = YAML::Dump(config);

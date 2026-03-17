@@ -11,7 +11,7 @@ namespace sensor_manager {
  */
 class BottomIrCloudConverter : public CloudConverterStrategy {
  public:
-  BottomIrCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr,
+  BottomIrCloudConverter(SensorManagerNode* node_ptr,
                          const YAML::Node& config);
 
  private:

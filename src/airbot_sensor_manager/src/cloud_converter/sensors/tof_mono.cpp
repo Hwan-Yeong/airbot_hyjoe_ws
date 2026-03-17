@@ -5,7 +5,7 @@
 namespace sensor_manager {
 
 TofMonoCloudConverter::TofMonoCloudConverter(
-    std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config)
+    SensorManagerNode* node_ptr, const YAML::Node& config)
     : CloudConverterStrategy(node_ptr) {
   if (!config.IsMap()) {
     auto s = YAML::Dump(config);

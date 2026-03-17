@@ -11,7 +11,7 @@ namespace sensor_manager {
  */
 class TofMonoCloudConverter : public CloudConverterStrategy {
  public:
-  TofMonoCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr,
+  TofMonoCloudConverter(SensorManagerNode* node_ptr,
                         const YAML::Node& config);
 
  private:

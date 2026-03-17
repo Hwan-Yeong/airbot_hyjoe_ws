@@ -1,11 +1,11 @@
 #include "cloud_converter/sensors/bottom_ir.hpp"
 #include "sensor_manager_node.hpp"
-#include "robot_custom_msgs/msg/tof_data.hpp"
+#include "robot_custom_msgs/msg/bottom_ir_data.hpp"
 
 namespace sensor_manager {
 
 BottomIrCloudConverter::BottomIrCloudConverter(
-    std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config)
+    SensorManagerNode* node_ptr, const YAML::Node& config)
     : CloudConverterStrategy(node_ptr) {
   if (!config.IsMap()) {
     auto s = YAML::Dump(config);

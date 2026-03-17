@@ -11,7 +11,7 @@ namespace sensor_manager {
  */
 class EmptyCloudConverter : public CloudConverterStrategy {
  public:
-  EmptyCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr,
+  EmptyCloudConverter(SensorManagerNode* node_ptr,
                       const YAML::Node& config);
 
  private:

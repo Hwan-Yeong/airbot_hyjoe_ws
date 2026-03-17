@@ -1,11 +1,11 @@
 #include "cloud_converter/virtual/collision.hpp"
 #include "sensor_manager_node.hpp"
-#include "robot_custom_msgs/msg/tof_data.hpp"
+#include "robot_custom_msgs/msg/abnormal_event_data.hpp"
 
 namespace sensor_manager {
 
 CollisionCloudConverter::CollisionCloudConverter(
-    std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config)
+    SensorManagerNode* node_ptr, const YAML::Node& config)
     : CloudConverterStrategy(node_ptr) {
   if (!config.IsMap()) {
     auto s = YAML::Dump(config);

@@ -1,11 +1,10 @@
 #include "cloud_converter/empty_converter.hpp"
 #include "sensor_manager_node.hpp"
-#include "robot_custom_msgs/msg/tof_data.hpp"
 
 namespace sensor_manager {
 
 EmptyCloudConverter::EmptyCloudConverter(
-    std::shared_ptr<SensorManagerNode> node_ptr, const YAML::Node& config)
+    SensorManagerNode* node_ptr, const YAML::Node& config)
     : CloudConverterStrategy(node_ptr) {
   if (!config.IsMap()) {
     auto s = YAML::Dump(config);

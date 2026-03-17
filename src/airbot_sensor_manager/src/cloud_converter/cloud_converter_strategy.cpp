@@ -5,8 +5,7 @@
 
 namespace sensor_manager {
 
-CloudConverterStrategy::CloudConverterStrategy(
-    std::shared_ptr<SensorManagerNode> node_ptr)
+CloudConverterStrategy::CloudConverterStrategy(SensorManagerNode* node_ptr)
     : node_ptr_(node_ptr) {
   last_call_time_ = std::chrono::steady_clock::now();
   this->target_frame_ = node_ptr_->GetTargetFrame();
@@ -160,7 +159,7 @@ CloudConverterStrategy::GetStaticTf() {
   return tfs;
 }
 
-std::shared_ptr<SensorManagerNode> CloudConverterStrategy::GetNodePtr() const {
+SensorManagerNode* CloudConverterStrategy::GetNodePtr() const {
   return node_ptr_;
 }
 

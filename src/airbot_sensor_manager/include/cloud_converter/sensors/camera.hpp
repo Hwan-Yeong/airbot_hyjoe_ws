@@ -11,7 +11,7 @@ namespace sensor_manager {
  */
 class CameraCloudConverter : public CloudConverterStrategy {
  public:
-  CameraCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr,
+  CameraCloudConverter(SensorManagerNode* node_ptr,
                        const YAML::Node& config);
 
  private:

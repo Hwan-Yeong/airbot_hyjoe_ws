@@ -11,7 +11,7 @@ namespace sensor_manager {
  */
 class CollisionCloudConverter : public CloudConverterStrategy {
  public:
-  CollisionCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr,
+  CollisionCloudConverter(SensorManagerNode* node_ptr,
                           const YAML::Node& config);
 
  private:

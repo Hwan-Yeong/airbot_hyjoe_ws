@@ -11,7 +11,7 @@ namespace sensor_manager {
  */
 class TofMultiLeftCloudConverter : public CloudConverterStrategy {
  public:
-  TofMultiLeftCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr,
+  TofMultiLeftCloudConverter(SensorManagerNode* node_ptr,
                              const YAML::Node& config);
 
  private:
@@ -34,7 +34,7 @@ class TofMultiLeftCloudConverter : public CloudConverterStrategy {
  */
 class TofMultiRightCloudConverter : public CloudConverterStrategy {
  public:
-  TofMultiRightCloudConverter(std::shared_ptr<SensorManagerNode> node_ptr,
+  TofMultiRightCloudConverter(SensorManagerNode* node_ptr,
                               const YAML::Node& config);
 
  private:
