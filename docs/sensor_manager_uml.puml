@@ -20,12 +20,12 @@ class SensorManagerNode {
 
 ' [Object Creation Encapsulation]
 class CloudConverterFactory {
-    +static create(type, config) : CloudConverterPtr
+    +static Create(node_ptr: SensorManagerNode*, type, config) : CloudConverterPtr
 }
 
 ' [Abstraction Interface - Base Class]
 interface CloudConverterStrategy {
-    #node_ptr_
+    #node_ptr_ : SensorManagerNode*
     +convert(sensor_msg)
     +pc_convert_impl(sensor_msg)*
     .. Responsibility ..
@@ -80,12 +80,20 @@ note bottom of CloudConverterFactory
   Creates objects based on runtime config.
 end note
 
-' [2] Composition: Lifecycle management
-SensorManagerNode "1" *-- "many" CloudConverterStrategy : owns
+' [2] Composition: Lifecycle management (Node -> Strategy)
+SensorManagerNode "1" *-- "many" CloudConverterStrategy : owns (shared_ptr)
 note on link
   **Composition**
   Node manages lifecycle of all converters.
   Converters are destroyed with the Node.
+end note
+
+' [2-1] Association: Observation (Strategy -> Node)
+CloudConverterStrategy "many" --> "1" SensorManagerNode : references (raw ptr)
+note on link
+  **Observation (No Ownership)**
+  Strategy uses Node's logger/tf_buffer
+  via raw pointer. Prevents Circular Reference.
 end note
 
 ' [3] Creation: Dynamic polymorphism
@@ -119,12 +127,12 @@ note bottom of FrameConverter
 end note
 
 ' --- Summary of Pros & Cons (Technical Assessment) ---
-legend right
-  |= Pros |= Cons |
-  | 1. Scalability: Minimal Node modification | 1. Slight overhead due to virtual calls |
-  | 2. Flexibility: Runtime YAML configuration | 2. Increased architectural complexity |
-  |<back:lightskyblue>**Performance Countermeasure**</back>| Modern compilers use Devirtualization. |
-  | | Processing bottleneck is math, not calls. |
-end legend
+' legend right
+'   |= Pros |= Cons |
+'   | 1. Scalability: Minimal Node modification | 1. Slight overhead due to virtual calls |
+'   | 2. Flexibility: Runtime YAML configuration | 2. Increased architectural complexity |
+'   |<back:lightskyblue>**Performance Countermeasure**</back>| Modern compilers use Devirtualization. |
+'   | | Processing bottleneck is math, not calls. |
+' end legend
 
-@endum
+@enduml
