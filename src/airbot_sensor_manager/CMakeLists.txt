@@ -41,9 +41,15 @@ add_executable(sensor_manager
   src/utils/frame_converter.cpp
   src/utils/tof_utils.cpp
   src/utils/multizone_tof_calibrator.cpp
-  src/cloud_converter/cloud_converter_factory.cpp
-  src/cloud_converter/cloud_converter.cpp
   src/utils/self_diagnosis.cpp
+  src/cloud_converter/cloud_converter_factory.cpp
+  src/cloud_converter/cloud_converter_strategy.cpp
+  src/cloud_converter/sensors/bottom_ir.cpp
+  src/cloud_converter/sensors/camera.cpp
+  src/cloud_converter/sensors/tof_mono.cpp
+  src/cloud_converter/sensors/tof_multi.cpp
+  src/cloud_converter/virtual/collision.cpp
+  src/cloud_converter/empty_converter.cpp
   src/sensor_manager_node.cpp
   src/main.cpp
 )

@@ -6,7 +6,7 @@
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
 
-#include "cloud_converter/cloud_converter.hpp"
+#include "cloud_converter/cloud_converter_strategy.hpp"
 #include "robot_custom_msgs/msg/tof_data.hpp"
 #include "std_msgs/msg/u_int8.hpp"
 #include "utils/common_struct.hpp"

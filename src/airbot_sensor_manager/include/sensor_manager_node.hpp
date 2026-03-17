@@ -15,7 +15,7 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
-#include "cloud_converter/cloud_converter.hpp"
+#include "cloud_converter/cloud_converter_strategy.hpp"
 #include "cloud_converter/cloud_converter_factory.hpp"
 #include "utils/multizone_tof_calibrator.hpp"
 #include "utils/self_diagnosis.hpp"

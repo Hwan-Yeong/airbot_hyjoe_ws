@@ -1,6 +1,11 @@
 #include "cloud_converter/cloud_converter_factory.hpp"
 
-#include "cloud_converter/cloud_converter.hpp"
+#include "cloud_converter/empty_converter.hpp"
+#include "cloud_converter/sensors/bottom_ir.hpp"
+#include "cloud_converter/sensors/camera.hpp"
+#include "cloud_converter/sensors/tof_mono.hpp"
+#include "cloud_converter/sensors/tof_multi.hpp"
+#include "cloud_converter/virtual/collision.hpp"
 
 namespace sensor_manager {
 

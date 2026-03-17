@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "cloud_converter/cloud_converter.hpp"
+#include "cloud_converter/cloud_converter_strategy.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "yaml-cpp/yaml.h"
 
