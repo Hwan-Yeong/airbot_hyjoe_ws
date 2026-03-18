@@ -1,19 +1,29 @@
-#ifndef __ERROR_MONITOR_NODE_HPP__
-#define __ERROR_MONITOR_NODE_HPP__
+#pragma once
 
+#include <memory>
+#include <vector>
+#include <fstream>
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "std_msgs/msg/string.hpp"
-#include "error_monitor/error_monitor.hpp"
+#include "error_monitor/robot_state_blackboard.hpp"
+#include "error_monitor/monitors/low_battery.hpp"
+#include "error_monitor/monitors/battery_discharging.hpp"
+#include "error_monitor/monitors/fall_down.hpp"
+#include "error_monitor/monitors/board_overheat.hpp"
+#include "error_monitor/monitors/charging.hpp"
+#include "error_monitor/monitors/lift.hpp"
+#include "error_monitor/monitors/cliff_detection.hpp"
+#include "error_monitor/monitors/tof.hpp"
+#include "error_monitor/monitors/ai_communication.hpp"
 
-template<typename T>
-class BaseErrorMonitor;
 using namespace std::chrono_literals;
 
 /**
  * @brief 에러 판단에 필요한 모든 외부 데이터를 구독하고,
- * 각각 정해진 주기에 따라 에러를 확인하여, 에러 발생 시 bool 타입의 에러 토픽을 발행하는 노드입니다.
+ * 하나의 중앙 구조체(RobotStateBlackboard)에 최신화하는 노드입니다.
+ * 각 에러 판단은 독립적인 모니터 객체가 수행합니다.
  */
 class ErrorMonitorNode : public rclcpp::Node
 {
@@ -25,27 +35,18 @@ public:
 
     template<typename MonitorType>
     void addMonitor(std::shared_ptr<MonitorType> monitor) {
-        monitor->setNode(shared_from_this());
+        monitor->setNode(this);
         monitor->loadParams(MonitorType::paramNamespace());
-        monitors_[typeid(MonitorType)] = monitor;
-    }
-
-    template <typename MonitorType, typename T>
-    bool runMonitor(const T& input) {
-        auto it = monitors_.find(typeid(MonitorType));
-        if (it != monitors_.end()) {
-            auto typedMonitor = std::static_pointer_cast<MonitorType>(it->second);
-            if (typedMonitor && typedMonitor->checkError(input)) {
-                return true;
-            }
-        }
-        return false;
+        monitor->printParams();
+        monitor->startMonitor(blackboard_);
+        monitors_.push_back(monitor);
     }
 
 private:
     void initVariables();
     void setParams();
-    void errorMonitor();
+    
+    // Callbacks to update Blackboard
     void bottomIrDataCallback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
     void imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
     void batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg);
@@ -54,49 +55,14 @@ private:
     void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
     void tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg);
     void aiVerCallback(const std_msgs::msg::String::SharedPtr msg);
-    // void cameraCallback(const robot_custom_msgs::msg::CameraDataArray::SharedPtr msg);
     void aiTemperatureCallback(const robot_custom_msgs::msg::AiTemperature::SharedPtr msg);
     void apTemperatureCallback(const robot_custom_msgs::msg::ApTemperature::SharedPtr msg);
     void checkMemoryUsage();
+    void checkSensorDelays();
 
-    bool update_battery_status_low_battery, update_battery_status_battery_discharging, update_battery_status_charging,
-        update_bottom_ir_data_fall_down, update_bottom_ir_data_lift, update_bottom_ir_data_cliff_detection,
-        update_imu_fall_down, update_imu_lift,
-        update_station_data_charging, update_station_data_discharging,
-        update_station_data_low_battery, update_robot_state_cliff_detection,
-        update_odom_data_cliff_detection,
-        update_tof_one_d_detection,
-        update_ai_version, update_ai_temperature_data, update_station_data_for_ir_lift;
-    bool pre_board_overheat_error_ = false;
-    bool update_ap_temperature_data = false;
-    // bool update_camera_data;
-    int publish_cnt_low_battery_error_, publish_cnt_fall_down_error_,
-        publish_cnt_battery_discharge_error_,
-        publish_cnt_charging_error_, publish_cnt_lift_error_,
-        publish_cnt_cliff_detection_error_,
-        publish_cnt_tof_detection_error_,
-        publish_cnt_ai_commnucation_error_,
-        publish_cnt_board_overheat_error_;
-    int publish_cnt_low_battery_error_rate_, publish_cnt_fall_down_error_rate_,
-        publish_cnt_battery_discharge_error_rate_,
-        publish_cnt_charging_error_rate_, publish_cnt_lift_error_rate_,
-        publish_cnt_cliff_detection_error_rate_,
-        publish_cnt_tof_detection_error_rate_,
-        publish_cnt_ai_commnucation_error_rate_,
-        publish_cnt_board_overheat_error_rate_;
+    std::shared_ptr<RobotStateBlackboard> blackboard_;
 
-    // bool ai_version_sub_removed_ = false;
-    // bool camera_sub_removed_ = false;
-
-    robot_custom_msgs::msg::BatteryStatus battery_data;
-    robot_custom_msgs::msg::BottomIrData bottom_ir_data;
-    sensor_msgs::msg::Imu imu_data;
-    robot_custom_msgs::msg::StationData station_data;
-    robot_custom_msgs::msg::RobotState robot_state;
-    nav_msgs::msg::Odometry odom_data;
-    robot_custom_msgs::msg::TofData tof_data;
-    robot_custom_msgs::msg::ApTemperature ap_temperature_data;
-
+    // Subscribers
     rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr bottom_ir_data_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::BatteryStatus>::SharedPtr battery_status_sub_;
@@ -105,21 +71,11 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr ai_version_sub_;
-    // rclcpp::Subscription<robot_custom_msgs::msg::CameraDataArray>::SharedPtr camera_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::AiTemperature>::SharedPtr ai_temperature_sub_;
     rclcpp::Subscription<robot_custom_msgs::msg::ApTemperature>::SharedPtr ap_temperature_sub_;
 
-    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
-        low_battery_error_pub_, fall_down_error_pub_,
-        battery_discharge_error_pub_,
-        charging_error_pub_, lift_error_pub_, cliff_detection_error_pub_,
-        one_d_tof_detection_error_pub_, ai_communication_error_pub_, board_overheat_error_pub_;
+    std::vector<std::shared_ptr<ErrorMonitorBase>> monitors_;
 
-    std::unordered_map<std::type_index, std::shared_ptr<void>> monitors_;
-
-    rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::TimerBase::SharedPtr memory_monitor_timer_;
-
+    rclcpp::TimerBase::SharedPtr sensor_delay_check_timer_;
 };
-
-#endif // __ERROR_MONITOR_NODE_HPP__

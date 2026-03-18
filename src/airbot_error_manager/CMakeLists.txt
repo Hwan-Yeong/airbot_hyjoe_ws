@@ -68,9 +68,17 @@ install(TARGETS error_manager_node
 ################################
 ######## ERROR_MONITOR #########
 add_executable(error_monitor_node
-  src/error_monitor/error_monitor.cpp
   src/error_monitor/error_monitor_node.cpp
   src/error_monitor/main.cpp
+  src/error_monitor/monitors/low_battery.cpp
+  src/error_monitor/monitors/battery_discharging.cpp
+  src/error_monitor/monitors/fall_down.cpp
+  src/error_monitor/monitors/board_overheat.cpp
+  src/error_monitor/monitors/charging.cpp
+  src/error_monitor/monitors/lift.cpp
+  src/error_monitor/monitors/cliff_detection.cpp
+  src/error_monitor/monitors/tof.cpp
+  src/error_monitor/monitors/ai_communication.cpp
 )
 ament_target_dependencies(error_monitor_node
   rclcpp
