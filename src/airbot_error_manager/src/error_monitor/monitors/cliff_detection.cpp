@@ -24,7 +24,8 @@ void CliffDetectionErrorMonitor::printParams() const {
 
 void CliffDetectionErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
     blackboard_ = blackboard;
-    error_pub_ = node_ptr_->create_publisher<std_msgs::msg::Bool>("error/s_code/cliff_detection", 10);
+    error_pub_ = node_ptr_->create_publisher<std_msgs::msg::Bool>(
+        "error/s_code/cliff_detection", 10);
     timer_ = node_ptr_->create_wall_timer(
         std::chrono::milliseconds(params.monitoring_rate_ms),
         [this](){ timerCallback(); }

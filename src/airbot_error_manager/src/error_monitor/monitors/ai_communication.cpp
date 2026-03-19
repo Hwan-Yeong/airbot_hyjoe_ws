@@ -24,7 +24,8 @@ void AICommunicationErrorMonitor::printParams() const {
 
 void AICommunicationErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
     blackboard_ = blackboard;
-    error_pub_ = node_ptr_->create_publisher<std_msgs::msg::Bool>("error/s_code/ai_communication", 10);
+    error_pub_ = node_ptr_->create_publisher<std_msgs::msg::Bool>(
+        "error/s_code/ai_communication", 10);
     timer_ = node_ptr_->create_wall_timer(
         std::chrono::milliseconds(params.monitoring_rate_ms),
         [this](){ timerCallback(); }
@@ -33,12 +34,20 @@ void AICommunicationErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackbo
 
 void AICommunicationErrorMonitor::timerCallback()
 {    
-    bool bVersionUpdate = blackboard_->consumeAiVersionUpdate();
-    bool bTemperatureDataUpdate = blackboard_->consumeAiTemperatureUpdate();
+    auto ai_v = blackboard_->getAiVersionData();
+    auto ai_t = blackboard_->getAiTemperatureData();
+
+    static std::chrono::steady_clock::time_point recorded_latest_time;
+    auto current_latest_time = std::max(ai_v.last_update_time, ai_t.last_update_time);
+
+    bool bUpdated = (current_latest_time > recorded_latest_time);
+    if (bUpdated) {
+        recorded_latest_time = current_latest_time;
+    }
     
     int duration_cnt = firstReceiveCheck == false ? params.duration_cnt_first : params.duration_cnt;
 
-    if (bVersionUpdate || bTemperatureDataUpdate) {
+    if (bUpdated) {
         errorState = false;
         firstReceiveCheck = true;
         monitorCnt = 0;

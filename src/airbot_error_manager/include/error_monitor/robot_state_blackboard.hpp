@@ -199,21 +199,6 @@ public:
         return ai_version_;
     }
 
-    // --- Consumers for specific boolean flags ---
-    bool consumeAiVersionUpdate() {
-        std::lock_guard<std::mutex> lock(mtx_);
-        bool ret = ai_version_.is_updated;
-        ai_version_.is_updated = false;
-        return ret;
-    }
-
-    bool consumeAiTemperatureUpdate() {
-        std::lock_guard<std::mutex> lock(mtx_);
-        bool ret = ai_temp_.is_updated;
-        ai_temp_.is_updated = false;
-        return ret;
-    }
-
 private:
     mutable std::mutex mtx_;
 

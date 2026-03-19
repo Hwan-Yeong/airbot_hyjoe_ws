@@ -13,7 +13,7 @@ public:
         int monitoring_rate_ms;
     } params;
 
-    static std::string paramNamespace() { return "low_battery_error"; }
+    const std::string paramNamespace() const override { return "low_battery_error"; }
 
     void loadParams(const std::string& ns) override;
     void printParams() const override;

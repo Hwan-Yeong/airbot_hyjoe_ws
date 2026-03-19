@@ -90,15 +90,15 @@ void ErrorMonitorNode::init()
     RCLCPP_INFO(this->get_logger(),
         "=================== ERROR MONITOR PARAMETER ==================="
     );
-    addMonitor<LowBatteryErrorMonitor>(std::make_shared<LowBatteryErrorMonitor>());
-    addMonitor<FallDownErrorMonitor>(std::make_shared<FallDownErrorMonitor>());
-    addMonitor<BoardOverheatErrorMonitor>(std::make_shared<BoardOverheatErrorMonitor>());
-    addMonitor<BatteryDischargingErrorMonitor>(std::make_shared<BatteryDischargingErrorMonitor>());
-    addMonitor<ChargingErrorMonitor>(std::make_shared<ChargingErrorMonitor>());
-    addMonitor<LiftErrorMonitor>(std::make_shared<LiftErrorMonitor>());
-    addMonitor<CliffDetectionErrorMonitor>(std::make_shared<CliffDetectionErrorMonitor>());
-    addMonitor<TofErrorMonitor>(std::make_shared<TofErrorMonitor>());
-    addMonitor<AICommunicationErrorMonitor>(std::make_shared<AICommunicationErrorMonitor>());
+    addMonitor(std::make_shared<LowBatteryErrorMonitor>());
+    addMonitor(std::make_shared<FallDownErrorMonitor>());
+    addMonitor(std::make_shared<BoardOverheatErrorMonitor>());
+    addMonitor(std::make_shared<BatteryDischargingErrorMonitor>());
+    addMonitor(std::make_shared<ChargingErrorMonitor>());
+    addMonitor(std::make_shared<LiftErrorMonitor>());
+    addMonitor(std::make_shared<CliffDetectionErrorMonitor>());
+    addMonitor(std::make_shared<TofErrorMonitor>());
+    addMonitor(std::make_shared<AICommunicationErrorMonitor>());
     RCLCPP_INFO(this->get_logger(),
         "==============================================================="
     );
