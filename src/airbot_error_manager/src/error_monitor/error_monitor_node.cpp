@@ -8,38 +8,66 @@ ErrorMonitorNode::ErrorMonitorNode()
     rclcpp::QoS qos_state_profile = rclcpp::QoS(5).reliable().durability_volatile();
     rclcpp::QoS qos_profile_ai = rclcpp::QoS(5).reliable().transient_local();
     
-    // Check parameters (Optional initVariables / setParams are left empty or removed)
-
     // Subscriber
     bottom_ir_data_sub_ = this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
-        "bottom_ir_data", 10, std::bind(&ErrorMonitorNode::bottomIrDataCallback, this, std::placeholders::_1)
+        "bottom_ir_data", rclcpp::SensorDataQoS(),
+        [this](robot_custom_msgs::msg::BottomIrData::SharedPtr msg) {
+            blackboard_->setIrData(*msg);
+        }
     );
     imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
-        "imu_data", 10, std::bind(&ErrorMonitorNode::imuCallback, this, std::placeholders::_1)
+        "imu_data", rclcpp::SensorDataQoS(), 
+        [this](sensor_msgs::msg::Imu::SharedPtr msg) {
+            blackboard_->setImuData(*msg);
+        }
     );
     battery_status_sub_ = this->create_subscription<robot_custom_msgs::msg::BatteryStatus>(
-        "/battery_status", 10, std::bind(&ErrorMonitorNode::batteryCallback, this, std::placeholders::_1)
+        "/battery_status", rclcpp::SensorDataQoS(), 
+        [this](robot_custom_msgs::msg::BatteryStatus::SharedPtr msg) {
+            blackboard_->setBatteryData(*msg);
+        }
     );
     station_data_sub_ = this->create_subscription<robot_custom_msgs::msg::StationData>(
-        "/station_data", 10, std::bind(&ErrorMonitorNode::stationDataCallback, this, std::placeholders::_1)
+        "/station_data", rclcpp::SensorDataQoS(), 
+        [this](robot_custom_msgs::msg::StationData::SharedPtr msg) {
+            blackboard_->setStationData(*msg);
+        }
     );
     robot_state_sub_ = this->create_subscription<robot_custom_msgs::msg::RobotState>(
-        "/state_datas", qos_state_profile, std::bind(&ErrorMonitorNode::robotStateCallback, this, std::placeholders::_1)
+        "/state_datas", qos_state_profile, 
+        [this](robot_custom_msgs::msg::RobotState::SharedPtr msg) {
+            blackboard_->setRobotStateData(*msg);
+        }
     );
     odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-        "/odom", 10, std::bind(&ErrorMonitorNode::odomCallback, this, std::placeholders::_1)
+        "/odom", rclcpp::SensorDataQoS(), 
+        [this](nav_msgs::msg::Odometry::SharedPtr msg) {
+            blackboard_->setOdomData(*msg);
+        }
     );
     tof_sub_ = this->create_subscription<robot_custom_msgs::msg::TofData>(
-        "/tof_data", 10, std::bind(&ErrorMonitorNode::tofCallback, this, std::placeholders::_1)
+        "/tof_data", rclcpp::SensorDataQoS(), 
+        [this](robot_custom_msgs::msg::TofData::SharedPtr msg) {
+            blackboard_->setTofData(*msg);
+        }
     );
     ai_version_sub_ = this->create_subscription<std_msgs::msg::String>(
-        "/ai_version", qos_profile_ai, std::bind(&ErrorMonitorNode::aiVerCallback, this, std::placeholders::_1)
+        "/ai_version", qos_profile_ai, 
+        [this](std_msgs::msg::String::SharedPtr msg) {
+            blackboard_->setAiVersionData(*msg);
+        }
     );
     ai_temperature_sub_ = this->create_subscription<robot_custom_msgs::msg::AiTemperature>(
-        "/aitemperature_data", 10, std::bind(&ErrorMonitorNode::aiTemperatureCallback, this, std::placeholders::_1)
+        "/aitemperature_data", rclcpp::SensorDataQoS(), 
+        [this](robot_custom_msgs::msg::AiTemperature::SharedPtr msg) {
+            blackboard_->setAiTemperatureData(*msg);
+        }
     );
     ap_temperature_sub_ = this->create_subscription<robot_custom_msgs::msg::ApTemperature>(
-        "/ap_temperature_data", 10, std::bind(&ErrorMonitorNode::apTemperatureCallback, this, std::placeholders::_1)
+        "/ap_temperature_data", rclcpp::SensorDataQoS(), 
+        [this](robot_custom_msgs::msg::ApTemperature::SharedPtr msg) {
+            blackboard_->setApTemperatureData(*msg);
+        }
     );
 
     // Timer
@@ -67,64 +95,6 @@ void ErrorMonitorNode::init()
     addMonitor<TofErrorMonitor>(std::make_shared<TofErrorMonitor>());
     addMonitor<AICommunicationErrorMonitor>(std::make_shared<AICommunicationErrorMonitor>());
     RCLCPP_INFO(this->get_logger(), "===============================================================");
-}
-
-void ErrorMonitorNode::initVariables()
-{
-}
-
-void ErrorMonitorNode::setParams()
-{
-}
-
-void ErrorMonitorNode::batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg)
-{
-    blackboard_->setBatteryData(*msg);
-}
-
-void ErrorMonitorNode::bottomIrDataCallback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg)
-{
-    blackboard_->setIrData(*msg);
-}
-
-void ErrorMonitorNode::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
-{
-    blackboard_->setImuData(*msg);
-}
-
-void ErrorMonitorNode::stationDataCallback(const robot_custom_msgs::msg::StationData::SharedPtr msg)
-{
-    blackboard_->setStationData(*msg);
-}
-
-void ErrorMonitorNode::robotStateCallback(const robot_custom_msgs::msg::RobotState::SharedPtr msg)
-{
-    blackboard_->setRobotStateData(*msg);
-}
-
-void ErrorMonitorNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg)
-{
-    blackboard_->setOdomData(*msg);
-}
-
-void ErrorMonitorNode::tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg)
-{
-    blackboard_->setTofData(*msg);
-}
-
-void ErrorMonitorNode::aiVerCallback(const std_msgs::msg::String::SharedPtr msg)
-{
-    blackboard_->setAiVersionData(*msg);
-}
-
-void ErrorMonitorNode::aiTemperatureCallback(const robot_custom_msgs::msg::AiTemperature::SharedPtr msg)
-{
-    blackboard_->setAiTemperatureData(*msg);
-}
-
-void ErrorMonitorNode::apTemperatureCallback(const robot_custom_msgs::msg::ApTemperature::SharedPtr msg)
-{
-    blackboard_->setApTemperatureData(*msg);
 }
 
 void ErrorMonitorNode::checkMemoryUsage() {

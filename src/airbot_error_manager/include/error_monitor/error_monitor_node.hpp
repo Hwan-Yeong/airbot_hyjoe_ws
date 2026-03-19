@@ -43,20 +43,6 @@ public:
     }
 
 private:
-    void initVariables();
-    void setParams();
-    
-    // Callbacks to update Blackboard
-    void bottomIrDataCallback(const robot_custom_msgs::msg::BottomIrData::SharedPtr msg);
-    void imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
-    void batteryCallback(const robot_custom_msgs::msg::BatteryStatus::SharedPtr msg);
-    void stationDataCallback(const robot_custom_msgs::msg::StationData::SharedPtr msg);
-    void robotStateCallback(const robot_custom_msgs::msg::RobotState::SharedPtr msg);
-    void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
-    void tofCallback(const robot_custom_msgs::msg::TofData::SharedPtr msg);
-    void aiVerCallback(const std_msgs::msg::String::SharedPtr msg);
-    void aiTemperatureCallback(const robot_custom_msgs::msg::AiTemperature::SharedPtr msg);
-    void apTemperatureCallback(const robot_custom_msgs::msg::ApTemperature::SharedPtr msg);
     void checkMemoryUsage();
     void checkSensorDelays();
 
