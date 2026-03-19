@@ -19,9 +19,16 @@ void BatteryDischargingErrorMonitor::loadParams(const std::string& ns) {
 
 void BatteryDischargingErrorMonitor::printParams() const {
     if (!node_ptr_) return;
-    RCLCPP_INFO(node_ptr_->get_logger(), "[%s] occure_min: %d, occure_max: %d, occure_duration: %.1f, release_th: %d, release_duration: %.1f, rate: %d",
-        paramNamespace().c_str(), params.occure_percentage_min, params.occure_percentage_max, params.occure_duration_sec,
-        params.release_percentage_th, params.release_duration_sec, params.monitoring_rate_ms);
+    RCLCPP_INFO(node_ptr_->get_logger(),
+        "[%s] occure_min: %d, occure_max: %d, occure_duration: %.1f, "
+        "release_th: %d, release_duration: %.1f, rate: %d",
+        paramNamespace().c_str(),
+        params.occure_percentage_min,
+        params.occure_percentage_max,
+        params.occure_duration_sec,
+        params.release_percentage_th,
+        params.release_duration_sec,
+        params.monitoring_rate_ms);
 }
 
 void BatteryDischargingErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
@@ -39,6 +46,12 @@ void BatteryDischargingErrorMonitor::timerCallback()
     {
         auto bat = blackboard_->getBatteryData();
         auto st = blackboard_->getStationData();
+        
+        if (checkSensorState(paramNamespace(), 10, {bat.last_update_time, st.last_update_time})
+            != SensorState::NORMAL) {
+            return;
+        }
+
         if (!bat.is_updated || !st.is_updated) return;
         input = std::make_pair(bat.data, st.data);
     }
@@ -54,12 +67,16 @@ void BatteryDischargingErrorMonitor::timerCallback()
     //발생 조건1: 충전중이 아닐때,
     if( input.second.docking_status & 0x70 ){
         if( !charge_flag ){
-            RCLCPP_INFO(node_ptr_->get_logger(), "[DischargingErrorMonitor]CHECK AMR CHARGING ==> dockingstatus[%02x] ",input.second.docking_status);
+            RCLCPP_INFO(node_ptr_->get_logger(),
+                "[DischargingErrorMonitor]CHECK AMR CHARGING ==> dockingstatus[%02x] ",
+                input.second.docking_status);
         }
         charge_flag = true;
     } else{
         if( charge_flag ){
-            RCLCPP_INFO(node_ptr_->get_logger(), "[DischargingErrorMonitor]CHECK AMR DISCHARGING==> dockingstatus[%02x] ",input.second.docking_status);
+            RCLCPP_INFO(node_ptr_->get_logger(),
+                "[DischargingErrorMonitor]CHECK AMR DISCHARGING==> dockingstatus[%02x] ",
+                input.second.docking_status);
         }
         charge_flag = false;
     }
@@ -79,12 +96,23 @@ void BatteryDischargingErrorMonitor::timerCallback()
                 if (!prev_state) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[BatteryDischargingErrorMonitor] elapsed time since error check started: %.3f\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
+                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
                         time_diff,
-                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.battery_manufacturer,
+                        input.first.remaining_capacity,
+                        static_cast<int>(input.first.battery_percent),
+                        input.first.battery_current,
+                        input.first.battery_voltage,
+                        input.first.battery_temperature1,
+                        input.first.battery_temperature2,
+                        input.first.cell_voltage1,
+                        input.first.cell_voltage2,
+                        input.first.cell_voltage3,
+                        input.first.cell_voltage4,
+                        input.first.cell_voltage5,
                         input.first.battery_version
                     );
                 }
@@ -93,11 +121,22 @@ void BatteryDischargingErrorMonitor::timerCallback()
                 if (is_first_logging) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[BatteryDischargingErrorMonitor] start to battery discharging monitor\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
+                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
-                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.battery_manufacturer,
+                        input.first.remaining_capacity,
+                        static_cast<int>(input.first.battery_percent),
+                        input.first.battery_current,
+                        input.first.battery_voltage,
+                        input.first.battery_temperature1,
+                        input.first.battery_temperature2,
+                        input.first.cell_voltage1,
+                        input.first.cell_voltage2,
+                        input.first.cell_voltage3,
+                        input.first.cell_voltage4,
+                        input.first.cell_voltage5,
                         input.first.battery_version
                     );
                     is_first_logging = false;
@@ -126,12 +165,23 @@ void BatteryDischargingErrorMonitor::timerCallback()
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[BatteryDischargingErrorMonitor] [RELEASED] battery discharging error \n"
                         "elapsed time since release check started: %.3f\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
+                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
                         release_time_diff,
-                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.battery_manufacturer,
+                        input.first.remaining_capacity,
+                        static_cast<int>(input.first.battery_percent),
+                        input.first.battery_current,
+                        input.first.battery_voltage,
+                        input.first.battery_temperature1,
+                        input.first.battery_temperature2,
+                        input.first.cell_voltage1,
+                        input.first.cell_voltage2,
+                        input.first.cell_voltage3,
+                        input.first.cell_voltage4,
+                        input.first.cell_voltage5,
                         input.first.battery_version
                     );
                 }
@@ -145,11 +195,22 @@ void BatteryDischargingErrorMonitor::timerCallback()
                     // [250407] hyjoe : battery discharging 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[BatteryDischargingErrorMonitor] [START RELEASE] battery discharging monitor\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
+                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
-                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.battery_manufacturer,
+                        input.first.remaining_capacity,
+                        static_cast<int>(input.first.battery_percent),
+                        input.first.battery_current,
+                        input.first.battery_voltage,
+                        input.first.battery_temperature1,
+                        input.first.battery_temperature2,
+                        input.first.cell_voltage1,
+                        input.first.cell_voltage2,
+                        input.first.cell_voltage3,
+                        input.first.cell_voltage4,
+                        input.first.cell_voltage5,
                         input.first.battery_version
                     );
                     is_first_logging = false;

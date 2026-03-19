@@ -17,8 +17,15 @@ void LowBatteryErrorMonitor::loadParams(const std::string& ns) {
 
 void LowBatteryErrorMonitor::printParams() const {
     if (!node_ptr_) return;
-    RCLCPP_INFO(node_ptr_->get_logger(), "[%s] occure_min: %d, occure_max: %d, release_th: %d, release_duration: %.1f, rate: %d",
-        paramNamespace().c_str(), params.occure_percentage_min, params.occure_percentage_max, params.release_percentage_th, params.release_duration_sec, params.monitoring_rate_ms);
+    RCLCPP_INFO(node_ptr_->get_logger(),
+        "[%s] occure_min: %d, occure_max: %d, release_th: %d, release_duration: %.1f, rate: %d",
+        paramNamespace().c_str(),
+        params.occure_percentage_min,
+        params.occure_percentage_max,
+        params.release_percentage_th,
+        params.release_duration_sec,
+        params.monitoring_rate_ms
+    );
 }
 
 void LowBatteryErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
@@ -36,6 +43,12 @@ void LowBatteryErrorMonitor::timerCallback()
     {
         auto bat = blackboard_->getBatteryData();
         auto st = blackboard_->getStationData();
+        
+        if (checkSensorState(paramNamespace(), 10, {bat.last_update_time, st.last_update_time})
+            != SensorState::NORMAL) {
+            return;
+        }
+
         if (!bat.is_updated || !st.is_updated) return;
         input = std::make_pair(bat.data, st.data);
     }
@@ -46,12 +59,16 @@ void LowBatteryErrorMonitor::timerCallback()
     //check off station
     if( input.second.docking_status & 0x10 ){
         if( !station_flag ){
-            RCLCPP_INFO(node_ptr_->get_logger(), "[LowBatteryErrorMonitor]CHECK AMR ON STATION ==> dockingstatus[%02x] ",input.second.docking_status);
+            RCLCPP_INFO(node_ptr_->get_logger(),
+                "[LowBatteryErrorMonitor]CHECK AMR ON STATION ==> dockingstatus[%02x] ",
+                input.second.docking_status);
         }
         station_flag = true;
     } else{
         if( station_flag ){
-            RCLCPP_INFO(node_ptr_->get_logger(), "[LowBatteryErrorMonitor]CHECK AMR OFF STATION ==> dockingstatus[%02x] ",input.second.docking_status);
+            RCLCPP_INFO(node_ptr_->get_logger(),
+                "[LowBatteryErrorMonitor]CHECK AMR OFF STATION ==> dockingstatus[%02x] ",
+                input.second.docking_status);
         }
         station_flag = false;
     }
@@ -61,18 +78,28 @@ void LowBatteryErrorMonitor::timerCallback()
     // 조건 : OFF STATION 상태, 배터리 잔여 15%이하
     if( !error_state ){ //Error 가 아닐 경우
         if( station_flag == false ){ //OFF STATION일 경우
-            if (input.first.battery_percent <= params.occure_percentage_max && input.first.battery_percent > params.occure_percentage_min) {
+            if (input.first.battery_percent <= params.occure_percentage_max &&
+                input.first.battery_percent > params.occure_percentage_min) {
                 if (!prev_state) {
-                        // [250407] hyjoe : low battery 에러 발생시 모니터 체크 시간(sec), 배터리 상태 1번만 로깅
-                        RCLCPP_INFO(node_ptr_->get_logger(),
+                    // [250407] hyjoe : low battery 에러 발생시 모니터 체크 시간(sec), 배터리 상태 1번만 로깅
+                    RCLCPP_INFO(node_ptr_->get_logger(),
                         "[LowBatteryErrorMonitor] OCCUR LOW BATTERY ERROR!!!\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
+                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
-                        
                         input.first.battery_manufacturer,
-                        input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.remaining_capacity,
+                        static_cast<int>(input.first.battery_percent),
+                        input.first.battery_current,
+                        input.first.battery_voltage,
+                        input.first.battery_temperature1,
+                        input.first.battery_temperature2,
+                        input.first.cell_voltage1,
+                        input.first.cell_voltage2,
+                        input.first.cell_voltage3,
+                        input.first.cell_voltage4,
+                        input.first.cell_voltage5,
                         input.first.battery_version
                     );
                 }
@@ -94,12 +121,23 @@ void LowBatteryErrorMonitor::timerCallback()
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[LowBatteryErrorMonitor] [RELEASED] Low Battery error \n"
                         "elapsed time since release check started: %.3f\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
+                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
                         release_time_diff,
-                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.battery_manufacturer,
+                        input.first.remaining_capacity,
+                        static_cast<int>(input.first.battery_percent),
+                        input.first.battery_current,
+                        input.first.battery_voltage,
+                        input.first.battery_temperature1,
+                        input.first.battery_temperature2,
+                        input.first.cell_voltage1,
+                        input.first.cell_voltage2,
+                        input.first.cell_voltage3,
+                        input.first.cell_voltage4,
+                        input.first.cell_voltage5,
                         input.first.battery_version
                     );
                 }
@@ -113,11 +151,22 @@ void LowBatteryErrorMonitor::timerCallback()
                     // [250407] hyjoe : low battery 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[LowBatteryErrorMonitor] [START RELEASE] low battery monitor\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
+                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
-                        input.first.battery_manufacturer, input.first.remaining_capacity, static_cast<int>(input.first.battery_percent), input.first.battery_current, input.first.battery_voltage, input.first.battery_temperature1, input.first.battery_temperature2,
-                        input.first.cell_voltage1, input.first.cell_voltage2, input.first.cell_voltage3, input.first.cell_voltage4, input.first.cell_voltage5,
+                        input.first.battery_manufacturer,
+                        input.first.remaining_capacity,
+                        static_cast<int>(input.first.battery_percent),
+                        input.first.battery_current,
+                        input.first.battery_voltage,
+                        input.first.battery_temperature1,
+                        input.first.battery_temperature2,
+                        input.first.cell_voltage1,
+                        input.first.cell_voltage2,
+                        input.first.cell_voltage3,
+                        input.first.cell_voltage4,
+                        input.first.cell_voltage5,
                         input.first.battery_version
                     );
                     is_first_logging = false;

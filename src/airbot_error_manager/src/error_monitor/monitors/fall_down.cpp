@@ -17,8 +17,15 @@ void FallDownErrorMonitor::loadParams(const std::string& ns) {
 
 void FallDownErrorMonitor::printParams() const {
     if (!node_ptr_) return;
-    RCLCPP_INFO(node_ptr_->get_logger(), "[%s] drop_ir_adc: %d, ir_cnt_min: %d, imu_roll_th: %.1f, imu_pitch_th: %.1f, rate: %d",
-        paramNamespace().c_str(), params.drop_ir_adc_th, params.drop_ir_cnt_min, params.imu_roll_th, params.imu_pitch_th, params.monitoring_rate_ms);
+    RCLCPP_INFO(node_ptr_->get_logger(),
+        "[%s] drop_ir_adc: %d, ir_cnt_min: %d, imu_roll_th: %.1f, imu_pitch_th: %.1f, rate: %d",
+        paramNamespace().c_str(),
+        params.drop_ir_adc_th,
+        params.drop_ir_cnt_min,
+        params.imu_roll_th,
+        params.imu_pitch_th,
+        params.monitoring_rate_ms
+    );
 }
 
 void FallDownErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
@@ -36,6 +43,12 @@ void FallDownErrorMonitor::timerCallback()
     {
         auto ir = blackboard_->getIrData();
         auto imu = blackboard_->getImuData();
+        
+        if (checkSensorState(paramNamespace(), 10, {ir.last_update_time, imu.last_update_time})
+            != SensorState::NORMAL) {
+            return;
+        }
+
         if (!ir.is_updated || !imu.is_updated) return;
         input = std::make_pair(ir.data, imu.data);
     }
@@ -95,8 +108,15 @@ void FallDownErrorMonitor::timerCallback()
     if (abs(deg_roll - baseline_roll_deg) >= 10.0 || abs(deg_pitch - baseline_pitch_deg) >= 10.0) {
         double duration = clock.now().seconds() - baseline_time;
         RCLCPP_INFO(node_ptr_->get_logger(),
-            "[FallDownErrorMonitor] Pitch/Roll Changed more than 10 degress! Previous [pitch : %.3f deg, roll : %.3f deg], Current [pitch : %.3f deg, roll : %.3f deg], angle_change_elapsed_time: %.2f sec",
-            baseline_pitch_deg, baseline_roll_deg, deg_pitch, deg_roll, duration
+            "[FallDownErrorMonitor] Pitch/Roll Changed more than 10 degress! "
+            "Previous [pitch : %.3f deg, roll : %.3f deg], "
+            "Current [pitch : %.3f deg, roll : %.3f deg], "
+            "angle_change_elapsed_time: %.2f sec",
+            baseline_pitch_deg,
+            baseline_roll_deg,
+            deg_pitch,
+            deg_roll,
+            duration
         );
         baseline_pitch_deg = deg_pitch;
         baseline_roll_deg = deg_roll;
@@ -111,8 +131,16 @@ void FallDownErrorMonitor::timerCallback()
         if(!prev_status){
             // [250407] hyjoe : 전도 에러 발생시 낙하IR상태, roll, pitch 정보 1번만 로깅
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[FallDownErrorMonitor] Occured (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) (adc_bb : %d) (adc_bl : %d) (adc_br : %d)  (pitch : %.3f deg) (roll : %.3f deg)",
-                input.first.adc_ff, input.first.adc_fr, input.first.adc_fr, input.first.adc_bb, input.first.adc_bl, input.first.adc_br, deg_pitch, deg_roll
+                "[FallDownErrorMonitor] Occured (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) "
+                "(adc_bb : %d) (adc_bl : %d) (adc_br : %d)  (pitch : %.3f deg) (roll : %.3f deg)",
+                input.first.adc_ff,
+                input.first.adc_fr,
+                input.first.adc_fr,
+                input.first.adc_bb,
+                input.first.adc_bl,
+                input.first.adc_br,
+                deg_pitch,
+                deg_roll
             );
             prev_status=true;
         }
@@ -124,8 +152,16 @@ void FallDownErrorMonitor::timerCallback()
         if(prev_status){
             // [250407] hyjoe : 전도 에러 발생 한적이 있었던 경우, 해제시 1번만 낙하IR상태, roll, pitch 정보 1번만 로깅
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[FallDownErrorMonitor] Released (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) (adc_bf : %d) (adc_bl : %d) (adc_br : %d)  (pitch : %.3f deg) (roll : %.3f deg)",
-                input.first.adc_ff, input.first.adc_fr, input.first.adc_fr, input.first.adc_bb, input.first.adc_bl, input.first.adc_br, deg_pitch, deg_roll
+                "[FallDownErrorMonitor] Released (adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) "
+                "(adc_bb : %d) (adc_bl : %d) (adc_br : %d)  (pitch : %.3f deg) (roll : %.3f deg)",
+                input.first.adc_ff,
+                input.first.adc_fr,
+                input.first.adc_fr,
+                input.first.adc_bb,
+                input.first.adc_bl,
+                input.first.adc_br,
+                deg_pitch,
+                deg_roll
             );
             prev_status = false;
             baseline_pitch_deg = deg_pitch;

@@ -44,7 +44,6 @@ public:
 
 private:
     void checkMemoryUsage();
-    void checkSensorDelays();
 
     std::shared_ptr<RobotStateBlackboard> blackboard_;
 
@@ -63,5 +62,4 @@ private:
     std::vector<std::shared_ptr<ErrorMonitorBase>> monitors_;
 
     rclcpp::TimerBase::SharedPtr memory_monitor_timer_;
-    rclcpp::TimerBase::SharedPtr sensor_delay_check_timer_;
 };

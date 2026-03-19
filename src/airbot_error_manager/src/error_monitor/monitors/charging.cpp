@@ -15,8 +15,13 @@ void ChargingErrorMonitor::loadParams(const std::string& ns) {
 
 void ChargingErrorMonitor::printParams() const {
     if (!node_ptr_) return;
-    RCLCPP_INFO(node_ptr_->get_logger(), "[%s] percentage_min_th: %d, percentage_max_th: %d, duration_sec: %.1f, rate: %d",
-        paramNamespace().c_str(), params.percentage_min_th, params.percentage_max_th, params.duration_sec, params.monitoring_rate_ms);
+    RCLCPP_INFO(node_ptr_->get_logger(),
+        "[%s] percentage_min_th: %d, percentage_max_th: %d, duration_sec: %.1f, rate: %d",
+        paramNamespace().c_str(),
+        params.percentage_min_th,
+        params.percentage_max_th,
+        params.duration_sec,
+        params.monitoring_rate_ms);
 }
 
 void ChargingErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
@@ -34,9 +39,15 @@ void ChargingErrorMonitor::timerCallback()
     {
         auto bat = blackboard_->getBatteryData();
         auto st = blackboard_->getStationData();
-        auto rs = blackboard_->getRobotStateData();
-        if (!bat.is_updated || !st.is_updated || !rs.is_updated) return;
-        input = std::make_tuple(bat.data, st.data, rs.data);
+        
+        if (checkSensorState(paramNamespace(), 10, {bat.last_update_time, st.last_update_time})
+            != SensorState::NORMAL) {
+            return;
+        }
+
+        auto state = blackboard_->getRobotStateData();
+        if (!bat.is_updated || !st.is_updated || !state.is_updated) return;
+        input = std::make_tuple(bat.data, st.data, state.data);
     }
     /*
         < 충전 에러 검사 >
@@ -64,12 +75,23 @@ void ChargingErrorMonitor::timerCallback()
         RCLCPP_INFO(
             node_ptr_->get_logger(),
             "[ChargingErrorMonitor] Docking status: 0x%02X\n"
-            "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+            "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
+            "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
             "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
             "Battery Version: 0x%02X",
             station.docking_status,
-            battery.battery_manufacturer, battery.remaining_capacity, static_cast<int>(battery.battery_percent), battery.battery_current, battery.battery_voltage, battery.battery_temperature1, battery.battery_temperature2,
-            battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5,
+            battery.battery_manufacturer,
+            battery.remaining_capacity,
+            static_cast<int>(battery.battery_percent),
+            battery.battery_current,
+            battery.battery_voltage,
+            battery.battery_temperature1,
+            battery.battery_temperature2,
+            battery.cell_voltage1,
+            battery.cell_voltage2,
+            battery.cell_voltage3,
+            battery.cell_voltage4,
+            battery.cell_voltage5,
             battery.battery_version
         );
         prevChargePercentage = currentChargePercentage;
@@ -95,12 +117,23 @@ void ChargingErrorMonitor::timerCallback()
                 RCLCPP_INFO(
                     node_ptr_->get_logger(),
                     "[ChargingErrorMonitor] Docking status: 0x%02X\n"
-                    "[ChargingErrorMonitor] Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                    "[ChargingErrorMonitor] Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] /"
+                    "Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                     "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                     "Battery Version: 0x%02X",
                     station.docking_status,
-                    battery.battery_manufacturer, battery.remaining_capacity, static_cast<int>(battery.battery_percent), battery.battery_current, battery.battery_voltage, battery.battery_temperature1, battery.battery_temperature2,
-                    battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5,
+                    battery.battery_manufacturer,
+                    battery.remaining_capacity,
+                    static_cast<int>(battery.battery_percent),
+                    battery.battery_current,
+                    battery.battery_voltage,
+                    battery.battery_temperature1,
+                    battery.battery_temperature2,
+                    battery.cell_voltage1,
+                    battery.cell_voltage2,
+                    battery.cell_voltage3,
+                    battery.cell_voltage4,
+                    battery.cell_voltage5,
                     battery.battery_version
                 );
             }
@@ -112,12 +145,23 @@ void ChargingErrorMonitor::timerCallback()
                     RCLCPP_INFO(
                         node_ptr_->get_logger(),
                         "[ChargingErrorMonitor] Docking status: 0x%02X\n"
-                        "Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Manufacturer:[%d] / Remaining capacity:[%d mAh] /"
+                        "Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
                         station.docking_status,
-                        battery.battery_manufacturer, battery.remaining_capacity, static_cast<int>(battery.battery_percent), battery.battery_current, battery.battery_voltage, battery.battery_temperature1, battery.battery_temperature2,
-                        battery.cell_voltage1, battery.cell_voltage2, battery.cell_voltage3, battery.cell_voltage4, battery.cell_voltage5,
+                        battery.battery_manufacturer,
+                        battery.remaining_capacity,
+                        static_cast<int>(battery.battery_percent),
+                        battery.battery_current,
+                        battery.battery_voltage,
+                        battery.battery_temperature1,
+                        battery.battery_temperature2,
+                        battery.cell_voltage1,
+                        battery.cell_voltage2,
+                        battery.cell_voltage3,
+                        battery.cell_voltage4,
+                        battery.cell_voltage5,
                         battery.battery_version
                     );
                     RCLCPP_INFO(node_ptr_->get_logger(),

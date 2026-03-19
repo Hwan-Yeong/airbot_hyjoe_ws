@@ -13,8 +13,13 @@ void BoardOverheatErrorMonitor::loadParams(const std::string& ns) {
 
 void BoardOverheatErrorMonitor::printParams() const {
     if (!node_ptr_) return;
-    RCLCPP_INFO(node_ptr_->get_logger(), "[%s] temperature_th: %.1f, duration_sec: %.1f, rate: %d",
-        paramNamespace().c_str(), params.temperature_th, params.duration_sec, params.monitoring_rate_ms);
+    RCLCPP_INFO(node_ptr_->get_logger(),
+        "[%s] temperature_th: %.1f, duration_sec: %.1f, rate: %d",
+        paramNamespace().c_str(),
+        params.temperature_th,
+        params.duration_sec,
+        params.monitoring_rate_ms
+    );
 }
 
 void BoardOverheatErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
@@ -31,6 +36,12 @@ void BoardOverheatErrorMonitor::timerCallback()
     robot_custom_msgs::msg::ApTemperature input;
     {
         auto ap = blackboard_->getApTemperatureData();
+        
+        if (checkSensorState(paramNamespace(), 100, {ap.last_update_time})
+            != SensorState::NORMAL) {
+            return;
+        }
+
         if (!ap.is_updated) return;
         input = ap.data;
     }
@@ -58,8 +69,11 @@ void BoardOverheatErrorMonitor::timerCallback()
                 // 온도가 처음으로 threshold 넘었을 때 시간 체크 시작.
                 overheat_occured_times_[zone_name] = clock.now().seconds();
                 RCLCPP_WARN(node_ptr_->get_logger(),
-                            "[BoardOverheat] Warning: [%s] / Temp [%.1f]°C > threshold [%.1f]°C. Starting %.0fs timer.",
-                            zone_name.c_str(), temp_value, params.temperature_th, params.duration_sec);
+                    "[BoardOverheat] Warning: [%s] / Temp [%.1f]°C > threshold [%.1f]°C. Starting %.0fs timer.",
+                    zone_name.c_str(),
+                    temp_value,
+                    params.temperature_th,
+                    params.duration_sec);
             } else {
                 // threshold 넘은 상태가 30초 이상 지속되었는지 확인.
                 if (clock.now().seconds() - it->second >= params.duration_sec) {
@@ -67,8 +81,11 @@ void BoardOverheatErrorMonitor::timerCallback()
 
                     if( static_cast<int>(clock.now().seconds() - it->second) % 31 == 0){ 
                         RCLCPP_WARN(node_ptr_->get_logger(),
-                        "[BoardOverheat] Error: [%s] / Temp [%.1f]°C > threshold [%.1f]°C. Over Time %.0fs.",
-                        zone_name.c_str(), temp_value, params.temperature_th, clock.now().seconds() - it->second);
+                            "[BoardOverheat] Error: [%s] / Temp [%.1f]°C > threshold [%.1f]°C. Over Time %.0fs.",
+                            zone_name.c_str(),
+                            temp_value,
+                            params.temperature_th,
+                            clock.now().seconds() - it->second);
                     }
                 }
             }
@@ -85,8 +102,10 @@ void BoardOverheatErrorMonitor::timerCallback()
                         overheat_occured_times_.erase(zone_name);
                         overheat_release_start_times_.erase(zone_name);
                         RCLCPP_WARN(node_ptr_->get_logger(),
-                                    "[BoardOverheat] Release: [%s] / Temp [%.1f]°C < threshold [%.1f]°C for 5 seconds.",
-                                    zone_name.c_str(), temp_value, params.temperature_th);
+                            "[BoardOverheat] Release: [%s] / Temp [%.1f]°C < threshold [%.1f]°C for 5 seconds.",
+                            zone_name.c_str(),
+                            temp_value,
+                            params.temperature_th);
                     }
                 }
             }
