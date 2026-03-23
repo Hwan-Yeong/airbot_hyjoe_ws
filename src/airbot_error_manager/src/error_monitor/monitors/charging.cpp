@@ -1,16 +1,22 @@
 #include "error_monitor/monitors/charging.hpp"
 
-void ChargingErrorMonitor::loadParams(const std::string& ns) {
+void ChargingErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
-    node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_min", 1);
-    node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_max", 80);
-    node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 1200.0);
-    node_ptr_->declare_parameter<int>(ns + ".monitoring_rate_ms", 1000);
 
-    node_ptr_->get_parameter(ns + ".occure.battery_percentage_min", params.percentage_min_th);
-    node_ptr_->get_parameter(ns + ".occure.battery_percentage_max", params.percentage_max_th);
-    node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
-    node_ptr_->get_parameter(ns + ".monitoring_rate_ms", params.monitoring_rate_ms);
+    // Default values matched with yaml for fallback
+    params.percentage_min_th = 1;
+    params.percentage_max_th = 60;
+    params.duration_sec = 1200.0;
+    params.monitoring_rate_ms = 1000;
+
+    if (config["occure"]) {
+        if (config["occure"]["battery_percentage_min_th"]) params.percentage_min_th = config["occure"]["battery_percentage_min_th"].as<int>();
+        else if (config["occure"]["battery_percentage_min"]) params.percentage_min_th = config["occure"]["battery_percentage_min"].as<int>();
+        if (config["occure"]["battery_percentage_max_th"]) params.percentage_max_th = config["occure"]["battery_percentage_max_th"].as<int>();
+        else if (config["occure"]["battery_percentage_max"]) params.percentage_max_th = config["occure"]["battery_percentage_max"].as<int>();
+        if (config["occure"]["duration_sec"]) params.duration_sec = config["occure"]["duration_sec"].as<double>();
+    }
+    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
 }
 
 void ChargingErrorMonitor::printParams() const {

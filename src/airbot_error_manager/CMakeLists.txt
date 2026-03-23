@@ -20,6 +20,7 @@ find_package(robot_custom_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 
 include_directories(
   include
@@ -89,7 +90,9 @@ ament_target_dependencies(error_monitor_node
   tf2
   tf2_ros
   nav_msgs
+  ament_index_cpp
 )
+target_link_libraries(error_monitor_node ${YAML_CPP_LIBRARIES})
 install(TARGETS error_monitor_node
   DESTINATION lib/${PROJECT_NAME}
 )

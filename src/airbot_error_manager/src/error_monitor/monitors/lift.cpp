@@ -1,18 +1,22 @@
 #include "error_monitor/monitors/lift.hpp"
 
-void LiftErrorMonitor::loadParams(const std::string& ns) {
+void LiftErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
-    node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_adc_th", 900);
-    node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_cnt_min", 4);
-    node_ptr_->declare_parameter<double>(ns + ".occure.imu_z_acc_low_th", 9.2);
-    node_ptr_->declare_parameter<double>(ns + ".occure.imu_z_acc_hight_th", 10.5);
-    node_ptr_->declare_parameter<int>(ns + ".monitoring_rate_ms", 10);
 
-    node_ptr_->get_parameter(ns + ".occure.drop_ir_adc_th", params.drop_ir_adc_th);
-    node_ptr_->get_parameter(ns + ".occure.drop_ir_cnt_min", params.drop_ir_cnt_min);
-    node_ptr_->get_parameter(ns + ".occure.imu_z_acc_low_th", params.imu_z_acc_low_th);
-    node_ptr_->get_parameter(ns + ".occure.imu_z_acc_hight_th", params.imu_z_acc_hight_th);
-    node_ptr_->get_parameter(ns + ".monitoring_rate_ms", params.monitoring_rate_ms);
+    // Default values
+    params.drop_ir_adc_th = 900;
+    params.drop_ir_cnt_min = 4;
+    params.imu_z_acc_low_th = 9.2;
+    params.imu_z_acc_hight_th = 10.5;
+    params.monitoring_rate_ms = 10;
+
+    if (config["occure"]) {
+        if (config["occure"]["drop_ir_adc_th"]) params.drop_ir_adc_th = config["occure"]["drop_ir_adc_th"].as<int>();
+        if (config["occure"]["drop_ir_cnt_min"]) params.drop_ir_cnt_min = config["occure"]["drop_ir_cnt_min"].as<int>();
+        if (config["occure"]["imu_z_acc_low_th"]) params.imu_z_acc_low_th = config["occure"]["imu_z_acc_low_th"].as<double>();
+        if (config["occure"]["imu_z_acc_hight_th"]) params.imu_z_acc_hight_th = config["occure"]["imu_z_acc_hight_th"].as<double>();
+    }
+    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
 }
 
 void LiftErrorMonitor::printParams() const {

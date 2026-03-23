@@ -1,3 +1,4 @@
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include "error_monitor/error_monitor_node.hpp"
 
 ErrorMonitorNode::ErrorMonitorNode()
@@ -87,18 +88,27 @@ ErrorMonitorNode::~ErrorMonitorNode()
 
 void ErrorMonitorNode::init()
 {
+    YAML::Node config;
+    try {
+        std::string package_share_directory = ament_index_cpp::get_package_share_directory("airbot_error_manager");
+        std::string full_path = package_share_directory + "/config/error_manager_params.yaml";
+        config = YAML::LoadFile(full_path)["airbot_error_monitor"]["ros__parameters"];
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to load error_manager_params.yaml: %s", e.what());
+    }
+
     RCLCPP_INFO(this->get_logger(),
         "=================== ERROR MONITOR PARAMETER ==================="
     );
-    addMonitor(std::make_shared<LowBatteryErrorMonitor>());
-    addMonitor(std::make_shared<FallDownErrorMonitor>());
-    addMonitor(std::make_shared<BoardOverheatErrorMonitor>());
-    addMonitor(std::make_shared<BatteryDischargingErrorMonitor>());
-    addMonitor(std::make_shared<ChargingErrorMonitor>());
-    addMonitor(std::make_shared<LiftErrorMonitor>());
-    addMonitor(std::make_shared<CliffDetectionErrorMonitor>());
-    addMonitor(std::make_shared<TofErrorMonitor>());
-    addMonitor(std::make_shared<AICommunicationErrorMonitor>());
+    addMonitor(std::make_shared<LowBatteryErrorMonitor>(), config);
+    addMonitor(std::make_shared<FallDownErrorMonitor>(), config);
+    addMonitor(std::make_shared<BoardOverheatErrorMonitor>(), config);
+    addMonitor(std::make_shared<BatteryDischargingErrorMonitor>(), config);
+    addMonitor(std::make_shared<ChargingErrorMonitor>(), config);
+    addMonitor(std::make_shared<LiftErrorMonitor>(), config);
+    addMonitor(std::make_shared<CliffDetectionErrorMonitor>(), config);
+    addMonitor(std::make_shared<TofErrorMonitor>(), config);
+    addMonitor(std::make_shared<AICommunicationErrorMonitor>(), config);
     RCLCPP_INFO(this->get_logger(),
         "==============================================================="
     );

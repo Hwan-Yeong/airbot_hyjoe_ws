@@ -1,16 +1,20 @@
 #include "error_monitor/monitors/tof.hpp"
 
-void TofErrorMonitor::loadParams(const std::string& ns) {
+void TofErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
-    node_ptr_->declare_parameter<double>(ns + ".occure.one_d_min_dist_m", 0.01);
-    node_ptr_->declare_parameter<double>(ns + ".occure.one_d_max_dist_m", 0.04);
-    node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 60.0);
-    node_ptr_->declare_parameter<int>(ns + ".monitoring_rate_ms", 100);
 
-    node_ptr_->get_parameter(ns + ".occure.one_d_min_dist_m", params.one_d_min_dist_m);
-    node_ptr_->get_parameter(ns + ".occure.one_d_max_dist_m", params.one_d_max_dist_m);
-    node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
-    node_ptr_->get_parameter(ns + ".monitoring_rate_ms", params.monitoring_rate_ms);
+    // Default values matched with yaml for fallback
+    params.one_d_min_dist_m = 0.03;
+    params.one_d_max_dist_m = 0.13;
+    params.duration_sec = 60.0;
+    params.monitoring_rate_ms = 50;
+
+    if (config["occure"]) {
+        if (config["occure"]["one_d_min_dist_m"]) params.one_d_min_dist_m = config["occure"]["one_d_min_dist_m"].as<double>();
+        if (config["occure"]["one_d_max_dist_m"]) params.one_d_max_dist_m = config["occure"]["one_d_max_dist_m"].as<double>();
+        if (config["occure"]["duration_sec"]) params.duration_sec = config["occure"]["duration_sec"].as<double>();
+    }
+    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
 }
 
 void TofErrorMonitor::printParams() const {

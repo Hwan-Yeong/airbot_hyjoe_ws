@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include <fstream>
+#include <yaml-cpp/yaml.h>
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -52,16 +53,23 @@ public:
      * 
      * This function utilizes dynamic polymorphism to seamlessly hook up the monitor 
      * to the ROS 2 ecosystem. It automatically feeds the node pointer to the monitor, 
-     * commands it to load its specific configuration parameters from the YAML file 
-     * (using the monitor's declared namespace), prints those parameters to the console, 
-     * and formally starts the monitor's internal callback loop.
+     * commands it to load its specific configuration parameters from the given YAML section, 
+     * prints those parameters to the console, and formally starts the monitor's internal callback loop.
      * 
      * @param monitor A shared pointer containing any monitor class that securely inherits 
      *                from `ErrorMonitorBase`.
+     * @param config The entire parsed YAML Node for the monitors to use.
      */
-    void addMonitor(std::shared_ptr<ErrorMonitorBase> monitor) {
+    void addMonitor(std::shared_ptr<ErrorMonitorBase> monitor, const YAML::Node& config) {
         monitor->setNode(this);
-        monitor->loadParams(monitor->paramNamespace());
+        std::string ns = monitor->paramNamespace();
+        if (config && config[ns]) {
+            monitor->loadParams(config[ns]);
+        } else {
+            RCLCPP_WARN(this->get_logger(), "No YAML config found for monitor: %s, using defaults", ns.c_str());
+            YAML::Node empty_node; 
+            monitor->loadParams(empty_node);
+        }
         monitor->printParams();
         monitor->startMonitor(blackboard_);
         monitors_.push_back(monitor);

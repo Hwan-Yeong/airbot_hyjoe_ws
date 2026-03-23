@@ -14,7 +14,7 @@ public:
 
     const std::string paramNamespace() const override { return "board_overheat_error"; }
 
-    void loadParams(const std::string& ns) override;
+    void loadParams(const YAML::Node& config) override;
     void printParams() const override;
     void startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) override;
 

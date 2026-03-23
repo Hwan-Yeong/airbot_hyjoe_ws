@@ -1,14 +1,19 @@
 #include "error_monitor/monitors/ai_communication.hpp"
 
-void AICommunicationErrorMonitor::loadParams(const std::string& ns) {
+void AICommunicationErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
-    node_ptr_->declare_parameter<int>(ns + ".occure.duration_cnt", 10);
-    node_ptr_->declare_parameter<int>(ns + ".occure.duration_cnt_first", 120);
-    node_ptr_->declare_parameter<int>(ns + ".monitoring_rate_ms", 1000);
 
-    node_ptr_->get_parameter(ns + ".occure.duration_cnt", params.duration_cnt);
-    node_ptr_->get_parameter(ns + ".occure.duration_cnt_first", params.duration_cnt_first);
-    node_ptr_->get_parameter(ns + ".monitoring_rate_ms", params.monitoring_rate_ms);
+    // Default values matched with yaml for fallback
+    params.duration_cnt = 10;
+    params.duration_cnt_first = 180;
+    params.monitoring_rate_ms = 1000;
+
+    if (config["occure"]) {
+        if (config["occure"]["duration_cnt"]) params.duration_cnt = config["occure"]["duration_cnt"].as<int>();
+        if (config["occure"]["duration_cnt_first_sec"]) params.duration_cnt_first = config["occure"]["duration_cnt_first_sec"].as<int>();
+        else if (config["occure"]["duration_cnt_first"]) params.duration_cnt_first = config["occure"]["duration_cnt_first"].as<int>(); // fallback
+    }
+    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
 }
 
 void AICommunicationErrorMonitor::printParams() const {

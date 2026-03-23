@@ -5,6 +5,7 @@
 #include <initializer_list>
 #include <algorithm>
 #include <chrono>
+#include <yaml-cpp/yaml.h>
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "error_monitor/robot_state_blackboard.hpp"
@@ -51,9 +52,9 @@ public:
 
     /**
      * @brief Fetches necessary algorithm parameters from the ROS parameter server.
-     * @param ns The namespace provided by `paramNamespace()`.
+     * @param config A YAML::Node object containing the parameters for this monitor.
      */
-    virtual void loadParams(const std::string& ns) = 0;
+    virtual void loadParams(const YAML::Node& config) = 0;
 
     /**
      * @brief Prints the loaded parameters to the console for initialization verification.

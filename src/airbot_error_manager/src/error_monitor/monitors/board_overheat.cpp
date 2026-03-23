@@ -1,14 +1,19 @@
 #include "error_monitor/monitors/board_overheat.hpp"
 
-void BoardOverheatErrorMonitor::loadParams(const std::string& ns) {
+void BoardOverheatErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
-    node_ptr_->declare_parameter<double>(ns + ".occure.temperature_th", 75.0);
-    node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 60.0);
-    node_ptr_->declare_parameter<int>(ns + ".monitoring_rate_ms", 1000);
+    
+    // Default values matched with yaml for fallback
+    params.temperature_th = 85.0;
+    params.duration_sec = 30.0;
+    params.monitoring_rate_ms = 1000;
 
-    node_ptr_->get_parameter(ns + ".occure.temperature_th", params.temperature_th);
-    node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
-    node_ptr_->get_parameter(ns + ".monitoring_rate_ms", params.monitoring_rate_ms);
+    if (config["occure"]) {
+        if (config["occure"]["temperature_th_c"]) params.temperature_th = config["occure"]["temperature_th_c"].as<double>();
+        else if (config["occure"]["temperature_th"]) params.temperature_th = config["occure"]["temperature_th"].as<double>(); // Fallback to old name just in case
+        if (config["occure"]["duration_sec"]) params.duration_sec = config["occure"]["duration_sec"].as<double>();
+    }
+    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
 }
 
 void BoardOverheatErrorMonitor::printParams() const {

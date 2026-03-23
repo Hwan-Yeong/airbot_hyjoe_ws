@@ -1,14 +1,19 @@
 #include "error_monitor/monitors/cliff_detection.hpp"
 
-void CliffDetectionErrorMonitor::loadParams(const std::string& ns) {
+void CliffDetectionErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
-    node_ptr_->declare_parameter<double>(ns + ".occure.accum_dist_th", 0.3);
-    node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 3.0);
-    node_ptr_->declare_parameter<int>(ns + ".monitoring_rate_ms", 100);
 
-    node_ptr_->get_parameter(ns + ".occure.accum_dist_th", params.accum_dist_th);
-    node_ptr_->get_parameter(ns + ".occure.duration_sec", params.duration_sec);
-    node_ptr_->get_parameter(ns + ".monitoring_rate_ms", params.monitoring_rate_ms);
+    // Default values matched with yaml for fallback
+    params.accum_dist_th = 0.3;
+    params.duration_sec = 3.0;
+    params.monitoring_rate_ms = 10;
+
+    if (config["occure"]) {
+        if (config["occure"]["accum_dist_th_m"]) params.accum_dist_th = config["occure"]["accum_dist_th_m"].as<double>();
+        else if (config["occure"]["accum_dist_th"]) params.accum_dist_th = config["occure"]["accum_dist_th"].as<double>(); // fallback
+        if (config["occure"]["duration_sec"]) params.duration_sec = config["occure"]["duration_sec"].as<double>();
+    }
+    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
 }
 
 void CliffDetectionErrorMonitor::printParams() const {

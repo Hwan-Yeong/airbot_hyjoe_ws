@@ -1,18 +1,22 @@
 #include "error_monitor/monitors/fall_down.hpp"
 
-void FallDownErrorMonitor::loadParams(const std::string& ns) {
+void FallDownErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
-    node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_adc_th", 900);
-    node_ptr_->declare_parameter<int>(ns + ".occure.drop_ir_cnt_min", 4);
-    node_ptr_->declare_parameter<double>(ns + ".occure.imu_roll_th_deg", 60.0);
-    node_ptr_->declare_parameter<double>(ns + ".occure.imu_pitch_th_deg", 60.0);
-    node_ptr_->declare_parameter<int>(ns + ".monitoring_rate_ms", 1000);
+    
+    // Default values
+    params.drop_ir_adc_th = 900;
+    params.drop_ir_cnt_min = 4;
+    params.imu_roll_th = 60.0;
+    params.imu_pitch_th = 60.0;
+    params.monitoring_rate_ms = 1000;
 
-    node_ptr_->get_parameter(ns + ".occure.drop_ir_adc_th", params.drop_ir_adc_th);
-    node_ptr_->get_parameter(ns + ".occure.drop_ir_cnt_min", params.drop_ir_cnt_min);
-    node_ptr_->get_parameter(ns + ".occure.imu_roll_th_deg", params.imu_roll_th);
-    node_ptr_->get_parameter(ns + ".occure.imu_pitch_th_deg", params.imu_pitch_th);
-    node_ptr_->get_parameter(ns + ".monitoring_rate_ms", params.monitoring_rate_ms);
+    if (config["occure"]) {
+        if (config["occure"]["drop_ir_adc_th"]) params.drop_ir_adc_th = config["occure"]["drop_ir_adc_th"].as<int>();
+        if (config["occure"]["drop_ir_cnt_min"]) params.drop_ir_cnt_min = config["occure"]["drop_ir_cnt_min"].as<int>();
+        if (config["occure"]["imu_roll_th_deg"]) params.imu_roll_th = config["occure"]["imu_roll_th_deg"].as<double>();
+        if (config["occure"]["imu_pitch_th_deg"]) params.imu_pitch_th = config["occure"]["imu_pitch_th_deg"].as<double>();
+    }
+    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
 }
 
 void FallDownErrorMonitor::printParams() const {

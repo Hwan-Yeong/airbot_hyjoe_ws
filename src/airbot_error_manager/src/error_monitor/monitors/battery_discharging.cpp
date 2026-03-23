@@ -1,20 +1,26 @@
 #include "error_monitor/monitors/battery_discharging.hpp"
 
-void BatteryDischargingErrorMonitor::loadParams(const std::string& ns) {
+void BatteryDischargingErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
-    node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_min", 0);
-    node_ptr_->declare_parameter<int>(ns + ".occure.battery_percentage_max", 5);
-    node_ptr_->declare_parameter<double>(ns + ".occure.duration_sec", 10.0);
-    node_ptr_->declare_parameter<int>(ns + ".release.battery_percentage_th", 10);
-    node_ptr_->declare_parameter<double>(ns + ".release.duration_sec", 30.0);
-    node_ptr_->declare_parameter<int>(ns + ".monitoring_rate_ms", 1000);
 
-    node_ptr_->get_parameter(ns + ".occure.battery_percentage_min", params.occure_percentage_min);
-    node_ptr_->get_parameter(ns + ".occure.battery_percentage_max", params.occure_percentage_max);
-    node_ptr_->get_parameter(ns + ".occure.duration_sec", params.occure_duration_sec);
-    node_ptr_->get_parameter(ns + ".release.battery_percentage_th", params.release_percentage_th);
-    node_ptr_->get_parameter(ns + ".release.duration_sec", params.release_duration_sec);
-    node_ptr_->get_parameter(ns + ".monitoring_rate_ms", params.monitoring_rate_ms);
+    // Default values
+    params.occure_percentage_min = 0;
+    params.occure_percentage_max = 5;
+    params.occure_duration_sec = 10.0;
+    params.release_percentage_th = 10;
+    params.release_duration_sec = 30.0;
+    params.monitoring_rate_ms = 1000;
+
+    if (config["occure"]) {
+        if (config["occure"]["battery_percentage_min"]) params.occure_percentage_min = config["occure"]["battery_percentage_min"].as<int>();
+        if (config["occure"]["battery_percentage_max"]) params.occure_percentage_max = config["occure"]["battery_percentage_max"].as<int>();
+        if (config["occure"]["duration_sec"]) params.occure_duration_sec = config["occure"]["duration_sec"].as<double>();
+    }
+    if (config["release"]) {
+        if (config["release"]["battery_percentage_th"]) params.release_percentage_th = config["release"]["battery_percentage_th"].as<int>();
+        if (config["release"]["duration_sec"]) params.release_duration_sec = config["release"]["duration_sec"].as<double>();
+    }
+    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
 }
 
 void BatteryDischargingErrorMonitor::printParams() const {
