@@ -16,6 +16,7 @@ except ImportError as e:
     print("sudo apt install python3-pyqt5")
     sys.exit(1)
 
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from robot_custom_msgs.msg import BatteryStatus, StationData, ApTemperature, BottomIrData, TofData, RobotState, AiTemperature
 from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
@@ -24,6 +25,18 @@ from std_msgs.msg import String
 class ErrorMockNode(Node):
     def __init__(self):
         super().__init__('error_mock_gui_node')
+
+        qos_profile_ai = QoSProfile(
+            depth=5,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL
+        )
+
+        qos_state_profile = QoSProfile(
+            depth=5,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE
+        )
         
         # Publishers
         self.pub_bat = self.create_publisher(BatteryStatus, '/battery_status', 10)
@@ -33,8 +46,8 @@ class ErrorMockNode(Node):
         self.pub_imu = self.create_publisher(Imu, 'imu_data', 10)
         self.pub_tof = self.create_publisher(TofData, '/tof_data', 10)
         self.pub_odom = self.create_publisher(Odometry, '/odom', 10)
-        self.pub_rs = self.create_publisher(RobotState, '/state_datas', 10)
-        self.pub_ai_v = self.create_publisher(String, '/ai_version', 10)
+        self.pub_rs = self.create_publisher(RobotState, '/state_datas', qos_state_profile)
+        self.pub_ai_v = self.create_publisher(String, '/ai_version', qos_profile_ai)
         self.pub_ai_t = self.create_publisher(AiTemperature, '/aitemperature_data', 10)
 
         # Timers (publish loops)

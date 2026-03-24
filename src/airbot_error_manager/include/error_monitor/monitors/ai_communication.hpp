@@ -23,6 +23,9 @@ private:
     bool firstReceiveCheck = false;
     bool errorState = false;
     int monitorCnt = 0;
+
+    std::chrono::steady_clock::time_point recorded_v_time;
+    std::chrono::steady_clock::time_point recorded_t_time;
 };
 
 

@@ -38,42 +38,69 @@ void AICommunicationErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackbo
 }
 
 void AICommunicationErrorMonitor::timerCallback()
-{    
+{
     auto ai_v = blackboard_->getAiVersionData();
     auto ai_t = blackboard_->getAiTemperatureData();
+    auto now = std::chrono::steady_clock::now();
 
-    static std::chrono::steady_clock::time_point recorded_latest_time;
-    auto current_latest_time = std::max(ai_v.last_update_time, ai_t.last_update_time);
+    if (!ai_v.is_updated || !ai_t.is_updated) return;
 
-    bool bUpdated = (current_latest_time > recorded_latest_time);
-    if (bUpdated) {
-        recorded_latest_time = current_latest_time;
-    }
-    
-    int duration_cnt = firstReceiveCheck == false ? params.duration_cnt_first : params.duration_cnt;
+    bool bVersionUpdate = (ai_v.last_update_time > recorded_v_time);
+    bool bTemperatureDataUpdate = (ai_t.last_update_time > recorded_t_time);
 
-    if (bUpdated) {
-        errorState = false;
-        firstReceiveCheck = true;
-        monitorCnt = 0;
-    } else {
-        monitorCnt++;
-        if (monitorCnt >= duration_cnt) {
-            if (!errorState) {
-                RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[AICommunicationErrorMonitor] AI disconnect Error Occured! Timeout %d sec",
-                    monitorCnt
-                );
-            }
-            errorState = true;
+    if (bVersionUpdate) recorded_v_time = ai_v.last_update_time;
+    if (bTemperatureDataUpdate) recorded_t_time = ai_t.last_update_time;
+
+    double disconnect_time = std::chrono::duration_cast<std::chrono::seconds>(now - ai_t.last_update_time).count();
+
+    if (!firstReceiveCheck) { 
+        if (bVersionUpdate || bTemperatureDataUpdate) {
+            firstReceiveCheck = true;
+            errorState = false;
             monitorCnt = 0;
+            RCLCPP_INFO(node_ptr_->get_logger(),
+                "[AICommunicationErrorMonitor] First AI topic received. Start monitoring.");
         } else {
-            if (!(monitorCnt%30)) {
-                RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[AICommunicationErrorMonitor] AI still disconnected... during %d sec",
-                    monitorCnt
-                );
+            monitorCnt++;
+            if (monitorCnt >= params.duration_cnt_first) {
+                if (!errorState) {
+                    RCLCPP_INFO(node_ptr_->get_logger(),
+                        "[AICommunicationErrorMonitor] AI disconnect Error Occured! "
+                        "Initial timeout %d sec",
+                        params.duration_cnt_first);
+                }
+                errorState = true;
             }
+        }
+    } else { // firstReceiveCheck == true
+        if (bTemperatureDataUpdate) {
+            if (errorState) {
+                errorState = false;
+                monitorCnt = 0;
+                RCLCPP_INFO(node_ptr_->get_logger(), 
+                        "[AICommunicationErrorMonitor] AI disconnect Error Released!");
+            }
+        } else {
+            monitorCnt++;
+            if (monitorCnt >= params.duration_cnt || disconnect_time >= 15.0) {
+                if (!errorState) {
+                    RCLCPP_INFO(node_ptr_->get_logger(), 
+                        "[AICommunicationErrorMonitor] AI disconnect Error Occured! "
+                        "Timeout [%d sec] | disconnect_time [%.2f sec]",
+                        params.duration_cnt,
+                        disconnect_time);
+                }
+                errorState = true;
+            }
+        }
+    }
+
+    if (errorState && monitorCnt > 0) {
+        if ((monitorCnt % 30) == 0) {
+            RCLCPP_INFO(node_ptr_->get_logger(),
+                "[AICommunicationErrorMonitor] AI still disconnected... during %d sec",
+                monitorCnt
+            );
         }
     }
 
