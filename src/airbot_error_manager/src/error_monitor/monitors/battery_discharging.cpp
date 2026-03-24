@@ -49,51 +49,41 @@ void BatteryDischargingErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlac
 
 void BatteryDischargingErrorMonitor::timerCallback()
 {
-    std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData> input;
-    {
-        auto bat = blackboard_->getBatteryData();
-        auto st = blackboard_->getStationData();
-        
-        if (checkSensorState(paramNamespace(), 10, {bat.last_update_time, st.last_update_time})
-            != SensorState::NORMAL) {
-            return;
-        }
-
-        if (!bat.is_updated || !st.is_updated) return;
-        input = std::make_pair(bat.data, st.data);
+    auto bat = blackboard_->getBatteryData();
+    auto st = blackboard_->getStationData();
+    
+    if (checkSensorState(paramNamespace(), 10, {bat.last_update_time, st.last_update_time})
+        != SensorState::NORMAL) {
+        return;
     }
 
-    // 베터리가 10프로 이하일 경우, 동시에 30초 이상일 경우
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     double current_time, time_diff;
-    static double prev_time = 0;
-    static bool prev_state = false;
-    static bool init_setting = false;
-    static bool is_first_logging = true;
 
-    //발생 조건1: 충전중이 아닐때,
-    if( input.second.docking_status & 0x70 ){
-        if( !charge_flag ){
+    if (st.data.docking_status & 0x70) {
+        if (!charge_flag) {
             RCLCPP_INFO(node_ptr_->get_logger(),
                 "[DischargingErrorMonitor]CHECK AMR CHARGING ==> dockingstatus[%02x] ",
-                input.second.docking_status);
+                st.data.docking_status);
         }
         charge_flag = true;
-    } else{
-        if( charge_flag ){
+    } else {
+        if (charge_flag) {
             RCLCPP_INFO(node_ptr_->get_logger(),
                 "[DischargingErrorMonitor]CHECK AMR DISCHARGING==> dockingstatus[%02x] ",
-                input.second.docking_status);
+                st.data.docking_status);
         }
         charge_flag = false;
     }
     
     current_time = clock.now().seconds();
 
-    if( !error_state ){ //에러가 아닐떄.
-            if( !charge_flag && input.first.battery_percent > 0 && input.first.battery_percent <= params.occure_percentage_max) {// 10 % //250730 KKS : 5%로 변경  // 0%초과 5%이하
-            
-            if (!init_setting) { // 이전 시간에 대해서 초기시간 설정
+    if (!error_state) {
+        if (!charge_flag &&
+            bat.data.battery_percent > 0 &&
+            bat.data.battery_percent <= params.occure_percentage_max) {
+            // 10 % //250730 KKS : 5%로 변경  // 0%초과 5%이하
+            if (!init_setting) {
                 prev_time = current_time;
                 init_setting = true;
             }
@@ -108,19 +98,19 @@ void BatteryDischargingErrorMonitor::timerCallback()
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
                         time_diff,
-                        input.first.battery_manufacturer,
-                        input.first.remaining_capacity,
-                        static_cast<int>(input.first.battery_percent),
-                        input.first.battery_current,
-                        input.first.battery_voltage,
-                        input.first.battery_temperature1,
-                        input.first.battery_temperature2,
-                        input.first.cell_voltage1,
-                        input.first.cell_voltage2,
-                        input.first.cell_voltage3,
-                        input.first.cell_voltage4,
-                        input.first.cell_voltage5,
-                        input.first.battery_version
+                        bat.data.battery_manufacturer,
+                        bat.data.remaining_capacity,
+                        static_cast<int>(bat.data.battery_percent),
+                        bat.data.battery_current,
+                        bat.data.battery_voltage,
+                        bat.data.battery_temperature1,
+                        bat.data.battery_temperature2,
+                        bat.data.cell_voltage1,
+                        bat.data.cell_voltage2,
+                        bat.data.cell_voltage3,
+                        bat.data.cell_voltage4,
+                        bat.data.cell_voltage5,
+                        bat.data.battery_version
                     );
                 }
                 error_state = true;
@@ -132,19 +122,19 @@ void BatteryDischargingErrorMonitor::timerCallback()
                         "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
-                        input.first.battery_manufacturer,
-                        input.first.remaining_capacity,
-                        static_cast<int>(input.first.battery_percent),
-                        input.first.battery_current,
-                        input.first.battery_voltage,
-                        input.first.battery_temperature1,
-                        input.first.battery_temperature2,
-                        input.first.cell_voltage1,
-                        input.first.cell_voltage2,
-                        input.first.cell_voltage3,
-                        input.first.cell_voltage4,
-                        input.first.cell_voltage5,
-                        input.first.battery_version
+                        bat.data.battery_manufacturer,
+                        bat.data.remaining_capacity,
+                        static_cast<int>(bat.data.battery_percent),
+                        bat.data.battery_current,
+                        bat.data.battery_voltage,
+                        bat.data.battery_temperature1,
+                        bat.data.battery_temperature2,
+                        bat.data.cell_voltage1,
+                        bat.data.cell_voltage2,
+                        bat.data.cell_voltage3,
+                        bat.data.cell_voltage4,
+                        bat.data.cell_voltage5,
+                        bat.data.battery_version
                     );
                     is_first_logging = false;
                 }
@@ -158,9 +148,9 @@ void BatteryDischargingErrorMonitor::timerCallback()
             }
         }
     } else { // 조건: 베터리 15프로 초과 & 30초 유지 //250730 KKS : S03에러가 5%로 변경됨에 따라 10%초과로 변경
-        if(input.first.battery_percent > params.release_percentage_th ){ // 15 %
+        if(bat.data.battery_percent > params.release_percentage_th ){ // 15 %
             //check time
-            if (!init_setting) { // release 체크 시간에 대해서 초기시간 설정
+            if (!init_setting) {
                 release_start_time = current_time;
                 init_setting = true;
             }
@@ -168,7 +158,6 @@ void BatteryDischargingErrorMonitor::timerCallback()
 
             if( release_time_diff >= params.release_duration_sec){ // 30 sec
                 if (prev_state) {
-                    // [250407] hyjoe : battery discharging 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[BatteryDischargingErrorMonitor] [RELEASED] battery discharging error \n"
                         "elapsed time since release check started: %.3f\n"
@@ -177,19 +166,19 @@ void BatteryDischargingErrorMonitor::timerCallback()
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
                         release_time_diff,
-                        input.first.battery_manufacturer,
-                        input.first.remaining_capacity,
-                        static_cast<int>(input.first.battery_percent),
-                        input.first.battery_current,
-                        input.first.battery_voltage,
-                        input.first.battery_temperature1,
-                        input.first.battery_temperature2,
-                        input.first.cell_voltage1,
-                        input.first.cell_voltage2,
-                        input.first.cell_voltage3,
-                        input.first.cell_voltage4,
-                        input.first.cell_voltage5,
-                        input.first.battery_version
+                        bat.data.battery_manufacturer,
+                        bat.data.remaining_capacity,
+                        static_cast<int>(bat.data.battery_percent),
+                        bat.data.battery_current,
+                        bat.data.battery_voltage,
+                        bat.data.battery_temperature1,
+                        bat.data.battery_temperature2,
+                        bat.data.cell_voltage1,
+                        bat.data.cell_voltage2,
+                        bat.data.cell_voltage3,
+                        bat.data.cell_voltage4,
+                        bat.data.cell_voltage5,
+                        bat.data.battery_version
                     );
                 }
                 release_start_time = current_time;
@@ -199,32 +188,30 @@ void BatteryDischargingErrorMonitor::timerCallback()
             } 
             else {
                 if (is_first_logging) {
-                    // [250407] hyjoe : battery discharging 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
                         "[BatteryDischargingErrorMonitor] [START RELEASE] battery discharging monitor\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
                         "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
-                        input.first.battery_manufacturer,
-                        input.first.remaining_capacity,
-                        static_cast<int>(input.first.battery_percent),
-                        input.first.battery_current,
-                        input.first.battery_voltage,
-                        input.first.battery_temperature1,
-                        input.first.battery_temperature2,
-                        input.first.cell_voltage1,
-                        input.first.cell_voltage2,
-                        input.first.cell_voltage3,
-                        input.first.cell_voltage4,
-                        input.first.cell_voltage5,
-                        input.first.battery_version
+                        bat.data.battery_manufacturer,
+                        bat.data.remaining_capacity,
+                        static_cast<int>(bat.data.battery_percent),
+                        bat.data.battery_current,
+                        bat.data.battery_voltage,
+                        bat.data.battery_temperature1,
+                        bat.data.battery_temperature2,
+                        bat.data.cell_voltage1,
+                        bat.data.cell_voltage2,
+                        bat.data.cell_voltage3,
+                        bat.data.cell_voltage4,
+                        bat.data.cell_voltage5,
+                        bat.data.battery_version
                     );
                     is_first_logging = false;
                 }
             }
         } else{
-            //time reset
             release_start_time = current_time;
             is_first_logging = true;
             init_setting = false;

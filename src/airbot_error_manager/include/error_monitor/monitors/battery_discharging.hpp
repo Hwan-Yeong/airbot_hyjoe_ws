@@ -27,6 +27,10 @@ private:
     bool charge_flag = true;
     double release_time_diff = 0.0;
     double release_start_time = 0.0;
+    double prev_time = 0.0;
+    bool prev_state = false;
+    bool init_setting = false;
+    bool is_first_logging = true;
 };
 
 
