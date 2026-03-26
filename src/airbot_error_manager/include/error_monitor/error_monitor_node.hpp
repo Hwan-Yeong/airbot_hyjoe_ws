@@ -15,7 +15,7 @@
 #include "error_monitor/monitors/board_overheat.hpp"
 #include "error_monitor/monitors/charging.hpp"
 #include "error_monitor/monitors/lift.hpp"
-#include "error_monitor/monitors/cliff_detection.hpp"
+#include "error_monitor/monitors/cliff.hpp"
 #include "error_monitor/monitors/tof.hpp"
 #include "error_monitor/monitors/ai_communication.hpp"
 

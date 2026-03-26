@@ -2,7 +2,7 @@
 
 #include "error_monitor/error_monitor_base.hpp"
 
-class CliffDetectionErrorMonitor : public ErrorMonitorBase
+class CliffErrorMonitor : public ErrorMonitorBase
 {
 public:
     struct tParams {

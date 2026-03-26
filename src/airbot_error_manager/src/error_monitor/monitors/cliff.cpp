@@ -1,6 +1,6 @@
-#include "error_monitor/monitors/cliff_detection.hpp"
+#include "error_monitor/monitors/cliff.hpp"
 
-void CliffDetectionErrorMonitor::loadParams(const YAML::Node& config) {
+void CliffErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
 
     // Default values matched with yaml for fallback
@@ -16,7 +16,7 @@ void CliffDetectionErrorMonitor::loadParams(const YAML::Node& config) {
     if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
 }
 
-void CliffDetectionErrorMonitor::printParams() const {
+void CliffErrorMonitor::printParams() const {
     if (!node_ptr_) return;
     RCLCPP_INFO(node_ptr_->get_logger(),
         "[%s] duration_sec: %.1f, accum_dist_th_m: %.1f, rate: %d",
@@ -27,17 +27,17 @@ void CliffDetectionErrorMonitor::printParams() const {
     );
 }
 
-void CliffDetectionErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
+void CliffErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
     blackboard_ = blackboard;
     error_pub_ = node_ptr_->create_publisher<std_msgs::msg::Bool>(
-        "error/s_code/cliff_detection", 10);
+        "error/s_code/cliff", 10);
     timer_ = node_ptr_->create_wall_timer(
         std::chrono::milliseconds(params.monitoring_rate_ms),
         [this](){ timerCallback(); }
     );
 }
 
-void CliffDetectionErrorMonitor::timerCallback()
+void CliffErrorMonitor::timerCallback()
 {
     static rclcpp::Clock clock(RCL_STEADY_TIME);
 
@@ -46,13 +46,12 @@ void CliffDetectionErrorMonitor::timerCallback()
 
     auto ir = blackboard_->getIrData();
     auto odom = blackboard_->getOdomData();
+    auto rState = blackboard_->getRobotStateData();
 
-    if (checkSensorState(paramNamespace(), 10, {ir.last_update_time, odom.last_update_time})
+    if (checkSensorState(paramNamespace(), 10, {ir.last_update_time, odom.last_update_time, rState.last_update_time})
         != SensorState::NORMAL) {
         return;
     }
-
-    auto rState = blackboard_->getRobotStateData();
 
     if (!ir.is_updated || !odom.is_updated || !rState.is_updated) return;
 
@@ -74,7 +73,8 @@ void CliffDetectionErrorMonitor::timerCallback()
             isFirstCheckArray[i] = true;
             if (preErrorState[i] == true) { // 낙하 에러 해제시 로깅
                 RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[CliffDetectionErrorMonitor] Cliff IR #[%d] : %s, IR Detection Error Released",
+                    "[CliffErrorMonitor] Cliff IR #[%d] : %s, "
+                    "IR Detection Error Released",
                     i+1,
                     cliff[i] ? "true" : "false"
                 );
@@ -90,7 +90,7 @@ void CliffDetectionErrorMonitor::timerCallback()
                 isFirstCheckArray[i] = false;
                 // 낙하 에러 체크 시작 시 최초 한번 로깅
                 RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[CliffDetectionErrorMonitor] Initial check => Cliff IR #[%d] : %s,"
+                    "[CliffErrorMonitor] Initial check => Cliff IR #[%d] : %s,"
                     "pre_position (X, Y): (%.3f, %.3f)",
                     i+1,
                     cliff[i] ? "true" : "false",
@@ -116,7 +116,9 @@ void CliffDetectionErrorMonitor::timerCallback()
             if (accumDist[i] >= params.accum_dist_th) {
                 if (preErrorState[i] == false) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[CliffDetectionErrorMonitor] Cliff IR #[%d] : %s, timediff: %.3f sec," 
+                        "[CliffErrorMonitor] Cliff IR #[%d] : %s, "
+                        "IR Detection Error Occured,"
+                        "timediff: %.3f sec," 
                         "Accumulated Distance: %.3f m",
                         i+1,
                         cliff[i] ? "true" : "false",

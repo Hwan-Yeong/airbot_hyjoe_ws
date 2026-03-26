@@ -77,7 +77,7 @@ add_executable(error_monitor_node
   src/error_monitor/monitors/board_overheat.cpp
   src/error_monitor/monitors/charging.cpp
   src/error_monitor/monitors/lift.cpp
-  src/error_monitor/monitors/cliff_detection.cpp
+  src/error_monitor/monitors/cliff.cpp
   src/error_monitor/monitors/tof.cpp
   src/error_monitor/monitors/ai_communication.cpp
 )

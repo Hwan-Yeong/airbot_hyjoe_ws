@@ -106,7 +106,7 @@ void ErrorMonitorNode::init()
     addMonitor(std::make_shared<BatteryDischargingErrorMonitor>(), config);
     addMonitor(std::make_shared<ChargingErrorMonitor>(), config);
     addMonitor(std::make_shared<LiftErrorMonitor>(), config);
-    addMonitor(std::make_shared<CliffDetectionErrorMonitor>(), config);
+    addMonitor(std::make_shared<CliffErrorMonitor>(), config);
     addMonitor(std::make_shared<TofErrorMonitor>(), config);
     addMonitor(std::make_shared<AICommunicationErrorMonitor>(), config);
     RCLCPP_INFO(this->get_logger(),
