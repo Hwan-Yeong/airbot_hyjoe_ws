@@ -185,13 +185,13 @@ class ErrorMonitorGui(QWidget):
         # 2. Fall Down / Lift
         grp_imu = QGroupBox("FallDown & Lift (IMU/IR) Group")
         l_imu = QGridLayout()
-        btn_fall_err = QPushButton("FallDown Error (Roll 70, Pitch 70, IR 1000)")
-        btn_fall_err.clicked.connect(lambda: self.set_imu_ir(70.0, 70.0, 9.8, 1000))
-        btn_fall_rel = QPushButton("FallDown Release (Roll 0, Pitch 0, IR 100)")
-        btn_fall_rel.clicked.connect(lambda: self.set_imu_ir(0.0, 0.0, 9.8, 100))
+        btn_fall_err = QPushButton("FallDown Error (Roll 70, Pitch 70, IR 100)")
+        btn_fall_err.clicked.connect(lambda: self.set_imu_ir(70.0, 70.0, 9.8, 100))
+        btn_fall_rel = QPushButton("FallDown Release (Roll 0, Pitch 0, IR 7000)")
+        btn_fall_rel.clicked.connect(lambda: self.set_imu_ir(0.0, 0.0, 9.8, 7000))
         
-        btn_lift_err = QPushButton("Lift Error (IR 1000, IMU Z 8.0)")
-        btn_lift_err.clicked.connect(lambda: self.set_imu_ir(0.0, 0.0, 8.0, 1000))
+        btn_lift_err = QPushButton("Lift Error (IR 10, IMU Z 8.0)")
+        btn_lift_err.clicked.connect(lambda: self.set_imu_ir(0.0, 0.0, 8.0, 10))
 
         chk_pause_imu = QCheckBox("Pause Tx (Simulate Timeout)")
         chk_pause_imu.toggled.connect(lambda c: self.set_pause('pause_ir_imu', c))

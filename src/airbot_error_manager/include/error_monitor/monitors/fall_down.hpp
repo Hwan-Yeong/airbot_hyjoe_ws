@@ -25,6 +25,7 @@ private:
     void timerCallback();
 
     bool is_first_boot = true;
+    bool prev_status = false;
     double baseline_pitch_deg = 0.0;
     double baseline_roll_deg = 0.0;
     double baseline_time = 0.0;
