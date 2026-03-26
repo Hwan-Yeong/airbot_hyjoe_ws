@@ -42,20 +42,6 @@ void ChargingErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> bl
 
 void ChargingErrorMonitor::timerCallback()
 {
-    std::tuple<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData, robot_custom_msgs::msg::RobotState> input;
-    {
-        auto bat = blackboard_->getBatteryData();
-        auto st = blackboard_->getStationData();
-        
-        if (checkSensorState(paramNamespace(), 10, {bat.last_update_time, st.last_update_time})
-            != SensorState::NORMAL) {
-            return;
-        }
-
-        auto state = blackboard_->getRobotStateData();
-        if (!bat.is_updated || !st.is_updated || !state.is_updated) return;
-        input = std::make_tuple(bat.data, st.data, state.data);
-    }
     /*
         < 충전 에러 검사 >
         해당 모니터는 10분마다 에러 발생/해제를 체크하지만, 충전중이 아닐때 혹은 충전중 95%가 넘어가는 시점부터는 바로 해제를 반환합니다.
@@ -67,18 +53,25 @@ void ChargingErrorMonitor::timerCallback()
         4. chargeDiff의 크기가 2% 이하가 아니면 에러 해제. (에러 발생/해제는 10분마다 판단해서 결과를 알려준다)
     */
 
-    auto battery = std::get<0>(input);
-    auto station = std::get<1>(input);
-    auto robot_state = std::get<2>(input);
+    auto battery = blackboard_->getBatteryData();
+    auto station = blackboard_->getStationData();
+    auto robot_state = blackboard_->getRobotStateData();
+
+    if (checkSensorState(paramNamespace(), 10, {battery.last_update_time, station.last_update_time})
+        != SensorState::NORMAL) {
+        return;
+    }
+
+    if (!battery.is_updated || !station.is_updated || !robot_state.is_updated) return;
 
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     double currentTime = clock.now().seconds();
-    uint8_t currentChargePercentage = battery.battery_percent;
+    uint8_t batteryPercentage = battery.data.battery_percent;
 
-    bool isCharging = station.docking_status & 0X30; // charger found || start charging
+    bool isCharging = station.data.docking_status & 0X30; // charger found || start charging
 
     // 배터리 정보 로깅용
-    if (currentChargePercentage != prevChargePercentage) {
+    if (batteryPercentage != prevBatteryPercentage) {
         RCLCPP_INFO(
             node_ptr_->get_logger(),
             "[ChargingErrorMonitor] Docking status: 0x%02X\n"
@@ -86,27 +79,27 @@ void ChargingErrorMonitor::timerCallback()
             "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
             "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
             "Battery Version: 0x%02X",
-            station.docking_status,
-            battery.battery_manufacturer,
-            battery.remaining_capacity,
-            static_cast<int>(battery.battery_percent),
-            battery.battery_current,
-            battery.battery_voltage,
-            battery.battery_temperature1,
-            battery.battery_temperature2,
-            battery.cell_voltage1,
-            battery.cell_voltage2,
-            battery.cell_voltage3,
-            battery.cell_voltage4,
-            battery.cell_voltage5,
-            battery.battery_version
+            station.data.docking_status,
+            battery.data.battery_manufacturer,
+            battery.data.remaining_capacity,
+            static_cast<int>(battery.data.battery_percent),
+            battery.data.battery_current,
+            battery.data.battery_voltage,
+            battery.data.battery_temperature1,
+            battery.data.battery_temperature2,
+            battery.data.cell_voltage1,
+            battery.data.cell_voltage2,
+            battery.data.cell_voltage3,
+            battery.data.cell_voltage4,
+            battery.data.cell_voltage5,
+            battery.data.battery_version
         );
-        prevChargePercentage = currentChargePercentage;
+        prevBatteryPercentage = batteryPercentage;
     }
-
-    if (robot_state.state == 4 || robot_state.state == 5) { // 스테이션 복귀 명령시 해제 사양( 4: RETURN_CHARGER, 5: DOCKING )
+    // 스테이션 복귀 명령시 해제 사양( 4: RETURN_CHARGER, 5: DOCKING )
+    if (robot_state.data.state == 4 || robot_state.data.state == 5) {
         lastCheckTime = currentTime;
-        initialCharge = currentChargePercentage;
+        initialCharge = batteryPercentage;
         errorState = false;
         isFirstCheck = true;
         std_msgs::msg::Bool msg;
@@ -114,66 +107,71 @@ void ChargingErrorMonitor::timerCallback()
         error_pub_->publish(msg);
         return;
     }
-    
-    if ( !errorState && isCharging ){
-        if (params.percentage_min_th <= currentChargePercentage && currentChargePercentage <= params.percentage_max_th) { // 1 ~ 60 %
+
+    if (!errorState && isCharging) {
+        if (params.percentage_min_th <= batteryPercentage &&
+            batteryPercentage <= params.percentage_max_th) { // 1 ~ 60 %
             if (isFirstCheck) { // 측정 주기 타이머 시작
                 lastCheckTime = currentTime;
-                initialCharge = currentChargePercentage;
+                initialCharge = batteryPercentage;
                 isFirstCheck = false;
                 RCLCPP_INFO(
                     node_ptr_->get_logger(),
                     "[ChargingErrorMonitor] Docking status: 0x%02X\n"
                     "[ChargingErrorMonitor] Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] /"
-                    "Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                    "Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / "
+                    "Temp1:[%d °C] / Temp2:[%d °C]\n"
                     "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                     "Battery Version: 0x%02X",
-                    station.docking_status,
-                    battery.battery_manufacturer,
-                    battery.remaining_capacity,
-                    static_cast<int>(battery.battery_percent),
-                    battery.battery_current,
-                    battery.battery_voltage,
-                    battery.battery_temperature1,
-                    battery.battery_temperature2,
-                    battery.cell_voltage1,
-                    battery.cell_voltage2,
-                    battery.cell_voltage3,
-                    battery.cell_voltage4,
-                    battery.cell_voltage5,
-                    battery.battery_version
+                    station.data.docking_status,
+                    battery.data.battery_manufacturer,
+                    battery.data.remaining_capacity,
+                    static_cast<int>(battery.data.battery_percent),
+                    battery.data.battery_current,
+                    battery.data.battery_voltage,
+                    battery.data.battery_temperature1,
+                    battery.data.battery_temperature2,
+                    battery.data.cell_voltage1,
+                    battery.data.cell_voltage2,
+                    battery.data.cell_voltage3,
+                    battery.data.cell_voltage4,
+                    battery.data.cell_voltage5,
+                    battery.data.battery_version
                 );
             }
             double timediff = currentTime - lastCheckTime;
             if (timediff >= params.duration_sec) { 
-                int chargeDiff = static_cast<int>(currentChargePercentage) - static_cast<int>(initialCharge);
+                int chargeDiff = static_cast<int>(batteryPercentage) - static_cast<int>(initialCharge);
                 if (chargeDiff <= 2) { 
                     errorState = true;
                     RCLCPP_INFO(
                         node_ptr_->get_logger(),
                         "[ChargingErrorMonitor] Docking status: 0x%02X\n"
                         "Manufacturer:[%d] / Remaining capacity:[%d mAh] /"
-                        "Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / "
+                        "Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
-                        station.docking_status,
-                        battery.battery_manufacturer,
-                        battery.remaining_capacity,
-                        static_cast<int>(battery.battery_percent),
-                        battery.battery_current,
-                        battery.battery_voltage,
-                        battery.battery_temperature1,
-                        battery.battery_temperature2,
-                        battery.cell_voltage1,
-                        battery.cell_voltage2,
-                        battery.cell_voltage3,
-                        battery.cell_voltage4,
-                        battery.cell_voltage5,
-                        battery.battery_version
+                        station.data.docking_status,
+                        battery.data.battery_manufacturer,
+                        battery.data.remaining_capacity,
+                        static_cast<int>(battery.data.battery_percent),
+                        battery.data.battery_current,
+                        battery.data.battery_voltage,
+                        battery.data.battery_temperature1,
+                        battery.data.battery_temperature2,
+                        battery.data.cell_voltage1,
+                        battery.data.cell_voltage2,
+                        battery.data.cell_voltage3,
+                        battery.data.cell_voltage4,
+                        battery.data.cell_voltage5,
+                        battery.data.battery_version
                     );
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[ChargingErrorMonitor] elapsed time since error check started: %.3f sec, chargeDiff: %d %%",
-                        timediff, chargeDiff
+                        "[ChargingErrorMonitor] elapsed time since error check started: %.3f sec, "
+                        "chargeDiff: %d %%",
+                        timediff,
+                        chargeDiff
                     );
                 } else {
                     errorState = false;
@@ -188,10 +186,10 @@ void ChargingErrorMonitor::timerCallback()
         }
     } else{
         lastCheckTime = currentTime;
-        initialCharge = currentChargePercentage;
+        initialCharge = batteryPercentage;
         isFirstCheck = true;
     }
-    prevChargePercentage = currentChargePercentage;
+    prevBatteryPercentage = batteryPercentage;
 
     std_msgs::msg::Bool msg;
     msg.data = errorState;

@@ -22,7 +22,7 @@ private:
     void timerCallback();
 
     uint8_t initialCharge = 0;
-    uint8_t prevChargePercentage = 0;
+    uint8_t prevBatteryPercentage = 0;
     bool errorState = false;
     bool isFirstCheck = true;
     double lastCheckTime = 0;
