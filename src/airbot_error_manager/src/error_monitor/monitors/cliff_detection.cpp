@@ -39,33 +39,24 @@ void CliffDetectionErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboa
 
 void CliffDetectionErrorMonitor::timerCallback()
 {
-    std::tuple<robot_custom_msgs::msg::BottomIrData, nav_msgs::msg::Odometry, robot_custom_msgs::msg::RobotState> input;
-    {
-        auto ir = blackboard_->getIrData();
-        auto odom = blackboard_->getOdomData();
-        
-        if (checkSensorState(paramNamespace(), 10, {ir.last_update_time, odom.last_update_time})
-            != SensorState::NORMAL) {
-            return;
-        }
-
-        auto state = blackboard_->getRobotStateData();
-        if (!ir.is_updated || !odom.is_updated || !state.is_updated) return;
-        input = std::make_tuple(ir.data, odom.data, state.data);
-    }
-
     static rclcpp::Clock clock(RCL_STEADY_TIME);
-    static double startErrorCheckTimeArray[6]={}, prePositionXArray[6]={}, prePositionYArray[6]={}, accumDist[6]={};
-    static bool isFirstCheckArray[6] = {true, true, true, true, true, true};
-    static bool preErrorState[6] = {}; 
+
     double curDist, curPositionX, curPositionY, timeDiff;
     bool cliff[6]={}, errorState = false;
 
-    auto bottomIrData = std::get<0>(input);
-    auto odom = std::get<1>(input);
-    auto robotState = std::get<2>(input);
+    auto ir = blackboard_->getIrData();
+    auto odom = blackboard_->getOdomData();
 
-    if (robotState.state == 0 || robotState.state == 7 || robotState.state == 9) {
+    if (checkSensorState(paramNamespace(), 10, {ir.last_update_time, odom.last_update_time})
+        != SensorState::NORMAL) {
+        return;
+    }
+
+    auto rState = blackboard_->getRobotStateData();
+
+    if (!ir.is_updated || !odom.is_updated || !rState.is_updated) return;
+
+    if (rState.data.state == 0 || rState.data.state == 7 || rState.data.state == 9) {
         for (int i=0; i<6; i++) {
             isFirstCheckArray[i] = true;
         }
@@ -75,8 +66,8 @@ void CliffDetectionErrorMonitor::timerCallback()
         return;
     }
 
-    cliff[0]= bottomIrData.ff;    cliff[1]= bottomIrData.fl;    cliff[2]= bottomIrData.bl;
-    cliff[3]= bottomIrData.bb;    cliff[4]= bottomIrData.br;    cliff[5]= bottomIrData.fr;
+    cliff[0]= ir.data.ff;    cliff[1]= ir.data.fl;    cliff[2]= ir.data.bl;
+    cliff[3]= ir.data.bb;    cliff[4]= ir.data.br;    cliff[5]= ir.data.fr;
 
     for (int i=0; i<6; i++) {
         if (cliff[i] == false) {
@@ -93,8 +84,8 @@ void CliffDetectionErrorMonitor::timerCallback()
         } else {
             if (isFirstCheckArray[i]) {
                 startErrorCheckTimeArray[i]=clock.now().seconds();
-                prePositionXArray[i] = odom.pose.pose.position.x;
-                prePositionYArray[i] = odom.pose.pose.position.y;
+                prePositionXArray[i] = odom.data.pose.pose.position.x;
+                prePositionYArray[i] = odom.data.pose.pose.position.y;
                 accumDist[i] = 0.0;
                 isFirstCheckArray[i] = false;
                 // 낙하 에러 체크 시작 시 최초 한번 로깅
@@ -110,8 +101,8 @@ void CliffDetectionErrorMonitor::timerCallback()
 
             timeDiff = clock.now().seconds() - startErrorCheckTimeArray[i];
 
-            curPositionX = odom.pose.pose.position.x;
-            curPositionY = odom.pose.pose.position.y;
+            curPositionX = odom.data.pose.pose.position.x;
+            curPositionY = odom.data.pose.pose.position.y;
 
             double dx = curPositionX - prePositionXArray[i];
             double dy = curPositionY - prePositionYArray[i];

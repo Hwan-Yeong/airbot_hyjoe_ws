@@ -19,6 +19,13 @@ public:
 
 private:
     void timerCallback();
+
+    double startErrorCheckTimeArray[6]={};
+    double prePositionXArray[6]={};
+    double prePositionYArray[6]={};
+    double accumDist[6]={};
+    bool isFirstCheckArray[6] = {true, true, true, true, true, true};
+    bool preErrorState[6] = {};
 };
 
 
