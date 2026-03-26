@@ -44,38 +44,24 @@ void LiftErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackb
 
 void LiftErrorMonitor::timerCallback()
 {
-    std::tuple<robot_custom_msgs::msg::BottomIrData, sensor_msgs::msg::Imu, robot_custom_msgs::msg::StationData> input;
-    {
-        auto ir = blackboard_->getIrData();
-        auto imu = blackboard_->getImuData();
-        auto st = blackboard_->getStationData();
-        
-        if (checkSensorState(paramNamespace(), 10, {ir.last_update_time, imu.last_update_time, st.last_update_time})
-            != SensorState::NORMAL) {
-            return;
-        }
+    auto ir = blackboard_->getIrData();
+    auto imu = blackboard_->getImuData();
+    auto st = blackboard_->getStationData();
 
-        if (!ir.is_updated || !imu.is_updated || !st.is_updated) return;
-        input = std::make_tuple(ir.data, imu.data, st.data);
+    if (checkSensorState(paramNamespace(), 10, {ir.last_update_time, imu.last_update_time, st.last_update_time})
+        != SensorState::NORMAL) {
+        return;
     }
 
-    auto ir_data = std::get<0>(input);
-    auto imu_data = std::get<1>(input);
-    auto station = std::get<2>(input);
+    if (!ir.is_updated || !imu.is_updated || !st.is_updated) return;
 
     static rclcpp::Clock clock(RCL_STEADY_TIME);
-    static int count = 0;
-    static bool irLiftFlag = false;
-    static bool imuLiftFlag = false;
 
-    static bool liftErrorCandidate = false;
-    static double prevTime = 0.0;
-
-    count = (ir_data.adc_ff < params.drop_ir_adc_th) + (ir_data.adc_fl < params.drop_ir_adc_th) +
-            (ir_data.adc_fr < params.drop_ir_adc_th) + (ir_data.adc_bb < params.drop_ir_adc_th) +
-            (ir_data.adc_bl < params.drop_ir_adc_th) + (ir_data.adc_br < params.drop_ir_adc_th);
+    int count = (ir.data.adc_ff < params.drop_ir_adc_th) + (ir.data.adc_fl < params.drop_ir_adc_th) +
+                (ir.data.adc_fr < params.drop_ir_adc_th) + (ir.data.adc_bb < params.drop_ir_adc_th) +
+                (ir.data.adc_bl < params.drop_ir_adc_th) + (ir.data.adc_br < params.drop_ir_adc_th);
     
-    bool isChargerConnect = station.docking_status & 0x10; // 충전 단자 인식 시 LiftFlag 해제
+    bool isChargerConnect = st.data.docking_status & 0x10; // 충전 단자 인식 시 LiftFlag 해제
 
     if (count == 0 || isChargerConnect) { // 모든 IR 센서가 false일 경우 에러 해제. 또는 충전 단자 인식 시 에러 해제
         if (errorState) {
@@ -102,12 +88,12 @@ void LiftErrorMonitor::timerCallback()
                 "[LiftErrorMonitor] Over 4 IR sensors Lift Detected! "
                 "(adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) "
                 "(adc_bb : %d) (adc_bl : %d) (adc_br : %d)",
-                ir_data.adc_ff,
-                ir_data.adc_fr,
-                ir_data.adc_fr,
-                ir_data.adc_bb,
-                ir_data.adc_bl,
-                ir_data.adc_br
+                ir.data.adc_ff,
+                ir.data.adc_fr,
+                ir.data.adc_fr,
+                ir.data.adc_bb,
+                ir.data.adc_bl,
+                ir.data.adc_br
             );
         }
         irLiftFlag = true;
@@ -115,7 +101,7 @@ void LiftErrorMonitor::timerCallback()
         irLiftFlag = false;
     }
 
-    double acc_z = imu_data.linear_acceleration.z;
+    double acc_z = imu.data.linear_acceleration.z;
 
     if (irLiftFlag && (acc_z <= params.imu_z_acc_low_th || acc_z >= params.imu_z_acc_hight_th)) { 
         if (!imuLiftFlag) {

@@ -24,6 +24,10 @@ private:
 
     unsigned int errorCount = 0;
     bool errorState = false;
+    bool irLiftFlag = false;
+    bool imuLiftFlag = false;
+    bool liftErrorCandidate = false;
+    double prevTime = 0.0;
 };
 
 
