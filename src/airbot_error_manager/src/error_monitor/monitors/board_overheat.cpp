@@ -30,7 +30,7 @@ void BoardOverheatErrorMonitor::printParams() const {
 void BoardOverheatErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
     blackboard_ = blackboard;
     error_pub_ = node_ptr_->create_publisher<std_msgs::msg::Bool>(
-        "error/s_code/board_overheat", 10);
+        "error/s_code/board_battery_overheat", 10);
     timer_ = node_ptr_->create_wall_timer(
         std::chrono::milliseconds(params.monitoring_rate_ms),
         [this](){ timerCallback(); }
