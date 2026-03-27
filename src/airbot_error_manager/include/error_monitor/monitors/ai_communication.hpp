@@ -11,7 +11,7 @@ public:
         int monitoring_rate_ms;
     } params;
 
-    const std::string paramNamespace() const override { return "ai_error"; }
+    const std::string paramNamespace() const override { return "ai_comm_error"; }
 
     void loadParams(const YAML::Node& config) override;
     void printParams() const override;

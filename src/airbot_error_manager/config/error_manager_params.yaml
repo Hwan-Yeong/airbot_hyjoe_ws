@@ -71,7 +71,7 @@ airbot_error_monitor:
         one_d_min_dist_m: 0.03
         one_d_max_dist_m: 0.13
 
-    ai_error:
+    ai_comm_error:
       monitoring_rate_ms: 1000
       occure:
         duration_cnt_first_sec: 180

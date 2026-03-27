@@ -76,14 +76,16 @@ void BatteryDischargingErrorMonitor::timerCallback()
     if (st.data.docking_status & 0x70) {
         if (!charge_flag) {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[DischargingErrorMonitor]CHECK AMR CHARGING ==> dockingstatus[%02x] ",
+                "[%s]CHECK AMR CHARGING ==> dockingstatus[%02x] ",
+                paramNamespace().c_str(),
                 st.data.docking_status);
         }
         charge_flag = true;
     } else {
         if (charge_flag) {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[DischargingErrorMonitor]CHECK AMR DISCHARGING==> dockingstatus[%02x] ",
+                "[%s]CHECK AMR DISCHARGING==> dockingstatus[%02x] ",
+                paramNamespace().c_str(),
                 st.data.docking_status);
         }
         charge_flag = false;
@@ -105,12 +107,15 @@ void BatteryDischargingErrorMonitor::timerCallback()
             if (time_diff >= params.occure_duration_sec) { // 10 sec
                 if (!prev_state) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[BatteryDischargingErrorMonitor] [OCCURED] battery discharging error \n"
+                        "[%s] [OCCURED] battery discharging error \n"
                         "elapsed time since error check started: %.3f\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
-                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
+                        "Percentage:[%d %%] / Current:[%.1f mA] / "
+                        "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:"
+                        "[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
+                        paramNamespace().c_str(),
                         time_diff,
                         bat.data.battery_manufacturer,
                         bat.data.remaining_capacity,
@@ -131,11 +136,14 @@ void BatteryDischargingErrorMonitor::timerCallback()
             } else {
                 if (is_first_logging) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[BatteryDischargingErrorMonitor] [START] to checking battery discharging\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
-                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "[%s] [START] to checking battery discharging\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
+                        "Percentage:[%d %%] / Current:[%.1f mA] / "
+                        "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:"
+                        "[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
+                        paramNamespace().c_str(),
                         bat.data.battery_manufacturer,
                         bat.data.remaining_capacity,
                         static_cast<int>(bat.data.battery_percent),
@@ -173,12 +181,15 @@ void BatteryDischargingErrorMonitor::timerCallback()
             if( release_time_diff >= params.release_duration_sec){ // 30 sec
                 if (prev_state) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[BatteryDischargingErrorMonitor] [RELEASED] battery discharging error \n"
+                        "[%s] [RELEASED] battery discharging error \n"
                         "elapsed time since release check started: %.3f\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
-                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
+                        "Percentage:[%d %%] / Current:[%.1f mA] / "
+                        "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:"
+                        "[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
+                        paramNamespace().c_str(),
                         release_time_diff,
                         bat.data.battery_manufacturer,
                         bat.data.remaining_capacity,
@@ -203,11 +214,14 @@ void BatteryDischargingErrorMonitor::timerCallback()
             else {
                 if (is_first_logging) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[BatteryDischargingErrorMonitor] [START] to checking battery discharging released\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
-                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "[%s] [START] to checking battery discharging released\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
+                        "Percentage:[%d %%] / Current:[%.1f mA] / "
+                        "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:"
+                        "[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
+                        paramNamespace().c_str(),
                         bat.data.battery_manufacturer,
                         bat.data.remaining_capacity,
                         static_cast<int>(bat.data.battery_percent),

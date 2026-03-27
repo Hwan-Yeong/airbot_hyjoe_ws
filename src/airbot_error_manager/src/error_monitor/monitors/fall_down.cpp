@@ -102,10 +102,11 @@ void FallDownErrorMonitor::timerCallback()
         abs(deg_pitch - baseline_pitch_deg) >= 10.0) {
         double duration = clock.now().seconds() - baseline_time;
         RCLCPP_INFO(node_ptr_->get_logger(),
-            "[FallDownErrorMonitor] Pitch/Roll Changed more than 10 degress! "
+            "[%s] Pitch/Roll Changed more than 10 degress! "
             "Previous [pitch : %.3f deg, roll : %.3f deg], "
             "Current [pitch : %.3f deg, roll : %.3f deg], "
             "angle_change_elapsed_time: %.2f sec",
+            paramNamespace().c_str(),
             baseline_pitch_deg,
             baseline_roll_deg,
             deg_pitch,
@@ -126,9 +127,10 @@ void FallDownErrorMonitor::timerCallback()
         if(!prev_status){
             // [250407] hyjoe : 전도 에러 발생시 낙하IR상태, roll, pitch 정보 1번만 로깅
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[FallDownErrorMonitor] Occured (adc_ff : %d) (adc_fl : %d) "
+                "[%s] Occured (adc_ff : %d) (adc_fl : %d) "
                 "(adc_fr :%d) (adc_bb : %d) (adc_bl : %d) (adc_br : %d) "
                 "(pitch : %.3f deg) (roll : %.3f deg)",
+                paramNamespace().c_str(),
                 ir.data.adc_ff,
                 ir.data.adc_fr,
                 ir.data.adc_fr,
@@ -148,9 +150,10 @@ void FallDownErrorMonitor::timerCallback()
         if(prev_status){
             // [250407] hyjoe : 전도 에러 발생 한적이 있었던 경우, 해제시 1번만 낙하IR상태, roll, pitch 정보 1번만 로깅
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[FallDownErrorMonitor] Released (adc_ff : %d) (adc_fl : %d) "
+                "[%s] Released (adc_ff : %d) (adc_fl : %d) "
                 "(adc_fr :%d) (adc_bb : %d) (adc_bl : %d) (adc_br : %d) "
                 "(pitch : %.3f deg) (roll : %.3f deg)",
+                paramNamespace().c_str(),
                 ir.data.adc_ff,
                 ir.data.adc_fr,
                 ir.data.adc_fr,

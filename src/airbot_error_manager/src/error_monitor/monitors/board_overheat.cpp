@@ -74,8 +74,9 @@ void BoardOverheatErrorMonitor::timerCallback()
                 // 온도가 처음으로 threshold 넘었을 때 시간 체크 시작.
                 overheat_occured_times_[zone_name] = clock.now().seconds();
                 RCLCPP_WARN(node_ptr_->get_logger(),
-                    "[BoardOverheat] Warning: [%s] / Temp [%.1f]°C > "
+                    "[%s] Warning: [%s] / Temp [%.1f]°C > "
                     "threshold [%.1f]°C. Starting %.0fs timer.",
+                    paramNamespace().c_str(),
                     zone_name.c_str(),
                     temp_value,
                     params.temperature_th,
@@ -87,8 +88,9 @@ void BoardOverheatErrorMonitor::timerCallback()
 
                     if( static_cast<int>(clock.now().seconds() - it->second) % 31 == 0){ 
                         RCLCPP_WARN(node_ptr_->get_logger(),
-                            "[BoardOverheat] Error: [%s] / Temp [%.1f]°C > "
+                            "[%s] Error: [%s] / Temp [%.1f]°C > "
                             "threshold [%.1f]°C. Over Time %.0fs.",
+                            paramNamespace().c_str(),
                             zone_name.c_str(),
                             temp_value,
                             params.temperature_th,
@@ -109,8 +111,9 @@ void BoardOverheatErrorMonitor::timerCallback()
                         overheat_occured_times_.erase(zone_name);
                         overheat_release_start_times_.erase(zone_name);
                         RCLCPP_WARN(node_ptr_->get_logger(),
-                            "[BoardOverheat] Release: [%s] / Temp [%.1f]°C "
+                            "[%s] Release: [%s] / Temp [%.1f]°C "
                             "< threshold [%.1f]°C for 5 seconds.",
+                            paramNamespace().c_str(),
                             zone_name.c_str(),
                             temp_value,
                             params.temperature_th);

@@ -73,8 +73,9 @@ void CliffErrorMonitor::timerCallback()
             isFirstCheckArray[i] = true;
             if (preErrorState[i] == true) { // 낙하 에러 해제시 로깅
                 RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[CliffErrorMonitor] Cliff IR #[%d] : %s, "
+                    "[%s] Cliff IR #[%d] : %s, "
                     "IR Detection Error Released",
+                    paramNamespace().c_str(),
                     i+1,
                     cliff[i] ? "true" : "false"
                 );
@@ -90,8 +91,9 @@ void CliffErrorMonitor::timerCallback()
                 isFirstCheckArray[i] = false;
                 // 낙하 에러 체크 시작 시 최초 한번 로깅
                 RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[CliffErrorMonitor] Initial check => Cliff IR #[%d] : %s,"
+                    "[%s] Initial check => Cliff IR #[%d] : %s,"
                     "pre_position (X, Y): (%.3f, %.3f)",
+                    paramNamespace().c_str(),
                     i+1,
                     cliff[i] ? "true" : "false",
                     prePositionXArray[i],
@@ -116,10 +118,11 @@ void CliffErrorMonitor::timerCallback()
             if (accumDist[i] >= params.accum_dist_th) {
                 if (preErrorState[i] == false) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[CliffErrorMonitor] Cliff IR #[%d] : %s, "
+                        "[%s] Cliff IR #[%d] : %s, "
                         "IR Detection Error Occured,"
                         "timediff: %.3f sec," 
                         "Accumulated Distance: %.3f m",
+                        paramNamespace().c_str(),
                         i+1,
                         cliff[i] ? "true" : "false",
                         timeDiff,

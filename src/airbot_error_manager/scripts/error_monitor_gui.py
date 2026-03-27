@@ -64,7 +64,7 @@ class ErrorMockNode(Node):
             'imu_pitch': 0.0,
             'imu_z': 9.8,
             'odom_x': 0.0,
-            'tof_dist': 0.02,
+            'tof_dist': 0.2,
             'ap_temp': 40.0,
             
             # Tx Pause controls (True means paused/delayed)
@@ -223,10 +223,10 @@ class ErrorMonitorGui(QWidget):
         # 4. Tof
         grp_tof = QGroupBox("ToF Group")
         l_tof = QGridLayout()
-        btn_tof_err = QPushButton("ToF Error (Dist 0.005)")
-        btn_tof_err.clicked.connect(lambda: self.set_tof(0.005))
-        btn_tof_rel = QPushButton("ToF Release (Dist 0.02)")
-        btn_tof_rel.clicked.connect(lambda: self.set_tof(0.02))
+        btn_tof_err = QPushButton("ToF Error (Dist 0.05)")
+        btn_tof_err.clicked.connect(lambda: self.set_tof(0.05))
+        btn_tof_rel = QPushButton("ToF Release (Dist 0.2)")
+        btn_tof_rel.clicked.connect(lambda: self.set_tof(0.2))
         
         chk_pause_tof = QCheckBox("Pause Tx (Simulate Timeout)")
         chk_pause_tof.toggled.connect(lambda c: self.set_pause('pause_tof', c))

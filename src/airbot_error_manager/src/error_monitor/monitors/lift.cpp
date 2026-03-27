@@ -76,14 +76,17 @@ void LiftErrorMonitor::timerCallback()
     if (count == 0 || isChargerConnect) { // 모든 IR 센서가 false일 경우 에러 해제. 또는 충전 단자 인식 시 에러 해제
         if (errorState) {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[LiftErrorMonitor] LiftError Released! isChargerConnect = %d",
+                "[%s] LiftError Released! isChargerConnect = %d",
+                paramNamespace().c_str(),
                 isChargerConnect
             );
         }
         if (errorCount > 0)
         {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[LiftErrorMonitor] Error Clear. errorCount = %d, count = %d, isChargerConnect = %d",
+                "[%s] Error Clear. "
+                "errorCount = %d, count = %d, isChargerConnect = %d",
+                paramNamespace().c_str(),
                 errorCount,
                 count,
                 isChargerConnect
@@ -95,9 +98,10 @@ void LiftErrorMonitor::timerCallback()
     } else if (count >= params.drop_ir_cnt_min) { // ir 센서 true개수 4개 이상이면 ir 들림 의심
         if (!irLiftFlag) {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[LiftErrorMonitor] Over 4 IR sensors Lift Detected! "
+                "[%s] Over 4 IR sensors Lift Detected! "
                 "(adc_ff : %d)  (adc_fl : %d) (adc_fr :%d) "
                 "(adc_bb : %d) (adc_bl : %d) (adc_br : %d)",
+                paramNamespace().c_str(),
                 ir.data.adc_ff,
                 ir.data.adc_fr,
                 ir.data.adc_fr,
@@ -114,12 +118,15 @@ void LiftErrorMonitor::timerCallback()
     double acc_z = imu.data.linear_acceleration.z;
 
     //250521 KKS : 낙하가 감지되지 않을 경우 z축 검사하지 않음
-    if (irLiftFlag && (acc_z <= params.imu_z_acc_low_th || acc_z >= params.imu_z_acc_hight_th)) { 
+    if (irLiftFlag &&
+        (acc_z <= params.imu_z_acc_low_th || acc_z >= params.imu_z_acc_hight_th)) { 
         // [250407] hyjoe : 들림 에러 발생 의심시 imu z축 가속도값 로깅
-        // (승월이나 전도시에도 해당 로그 나올 수 있지만, 추후 정확한 상태 진단을 위해 일단 로깅)
+        // (승월이나 전도시에도 해당 로그 나올 수 있음. 정확한 상태 진단을 위해 일단 로깅)
         if (!imuLiftFlag) {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[LiftErrorMonitor] Imu z axis acceleration Lift Detected! (acc_z: %.3f m/s^2)",
+                "[%s] Imu z axis acceleration Lift Detected! "
+                "(acc_z: %.3f m/s^2)",
+                paramNamespace().c_str(),
                 acc_z
             );
         }
@@ -140,7 +147,9 @@ void LiftErrorMonitor::timerCallback()
         // [250407] hyjoe : 들림 에러 발생 시 에러 체크 카운터 로깅
         if (!liftErrorCandidate) {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[LiftErrorMonitor] (Error Suspected!) IR & IMU both Lift Detected! (error count: %d)",
+                "[%s] (Error Suspected!) IR & IMU both Lift Detected! "
+                "(error count: %d)",
+                paramNamespace().c_str(),
                 static_cast<int>(errorCount)
             );
             prevTime = clock.now().seconds();
@@ -153,8 +162,9 @@ void LiftErrorMonitor::timerCallback()
         if (!irLiftFlag) {
             liftErrorCandidate = false;
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[LiftErrorMonitor] IR & IMU both Lift Detected BUT release in 2 sec "
+                "[%s] IR & IMU both Lift Detected BUT release in 2 sec "
                 "(error count: %d, IR list duration: %.3f sec)",
+                paramNamespace().c_str(),
                 static_cast<int>(errorCount),
                 timeDiff
             );
@@ -162,8 +172,9 @@ void LiftErrorMonitor::timerCallback()
             if (timeDiff >= 2) {
                 if (!errorState) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[LiftErrorMonitor] IR & IMU both Lift Detected! "
+                        "[%s] IR & IMU both Lift Detected! "
                         "(error count: %d, IR lift duration: %.3f sec)",
+                        paramNamespace().c_str(),
                         static_cast<int>(errorCount),
                         timeDiff
                     );

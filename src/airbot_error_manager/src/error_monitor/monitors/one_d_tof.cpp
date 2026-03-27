@@ -58,11 +58,13 @@ void OneDTofErrorMonitor::timerCallback() {
 
     static rclcpp::Clock clock(RCL_STEADY_TIME);
 
-    if (tof.data.top >= params.one_d_min_dist_m && tof.data.top <= params.one_d_max_dist_m) {
+    if (tof.data.top >= params.one_d_min_dist_m &&
+        tof.data.top <= params.one_d_max_dist_m) {
         if (!is_first_detect) {
             check_oned_startTime = clock.now().seconds();
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[OneDTofErrorMonitor] check start dist=%.2f",
+                "[%s] check start dist=%.2f",
+                paramNamespace().c_str(),
                 tof.data.top
             );
             is_first_detect = true;
@@ -72,7 +74,8 @@ void OneDTofErrorMonitor::timerCallback() {
         double time_diff = clock.now().seconds() - check_oned_startTime;
         if ((time_diff >= next_check_sec) && !isError) { // 1초 단위로 로깅
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[OneDTofErrorMonitor] Error Checking for %.2fsec",
+                "[%s] Error Checking for %.2fsec",
+                paramNamespace().c_str(),
                 time_diff
             );
             next_check_sec += 1;
@@ -82,7 +85,8 @@ void OneDTofErrorMonitor::timerCallback() {
         if (time_diff >= params.duration_sec) {
             if (!isError) {
                 RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[OneDTofErrorMonitor] Error occurred"
+                    "[%s] Error occurred",
+                    paramNamespace().c_str()
                 );
             }
             next_check_sec = 1;
@@ -92,7 +96,8 @@ void OneDTofErrorMonitor::timerCallback() {
         is_first_detect = false;
         if (isError) {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[OneDTofErrorMonitor] Error resolved"
+                "[%s] Error released",
+                paramNamespace().c_str()
             );
         }
         isError = false;

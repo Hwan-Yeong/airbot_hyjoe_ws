@@ -86,11 +86,14 @@ void ChargingErrorMonitor::timerCallback()
     if (batteryPercentage != prevBatteryPercentage) {
         RCLCPP_INFO(
             node_ptr_->get_logger(),
-            "[ChargingErrorMonitor] Docking status: 0x%02X\n"
-            "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
-            "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-            "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+            "[%s] Docking status: 0x%02X\n"
+            "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
+            "Percentage:[%d %%] / Current:[%.1f mA] / "
+            "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+            "Battery Cell Voltage:"
+            "[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
             "Battery Version: 0x%02X",
+            paramNamespace().c_str(),
             station.data.docking_status,
             battery.data.battery_manufacturer,
             battery.data.remaining_capacity,
@@ -129,12 +132,14 @@ void ChargingErrorMonitor::timerCallback()
                 isFirstCheck = false;
                 RCLCPP_INFO(
                     node_ptr_->get_logger(),
-                    "[ChargingErrorMonitor] Docking status: 0x%02X\n"
-                    "[ChargingErrorMonitor] Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] /"
-                    "Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / "
-                    "Temp1:[%d °C] / Temp2:[%d °C]\n"
-                    "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                    "[%s] Docking status: 0x%02X\n"
+                    "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
+                    "Percentage:[%d %%] / Current:[%.1f mA] / "
+                    "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                    "Battery Cell Voltage:"
+                    "[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                     "Battery Version: 0x%02X",
+                    paramNamespace().c_str(),
                     station.data.docking_status,
                     battery.data.battery_manufacturer,
                     battery.data.remaining_capacity,
@@ -158,12 +163,14 @@ void ChargingErrorMonitor::timerCallback()
                     errorState = true;
                     RCLCPP_INFO(
                         node_ptr_->get_logger(),
-                        "[ChargingErrorMonitor] Docking status: 0x%02X\n"
-                        "Manufacturer:[%d] / Remaining capacity:[%d mAh] /"
-                        "Percentage:[%d %%] / Current:[%.1f mA] / Voltage:[%.1f mV] / "
-                        "Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "[%s] Docking status: 0x%02X\n"
+                        "Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
+                        "Percentage:[%d %%] / Current:[%.1f mA] / "
+                        "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage:"
+                        "[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
+                        paramNamespace().c_str(),
                         station.data.docking_status,
                         battery.data.battery_manufacturer,
                         battery.data.remaining_capacity,
@@ -180,8 +187,9 @@ void ChargingErrorMonitor::timerCallback()
                         battery.data.battery_version
                     );
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[ChargingErrorMonitor] elapsed time since error check started: %.3f sec, "
+                        "[%s] elapsed time since error check started: %.3f sec, "
                         "chargeDiff: %d %%",
+                        paramNamespace().c_str(),
                         timediff,
                         chargeDiff
                     );

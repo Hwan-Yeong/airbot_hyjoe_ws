@@ -74,14 +74,16 @@ void LowBatteryErrorMonitor::timerCallback()
     if( st.data.docking_status & 0x10 ){
         if( !station_flag ){
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[LowBatteryErrorMonitor]CHECK AMR ON STATION ==> dockingstatus[%02x] ",
+                "[%s]CHECK AMR ON STATION ==> dockingstatus[%02x] ",
+                paramNamespace().c_str(),
                 st.data.docking_status);
         }
         station_flag = true;
     } else{
         if( station_flag ){
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[LowBatteryErrorMonitor]CHECK AMR OFF STATION ==> dockingstatus[%02x] ",
+                "[%s]CHECK AMR OFF STATION ==> dockingstatus[%02x] ",
+                paramNamespace().c_str(),
                 st.data.docking_status);
         }
         station_flag = false;
@@ -95,13 +97,17 @@ void LowBatteryErrorMonitor::timerCallback()
             if (bat.data.battery_percent <= params.occure_percentage_max &&
                 bat.data.battery_percent > params.occure_percentage_min) {
                 if (!prev_state) {
-                    // [250407] hyjoe : low battery 에러 발생시 모니터 체크 시간(sec), 배터리 상태 1번만 로깅
+                    // [250407] hyjoe : low battery 에러 발생시 모니터 체크 시간(sec)
+                    // 배터리 상태 1번만 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[LowBatteryErrorMonitor] OCCUR LOW BATTERY ERROR!!!\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
-                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "[%s] OCCUR LOW BATTERY ERROR!!!\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
+                        "Percentage:[%d %%] / Current:[%.1f mA] / "
+                        "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage: "
+                        "[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
+                        paramNamespace().c_str(),
                         bat.data.battery_manufacturer,
                         bat.data.remaining_capacity,
                         static_cast<int>(bat.data.battery_percent),
@@ -131,14 +137,18 @@ void LowBatteryErrorMonitor::timerCallback()
             release_time_diff = current_time - prev_time;
             if( release_time_diff >= params.release_duration_sec){ // 30 sec
                 if (prev_state) {
-                    // [250407] hyjoe : low battery 에러 발생 한적이 있었던 경우, 해제시 1번만 배터리 상태 로깅
+                    // [250407] hyjoe : low battery 에러 발생 한적이 있었던 경우,
+                    // 해제시 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[LowBatteryErrorMonitor] [RELEASED] Low Battery error \n"
+                        "[%s] [RELEASED] Low Battery error \n"
                         "elapsed time since release check started: %.3f\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
-                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
+                        "Percentage:[%d %%] / Current:[%.1f mA] / "
+                        "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage: "
+                        "[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
+                        paramNamespace().c_str(),
                         release_time_diff,
                         bat.data.battery_manufacturer,
                         bat.data.remaining_capacity,
@@ -162,13 +172,17 @@ void LowBatteryErrorMonitor::timerCallback()
             } 
             else {
                 if (is_first_logging) {
-                    // [250407] hyjoe : low battery 에러 조건에 들어왔을 때 시간 체크 시작 시점에 1번만 배터리 상태 로깅
+                    // [250407] hyjoe : low battery 에러 조건에 들어왔을 때
+                    // 시간 체크 시작 시점에 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[LowBatteryErrorMonitor] [START RELEASE] low battery monitor\n"
-                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
-                        "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
-                        "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
+                        "[%s] [START RELEASE] low battery monitor\n"
+                        "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
+                        "Percentage:[%d %%] / Current:[%.1f mA] / "
+                        "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
+                        "Battery Cell Voltage: "
+                        "[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
+                        paramNamespace().c_str(),
                         bat.data.battery_manufacturer,
                         bat.data.remaining_capacity,
                         static_cast<int>(bat.data.battery_percent),

@@ -64,14 +64,16 @@ void AICommunicationErrorMonitor::timerCallback()
             errorState = false;
             monitorCnt = 0;
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[AICommunicationErrorMonitor] First AI topic received. Start monitoring.");
+                "[%s] First AI topic received. Start monitoring.",
+                paramNamespace().c_str());
         } else {
             monitorCnt++;
             if (monitorCnt >= params.duration_cnt_first) {
                 if (!errorState) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[AICommunicationErrorMonitor] AI disconnect Error Occured! "
+                        "[%s] AI disconnect Error Occured! "
                         "Initial timeout %d sec",
+                        paramNamespace().c_str(),
                         params.duration_cnt_first);
                 }
                 errorState = true;
@@ -83,15 +85,17 @@ void AICommunicationErrorMonitor::timerCallback()
                 errorState = false;
                 monitorCnt = 0;
                 RCLCPP_INFO(node_ptr_->get_logger(), 
-                        "[AICommunicationErrorMonitor] AI disconnect Error Released!");
+                        "[%s] AI disconnect Error Released!",
+                        paramNamespace().c_str());
             }
         } else {
             monitorCnt++;
             if (monitorCnt >= params.duration_cnt || disconnect_time >= 15.0) {
                 if (!errorState) {
                     RCLCPP_INFO(node_ptr_->get_logger(), 
-                        "[AICommunicationErrorMonitor] AI disconnect Error Occured! "
+                        "[%s] AI disconnect Error Occured! "
                         "Timeout [%d sec] | disconnect_time [%.2f sec]",
+                        paramNamespace().c_str(),
                         params.duration_cnt,
                         disconnect_time);
                 }
@@ -103,7 +107,8 @@ void AICommunicationErrorMonitor::timerCallback()
     if (errorState && monitorCnt > 0) {
         if ((monitorCnt % 30) == 0) {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[AICommunicationErrorMonitor] AI still disconnected... during %d sec",
+                "[%s] AI still disconnected... during %d sec",
+                paramNamespace().c_str(),
                 monitorCnt
             );
         }
