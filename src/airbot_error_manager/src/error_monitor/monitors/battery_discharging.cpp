@@ -105,7 +105,8 @@ void BatteryDischargingErrorMonitor::timerCallback()
             if (time_diff >= params.occure_duration_sec) { // 10 sec
                 if (!prev_state) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[BatteryDischargingErrorMonitor] elapsed time since error check started: %.3f\n"
+                        "[BatteryDischargingErrorMonitor] [OCCURED] battery discharging error \n"
+                        "elapsed time since error check started: %.3f\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
                         "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
@@ -130,7 +131,7 @@ void BatteryDischargingErrorMonitor::timerCallback()
             } else {
                 if (is_first_logging) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[BatteryDischargingErrorMonitor] start to battery discharging monitor\n"
+                        "[BatteryDischargingErrorMonitor] [START] to checking battery discharging\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
                         "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
@@ -202,7 +203,7 @@ void BatteryDischargingErrorMonitor::timerCallback()
             else {
                 if (is_first_logging) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[BatteryDischargingErrorMonitor] [START RELEASE] battery discharging monitor\n"
+                        "[BatteryDischargingErrorMonitor] [START] to checking battery discharging released\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / Percentage:[%d %%] /"
                         "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
