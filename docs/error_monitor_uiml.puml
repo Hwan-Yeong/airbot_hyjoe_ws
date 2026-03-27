@@ -58,13 +58,13 @@ class CliffErrorMonitor {
 }
 CliffErrorMonitor --|> BaseErrorMonitor
 
-class TofErrorMonitor {
+class OneDTofErrorMonitor {
     +checkError(input: robot_custom_msgs::msg::TofData) : bool
     +loadParams(ns: string)
     +paramNamespace() : string
     params: tParams
 }
-TofErrorMonitor --|> BaseErrorMonitor
+OneDTofErrorMonitor --|> BaseErrorMonitor
 
 class AICommunicationErrorMonitor {
     +checkError(input: pair<bool, bool>) : bool

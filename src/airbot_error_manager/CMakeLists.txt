@@ -78,7 +78,7 @@ add_executable(error_monitor_node
   src/error_monitor/monitors/charging.cpp
   src/error_monitor/monitors/lift.cpp
   src/error_monitor/monitors/cliff.cpp
-  src/error_monitor/monitors/tof.cpp
+  src/error_monitor/monitors/one_d_tof.cpp
   src/error_monitor/monitors/ai_communication.cpp
 )
 ament_target_dependencies(error_monitor_node

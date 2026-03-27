@@ -1,6 +1,6 @@
-#include "error_monitor/monitors/tof.hpp"
+#include "error_monitor/monitors/one_d_tof.hpp"
 
-void TofErrorMonitor::loadParams(const YAML::Node& config) {
+void OneDTofErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
 
     // Default values matched with yaml for fallback
@@ -17,7 +17,7 @@ void TofErrorMonitor::loadParams(const YAML::Node& config) {
     if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
 }
 
-void TofErrorMonitor::printParams() const {
+void OneDTofErrorMonitor::printParams() const {
     if (!node_ptr_) return;
     RCLCPP_INFO(node_ptr_->get_logger(),
         "[%s] duration_sec: %.1f, min_dist: %.2f, max_dist: %.2f, rate: %d",
@@ -29,52 +29,42 @@ void TofErrorMonitor::printParams() const {
     );
 }
 
-void TofErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
+void OneDTofErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
     blackboard_ = blackboard;
     error_pub_ = node_ptr_->create_publisher<std_msgs::msg::Bool>(
-        "error/s_code/tof", 10);
+        "error/s_code/top_tof_obstacle_error", 10);
     timer_ = node_ptr_->create_wall_timer(
         std::chrono::milliseconds(params.monitoring_rate_ms),
         [this](){ timerCallback(); }
     );
 }
 
-void TofErrorMonitor::timerCallback() {
-    robot_custom_msgs::msg::TofData input;
-    {
-        auto tof = blackboard_->getTofData();
-        
-        if (checkSensorState(paramNamespace(), 10, {tof.last_update_time}) != SensorState::NORMAL) {
-            return;
-        }
+void OneDTofErrorMonitor::timerCallback() {
+    auto tof = blackboard_->getTofData();
 
-        if (!tof.is_updated) return;
-        input = tof.data;
+    if (checkSensorState(paramNamespace(), 10, {tof.last_update_time}) != SensorState::NORMAL) {
+        return;
     }
 
-    static bool is_first_detect = false;
+    if (!tof.is_updated) return;
+
     static rclcpp::Clock clock(RCL_STEADY_TIME);
-    static double check_oned_startTime;
-    static bool isError = false;
-    static double next_check_sec = 1;
 
-    double tof_data = input.top;
-
-    if (tof_data >= params.one_d_min_dist_m && tof_data <= params.one_d_max_dist_m) {
+    if (tof.data.top >= params.one_d_min_dist_m && tof.data.top <= params.one_d_max_dist_m) {
         if (!is_first_detect) {
             check_oned_startTime = clock.now().seconds();
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[1D_TofErrorMonitor] check start dist=%.2f",
-                tof_data
+                "[OneDTofErrorMonitor] check start dist=%.2f",
+                tof.data.top
             );
             is_first_detect = true;
             next_check_sec = 1;
         }
 
         double time_diff = clock.now().seconds() - check_oned_startTime;
-        if ((time_diff >= next_check_sec) && !isError) { // 10초 단위로 로깅
+        if ((time_diff >= next_check_sec) && !isError) { // 1초 단위로 로깅
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[1D_TofErrorMonitor] Error Checking for %.2fsec",
+                "[OneDTofErrorMonitor] Error Checking for %.2fsec",
                 time_diff
             );
             next_check_sec += 1;
@@ -84,7 +74,7 @@ void TofErrorMonitor::timerCallback() {
         if (time_diff >= params.duration_sec) {
             if (!isError) {
                 RCLCPP_INFO(node_ptr_->get_logger(),
-                    "[1D_TofErrorMonitor] Error occurred"
+                    "[OneDTofErrorMonitor] Error occurred"
                 );
             }
             next_check_sec = 1;
@@ -94,7 +84,7 @@ void TofErrorMonitor::timerCallback() {
         is_first_detect = false;
         if (isError) {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[1D_TofErrorMonitor] Error resolved"
+                "[OneDTofErrorMonitor] Error resolved"
             );
         }
         isError = false;

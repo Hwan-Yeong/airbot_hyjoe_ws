@@ -16,7 +16,7 @@
 #include "error_monitor/monitors/charging.hpp"
 #include "error_monitor/monitors/lift.hpp"
 #include "error_monitor/monitors/cliff.hpp"
-#include "error_monitor/monitors/tof.hpp"
+#include "error_monitor/monitors/one_d_tof.hpp"
 #include "error_monitor/monitors/ai_communication.hpp"
 
 using namespace std::chrono_literals;

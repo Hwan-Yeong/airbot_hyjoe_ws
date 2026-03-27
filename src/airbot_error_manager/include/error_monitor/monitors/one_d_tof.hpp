@@ -2,7 +2,7 @@
 
 #include "error_monitor/error_monitor_base.hpp"
 
-class TofErrorMonitor : public ErrorMonitorBase
+class OneDTofErrorMonitor : public ErrorMonitorBase
 {
 public:
     struct tParams {
@@ -20,6 +20,11 @@ public:
 
 private:
     void timerCallback();
+
+    bool is_first_detect = false;
+    double check_oned_startTime;
+    bool isError = false;
+    double next_check_sec = 1;
 };
 
 
