@@ -71,9 +71,9 @@ void LiftErrorMonitor::timerCallback() {
   auto imu = blackboard_->getImuData();
   auto st = blackboard_->getStationData();
 
-  if (checkSensorState(paramNamespace(), 10,
-                       {ir.last_update_time, imu.last_update_time,
-                        st.last_update_time}) != DataState::NORMAL) {
+  if (checkDataState(paramNamespace(), 10,
+                     {ir.last_update_time, imu.last_update_time,
+                      st.last_update_time}) != DataState::NORMAL) {
     return;
   }
 

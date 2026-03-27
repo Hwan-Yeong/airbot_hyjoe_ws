@@ -55,7 +55,7 @@ void BoardOverheatErrorMonitor::startMonitor(
 void BoardOverheatErrorMonitor::timerCallback() {
   auto ap = blackboard_->getApTemperatureData();
 
-  if (checkSensorState(paramNamespace(), 100, {ap.last_update_time}) !=
+  if (checkDataState(paramNamespace(), 100, {ap.last_update_time}) !=
       DataState::NORMAL) {
     return;
   }

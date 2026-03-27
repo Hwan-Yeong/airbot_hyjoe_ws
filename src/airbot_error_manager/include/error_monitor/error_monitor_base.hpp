@@ -32,7 +32,7 @@ enum class DataState { NORMAL, DELAYED, TIMEOUT };
  * 다형성(polymorphism)을 활용하여 여러 모니터들을 일괄적으로 관리할 수 있습니다.
  * 
  * 또한 자식 클래스에서 중복하여 사용되는 센서들의 타임아웃 검사를 위해
- * `checkSensorState()`와 같은 내장 유틸리티 함수도 제공합니다. (사용 여부 선택사항)
+ * `checkDataState()`와 같은 내장 유틸리티 함수도 제공합니다. (사용 여부 선택사항)
  */
 class ErrorMonitorBase {
  public:
@@ -84,6 +84,8 @@ class ErrorMonitorBase {
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr error_pub_;
   rclcpp::TimerBase::SharedPtr timer_;
   DataState current_sensor_state_ = DataState::NORMAL;
+  std::chrono::steady_clock::time_point monitor_start_time_ =
+      std::chrono::steady_clock::now();
 
   /**
    * @brief 센서 데이터 스트림이 정상인지, 지연(Delayed)되었는지,
@@ -102,7 +104,7 @@ class ErrorMonitorBase {
    * @param stamps 입력값들의 `steady_clock::time_point` 객체들이 담긴 초기화 리스트.
    * @return DataState NORMAL, DELAYED, 또는 TIMEOUT을 반환합니다.
    */
-  DataState checkSensorState(
+  DataState checkDataState(
       const std::string& monitor_name, int input_data_period_ms,
       std::initializer_list<std::chrono::steady_clock::time_point> stamps) {
     if (stamps.size() == 0)
@@ -113,7 +115,11 @@ class ErrorMonitorBase {
 
     for (const auto& stamp : stamps) {
       if (stamp.time_since_epoch().count() == 0) {
-        max_delay_ms = std::max(max_delay_ms, 999999L);
+        auto init_delay_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                now - monitor_start_time_)
+                .count();
+        max_delay_ms = std::max(max_delay_ms, static_cast<long>(init_delay_ms));
         continue;
       }
       auto delay_ms =

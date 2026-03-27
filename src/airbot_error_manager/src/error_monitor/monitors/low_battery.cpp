@@ -72,8 +72,8 @@ void LowBatteryErrorMonitor::timerCallback() {
   auto bat = blackboard_->getBatteryData();
   auto st = blackboard_->getStationData();
 
-  if (checkSensorState(paramNamespace(), 10,
-                       {bat.last_update_time, st.last_update_time}) !=
+  if (checkDataState(paramNamespace(), 10,
+                     {bat.last_update_time, st.last_update_time}) !=
       DataState::NORMAL) {
     return;
   }

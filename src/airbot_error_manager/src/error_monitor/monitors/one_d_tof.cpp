@@ -62,7 +62,7 @@ void OneDTofErrorMonitor::startMonitor(
 void OneDTofErrorMonitor::timerCallback() {
   auto tof = blackboard_->getTofData();
 
-  if (checkSensorState(paramNamespace(), 10, {tof.last_update_time}) !=
+  if (checkDataState(paramNamespace(), 10, {tof.last_update_time}) !=
       DataState::NORMAL) {
     return;
   }

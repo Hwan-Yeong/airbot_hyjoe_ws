@@ -59,8 +59,8 @@ void CliffErrorMonitor::timerCallback() {
   auto odom = blackboard_->getOdomData();
   auto rState = blackboard_->getRobotStateData();
 
-  if (checkSensorState(paramNamespace(), 10,
-                       {ir.last_update_time, odom.last_update_time}) !=
+  if (checkDataState(paramNamespace(), 10,
+                     {ir.last_update_time, odom.last_update_time}) !=
       DataState::NORMAL) {
     return;
   }

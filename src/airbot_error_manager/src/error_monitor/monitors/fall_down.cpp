@@ -68,8 +68,8 @@ void FallDownErrorMonitor::timerCallback() {
   auto ir = blackboard_->getIrData();
   auto imu = blackboard_->getImuData();
 
-  if (checkSensorState(paramNamespace(), 10,
-                       {ir.last_update_time, imu.last_update_time}) !=
+  if (checkDataState(paramNamespace(), 10,
+                     {ir.last_update_time, imu.last_update_time}) !=
       DataState::NORMAL) {
     return;
   }

@@ -85,8 +85,8 @@ void ChargingErrorMonitor::timerCallback() {
   auto station = blackboard_->getStationData();
   auto robot_state = blackboard_->getRobotStateData();
 
-  if (checkSensorState(paramNamespace(), 10,
-                       {battery.last_update_time, station.last_update_time}) !=
+  if (checkDataState(paramNamespace(), 10,
+                     {battery.last_update_time, station.last_update_time}) !=
       DataState::NORMAL) {
     return;
   }
