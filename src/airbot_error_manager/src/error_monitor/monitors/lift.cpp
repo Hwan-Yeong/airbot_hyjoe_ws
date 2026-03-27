@@ -103,7 +103,10 @@ void LiftErrorMonitor::timerCallback()
 
     double acc_z = imu.data.linear_acceleration.z;
 
+    //250521 KKS : 낙하가 감지되지 않을 경우 z축 검사하지 않음
     if (irLiftFlag && (acc_z <= params.imu_z_acc_low_th || acc_z >= params.imu_z_acc_hight_th)) { 
+        // [250407] hyjoe : 들림 에러 발생 의심시 imu z축 가속도값 로깅
+        // (승월이나 전도시에도 해당 로그 나올 수 있지만, 추후 정확한 상태 진단을 위해 일단 로깅)
         if (!imuLiftFlag) {
             RCLCPP_INFO(node_ptr_->get_logger(),
                 "[LiftErrorMonitor] Imu z axis acceleration Lift Detected! (acc_z: %.3f m/s^2)",
@@ -117,11 +120,14 @@ void LiftErrorMonitor::timerCallback()
 
     if (irLiftFlag && imuLiftFlag) {
         errorCount++;
-    } else if (errorCount > 0) { 
+    } else if (errorCount > 0) { // Imu나 IR 값이 잠깐 튀어도 카운트 바로 초기화 하지 않기 위해.
         errorCount--;
-    }
+    }/* else {
+        errorCount = 0;
+    }*/
 
     if (errorCount >= 10) {
+        // [250407] hyjoe : 들림 에러 발생 시 에러 체크 카운터 로깅
         if (!liftErrorCandidate) {
             RCLCPP_INFO(node_ptr_->get_logger(),
                 "[LiftErrorMonitor] (Error Suspected!) IR & IMU both Lift Detected! (error count: %d)",
