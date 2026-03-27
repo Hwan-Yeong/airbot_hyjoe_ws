@@ -26,7 +26,7 @@
   - 충전 중이 아닌 경우 (Status: OFF CHARGING),
     배터리 잔량이 0%(`occure_percentage_min`) 초과 5%(`occure_percentage_max`) 이하인 구간에 도달한 후, 해당 조건이 10초(`occure_duration_sec`) 이상 지속될 경우 발생
 - **에러 해제 조건**:
-  - 배터리 잔량이 10%(`release_percentage_th`) 초과하는 구간에 도달하고, 해당 상태가 30초(`release_duration_sec`) 이상 동안 지속될 경우 해제
+  - 배터리 잔량이 10%(`resolve_percentage_th`) 초과하는 구간에 도달하고, 해당 상태가 30초(`resolve_duration_sec`) 이상 동안 지속될 경우 해제
 - **Idle 상태 조건**:
   - 충전 상태이거나, 배터리 잔량이 5% 초과 10% 이하 등 에러 발생 및 해제 기준 구간을 벗어난 경우
 - **로깅 조건**:
@@ -124,7 +124,7 @@
   - 로봇이 스테이션에서 분리(OFF STATION, `docking_status & 0x10` 이 0)된 상태에서 
   - 배터리 잔량이 5% 초과(`occure_percentage_min`) 이면서 15% 이하(`occure_percentage_max`)일 경우 즉시(시간대기 없음) 발생.
 - **에러 해제 조건**:
-  - 배터리가 재충전(혹은 기타 원인)되어 잔량이 20% 초과(`release_percentage_th`) 구간에 도달하게 되고, 이 상태가 30초(`release_duration_sec`) 이상 지속될 경우 해제됨
+  - 배터리가 재충전(혹은 기타 원인)되어 잔량이 20% 초과(`resolve_percentage_th`) 구간에 도달하게 되고, 이 상태가 30초(`resolve_duration_sec`) 이상 지속될 경우 해제됨
 - **Idle 상태 조건**:
   - 스테이션 위치 (on-station) 상태, 혹은 외부 활동 시 15% 초과 ~ 20% 이하로 어느 에러 트리거링 및 릴리즈 범위에 끼지 않는 잔량 방치 유지
 - **로깅 조건**:

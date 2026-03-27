@@ -23,7 +23,7 @@ private:
 
     bool error_state = false;
     std::unordered_map<std::string, float> overheat_occured_times_;
-    std::unordered_map<std::string, float> overheat_release_start_times_;
+    std::unordered_map<std::string, float> overheat_resolve_start_times_;
 
     bool pre_board_overheat_error_ = false;
 };

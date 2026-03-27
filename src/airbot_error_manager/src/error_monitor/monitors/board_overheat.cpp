@@ -11,12 +11,12 @@ void BoardOverheatErrorMonitor::loadParams(const YAML::Node& config) {
     if (config["monitoring_rate_ms"]) {
         params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["occure"]) {
-        if (config["occure"]["temperature_th_c"]) {
-            params.temperature_th = config["occure"]["temperature_th_c"].as<double>();
+    if (config["occur"]) {
+        if (config["occur"]["temperature_th_c"]) {
+            params.temperature_th = config["occur"]["temperature_th_c"].as<double>();
         }
-        if (config["occure"]["duration_sec"]) {
-            params.duration_sec = config["occure"]["duration_sec"].as<double>();
+        if (config["occur"]["duration_sec"]) {
+            params.duration_sec = config["occur"]["duration_sec"].as<double>();
         }
     }
 }
@@ -101,17 +101,17 @@ void BoardOverheatErrorMonitor::timerCallback()
         } else {
             // 온도가 threshold 아래로 떨어지면..
             if (overheat_occured_times_.count(zone_name)) {
-                auto it_release = overheat_release_start_times_.find(zone_name);
-                if (it_release == overheat_release_start_times_.end()) {
-                    // release 시작 시간 등록
-                    overheat_release_start_times_[zone_name] = clock.now().seconds();
+                auto it_resolve = overheat_resolve_start_times_.find(zone_name);
+                if (it_resolve == overheat_resolve_start_times_.end()) {
+                    // resolve 시작 시간 등록
+                    overheat_resolve_start_times_[zone_name] = clock.now().seconds();
                 } else {
                     // 5초 이상 유지 확인.
-                    if (clock.now().seconds() - it_release->second >= 5.0) {
+                    if (clock.now().seconds() - it_resolve->second >= 5.0) {
                         overheat_occured_times_.erase(zone_name);
-                        overheat_release_start_times_.erase(zone_name);
+                        overheat_resolve_start_times_.erase(zone_name);
                         RCLCPP_WARN(node_ptr_->get_logger(),
-                            "[%s] Release: [%s] / Temp [%.1f]°C "
+                            "[%s] Resolve: [%s] / Temp [%.1f]°C "
                             "< threshold [%.1f]°C for 5 seconds.",
                             paramNamespace().c_str(),
                             zone_name.c_str(),

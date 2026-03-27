@@ -7,26 +7,26 @@ void LowBatteryErrorMonitor::loadParams(const YAML::Node& config) {
     params.monitoring_rate_ms = 1000;
     params.occure_percentage_min = 5;
     params.occure_percentage_max = 15;
-    params.release_percentage_th = 20;
-    params.release_duration_sec = 30.0;
+    params.resolve_percentage_th = 20;
+    params.resolve_duration_sec = 30.0;
 
     if (config["monitoring_rate_ms"]) {
         params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["occure"]) {
-        if (config["occure"]["battery_percentage_min"]) {
-            params.occure_percentage_min = config["occure"]["battery_percentage_min"].as<int>();
+    if (config["occur"]) {
+        if (config["occur"]["battery_percentage_min"]) {
+            params.occure_percentage_min = config["occur"]["battery_percentage_min"].as<int>();
         }
-        if (config["occure"]["battery_percentage_max"]) {
-            params.occure_percentage_max = config["occure"]["battery_percentage_max"].as<int>();
+        if (config["occur"]["battery_percentage_max"]) {
+            params.occure_percentage_max = config["occur"]["battery_percentage_max"].as<int>();
         }
     }
-    if (config["release"]) {
-        if (config["release"]["battery_percentage_th"]) {
-            params.release_percentage_th = config["release"]["battery_percentage_th"].as<int>();
+    if (config["resolve"]) {
+        if (config["resolve"]["battery_percentage_th"]) {
+            params.resolve_percentage_th = config["resolve"]["battery_percentage_th"].as<int>();
         }
-        if (config["release"]["duration_sec"]) {
-            params.release_duration_sec = config["release"]["duration_sec"].as<double>();
+        if (config["resolve"]["duration_sec"]) {
+            params.resolve_duration_sec = config["resolve"]["duration_sec"].as<double>();
         }
     }
 }
@@ -35,13 +35,13 @@ void LowBatteryErrorMonitor::printParams() const {
     if (!node_ptr_) return;
     RCLCPP_INFO(node_ptr_->get_logger(),
         "\n[%s] rate: %d\n"
-        "occure_min: %d, occure_max: %d, release_th: %d, release_duration: %.1f",
+        "occure_min: %d, occure_max: %d, resolve_th: %d, resolve_duration: %.1f",
         paramNamespace().c_str(),
         params.monitoring_rate_ms,
         params.occure_percentage_min,
         params.occure_percentage_max,
-        params.release_percentage_th,
-        params.release_duration_sec
+        params.resolve_percentage_th,
+        params.resolve_duration_sec
     );
 }
 
@@ -126,22 +126,22 @@ void LowBatteryErrorMonitor::timerCallback()
                 error_state = true;
             }
         }
-    } else{ //check release error
+    } else{ //check resolve error
         // 조건 :  배터리 잔여 20%초과 30초 유지
-        if(bat.data.battery_percent > params.release_percentage_th ){ // 20 %
+        if(bat.data.battery_percent > params.resolve_percentage_th ){ // 20 %
             //check time
-            if (!init_setting) { // release 체크 시간에 대해서 초기시간 설정
+            if (!init_setting) { // resolve 체크 시간에 대해서 초기시간 설정
                 prev_time = current_time;
                 init_setting = true;
             }
-            release_time_diff = current_time - prev_time;
-            if( release_time_diff >= params.release_duration_sec){ // 30 sec
+            resolve_time_diff = current_time - prev_time;
+            if( resolve_time_diff >= params.resolve_duration_sec){ // 30 sec
                 if (prev_state) {
                     // [250407] hyjoe : low battery 에러 발생 한적이 있었던 경우,
                     // 해제시 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[%s] [RELEASED] Low Battery error \n"
-                        "elapsed time since release check started: %.3f\n"
+                        "[%s] [RESOLVED] Low Battery error \n"
+                        "elapsed time since resolve check started: %.3f\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
                         "Percentage:[%d %%] / Current:[%.1f mA] / "
                         "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
@@ -149,7 +149,7 @@ void LowBatteryErrorMonitor::timerCallback()
                         "[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
                         paramNamespace().c_str(),
-                        release_time_diff,
+                        resolve_time_diff,
                         bat.data.battery_manufacturer,
                         bat.data.remaining_capacity,
                         static_cast<int>(bat.data.battery_percent),
@@ -175,7 +175,7 @@ void LowBatteryErrorMonitor::timerCallback()
                     // [250407] hyjoe : low battery 에러 조건에 들어왔을 때
                     // 시간 체크 시작 시점에 1번만 배터리 상태 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[%s] [START RELEASE] low battery monitor\n"
+                        "[%s] [START RESOLVE] low battery monitor\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
                         "Percentage:[%d %%] / Current:[%.1f mA] / "
                         "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"

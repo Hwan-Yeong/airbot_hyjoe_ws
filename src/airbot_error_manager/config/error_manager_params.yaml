@@ -12,32 +12,32 @@ airbot_error_monitor:
   ros__parameters:
     low_battery_error:
       monitoring_rate_ms: 1000
-      occure:
+      occur:
         battery_percentage_min: 5
         battery_percentage_max: 15
-      release:
+      resolve:
         battery_percentage_th: 20
         duration_sec: 30.0
 
     discharging_error:
       monitoring_rate_ms: 1000
-      occure:
+      occur:
         battery_percentage_min: 0
         battery_percentage_max: 5
         duration_sec: 10.0
-      release:
+      resolve:
         battery_percentage_th: 10
         duration_sec: 30.0
 
     board_overheat_error:
       monitoring_rate_ms: 1000
-      occure:
+      occur:
         temperature_th_c: 85.0
         duration_sec: 30.0
 
     charging_error:
       monitoring_rate_ms: 1000
-      occure:
+      occur:
         battery_percentage_min_th: 1
         battery_percentage_max_th: 60
         battery_percentage_diff_th: 2
@@ -45,7 +45,7 @@ airbot_error_monitor:
 
     fall_down_error:
       monitoring_rate_ms: 1000
-      occure:
+      occur:
         drop_ir_adc_th: 900
         drop_ir_cnt_min: 4
         imu_roll_th_deg: 60.0
@@ -53,7 +53,7 @@ airbot_error_monitor:
 
     lift_error:
       monitoring_rate_ms: 10
-      occure:
+      occur:
         drop_ir_adc_th: 900
         drop_ir_cnt_min: 4
         imu_z_acc_low_th: 9.2
@@ -61,26 +61,26 @@ airbot_error_monitor:
 
     cliff_error:
       monitoring_rate_ms: 10
-      occure:
+      occur:
         accum_dist_th_m: 0.3
 
     one_d_tof_error:
       monitoring_rate_ms: 50
-      occure:
+      occur:
         duration_sec: 60.0
         one_d_min_dist_m: 0.03
         one_d_max_dist_m: 0.13
 
     ai_comm_error:
       monitoring_rate_ms: 1000
-      occure:
+      occur:
         duration_cnt_first_sec: 180
         duration_cnt_sec: 3
 
     # battery_overheat_error:
     #   monitoring_rate_ms: 1000
-    #   occure:
+    #   occur:
     #     high_temp_th: 45 # Fan 구동 시작 온도
-    #   release:
+    #   resolve:
     #     low_temp_th: 40 # Fan 구동 멈춤 온도
     #     duration_sec: 10.0 # 사용 X

@@ -8,29 +8,29 @@ void BatteryDischargingErrorMonitor::loadParams(const YAML::Node& config) {
     params.occure_percentage_min = 0;
     params.occure_percentage_max = 5;
     params.occure_duration_sec = 10.0;
-    params.release_percentage_th = 10;
-    params.release_duration_sec = 30.0;
+    params.resolve_percentage_th = 10;
+    params.resolve_duration_sec = 30.0;
 
     if (config["monitoring_rate_ms"]) {
         params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["occure"]) {
-        if (config["occure"]["battery_percentage_min"]) {
-            params.occure_percentage_min = config["occure"]["battery_percentage_min"].as<int>();
+    if (config["occur"]) {
+        if (config["occur"]["battery_percentage_min"]) {
+            params.occure_percentage_min = config["occur"]["battery_percentage_min"].as<int>();
         }
-        if (config["occure"]["battery_percentage_max"]) {
-            params.occure_percentage_max = config["occure"]["battery_percentage_max"].as<int>();
+        if (config["occur"]["battery_percentage_max"]) {
+            params.occure_percentage_max = config["occur"]["battery_percentage_max"].as<int>();
         }
-        if (config["occure"]["duration_sec"]) {
-            params.occure_duration_sec = config["occure"]["duration_sec"].as<double>();
+        if (config["occur"]["duration_sec"]) {
+            params.occure_duration_sec = config["occur"]["duration_sec"].as<double>();
         }
     }
-    if (config["release"]) {
-        if (config["release"]["battery_percentage_th"]) {
-            params.release_percentage_th = config["release"]["battery_percentage_th"].as<int>();
+    if (config["resolve"]) {
+        if (config["resolve"]["battery_percentage_th"]) {
+            params.resolve_percentage_th = config["resolve"]["battery_percentage_th"].as<int>();
         }
-        if (config["release"]["duration_sec"]) {
-            params.release_duration_sec = config["release"]["duration_sec"].as<double>();
+        if (config["resolve"]["duration_sec"]) {
+            params.resolve_duration_sec = config["resolve"]["duration_sec"].as<double>();
         }
     }
 }
@@ -40,14 +40,14 @@ void BatteryDischargingErrorMonitor::printParams() const {
     RCLCPP_INFO(node_ptr_->get_logger(),
         "\n[%s] rate: %d\n"
         "occure_min: %d, occure_max: %d, occure_duration: %.1f, "
-        "release_th: %d, release_duration: %.1f",
+        "resolve_th: %d, resolve_duration: %.1f",
         paramNamespace().c_str(),
         params.monitoring_rate_ms,
         params.occure_percentage_min,
         params.occure_percentage_max,
         params.occure_duration_sec,
-        params.release_percentage_th,
-        params.release_duration_sec);
+        params.resolve_percentage_th,
+        params.resolve_duration_sec);
 }
 
 void BatteryDischargingErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
@@ -170,19 +170,19 @@ void BatteryDischargingErrorMonitor::timerCallback()
             }
         }
     } else { // 조건: 베터리 15프로 초과 & 30초 유지 //250730 KKS : S03에러가 5%로 변경됨에 따라 10%초과로 변경
-        if(bat.data.battery_percent > params.release_percentage_th ){ // 15 %
+        if(bat.data.battery_percent > params.resolve_percentage_th ){ // 15 %
             //check time
             if (!init_setting) {
-                release_start_time = current_time;
+                resolve_start_time = current_time;
                 init_setting = true;
             }
-            release_time_diff = current_time - release_start_time;
+            resolve_time_diff = current_time - resolve_start_time;
 
-            if( release_time_diff >= params.release_duration_sec){ // 30 sec
+            if( resolve_time_diff >= params.resolve_duration_sec){ // 30 sec
                 if (prev_state) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[%s] [RELEASED] battery discharging error \n"
-                        "elapsed time since release check started: %.3f\n"
+                        "[%s] [RESOLVED] battery discharging error \n"
+                        "elapsed time since resolve check started: %.3f\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
                         "Percentage:[%d %%] / Current:[%.1f mA] / "
                         "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
@@ -190,7 +190,7 @@ void BatteryDischargingErrorMonitor::timerCallback()
                         "[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
                         paramNamespace().c_str(),
-                        release_time_diff,
+                        resolve_time_diff,
                         bat.data.battery_manufacturer,
                         bat.data.remaining_capacity,
                         static_cast<int>(bat.data.battery_percent),
@@ -206,7 +206,7 @@ void BatteryDischargingErrorMonitor::timerCallback()
                         bat.data.battery_version
                     );
                 }
-                release_start_time = current_time;
+                resolve_start_time = current_time;
                 is_first_logging = true;
                 error_state = false;
                 init_setting = false;
@@ -214,7 +214,7 @@ void BatteryDischargingErrorMonitor::timerCallback()
             else {
                 if (is_first_logging) {
                     RCLCPP_INFO(node_ptr_->get_logger(),
-                        "[%s] [START] to checking battery discharging released\n"
+                        "[%s] [START] to checking battery discharging resolved\n"
                         "Battery Manufacturer:[%d] / Remaining capacity:[%d mAh] / "
                         "Percentage:[%d %%] / Current:[%.1f mA] / "
                         "Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
@@ -240,7 +240,7 @@ void BatteryDischargingErrorMonitor::timerCallback()
                 }
             }
         } else{
-            release_start_time = current_time;
+            resolve_start_time = current_time;
             is_first_logging = true;
             init_setting = false;
         }

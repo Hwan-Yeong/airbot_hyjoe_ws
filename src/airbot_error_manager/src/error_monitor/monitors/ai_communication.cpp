@@ -11,12 +11,12 @@ void AICommunicationErrorMonitor::loadParams(const YAML::Node& config) {
     if (config["monitoring_rate_ms"]) {
         params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["occure"]) {
-        if (config["occure"]["duration_cnt_first_sec"]) {
-            params.duration_cnt_first = config["occure"]["duration_cnt_first_sec"].as<int>();
+    if (config["occur"]) {
+        if (config["occur"]["duration_cnt_first_sec"]) {
+            params.duration_cnt_first = config["occur"]["duration_cnt_first_sec"].as<int>();
         }
-        if (config["occure"]["duration_cnt_sec"]) {
-            params.duration_cnt = config["occure"]["duration_cnt_sec"].as<int>();
+        if (config["occur"]["duration_cnt_sec"]) {
+            params.duration_cnt = config["occur"]["duration_cnt_sec"].as<int>();
         }
     }
 }
@@ -85,7 +85,7 @@ void AICommunicationErrorMonitor::timerCallback()
                 errorState = false;
                 monitorCnt = 0;
                 RCLCPP_INFO(node_ptr_->get_logger(), 
-                        "[%s] AI disconnect Error Released!",
+                        "[%s] AI disconnect Error Resolved!",
                         paramNamespace().c_str());
             }
         } else {

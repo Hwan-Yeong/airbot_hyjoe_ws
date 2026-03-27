@@ -76,8 +76,17 @@ class ErrorMockNode(Node):
             'pause_ai': False,
         }
 
-    def trigger_robot_state_event(self):
+    def trigger_robot_state_event_onstation(self):
         msg = RobotState()
+        msg.state = 7 # onstation
+        msg.status = 0
+        # Event driven, just publish once
+        self.pub_rs.publish(msg)
+    
+    def trigger_robot_state_event_4(self):
+        msg = RobotState()
+        msg.state = 4
+        msg.status = 0
         # Event driven, just publish once
         self.pub_rs.publish(msg)
 
@@ -163,7 +172,7 @@ class ErrorMonitorGui(QWidget):
         l_bat = QGridLayout()
         btn_low_err = QPushButton("LowBattery Error (Bat 5%)")
         btn_low_err.clicked.connect(lambda: self.set_bat(5))
-        btn_low_rel = QPushButton("LowBattery Release (Bat 25%)")
+        btn_low_rel = QPushButton("LowBattery Resolve (Bat 25%)")
         btn_low_rel.clicked.connect(lambda: self.set_bat(25))
         
         btn_st_on = QPushButton("Dock to Station")
@@ -187,7 +196,7 @@ class ErrorMonitorGui(QWidget):
         l_imu = QGridLayout()
         btn_fall_err = QPushButton("FallDown Error (Roll 70, Pitch 70, IR 100)")
         btn_fall_err.clicked.connect(lambda: self.set_imu_ir(70.0, 70.0, 9.8, 100))
-        btn_fall_rel = QPushButton("FallDown Release (Roll 0, Pitch 0, IR 7000)")
+        btn_fall_rel = QPushButton("FallDown Resolve (Roll 0, Pitch 0, IR 7000)")
         btn_fall_rel.clicked.connect(lambda: self.set_imu_ir(0.0, 0.0, 9.8, 7000))
         
         btn_lift_err = QPushButton("Lift Error (IR 10, IMU Z 8.0)")
@@ -208,7 +217,7 @@ class ErrorMonitorGui(QWidget):
         l_ap = QGridLayout()
         btn_ap_err = QPushButton("Overheat Error (Temp 90)")
         btn_ap_err.clicked.connect(lambda: self.set_ap(90.0))
-        btn_ap_rel = QPushButton("Overheat Release (Temp 40)")
+        btn_ap_rel = QPushButton("Overheat Resolve (Temp 40)")
         btn_ap_rel.clicked.connect(lambda: self.set_ap(40.0))
         
         chk_pause_ap = QCheckBox("Pause Tx (Simulate Timeout)")
@@ -225,7 +234,7 @@ class ErrorMonitorGui(QWidget):
         l_tof = QGridLayout()
         btn_tof_err = QPushButton("ToF Error (Dist 0.05)")
         btn_tof_err.clicked.connect(lambda: self.set_tof(0.05))
-        btn_tof_rel = QPushButton("ToF Release (Dist 0.2)")
+        btn_tof_rel = QPushButton("ToF Resolve (Dist 0.2)")
         btn_tof_rel.clicked.connect(lambda: self.set_tof(0.2))
         
         chk_pause_tof = QCheckBox("Pause Tx (Simulate Timeout)")
@@ -257,16 +266,29 @@ class ErrorMonitorGui(QWidget):
         # 6. AI Communication
         grp_ai = QGroupBox("AI Communication Group")
         l_ai = QGridLayout()
-        btn_ai_trigger = QPushButton("Trigger Event: RobotState")
-        btn_ai_trigger.clicked.connect(self.node.trigger_robot_state_event)
         
         chk_pause_ai = QCheckBox("Pause AI Tx (Timeout after 3~180s)")
         chk_pause_ai.toggled.connect(lambda c: self.set_pause('pause_ai', c))
 
-        l_ai.addWidget(btn_ai_trigger, 0, 0)
+        # l_ai.addWidget(btn_ai_trigger, 0, 0)
         l_ai.addWidget(chk_pause_ai, 1, 0, 1, 2)
         grp_ai.setLayout(l_ai)
         layout.addWidget(grp_ai)
+
+        # 7. Trigger Button
+        grp_state = QGroupBox("Robot State Trigger Btn Grout")
+        l_state = QGridLayout()
+        
+        btn_7_trigger = QPushButton("Trigger Event: RobotState 7")
+        btn_7_trigger.clicked.connect(self.node.trigger_robot_state_event_onstation)
+
+        btn_4_trigger = QPushButton("Trigger Event: RobotState 4")
+        btn_4_trigger.clicked.connect(self.node.trigger_robot_state_event_4)
+
+        l_state.addWidget(btn_7_trigger, 0, 0)
+        l_state.addWidget(btn_4_trigger, 0, 1)
+        grp_state.setLayout(l_state)
+        layout.addWidget(grp_state)
 
         # Status Label
         self.status_label = QLabel("Ready. Click buttons to change simulated sensor publishing states.")

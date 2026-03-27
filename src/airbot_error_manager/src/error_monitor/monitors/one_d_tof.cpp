@@ -12,15 +12,15 @@ void OneDTofErrorMonitor::loadParams(const YAML::Node& config) {
     if (config["monitoring_rate_ms"]) {
         params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["occure"]) {
-        if (config["occure"]["duration_sec"]) {
-            params.duration_sec = config["occure"]["duration_sec"].as<double>();
+    if (config["occur"]) {
+        if (config["occur"]["duration_sec"]) {
+            params.duration_sec = config["occur"]["duration_sec"].as<double>();
         }
-        if (config["occure"]["one_d_min_dist_m"]) {
-            params.one_d_min_dist_m = config["occure"]["one_d_min_dist_m"].as<double>();
+        if (config["occur"]["one_d_min_dist_m"]) {
+            params.one_d_min_dist_m = config["occur"]["one_d_min_dist_m"].as<double>();
         }
-        if (config["occure"]["one_d_max_dist_m"]) {
-            params.one_d_max_dist_m = config["occure"]["one_d_max_dist_m"].as<double>();
+        if (config["occur"]["one_d_max_dist_m"]) {
+            params.one_d_max_dist_m = config["occur"]["one_d_max_dist_m"].as<double>();
         }
     }
 }
@@ -96,7 +96,7 @@ void OneDTofErrorMonitor::timerCallback() {
         is_first_detect = false;
         if (isError) {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[%s] Error released",
+                "[%s] Error resolved",
                 paramNamespace().c_str()
             );
         }

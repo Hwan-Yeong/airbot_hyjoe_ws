@@ -13,18 +13,18 @@ void ChargingErrorMonitor::loadParams(const YAML::Node& config) {
     if (config["monitoring_rate_ms"]) {
         params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["occure"]) {
-        if (config["occure"]["battery_percentage_min_th"]) {
-            params.percentage_min_th = config["occure"]["battery_percentage_min_th"].as<int>();
+    if (config["occur"]) {
+        if (config["occur"]["battery_percentage_min_th"]) {
+            params.percentage_min_th = config["occur"]["battery_percentage_min_th"].as<int>();
         }
-        if (config["occure"]["battery_percentage_max_th"]) {
-            params.percentage_max_th = config["occure"]["battery_percentage_max_th"].as<int>();
+        if (config["occur"]["battery_percentage_max_th"]) {
+            params.percentage_max_th = config["occur"]["battery_percentage_max_th"].as<int>();
         }
-        if (config["occure"]["battery_percentage_diff_th"]) {
-            params.percentage_diff_th = config["occure"]["battery_percentage_diff_th"].as<int>();
+        if (config["occur"]["battery_percentage_diff_th"]) {
+            params.percentage_diff_th = config["occur"]["battery_percentage_diff_th"].as<int>();
         }
-        if (config["occure"]["duration_sec"]) {
-            params.duration_sec = config["occure"]["duration_sec"].as<double>();
+        if (config["occur"]["duration_sec"]) {
+            params.duration_sec = config["occur"]["duration_sec"].as<double>();
         }
     }
 }

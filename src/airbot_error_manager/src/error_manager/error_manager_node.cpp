@@ -116,7 +116,7 @@ void ErrorManagerNode::errorCallback(const std::string& error_code, std_msgs::ms
     if (msg->data) {
         updateErrorLists(error_code);
     } else {
-        pending_releases_.push_back(error_code);
+        pending_resolves_.push_back(error_code);
     }
 }
 
@@ -134,21 +134,21 @@ void ErrorManagerNode::publishErrorList()
     msg_time.nanosec = now_time.nanoseconds() % 1000000000;
     error_msg_array.timestamp = msg_time;
 
-    static bool isReleasedAllError = false;
+    static bool isResolvedAllError = false;
 
     cur_robot_state = robot_state_;
 
-    if (!isReleasedAllError && prev_robot_state == 9 && cur_robot_state != 9) { //ROBOT_STATE::ERROR
+    if (!isResolvedAllError && prev_robot_state == 9 && cur_robot_state != 9) { //ROBOT_STATE::ERROR
         RCLCPP_INFO(this->get_logger(), "Realesed all error in error_lists_ [Num of errors: %zu]", error_list_.size());
-        allErrorReleased();
-        isReleasedAllError = true;
+        allErrorResolved();
+        isResolvedAllError = true;
         return;
     }
 
-    // LidarErrorRelease();
+    // LidarErrorResolve();
 
     if (cur_robot_state == 9) {
-        isReleasedAllError = false;
+        isResolvedAllError = false;
     }
 
     for (auto it = error_list_.begin(); it != error_list_.end();) {
@@ -189,10 +189,10 @@ void ErrorManagerNode::publishErrorList()
         error_list_pub_->publish(error_msg_array);
     }
 
-    for (const auto &code : pending_releases_) {
-        releaseErrorLists(code);
+    for (const auto &code : pending_resolves_) {
+        resolveErrorLists(code);
     }
-    pending_releases_.clear();
+    pending_resolves_.clear();
 
     prev_robot_state = robot_state_;
 }
@@ -241,7 +241,7 @@ void ErrorManagerNode::addError(const std::string &error_code)
     error_list_.push_back(new_error);
 }
 
-void ErrorManagerNode::releaseErrorLists(std::string code)
+void ErrorManagerNode::resolveErrorLists(std::string code)
 {
     if (error_list_.empty()) { // error_list_ 비어있으면 실행 x
         return;
@@ -261,7 +261,7 @@ void ErrorManagerNode::releaseErrorLists(std::string code)
     }
 }
 
-void ErrorManagerNode::allErrorReleased()
+void ErrorManagerNode::allErrorResolved()
 {
     for (auto& error : error_list_) {
         error.error.error_occurred = false;
@@ -271,7 +271,7 @@ void ErrorManagerNode::allErrorReleased()
 }
 
 /*
-void ErrorManagerNode::LidarErrorRelease(){
+void ErrorManagerNode::LidarErrorResolve(){
 
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     static std::map<std::string, double> lidar_error_occured_times;
@@ -289,12 +289,12 @@ void ErrorManagerNode::LidarErrorRelease(){
                 if (lidar_error_occured_times.find(error.error.error_code) == lidar_error_occured_times.end()) {
                     // 에러코드와 타임 추가 (타이머 시작)
                     lidar_error_occured_times[error.error.error_code] = clock.now().seconds();
-                    RCLCPP_INFO(this->get_logger(), "Error %s detected. Starting 5s auto release timer.", error.error.error_code.c_str());
+                    RCLCPP_INFO(this->get_logger(), "Error %s detected. Starting 5s auto resolve timer.", error.error.error_code.c_str());
                 } else {
                     // 맵에 있다면 시간 확인
                     double trigger_time = lidar_error_occured_times[error.error.error_code];
                     if ((clock.now().seconds() - trigger_time) >= 5.0) {
-                        RCLCPP_INFO(this->get_logger(), "auto release error %s after 5 seconds.", error.error.error_code.c_str());
+                        RCLCPP_INFO(this->get_logger(), "auto resolve error %s after 5 seconds.", error.error.error_code.c_str());
                         error.error.error_occurred = false;
                         error.should_publish = true;
                         error.error.count = 1; // 해제 상태를 퍼블리시하기 위해 카운트 리셋
@@ -321,7 +321,7 @@ void ErrorManagerNode::printErrorList(){
     for (size_t i = 0; i < error_list_.size(); ++i) {
         const auto& err = error_list_[i];
         std::string code = err.error.error_code;
-        std::string occurred = err.error.error_occurred ? "OCCURED" : "RELEASED";
+        std::string occurred = err.error.error_occurred ? "OCCURED" : "RESOLVED";
         std::string description = error_code_descriptions_[code];
 
         ss << "[" << code << " (" << occurred << "): " << description << "] ";

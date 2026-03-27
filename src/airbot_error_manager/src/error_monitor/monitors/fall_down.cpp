@@ -13,18 +13,18 @@ void FallDownErrorMonitor::loadParams(const YAML::Node& config) {
     if (config["monitoring_rate_ms"]) {
         params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["occure"]) {
-        if (config["occure"]["drop_ir_adc_th"]) {
-            params.drop_ir_adc_th = config["occure"]["drop_ir_adc_th"].as<int>();
+    if (config["occur"]) {
+        if (config["occur"]["drop_ir_adc_th"]) {
+            params.drop_ir_adc_th = config["occur"]["drop_ir_adc_th"].as<int>();
         }
-        if (config["occure"]["drop_ir_cnt_min"]) {
-            params.drop_ir_cnt_min = config["occure"]["drop_ir_cnt_min"].as<int>();
+        if (config["occur"]["drop_ir_cnt_min"]) {
+            params.drop_ir_cnt_min = config["occur"]["drop_ir_cnt_min"].as<int>();
         }
-        if (config["occure"]["imu_roll_th_deg"]) {
-            params.imu_roll_th = config["occure"]["imu_roll_th_deg"].as<double>();
+        if (config["occur"]["imu_roll_th_deg"]) {
+            params.imu_roll_th = config["occur"]["imu_roll_th_deg"].as<double>();
         }
-        if (config["occure"]["imu_pitch_th_deg"]) {
-            params.imu_pitch_th = config["occure"]["imu_pitch_th_deg"].as<double>();
+        if (config["occur"]["imu_pitch_th_deg"]) {
+            params.imu_pitch_th = config["occur"]["imu_pitch_th_deg"].as<double>();
         }
     }
 }
@@ -150,7 +150,7 @@ void FallDownErrorMonitor::timerCallback()
         if(prev_status){
             // [250407] hyjoe : 전도 에러 발생 한적이 있었던 경우, 해제시 1번만 낙하IR상태, roll, pitch 정보 1번만 로깅
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[%s] Released (adc_ff : %d) (adc_fl : %d) "
+                "[%s] Resolved (adc_ff : %d) (adc_fl : %d) "
                 "(adc_fr :%d) (adc_bb : %d) (adc_bl : %d) (adc_br : %d) "
                 "(pitch : %.3f deg) (roll : %.3f deg)",
                 paramNamespace().c_str(),

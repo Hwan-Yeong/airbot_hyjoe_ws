@@ -10,9 +10,9 @@ void CliffErrorMonitor::loadParams(const YAML::Node& config) {
     if (config["monitoring_rate_ms"]) {
         params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["occure"]) {
-        if (config["occure"]["accum_dist_th_m"]) {
-            params.accum_dist_th = config["occure"]["accum_dist_th_m"].as<double>();
+    if (config["occur"]) {
+        if (config["occur"]["accum_dist_th_m"]) {
+            params.accum_dist_th = config["occur"]["accum_dist_th_m"].as<double>();
         }
     }
 }
@@ -74,7 +74,7 @@ void CliffErrorMonitor::timerCallback()
             if (preErrorState[i] == true) { // 낙하 에러 해제시 로깅
                 RCLCPP_INFO(node_ptr_->get_logger(),
                     "[%s] Cliff IR #[%d] : %s, "
-                    "IR Detection Error Released",
+                    "IR Detection Error Resolved",
                     paramNamespace().c_str(),
                     i+1,
                     cliff[i] ? "true" : "false"

@@ -48,14 +48,14 @@ private:
     void publishErrorList();
     void updateErrorLists(std::string code);
     void addError(const std::string &error_code);
-    void releaseErrorLists(std::string code);
-    void allErrorReleased();
+    void resolveErrorLists(std::string code);
+    void allErrorResolved();
     void printErrorList();
-    // void LidarErrorRelease();
+    // void LidarErrorResolve();
 
     YAML::Node config{};
     std::vector<tErrorList> error_list_;
-    std::vector<std::string> pending_releases_;
+    std::vector<std::string> pending_resolves_;
     std::vector<rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr> subscribers_;
     std::unordered_map<std::string, std::string> error_code_descriptions_;
     std::unordered_set<std::string> erase_after_pub_error_codes_;

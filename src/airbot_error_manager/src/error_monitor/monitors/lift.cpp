@@ -13,18 +13,18 @@ void LiftErrorMonitor::loadParams(const YAML::Node& config) {
     if (config["monitoring_rate_ms"]) {
         params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["occure"]) {
-        if (config["occure"]["drop_ir_adc_th"]) {
-            params.drop_ir_adc_th = config["occure"]["drop_ir_adc_th"].as<int>();
+    if (config["occur"]) {
+        if (config["occur"]["drop_ir_adc_th"]) {
+            params.drop_ir_adc_th = config["occur"]["drop_ir_adc_th"].as<int>();
         }
-        if (config["occure"]["drop_ir_cnt_min"]) {
-            params.drop_ir_cnt_min = config["occure"]["drop_ir_cnt_min"].as<int>();
+        if (config["occur"]["drop_ir_cnt_min"]) {
+            params.drop_ir_cnt_min = config["occur"]["drop_ir_cnt_min"].as<int>();
         }
-        if (config["occure"]["imu_z_acc_low_th"]) {
-            params.imu_z_acc_low_th = config["occure"]["imu_z_acc_low_th"].as<double>();
+        if (config["occur"]["imu_z_acc_low_th"]) {
+            params.imu_z_acc_low_th = config["occur"]["imu_z_acc_low_th"].as<double>();
         }
-        if (config["occure"]["imu_z_acc_hight_th"]) {
-            params.imu_z_acc_hight_th = config["occure"]["imu_z_acc_hight_th"].as<double>();
+        if (config["occur"]["imu_z_acc_hight_th"]) {
+            params.imu_z_acc_hight_th = config["occur"]["imu_z_acc_hight_th"].as<double>();
         }
     }
 }
@@ -45,7 +45,7 @@ void LiftErrorMonitor::printParams() const {
 void LiftErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {
     blackboard_ = blackboard;
     error_pub_ = node_ptr_->create_publisher<std_msgs::msg::Bool>(
-        "error/s_code/lift", 10);
+        "error/s_code/lifted", 10);
     timer_ = node_ptr_->create_wall_timer(
         std::chrono::milliseconds(params.monitoring_rate_ms),
         [this](){ timerCallback(); }
@@ -76,7 +76,7 @@ void LiftErrorMonitor::timerCallback()
     if (count == 0 || isChargerConnect) { // 모든 IR 센서가 false일 경우 에러 해제. 또는 충전 단자 인식 시 에러 해제
         if (errorState) {
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[%s] LiftError Released! isChargerConnect = %d",
+                "[%s] LiftError Resolved! isChargerConnect = %d",
                 paramNamespace().c_str(),
                 isChargerConnect
             );
@@ -162,7 +162,7 @@ void LiftErrorMonitor::timerCallback()
         if (!irLiftFlag) {
             liftErrorCandidate = false;
             RCLCPP_INFO(node_ptr_->get_logger(),
-                "[%s] IR & IMU both Lift Detected BUT release in 2 sec "
+                "[%s] IR & IMU both Lift Detected BUT resolve in 2 sec "
                 "(error count: %d, IR list duration: %.3f sec)",
                 paramNamespace().c_str(),
                 static_cast<int>(errorCount),
