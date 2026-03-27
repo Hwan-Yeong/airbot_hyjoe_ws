@@ -55,38 +55,20 @@ void FallDownErrorMonitor::timerCallback()
     if (!ir.is_updated || !imu.is_updated) return;
 
     static rclcpp::Clock clock(RCL_STEADY_TIME);
-    bool is_ir_low_adc = false;
     bool is_imu_out_of_range = false;
-    int count = 0;
 
     // 밑 센서값 조정
     // 값이 방향에 따라서 일정하게 변하지 않기 때문에
     // 방향을 나누어서 값 변화에 대해서 전도 현상값의 범위를 조정해야 함
     // front - front_L - back_L - back - back_R - front_R
-    if (ir.data.adc_ff < params.drop_ir_adc_th) {
-        count++;
-    }
-    if (ir.data.adc_fl < params.drop_ir_adc_th) {
-        count++;
-    }
-    if (ir.data.adc_fr < params.drop_ir_adc_th) {
-        count++;
-    }
-    if (ir.data.adc_bb < params.drop_ir_adc_th) {
-        count++;
-    }
-    if (ir.data.adc_bl < params.drop_ir_adc_th) {
-        count++;
-    }
-    if (ir.data.adc_br < params.drop_ir_adc_th) {
-        count++;
-    }
+    int count = (ir.data.adc_ff < params.drop_ir_adc_th) +
+                (ir.data.adc_fl < params.drop_ir_adc_th) +
+                (ir.data.adc_fr < params.drop_ir_adc_th) +
+                (ir.data.adc_bb < params.drop_ir_adc_th) +
+                (ir.data.adc_bl < params.drop_ir_adc_th) +
+                (ir.data.adc_br < params.drop_ir_adc_th);
 
-    if (count >= params.drop_ir_cnt_min) { // 4
-        is_ir_low_adc = true;
-    } else {
-        is_ir_low_adc = false;
-    }
+    bool is_ir_low_adc = (count >= params.drop_ir_cnt_min); //4
 
     // imu 센서값 조정
     // 선형 가속도 값을 roll, pitch 각도값으로 변환
