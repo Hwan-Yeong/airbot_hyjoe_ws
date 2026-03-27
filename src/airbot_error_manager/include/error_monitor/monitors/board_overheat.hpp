@@ -3,29 +3,28 @@
 #include <unordered_map>
 #include "error_monitor/error_monitor_base.hpp"
 
-class BoardOverheatErrorMonitor : public ErrorMonitorBase
-{
-public:
-    struct tParams {
-        double temperature_th;
-        double duration_sec;
-        int monitoring_rate_ms;
-    } params;
+class BoardOverheatErrorMonitor : public ErrorMonitorBase {
+ public:
+  struct tParams {
+    double temperature_th;
+    double duration_sec;
+    int monitoring_rate_ms;
+  } params;
 
-    const std::string paramNamespace() const override { return "board_overheat_error"; }
+  const std::string paramNamespace() const override {
+    return "board_overheat_error";
+  }
 
-    void loadParams(const YAML::Node& config) override;
-    void printParams() const override;
-    void startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) override;
+  void loadParams(const YAML::Node& config) override;
+  void printParams() const override;
+  void startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) override;
 
-private:
-    void timerCallback();
+ private:
+  void timerCallback();
 
-    bool error_state = false;
-    std::unordered_map<std::string, float> overheat_occured_times_;
-    std::unordered_map<std::string, float> overheat_resolve_start_times_;
+  bool error_state = false;
+  std::unordered_map<std::string, float> overheat_occured_times_;
+  std::unordered_map<std::string, float> overheat_resolve_start_times_;
 
-    bool pre_board_overheat_error_ = false;
+  bool pre_board_overheat_error_ = false;
 };
-
-

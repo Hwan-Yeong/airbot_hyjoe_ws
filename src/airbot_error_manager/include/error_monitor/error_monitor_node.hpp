@@ -1,104 +1,104 @@
 #pragma once
 
+#include <yaml-cpp/yaml.h>
+#include <fstream>
 #include <memory>
 #include <vector>
-#include <fstream>
-#include <yaml-cpp/yaml.h>
-#include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/bool.hpp"
-#include "nav_msgs/msg/odometry.hpp"
-#include "std_msgs/msg/string.hpp"
-#include "error_monitor/robot_state_blackboard.hpp"
-#include "error_monitor/monitors/low_battery.hpp"
+#include "error_monitor/monitors/ai_communication.hpp"
 #include "error_monitor/monitors/battery_discharging.hpp"
-#include "error_monitor/monitors/fall_down.hpp"
 #include "error_monitor/monitors/board_overheat.hpp"
 #include "error_monitor/monitors/charging.hpp"
-#include "error_monitor/monitors/lift.hpp"
 #include "error_monitor/monitors/cliff.hpp"
+#include "error_monitor/monitors/fall_down.hpp"
+#include "error_monitor/monitors/lift.hpp"
+#include "error_monitor/monitors/low_battery.hpp"
 #include "error_monitor/monitors/one_d_tof.hpp"
-#include "error_monitor/monitors/ai_communication.hpp"
+#include "error_monitor/robot_state_blackboard.hpp"
+#include "nav_msgs/msg/odometry.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/string.hpp"
 
 using namespace std::chrono_literals;
 
 /**
  * @class ErrorMonitorNode
- * @brief The central ROS 2 Node that manages all error monitoring activities.
+ * @brief 모든 에러 모니터링 활동을 관리하는 중앙 ROS 2 노드입니다.
  * 
- * This node serves as the main entry point and centralized data broker for the error 
- * monitoring system. Its primary purpose is to subscribe to all necessary sensor 
- * and state topics from the ROS 2 network and continuously update a shared data 
- * structure (`RobotStateBlackboard`).
+ * 이 노드는 에러 모니터링 시스템의 주 진입점이자 중앙 데이터 중개자 역할을 합니다. 
+ * 주요 목적은 ROS 2 네트워크로부터 필요한 모든 센서 및 상태 토픽을 구독(subscribe)하고, 
+ * 공유 데이터 구조인 `RobotStateBlackboard`를 지속적으로 업데이트하는 것입니다.
  * 
- * Usage:
- * Instead of embedding individual error evaluation logic directly inside this node,
- * it acts as a manager. It instantiates individual rule-specific monitors (derived 
- * from `ErrorMonitorBase`), hands them a reference to the `RobotStateBlackboard`, 
- * and lets them operate independently. This decouples the network I/O from the 
- * actual error filtering mathematics, promoting better modularity.
+ * 사용법:
+ * 이 노드는 내부에 개별적인 에러 평가 로직을 직접 포함하지 않고 매니저 역할만 수행합니다. 
+ * 규칙별로 특화된 개별 모니터들(`ErrorMonitorBase` 파생 클래스)을 인스턴스화하고, 
+ * 이들에게 `RobotStateBlackboard`의 참조를 넘겨주어 독립적으로 작동하게 합니다. 
+ * 이를 통해 네트워크 I/O 작업과 실제 에러 필터링 수학 로직을 분리하여 모듈성을 높입니다.
  */
-class ErrorMonitorNode : public rclcpp::Node
-{
-public:
-    ErrorMonitorNode();
-    ~ErrorMonitorNode();
+class ErrorMonitorNode : public rclcpp::Node {
+ public:
+  ErrorMonitorNode();
+  ~ErrorMonitorNode();
 
-    /**
-     * @brief Initializes the node by registering and kicking off all default error monitors.
-     */
-    void init();
+  /**
+   * @brief 모든 기본 에러 모니터들을 등록하고 시작하여 노드를 초기화합니다.
+   */
+  void init();
 
-    /**
-     * @brief Registers an individual error monitor into the node's execution pipeline.
-     * 
-     * This function utilizes dynamic polymorphism to seamlessly hook up the monitor 
-     * to the ROS 2 ecosystem. It automatically feeds the node pointer to the monitor, 
-     * commands it to load its specific configuration parameters from the given YAML section, 
-     * prints those parameters to the console, and formally starts the monitor's internal callback loop.
-     * 
-     * @param monitor A shared pointer containing any monitor class that securely inherits 
-     *                from `ErrorMonitorBase`.
-     * @param config The entire parsed YAML Node for the monitors to use.
-     */
-    void addMonitor(std::shared_ptr<ErrorMonitorBase> monitor, const YAML::Node& config) {
-        monitor->setNode(this);
-        std::string ns = monitor->paramNamespace();
-        if (config && config[ns]) {
-            monitor->loadParams(config[ns]);
-        } else {
-            RCLCPP_WARN(this->get_logger(), "No YAML config found for monitor: %s, using defaults", ns.c_str());
-            YAML::Node empty_node; 
-            monitor->loadParams(empty_node);
-        }
-        monitor->printParams();
-        monitor->startMonitor(blackboard_);
-        monitors_.push_back(monitor);
+  /**
+   * @brief 개별 에러 모니터를 노드의 실행 파이프라인에 등록합니다.
+   * 
+   * 동적 다형성(Dynamic polymorphism)을 활용하여 모니터를 ROS 2 생태계에 연결합니다. 
+   * 자동으로 노드 포인터를 모니터에 주입하고, YAML 설정 파라미터를 파싱하도록 지시하며, 
+   * 해당 파라미터를 콘솔에 출력하게 한 뒤 모니터의 내부 콜백 루프를 시작시킵니다.
+   * 
+   * @param monitor `ErrorMonitorBase`를 상속받은 임의의 모니터 클래스의 shared ptr
+   * @param config 모니터들이 공통으로 사용할 수 있는 전체가 파싱된 YAML Node
+   */
+  void addMonitor(std::shared_ptr<ErrorMonitorBase> monitor,
+                  const YAML::Node& config) {
+    monitor->setNode(this);
+    std::string ns = monitor->paramNamespace();
+    if (config && config[ns]) {
+      monitor->loadParams(config[ns]);
+    } else {
+      RCLCPP_WARN(this->get_logger(),
+                  "No YAML config found for monitor: %s, using defaults",
+                  ns.c_str());
+      YAML::Node empty_node;
+      monitor->loadParams(empty_node);
     }
+    monitor->printParams();
+    monitor->startMonitor(blackboard_);
+    monitors_.push_back(monitor);
+  }
 
-private:
-    /**
-     * @brief Periodically logs the internal resource and memory usage of the process.
-     */
-    void checkMemoryUsage();
+ private:
+  /**
+   * @brief 프로세스의 내부 리소스 및 메모리 사용량을 주기적으로 로깅합니다.
+   */
+  void checkMemoryUsage();
 
-    /** Shared memory container populated by this node and read by individual monitors. */
-    std::shared_ptr<RobotStateBlackboard> blackboard_;
+  std::shared_ptr<RobotStateBlackboard> blackboard_;
 
-    // ROS 2 Subscribers for pulling in ambient sensor and system data
-    rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr bottom_ir_data_sub_;
-    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
-    rclcpp::Subscription<robot_custom_msgs::msg::BatteryStatus>::SharedPtr battery_status_sub_;
-    rclcpp::Subscription<robot_custom_msgs::msg::StationData>::SharedPtr station_data_sub_;
-    rclcpp::Subscription<robot_custom_msgs::msg::RobotState>::SharedPtr robot_state_sub_;
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
-    rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
-    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr ai_version_sub_;
-    rclcpp::Subscription<robot_custom_msgs::msg::AiTemperature>::SharedPtr ai_temperature_sub_;
-    rclcpp::Subscription<robot_custom_msgs::msg::ApTemperature>::SharedPtr ap_temperature_sub_;
+  rclcpp::Subscription<robot_custom_msgs::msg::BottomIrData>::SharedPtr
+      bottom_ir_data_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
+  rclcpp::Subscription<robot_custom_msgs::msg::BatteryStatus>::SharedPtr
+      battery_status_sub_;
+  rclcpp::Subscription<robot_custom_msgs::msg::StationData>::SharedPtr
+      station_data_sub_;
+  rclcpp::Subscription<robot_custom_msgs::msg::RobotState>::SharedPtr
+      robot_state_sub_;
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+  rclcpp::Subscription<robot_custom_msgs::msg::TofData>::SharedPtr tof_sub_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr ai_version_sub_;
+  rclcpp::Subscription<robot_custom_msgs::msg::AiTemperature>::SharedPtr
+      ai_temperature_sub_;
+  rclcpp::Subscription<robot_custom_msgs::msg::ApTemperature>::SharedPtr
+      ap_temperature_sub_;
 
-    /** Registry of all active monitor instances currently managed by this node. */
-    std::vector<std::shared_ptr<ErrorMonitorBase>> monitors_;
+  std::vector<std::shared_ptr<ErrorMonitorBase>> monitors_;
 
-    /** Periodic timer assigned to trigger memory usage checks. */
-    rclcpp::TimerBase::SharedPtr memory_monitor_timer_;
+  rclcpp::TimerBase::SharedPtr memory_monitor_timer_;
 };
