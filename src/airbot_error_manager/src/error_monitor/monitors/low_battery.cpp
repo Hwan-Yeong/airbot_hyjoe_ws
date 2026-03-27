@@ -46,36 +46,32 @@ void LowBatteryErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> 
 
 void LowBatteryErrorMonitor::timerCallback()
 {
-    std::pair<robot_custom_msgs::msg::BatteryStatus, robot_custom_msgs::msg::StationData> input;
-    {
-        auto bat = blackboard_->getBatteryData();
-        auto st = blackboard_->getStationData();
-        
-        if (checkSensorState(paramNamespace(), 10, {bat.last_update_time, st.last_update_time})
-            != SensorState::NORMAL) {
-            return;
-        }
-
-        if (!bat.is_updated || !st.is_updated) return;
-        input = std::make_pair(bat.data, st.data);
+    auto bat = blackboard_->getBatteryData();
+    auto st = blackboard_->getStationData();
+    
+    if (checkSensorState(paramNamespace(), 10, {bat.last_update_time, st.last_update_time})
+        != SensorState::NORMAL) {
+        return;
     }
+
+    if (!bat.is_updated || !st.is_updated) return;
 
     static rclcpp::Clock clock(RCL_STEADY_TIME);
     current_time = clock.now().seconds();
 
     //check off station
-    if( input.second.docking_status & 0x10 ){
+    if( st.data.docking_status & 0x10 ){
         if( !station_flag ){
             RCLCPP_INFO(node_ptr_->get_logger(),
                 "[LowBatteryErrorMonitor]CHECK AMR ON STATION ==> dockingstatus[%02x] ",
-                input.second.docking_status);
+                st.data.docking_status);
         }
         station_flag = true;
     } else{
         if( station_flag ){
             RCLCPP_INFO(node_ptr_->get_logger(),
                 "[LowBatteryErrorMonitor]CHECK AMR OFF STATION ==> dockingstatus[%02x] ",
-                input.second.docking_status);
+                st.data.docking_status);
         }
         station_flag = false;
     }
@@ -85,8 +81,8 @@ void LowBatteryErrorMonitor::timerCallback()
     // 조건 : OFF STATION 상태, 배터리 잔여 15%이하
     if( !error_state ){ //Error 가 아닐 경우
         if( station_flag == false ){ //OFF STATION일 경우
-            if (input.first.battery_percent <= params.occure_percentage_max &&
-                input.first.battery_percent > params.occure_percentage_min) {
+            if (bat.data.battery_percent <= params.occure_percentage_max &&
+                bat.data.battery_percent > params.occure_percentage_min) {
                 if (!prev_state) {
                     // [250407] hyjoe : low battery 에러 발생시 모니터 체크 시간(sec), 배터리 상태 1번만 로깅
                     RCLCPP_INFO(node_ptr_->get_logger(),
@@ -95,19 +91,19 @@ void LowBatteryErrorMonitor::timerCallback()
                         "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
-                        input.first.battery_manufacturer,
-                        input.first.remaining_capacity,
-                        static_cast<int>(input.first.battery_percent),
-                        input.first.battery_current,
-                        input.first.battery_voltage,
-                        input.first.battery_temperature1,
-                        input.first.battery_temperature2,
-                        input.first.cell_voltage1,
-                        input.first.cell_voltage2,
-                        input.first.cell_voltage3,
-                        input.first.cell_voltage4,
-                        input.first.cell_voltage5,
-                        input.first.battery_version
+                        bat.data.battery_manufacturer,
+                        bat.data.remaining_capacity,
+                        static_cast<int>(bat.data.battery_percent),
+                        bat.data.battery_current,
+                        bat.data.battery_voltage,
+                        bat.data.battery_temperature1,
+                        bat.data.battery_temperature2,
+                        bat.data.cell_voltage1,
+                        bat.data.cell_voltage2,
+                        bat.data.cell_voltage3,
+                        bat.data.cell_voltage4,
+                        bat.data.cell_voltage5,
+                        bat.data.battery_version
                     );
                 }
                 error_state = true;
@@ -115,7 +111,7 @@ void LowBatteryErrorMonitor::timerCallback()
         }
     } else{ //check release error
         // 조건 :  배터리 잔여 20%초과 30초 유지
-        if(input.first.battery_percent > params.release_percentage_th ){ // 20 %
+        if(bat.data.battery_percent > params.release_percentage_th ){ // 20 %
             //check time
             if (!init_setting) { // release 체크 시간에 대해서 초기시간 설정
                 prev_time = current_time;
@@ -133,19 +129,19 @@ void LowBatteryErrorMonitor::timerCallback()
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
                         release_time_diff,
-                        input.first.battery_manufacturer,
-                        input.first.remaining_capacity,
-                        static_cast<int>(input.first.battery_percent),
-                        input.first.battery_current,
-                        input.first.battery_voltage,
-                        input.first.battery_temperature1,
-                        input.first.battery_temperature2,
-                        input.first.cell_voltage1,
-                        input.first.cell_voltage2,
-                        input.first.cell_voltage3,
-                        input.first.cell_voltage4,
-                        input.first.cell_voltage5,
-                        input.first.battery_version
+                        bat.data.battery_manufacturer,
+                        bat.data.remaining_capacity,
+                        static_cast<int>(bat.data.battery_percent),
+                        bat.data.battery_current,
+                        bat.data.battery_voltage,
+                        bat.data.battery_temperature1,
+                        bat.data.battery_temperature2,
+                        bat.data.cell_voltage1,
+                        bat.data.cell_voltage2,
+                        bat.data.cell_voltage3,
+                        bat.data.cell_voltage4,
+                        bat.data.cell_voltage5,
+                        bat.data.battery_version
                     );
                 }
                 prev_time = current_time;
@@ -162,19 +158,19 @@ void LowBatteryErrorMonitor::timerCallback()
                         "Current:[%.1f mA] / Voltage:[%.1f mV] / Temp1:[%d °C] / Temp2:[%d °C]\n"
                         "Battery Cell Voltage:[1]: %d, [2]: %d, [3]: %d, [4]: %d, [5]: %d\n"
                         "Battery Version: 0x%02X",
-                        input.first.battery_manufacturer,
-                        input.first.remaining_capacity,
-                        static_cast<int>(input.first.battery_percent),
-                        input.first.battery_current,
-                        input.first.battery_voltage,
-                        input.first.battery_temperature1,
-                        input.first.battery_temperature2,
-                        input.first.cell_voltage1,
-                        input.first.cell_voltage2,
-                        input.first.cell_voltage3,
-                        input.first.cell_voltage4,
-                        input.first.cell_voltage5,
-                        input.first.battery_version
+                        bat.data.battery_manufacturer,
+                        bat.data.remaining_capacity,
+                        static_cast<int>(bat.data.battery_percent),
+                        bat.data.battery_current,
+                        bat.data.battery_voltage,
+                        bat.data.battery_temperature1,
+                        bat.data.battery_temperature2,
+                        bat.data.cell_voltage1,
+                        bat.data.cell_voltage2,
+                        bat.data.cell_voltage3,
+                        bat.data.cell_voltage4,
+                        bat.data.cell_voltage5,
+                        bat.data.battery_version
                     );
                     is_first_logging = false;
                 }
