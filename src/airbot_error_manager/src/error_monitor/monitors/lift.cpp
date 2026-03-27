@@ -4,32 +4,42 @@ void LiftErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
 
     // Default values
+    params.monitoring_rate_ms = 10;
     params.drop_ir_adc_th = 900;
     params.drop_ir_cnt_min = 4;
     params.imu_z_acc_low_th = 9.2;
     params.imu_z_acc_hight_th = 10.5;
-    params.monitoring_rate_ms = 10;
 
-    if (config["occure"]) {
-        if (config["occure"]["drop_ir_adc_th"]) params.drop_ir_adc_th = config["occure"]["drop_ir_adc_th"].as<int>();
-        if (config["occure"]["drop_ir_cnt_min"]) params.drop_ir_cnt_min = config["occure"]["drop_ir_cnt_min"].as<int>();
-        if (config["occure"]["imu_z_acc_low_th"]) params.imu_z_acc_low_th = config["occure"]["imu_z_acc_low_th"].as<double>();
-        if (config["occure"]["imu_z_acc_hight_th"]) params.imu_z_acc_hight_th = config["occure"]["imu_z_acc_hight_th"].as<double>();
+    if (config["monitoring_rate_ms"]) {
+        params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
+    if (config["occure"]) {
+        if (config["occure"]["drop_ir_adc_th"]) {
+            params.drop_ir_adc_th = config["occure"]["drop_ir_adc_th"].as<int>();
+        }
+        if (config["occure"]["drop_ir_cnt_min"]) {
+            params.drop_ir_cnt_min = config["occure"]["drop_ir_cnt_min"].as<int>();
+        }
+        if (config["occure"]["imu_z_acc_low_th"]) {
+            params.imu_z_acc_low_th = config["occure"]["imu_z_acc_low_th"].as<double>();
+        }
+        if (config["occure"]["imu_z_acc_hight_th"]) {
+            params.imu_z_acc_hight_th = config["occure"]["imu_z_acc_hight_th"].as<double>();
+        }
+    }
 }
 
 void LiftErrorMonitor::printParams() const {
     if (!node_ptr_) return;
     RCLCPP_INFO(node_ptr_->get_logger(),
-        "[%s] drop_ir_adc: %d, ir_cnt_min: %d, imu_z_acc_low: %.1f, imu_z_acc_high: %.1f, rate: %d",
+        "\n[%s] rate: %d\n"
+        "drop_ir_adc: %d, ir_cnt_min: %d, imu_z_acc_low: %.1f, imu_z_acc_high: %.1f",
         paramNamespace().c_str(),
+        params.monitoring_rate_ms,
         params.drop_ir_adc_th,
         params.drop_ir_cnt_min,
         params.imu_z_acc_low_th,
-        params.imu_z_acc_hight_th,
-        params.monitoring_rate_ms
-    );
+        params.imu_z_acc_hight_th);
 }
 
 void LiftErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {

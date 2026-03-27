@@ -3,30 +3,38 @@
 void OneDTofErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
 
-    // Default values matched with yaml for fallback
+    // Default values
+    params.monitoring_rate_ms = 50;
+    params.duration_sec = 60.0;
     params.one_d_min_dist_m = 0.03;
     params.one_d_max_dist_m = 0.13;
-    params.duration_sec = 60.0;
-    params.monitoring_rate_ms = 50;
 
-    if (config["occure"]) {
-        if (config["occure"]["one_d_min_dist_m"]) params.one_d_min_dist_m = config["occure"]["one_d_min_dist_m"].as<double>();
-        if (config["occure"]["one_d_max_dist_m"]) params.one_d_max_dist_m = config["occure"]["one_d_max_dist_m"].as<double>();
-        if (config["occure"]["duration_sec"]) params.duration_sec = config["occure"]["duration_sec"].as<double>();
+    if (config["monitoring_rate_ms"]) {
+        params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
+    if (config["occure"]) {
+        if (config["occure"]["duration_sec"]) {
+            params.duration_sec = config["occure"]["duration_sec"].as<double>();
+        }
+        if (config["occure"]["one_d_min_dist_m"]) {
+            params.one_d_min_dist_m = config["occure"]["one_d_min_dist_m"].as<double>();
+        }
+        if (config["occure"]["one_d_max_dist_m"]) {
+            params.one_d_max_dist_m = config["occure"]["one_d_max_dist_m"].as<double>();
+        }
+    }
 }
 
 void OneDTofErrorMonitor::printParams() const {
     if (!node_ptr_) return;
     RCLCPP_INFO(node_ptr_->get_logger(),
-        "[%s] duration_sec: %.1f, min_dist: %.2f, max_dist: %.2f, rate: %d",
+        "\n[%s] rate: %d\n"
+        "duration_sec: %.1f, min_dist: %.2f, max_dist: %.2f",
         paramNamespace().c_str(),
+        params.monitoring_rate_ms,
         params.duration_sec,
         params.one_d_min_dist_m,
-        params.one_d_max_dist_m,
-        params.monitoring_rate_ms
-    );
+        params.one_d_max_dist_m);
 }
 
 void OneDTofErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {

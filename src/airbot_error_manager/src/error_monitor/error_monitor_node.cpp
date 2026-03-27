@@ -97,9 +97,6 @@ void ErrorMonitorNode::init()
         RCLCPP_ERROR(this->get_logger(), "Failed to load error_manager_params.yaml: %s", e.what());
     }
 
-    RCLCPP_INFO(this->get_logger(),
-        "=================== ERROR MONITOR PARAMETER ==================="
-    );
     addMonitor(std::make_shared<LowBatteryErrorMonitor>(), config);
     addMonitor(std::make_shared<FallDownErrorMonitor>(), config);
     addMonitor(std::make_shared<BoardOverheatErrorMonitor>(), config);
@@ -110,7 +107,7 @@ void ErrorMonitorNode::init()
     addMonitor(std::make_shared<OneDTofErrorMonitor>(), config);
     addMonitor(std::make_shared<AICommunicationErrorMonitor>(), config);
     RCLCPP_INFO(this->get_logger(),
-        "==============================================================="
+        "ERROR MONITORs INITIALIZED"
     );
 }
 

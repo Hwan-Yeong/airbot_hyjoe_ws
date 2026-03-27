@@ -3,28 +3,28 @@
 void CliffErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
 
-    // Default values matched with yaml for fallback
-    params.accum_dist_th = 0.3;
-    params.duration_sec = 3.0;
+    // Default values
     params.monitoring_rate_ms = 10;
+    params.accum_dist_th = 0.3;
 
-    if (config["occure"]) {
-        if (config["occure"]["accum_dist_th_m"]) params.accum_dist_th = config["occure"]["accum_dist_th_m"].as<double>();
-        else if (config["occure"]["accum_dist_th"]) params.accum_dist_th = config["occure"]["accum_dist_th"].as<double>(); // fallback
-        if (config["occure"]["duration_sec"]) params.duration_sec = config["occure"]["duration_sec"].as<double>();
+    if (config["monitoring_rate_ms"]) {
+        params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
+    if (config["occure"]) {
+        if (config["occure"]["accum_dist_th_m"]) {
+            params.accum_dist_th = config["occure"]["accum_dist_th_m"].as<double>();
+        }
+    }
 }
 
 void CliffErrorMonitor::printParams() const {
     if (!node_ptr_) return;
     RCLCPP_INFO(node_ptr_->get_logger(),
-        "[%s] duration_sec: %.1f, accum_dist_th_m: %.1f, rate: %d",
+        "\n[%s] rate: %d\n"
+        "accum_dist_th_m: %.1f",
         paramNamespace().c_str(),
-        params.duration_sec,
-        params.accum_dist_th,
-        params.monitoring_rate_ms
-    );
+        params.monitoring_rate_ms,
+        params.accum_dist_th);
 }
 
 void CliffErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {

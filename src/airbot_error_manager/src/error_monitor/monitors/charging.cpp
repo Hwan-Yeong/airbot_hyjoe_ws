@@ -3,33 +3,43 @@
 void ChargingErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
 
-    // Default values matched with yaml for fallback
+    // Default values
+    params.monitoring_rate_ms = 1000;
     params.percentage_min_th = 1;
     params.percentage_max_th = 60;
     params.percentage_diff_th = 2;
     params.duration_sec = 1200.0;
-    params.monitoring_rate_ms = 1000;
 
-    if (config["occure"]) {
-        if (config["occure"]["battery_percentage_min_th"]) params.percentage_min_th = config["occure"]["battery_percentage_min_th"].as<int>();
-        if (config["occure"]["battery_percentage_max_th"]) params.percentage_max_th = config["occure"]["battery_percentage_max_th"].as<int>();
-        if (config["occure"]["battery_percentage_diff_th"]) params.percentage_diff_th = config["occure"]["battery_percentage_diff_th"].as<int>();
-        if (config["occure"]["duration_sec"]) params.duration_sec = config["occure"]["duration_sec"].as<double>();
+    if (config["monitoring_rate_ms"]) {
+        params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
+    if (config["occure"]) {
+        if (config["occure"]["battery_percentage_min_th"]) {
+            params.percentage_min_th = config["occure"]["battery_percentage_min_th"].as<int>();
+        }
+        if (config["occure"]["battery_percentage_max_th"]) {
+            params.percentage_max_th = config["occure"]["battery_percentage_max_th"].as<int>();
+        }
+        if (config["occure"]["battery_percentage_diff_th"]) {
+            params.percentage_diff_th = config["occure"]["battery_percentage_diff_th"].as<int>();
+        }
+        if (config["occure"]["duration_sec"]) {
+            params.duration_sec = config["occure"]["duration_sec"].as<double>();
+        }
+    }
 }
 
 void ChargingErrorMonitor::printParams() const {
     if (!node_ptr_) return;
     RCLCPP_INFO(node_ptr_->get_logger(),
-        "[%s] percentage_min_th: %d, percentage_max_th: %d, "
-        "percentage_diff_th: %d, duration_sec: %.1f, rate: %d",
+        "\n[%s] rate: %d\n"
+        "percentage_min_th: %d, percentage_max_th: %d, percentage_diff_th: %d, duration_sec: %.1f",
         paramNamespace().c_str(),
+        params.monitoring_rate_ms,
         params.percentage_min_th,
         params.percentage_max_th,
         params.percentage_diff_th,
-        params.duration_sec,
-        params.monitoring_rate_ms);
+        params.duration_sec);
 }
 
 void ChargingErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {

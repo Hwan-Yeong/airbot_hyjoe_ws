@@ -4,32 +4,42 @@ void FallDownErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
     
     // Default values
+    params.monitoring_rate_ms = 1000;
     params.drop_ir_adc_th = 900;
     params.drop_ir_cnt_min = 4;
     params.imu_roll_th = 60.0;
     params.imu_pitch_th = 60.0;
-    params.monitoring_rate_ms = 1000;
 
-    if (config["occure"]) {
-        if (config["occure"]["drop_ir_adc_th"]) params.drop_ir_adc_th = config["occure"]["drop_ir_adc_th"].as<int>();
-        if (config["occure"]["drop_ir_cnt_min"]) params.drop_ir_cnt_min = config["occure"]["drop_ir_cnt_min"].as<int>();
-        if (config["occure"]["imu_roll_th_deg"]) params.imu_roll_th = config["occure"]["imu_roll_th_deg"].as<double>();
-        if (config["occure"]["imu_pitch_th_deg"]) params.imu_pitch_th = config["occure"]["imu_pitch_th_deg"].as<double>();
+    if (config["monitoring_rate_ms"]) {
+        params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
+    if (config["occure"]) {
+        if (config["occure"]["drop_ir_adc_th"]) {
+            params.drop_ir_adc_th = config["occure"]["drop_ir_adc_th"].as<int>();
+        }
+        if (config["occure"]["drop_ir_cnt_min"]) {
+            params.drop_ir_cnt_min = config["occure"]["drop_ir_cnt_min"].as<int>();
+        }
+        if (config["occure"]["imu_roll_th_deg"]) {
+            params.imu_roll_th = config["occure"]["imu_roll_th_deg"].as<double>();
+        }
+        if (config["occure"]["imu_pitch_th_deg"]) {
+            params.imu_pitch_th = config["occure"]["imu_pitch_th_deg"].as<double>();
+        }
+    }
 }
 
 void FallDownErrorMonitor::printParams() const {
     if (!node_ptr_) return;
     RCLCPP_INFO(node_ptr_->get_logger(),
-        "[%s] drop_ir_adc: %d, ir_cnt_min: %d, imu_roll_th: %.1f, imu_pitch_th: %.1f, rate: %d",
+        "\n[%s] rate: %d\n"
+        "drop_ir_adc: %d, ir_cnt_min: %d, imu_roll_th: %.1f, imu_pitch_th: %.1f",
         paramNamespace().c_str(),
+        params.monitoring_rate_ms,
         params.drop_ir_adc_th,
         params.drop_ir_cnt_min,
         params.imu_roll_th,
-        params.imu_pitch_th,
-        params.monitoring_rate_ms
-    );
+        params.imu_pitch_th);
 }
 
 void FallDownErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {

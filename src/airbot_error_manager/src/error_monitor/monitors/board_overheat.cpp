@@ -3,28 +3,33 @@
 void BoardOverheatErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
     
-    // Default values matched with yaml for fallback
+    // Default values
+    params.monitoring_rate_ms = 1000;
     params.temperature_th = 85.0;
     params.duration_sec = 30.0;
-    params.monitoring_rate_ms = 1000;
 
-    if (config["occure"]) {
-        if (config["occure"]["temperature_th_c"]) params.temperature_th = config["occure"]["temperature_th_c"].as<double>();
-        else if (config["occure"]["temperature_th"]) params.temperature_th = config["occure"]["temperature_th"].as<double>(); // Fallback to old name just in case
-        if (config["occure"]["duration_sec"]) params.duration_sec = config["occure"]["duration_sec"].as<double>();
+    if (config["monitoring_rate_ms"]) {
+        params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
     }
-    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
+    if (config["occure"]) {
+        if (config["occure"]["temperature_th_c"]) {
+            params.temperature_th = config["occure"]["temperature_th_c"].as<double>();
+        }
+        if (config["occure"]["duration_sec"]) {
+            params.duration_sec = config["occure"]["duration_sec"].as<double>();
+        }
+    }
 }
 
 void BoardOverheatErrorMonitor::printParams() const {
     if (!node_ptr_) return;
     RCLCPP_INFO(node_ptr_->get_logger(),
-        "[%s] temperature_th: %.1f, duration_sec: %.1f, rate: %d",
+        "\n[%s] rate: %d\n"
+        "temperature_th: %.1f, duration_sec: %.1f",
         paramNamespace().c_str(),
+        params.monitoring_rate_ms,
         params.temperature_th,
-        params.duration_sec,
-        params.monitoring_rate_ms
-    );
+        params.duration_sec);
 }
 
 void BoardOverheatErrorMonitor::startMonitor(std::shared_ptr<RobotStateBlackboard> blackboard) {

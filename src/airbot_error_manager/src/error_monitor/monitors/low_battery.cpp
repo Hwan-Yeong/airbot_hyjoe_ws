@@ -4,33 +4,44 @@ void LowBatteryErrorMonitor::loadParams(const YAML::Node& config) {
     if (!node_ptr_) return;
     
     // Default values
+    params.monitoring_rate_ms = 1000;
     params.occure_percentage_min = 5;
     params.occure_percentage_max = 15;
     params.release_percentage_th = 20;
     params.release_duration_sec = 30.0;
-    params.monitoring_rate_ms = 1000;
 
+    if (config["monitoring_rate_ms"]) {
+        params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
+    }
     if (config["occure"]) {
-        if (config["occure"]["battery_percentage_min"]) params.occure_percentage_min = config["occure"]["battery_percentage_min"].as<int>();
-        if (config["occure"]["battery_percentage_max"]) params.occure_percentage_max = config["occure"]["battery_percentage_max"].as<int>();
+        if (config["occure"]["battery_percentage_min"]) {
+            params.occure_percentage_min = config["occure"]["battery_percentage_min"].as<int>();
+        }
+        if (config["occure"]["battery_percentage_max"]) {
+            params.occure_percentage_max = config["occure"]["battery_percentage_max"].as<int>();
+        }
     }
     if (config["release"]) {
-        if (config["release"]["battery_percentage_th"]) params.release_percentage_th = config["release"]["battery_percentage_th"].as<int>();
-        if (config["release"]["duration_sec"]) params.release_duration_sec = config["release"]["duration_sec"].as<double>();
+        if (config["release"]["battery_percentage_th"]) {
+            params.release_percentage_th = config["release"]["battery_percentage_th"].as<int>();
+        }
+        if (config["release"]["duration_sec"]) {
+            params.release_duration_sec = config["release"]["duration_sec"].as<double>();
+        }
     }
-    if (config["monitoring_rate_ms"]) params.monitoring_rate_ms = config["monitoring_rate_ms"].as<int>();
 }
 
 void LowBatteryErrorMonitor::printParams() const {
     if (!node_ptr_) return;
     RCLCPP_INFO(node_ptr_->get_logger(),
-        "[%s] occure_min: %d, occure_max: %d, release_th: %d, release_duration: %.1f, rate: %d",
+        "\n[%s] rate: %d\n"
+        "occure_min: %d, occure_max: %d, release_th: %d, release_duration: %.1f",
         paramNamespace().c_str(),
+        params.monitoring_rate_ms,
         params.occure_percentage_min,
         params.occure_percentage_max,
         params.release_percentage_th,
-        params.release_duration_sec,
-        params.monitoring_rate_ms
+        params.release_duration_sec
     );
 }
 

@@ -62,10 +62,9 @@ airbot_error_monitor:
     cliff_error:
       monitoring_rate_ms: 10
       occure:
-        duration_sec: 3.0 # 사용 X
         accum_dist_th_m: 0.3
 
-    tof_error:
+    one_d_tof_error:
       monitoring_rate_ms: 50
       occure:
         duration_sec: 60.0
