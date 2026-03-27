@@ -40,6 +40,7 @@ airbot_error_monitor:
       occure:
         battery_percentage_min_th: 1
         battery_percentage_max_th: 60
+        battery_percentage_diff_th: 2
         duration_sec: 1200.0
 
     fall_down_error:

@@ -8,6 +8,7 @@ public:
     struct tParams {
         int percentage_min_th;
         int percentage_max_th;
+        int percentage_diff_th;
         double duration_sec;
         int monitoring_rate_ms;
     } params;
