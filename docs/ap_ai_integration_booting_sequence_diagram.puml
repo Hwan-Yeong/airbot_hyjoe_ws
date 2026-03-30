@@ -45,22 +45,41 @@ activate Systemd
       
       == Phase 4: ROS 2 Node Launching (Parallel) ==
       ' 여러 노드가 동시에 실행되는 구간
-      par ros2 launch
-        Launch -> Nodes_uart_ai : launch ai_interface (UART)
-        Nodes_uart_ai -> Nodes_uart_ai : try to comm w. camera
-        Nodes_uart_ai -> Nodes_error_monitor : publish topics\n(camera, temp, version)
-        Launch -> Nodes_new_ai : launch new_ai_pkg (BOARD)
-        Nodes_new_ai -> Nodes_new_ai : try to comm w. camera
-        Nodes_new_ai -> Nodes_error_monitor : publish topics\n(camera, temp, version)
+      par
+        Launch -> Nodes_uart_ai : launch ai_interface (UART CAM)
+        Launch -> Nodes_new_ai : launch new_ai_pkg (USB CAM)
         Launch -> Nodes_error_monitor : launch error_monitor
-        ' 활성화 된 노드가 무엇인지 최대 1분까지 체크.
-        loop maximun 1 minute.
-          Nodes_error_monitor -> Nodes_error_monitor : activated node check,\nset identified ai_mode
-          Nodes_error_monitor --> Nodes_error_monitor : both nodes are deactived,\nset default (legacy UART)
-        end
-        Nodes_error_monitor -> Nodes_error_monitor : **F09-2** error Active/Deactive
+        Nodes_error_monitor -> Nodes_error_monitor : set defualt ai_mode (UART CAM)
         Launch -> Nodes_node_manager : launch node_manager
         Nodes_node_manager -> Nodes_node_manager : set required node_list
+
+        alt timeout < <color:red>90 sec</color> 
+          Nodes_uart_ai -> Nodes_uart_ai : try to comm w. camera
+          Nodes_uart_ai -> Nodes_error_monitor : publish topics\n(camera, temperature, version)
+        else
+          Nodes_uart_ai -> Nodes_uart_ai : Stop trying to comm w. camera
+        end
+
+        alt timeout < <color:red>90 sec</color>
+          Nodes_new_ai -> Nodes_new_ai : try to comm w. camera
+
+          alt succes_to_connect == true
+            Nodes_new_ai -> Nodes_new_ai : update AI Version
+          else 
+            Nodes_new_ai -> Nodes_new_ai : set defualt version (AI Version: "0.0")
+          end
+
+          Nodes_new_ai -> Nodes_error_monitor : publish topics\n(camera, temperature, version)
+        else
+          Nodes_new_ai -> Nodes_new_ai : Stop trying to comm w. camera
+        end
+          
+        ' 활성화 된 노드가 무엇인지 체크
+        loop AI Version sub timeout < <color:red>120 sec</color>
+          Nodes_error_monitor -> Nodes_error_monitor : activated node check,\nset identified ai_mode
+          Nodes_error_monitor --> Nodes_error_monitor : both nodes are deactived,\nset default (legacy UART CAM)
+        end
+        Nodes_error_monitor -> Nodes_error_monitor : **F09-2** error Active/Deactive
         Nodes_error_monitor -> Nodes_node_manager : publish ai_mode
         Nodes_node_manager -> Nodes_node_manager : update required node_list\naccording to ai_mode
       end
