@@ -1,0 +1,108 @@
+@startuml
+' --- Configuration ---
+skinparam classAttributeIconSize 0
+skinparam monochrome false
+skinparam shadowing true
+
+' --- System Architecture ---
+
+' [Central Manager]
+class ErrorMonitorNode {
+    -blackboard_ : shared_ptr<RobotStateBlackboard>
+    -monitors_ : vector<shared_ptr<ErrorMonitorBase>>
+    ==
+    +init()
+    +addMonitor(monitor: shared_ptr<ErrorMonitorBase>, config: YAML::Node)
+    .. Responsibility ..
+    Subscribes to ROS 2 topics,
+    updates RobotStateBlackboard,
+    and manages monitor lifecycles.
+}
+
+' [Shared Data Structure - Blackboard Pattern]
+class RobotStateBlackboard {
+    -mtx_: mutex
+    ==
+    +set...Data()
+    +get...Data()
+    .. Responsibility ..
+    Thread-safe central repository 
+    for real-time robot state data.
+    Decouples I/O from logic.
+}
+
+' [Abstract Interface - Strategy/Template Pattern]
+abstract class ErrorMonitorBase<<abstract>> {
+    #node_ptr_: rclcpp::Node*
+    #blackboard_: shared_ptr<RobotStateBlackboard>
+    ==
+    +{abstract} paramNamespace() : string
+    +{abstract} loadParams(config: YAML::Node)
+    +{abstract} startMonitor(blackboard: shared_ptr<RobotStateBlackboard>)
+    #checkDataState() : DataState
+    .. Responsibility ..
+    Defines common execution flow,
+    maintains independent timer loops,
+    and evaluates timeout conditions.
+}
+
+' [Concrete Monitors]
+class LowBatteryErrorMonitor {
+    -timerCallback()
+}
+class BatteryDischargingErrorMonitor {
+    -timerCallback()
+}
+class FallDownErrorMonitor {
+    -timerCallback()
+}
+class LiftErrorMonitor {
+    -timerCallback()
+}
+class ChargingErrorMonitor {
+    -timerCallback()
+}
+class CliffErrorMonitor {
+    -timerCallback()
+}
+class OneDTofErrorMonitor {
+    -timerCallback()
+}
+class AICommunicationErrorMonitor {
+    -timerCallback()
+}
+class BoardOverheatErrorMonitor {
+    -timerCallback()
+}
+
+' --- Relationships ---
+
+' [1] Composition: Node updating Blackboard
+ErrorMonitorNode "1" *-- "1" RobotStateBlackboard : owns / updates
+
+' [2] Composition & Polymorphism: Node managing Monitors
+ErrorMonitorNode "1" *-- "many" ErrorMonitorBase : manages
+
+' [3] Association: Monitors reading Blackboard
+ErrorMonitorBase "many" --> "1" RobotStateBlackboard : references
+
+' [4] Association: Prevent Cyclic Reference
+ErrorMonitorBase "many" --> "1" ErrorMonitorNode : delegates (raw ptr)
+note right on link
+  **No Ownership**
+  Prevents memory leaks.
+  Used for logging/timers.
+end note
+
+' [5] Inheritance
+ErrorMonitorBase <|-- LowBatteryErrorMonitor
+ErrorMonitorBase <|-- BatteryDischargingErrorMonitor
+ErrorMonitorBase <|-- FallDownErrorMonitor
+ErrorMonitorBase <|-- LiftErrorMonitor
+ErrorMonitorBase <|-- ChargingErrorMonitor
+ErrorMonitorBase <|-- CliffErrorMonitor
+ErrorMonitorBase <|-- OneDTofErrorMonitor
+ErrorMonitorBase <|-- AICommunicationErrorMonitor
+ErrorMonitorBase <|-- BoardOverheatErrorMonitor
+
+@enduml
