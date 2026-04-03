@@ -103,7 +103,19 @@ class ErrorMockNode(Node):
         # Battery & Station
         if not self.sensor_data['pause_bat_st']:
             msg_bat = BatteryStatus()
+            msg_bat.battery_manufacturer = 1;
+            msg_bat.remaining_capacity = 2822;
             msg_bat.battery_percent = self.sensor_data['bat_pct']
+            msg_bat.battery_current = 3777.0;
+            msg_bat.battery_voltage = 18163.0;
+            msg_bat.battery_temperature1 = 39;
+            msg_bat.battery_temperature2 = 35;
+            msg_bat.cell_voltage1 = 3636;
+            msg_bat.cell_voltage2 = 3628;
+            msg_bat.cell_voltage3 = 3629;
+            msg_bat.cell_voltage4 = 3629;
+            msg_bat.cell_voltage5 = 3642;
+            msg_bat.battery_version = 23;
             self.pub_bat.publish(msg_bat)
 
             msg_st = StationData()
@@ -170,10 +182,12 @@ class ErrorMonitorGui(QWidget):
         # 1. Low Battery / Discharging / Charging
         grp_bat = QGroupBox("Battery / Station / Charging Group")
         l_bat = QGridLayout()
-        btn_low_err = QPushButton("LowBattery Error (Bat 5%)")
-        btn_low_err.clicked.connect(lambda: self.set_bat(5))
-        btn_low_rel = QPushButton("LowBattery Resolve (Bat 25%)")
-        btn_low_rel.clicked.connect(lambda: self.set_bat(25))
+        btn_dischar_err = QPushButton("Discharging Error (Bat 3%)")
+        btn_dischar_err.clicked.connect(lambda: self.set_bat(3))
+        btn_dischar_rel_low_err = QPushButton("Discharging Resolve (Bat 15%)")
+        btn_dischar_rel_low_err.clicked.connect(lambda: self.set_bat(15))
+        btn_low_rel = QPushButton("LowBattery Error (Bat 29%)")
+        btn_low_rel.clicked.connect(lambda: self.set_bat(29))
         
         btn_st_on = QPushButton("Dock to Station")
         btn_st_on.clicked.connect(lambda: self.set_st(True))
@@ -183,8 +197,9 @@ class ErrorMonitorGui(QWidget):
         chk_pause_bat = QCheckBox("Pause Tx (Simulate Timeout)")
         chk_pause_bat.toggled.connect(lambda c: self.set_pause('pause_bat_st', c))
 
-        l_bat.addWidget(btn_low_err, 0, 0)
-        l_bat.addWidget(btn_low_rel, 0, 1)
+        l_bat.addWidget(btn_dischar_err, 0, 0)
+        l_bat.addWidget(btn_dischar_rel_low_err, 0, 1)
+        l_bat.addWidget(btn_low_rel, 0, 2)
         l_bat.addWidget(btn_st_on, 1, 0)
         l_bat.addWidget(btn_st_off, 1, 1)
         l_bat.addWidget(chk_pause_bat, 2, 0, 1, 2)
