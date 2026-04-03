@@ -108,6 +108,7 @@ activate Launch
       Node_error_monitor -> Node_node_manager : publish **ai_mode** (USB)
     end
 
+    Node_error_monitor -> Node_error_monitor : File Writing AI version info to\n <color:blue>**"/home/airbot/app_rw/ai_mode.txt"**]
     Node_node_manager -> Node_node_manager : update required node_list\naccording to **ai_mode**
 
     note right Node_node_manager #LightCyan
