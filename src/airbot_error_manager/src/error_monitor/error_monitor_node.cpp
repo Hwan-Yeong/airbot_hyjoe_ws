@@ -68,7 +68,7 @@ ErrorMonitorNode::ErrorMonitorNode() : Node("airbot_error_monitor") {
 
   // Timer
   memory_monitor_timer_ = this->create_wall_timer(
-      std::chrono::seconds(600),
+      std::chrono::seconds(600), // 10 minute
       std::bind(&ErrorMonitorNode::checkMemoryUsage, this));
 
   RCLCPP_INFO(this->get_logger(), "node initialized");
@@ -102,6 +102,74 @@ void ErrorMonitorNode::init() {
   addMonitor(std::make_shared<OneDTofErrorMonitor>(), config);
   addMonitor(std::make_shared<AICommunicationErrorMonitor>(), config);
   RCLCPP_INFO(this->get_logger(), "ERROR MONITORs INITIALIZED");
+}
+
+void ErrorMonitorNode::addMonitor(std::shared_ptr<ErrorMonitorBase> monitor,
+                const YAML::Node& config) {
+  monitor->setNode(this);
+  std::string ns = monitor->paramNamespace();
+
+  // 1. Thread-safe lock & 중복 등록 방지
+  std::lock_guard<std::mutex> lock(monitors_mutex_);
+  
+  for (const auto& m : monitors_) {
+    if (m->paramNamespace() == ns) {
+      RCLCPP_WARN(this->get_logger(),
+                  "Monitor '%s' is already registered. Ignoring add request.",
+                  ns.c_str());
+      return;
+    }
+  }
+
+  // 2. 파라미터 로드
+  if (config && config[ns]) {
+    monitor->loadParams(config[ns]);
+  } else {
+    RCLCPP_WARN(this->get_logger(),
+                "No YAML config found for monitor: %s, using defaults",
+                ns.c_str());
+    YAML::Node empty_node;
+    monitor->loadParams(empty_node);
+  }
+  monitor->printParams();
+  
+  // 3. 모니터 시작 및 컨테이너에 추가
+  monitor->startMonitor(blackboard_);
+  monitors_.push_back(monitor);
+}
+
+/**
+ * @note target_namespace : error_manager_params.yaml 의 namespace와 일치해야 함
+ *                          각 monitor의 순수 가상함수 paramNamespace에 기재.
+ */
+bool ErrorMonitorNode::removeMonitor(const std::string& target_namespace) {
+  std::lock_guard<std::mutex> lock(monitors_mutex_);
+  
+  bool removed = false;
+  
+  // std::remove_if의 부작용(이동된 요소를 순회하는 문제)을 방지하기 위해 일반 순회 방식 사용.
+  for (auto it = monitors_.begin(); it != monitors_.end(); ) {
+    if ((*it)->paramNamespace() == target_namespace) {
+      // 리스트에서 지우기 전에 먼저 stopMonitor 호출 (Segfault 방지)
+      (*it)->stopMonitor();
+      RCLCPP_INFO(this->get_logger(), 
+                  "Successfully stopped and removed monitor: '%s'", 
+                  (*it)->paramNamespace().c_str());
+      it = monitors_.erase(it);
+      removed = true;
+    } else {
+      ++it;
+    }
+  }
+
+  if (!removed) {
+    RCLCPP_WARN(this->get_logger(), 
+                "Failed to remove monitor. Namespace '%s' not found.", 
+                target_namespace.c_str());
+    return false;
+  }
+  
+  return true;
 }
 
 void ErrorMonitorNode::checkMemoryUsage() {

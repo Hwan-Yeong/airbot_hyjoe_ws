@@ -69,6 +69,21 @@ class ErrorMonitorBase {
       std::shared_ptr<RobotStateBlackboard> blackboard) = 0;
 
   /**
+   * @brief 모니터의 내부 Monitor 루프를 중지하고 blackboard에서 바인딩을 해제합니다.
+   * @note base class 기본 제공. 필요시 자식 클래스에서 override 가능.
+   */
+  virtual void stopMonitor() {
+    if (timer_) {
+      timer_->cancel();
+      timer_.reset();
+    }
+    if (error_pub_) {
+      error_pub_.reset();
+    }
+    blackboard_.reset();
+  }
+
+  /**
    * @brief 부모 ROS 노드의 원시 포인터(raw pointer)를 모니터에 주입합니다.
    * 
    * 모니터와 노드 간의 순환 참조(Cyclic reference)로 인한 메모리 누수를 방지하기 위해

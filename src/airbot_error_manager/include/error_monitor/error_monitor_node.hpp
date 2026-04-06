@@ -4,6 +4,8 @@
 #include <fstream>
 #include <memory>
 #include <vector>
+#include <mutex>
+
 #include "error_monitor/monitors/ai_communication.hpp"
 #include "error_monitor/monitors/battery_discharging.hpp"
 #include "error_monitor/monitors/board_overheat.hpp"
@@ -56,22 +58,16 @@ class ErrorMonitorNode : public rclcpp::Node {
    * @param config 모니터들이 공통으로 사용할 수 있는 전체가 파싱된 YAML Node
    */
   void addMonitor(std::shared_ptr<ErrorMonitorBase> monitor,
-                  const YAML::Node& config) {
-    monitor->setNode(this);
-    std::string ns = monitor->paramNamespace();
-    if (config && config[ns]) {
-      monitor->loadParams(config[ns]);
-    } else {
-      RCLCPP_WARN(this->get_logger(),
-                  "No YAML config found for monitor: %s, using defaults",
-                  ns.c_str());
-      YAML::Node empty_node;
-      monitor->loadParams(empty_node);
-    }
-    monitor->printParams();
-    monitor->startMonitor(blackboard_);
-    monitors_.push_back(monitor);
-  }
+                  const YAML::Node& config);
+
+  /**
+   * @brief 특정 namespace의 모니터를 리스트에서 제거하고 stopMonitor를 호출합니다.
+   * 
+   * @param target_namespace 제거할 모니터의 네임스페이스
+   * @return true 제거 성공
+   * @return false 제거 실패
+   */
+  bool removeMonitor(const std::string& target_namespace);
 
  private:
   /**
@@ -99,6 +95,7 @@ class ErrorMonitorNode : public rclcpp::Node {
       ap_temperature_sub_;
 
   std::vector<std::shared_ptr<ErrorMonitorBase>> monitors_;
+  std::mutex monitors_mutex_;
 
   rclcpp::TimerBase::SharedPtr memory_monitor_timer_;
 };
