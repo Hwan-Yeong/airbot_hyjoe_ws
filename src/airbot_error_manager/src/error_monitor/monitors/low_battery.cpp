@@ -8,7 +8,7 @@ void LowBatteryErrorMonitor::loadParams(const YAML::Node& config) {
   params.monitoring_rate_ms = 1000;
   params.occure_percentage_min = 5;
   params.occure_percentage_max = 15;
-  params.resolve_percentage_th = 20;
+  params.resolve_percentage_th = 28;
   params.resolve_duration_sec = 30.0;
 
   if (config["monitoring_rate_ms"]) {
@@ -66,7 +66,7 @@ void LowBatteryErrorMonitor::startMonitor(
  *    로봇이 스테이션에서 분리(OFF STATION)된 상태에서
  *    배터리 잔량이 5% 초과 15% 이하인 경우 대기시간 없이 즉시 발생
  * - 해제 조건:
- *    배터리가 20%를 초과하는 구간에 도달한 후, 해당 상태가 30초 이상 지속 될 시
+ *    배터리가 28%를 초과하는 구간에 도달한 후, 해당 상태가 30초 이상 지속 될 시
  */
 void LowBatteryErrorMonitor::timerCallback() {
   auto bat = blackboard_->getBatteryData();
@@ -133,8 +133,8 @@ void LowBatteryErrorMonitor::timerCallback() {
       }
     }
   } else {  //check resolve error
-    // 조건 :  배터리 잔여 20%초과 30초 유지
-    if (bat.data.battery_percent > params.resolve_percentage_th) {  // 20 %
+    // 조건 :  배터리 잔여 28%초과 30초 유지
+    if (bat.data.battery_percent > params.resolve_percentage_th) {  // 28 %
       //check time
       if (!init_setting) {  // resolve 체크 시간에 대해서 초기시간 설정
         prev_time = current_time;

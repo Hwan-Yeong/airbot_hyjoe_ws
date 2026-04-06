@@ -16,7 +16,7 @@ airbot_error_monitor:
         battery_percentage_min: 5
         battery_percentage_max: 15
       resolve:
-        battery_percentage_th: 20
+        battery_percentage_th: 28
         duration_sec: 30.0
 
     discharging_error:
