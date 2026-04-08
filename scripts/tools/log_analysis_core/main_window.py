@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QSlider, QFileDialog, QGraphicsView, QGraphicsScene,
                              QCheckBox, QGroupBox, QFormLayout, QLabel, QListWidget,
                              QAction, QToolBar, QSpinBox, QComboBox, QTextEdit, QAbstractItemView,
-                             QSplitter, QDateTimeEdit)
+                             QSplitter, QDateTimeEdit, QToolTip)
 from PyQt5.QtCore import Qt, QDateTime
 from PyQt5.QtGui import QPen, QBrush, QColor, QTransform, QPolygonF, QPainter, QPainterPath, QPixmap, QIcon
 from PyQt5.QtCore import QPointF
@@ -19,6 +19,24 @@ class MarkedSlider(QSlider):
         self.total_lines = 1.0
         # 글자가 표시될 수 있도록 기본 슬라이더 위젯의 높이를 약간 확보
         self.setMinimumHeight(40)
+        self.setMouseTracking(True)
+        self.tooltip_callback = None
+
+    def set_tooltip_callback(self, cb):
+        self.tooltip_callback = cb
+
+    def mouseMoveEvent(self, event):
+        super().mouseMoveEvent(event)
+        if self.tooltip_callback and self.total_lines > 0:
+            padding = 10
+            usable_width = self.width() - padding * 2
+            if usable_width > 0:
+                x = event.x() - padding
+                ratio = max(0.0, min(1.0, x / usable_width))
+                line_idx = ratio * self.total_lines
+                text = self.tooltip_callback(line_idx)
+                if text:
+                    QToolTip.showText(event.globalPos(), text, self)
 
     def set_marks(self, marks, total_lines):
         self.marks = marks
@@ -264,6 +282,7 @@ class LogAnalysisMainWindow(QMainWindow):
         self.slider.setRange(0, 100000)
         self.slider.sliderPressed.connect(self.log_manager.pause)
         self.slider.valueChanged.connect(self._on_slider_moved)
+        self.slider.set_tooltip_callback(self.log_manager.get_time_string_at_line)
         
         self.lbl_time = QLabel("00:00:00 / 00:00:00")
         

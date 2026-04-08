@@ -146,6 +146,18 @@ class LogManager(QObject):
         
         self._update_raw_view(latest_event)
         
+    def get_time_string_at_line(self, line_idx):
+        if not hasattr(self, 'glines') or not self.events:
+            return ""
+        import bisect
+        import datetime
+        idx = bisect.bisect_right(self.glines, line_idx)
+        if idx == 0:
+            ts = self.events[0]['timestamp']
+        else:
+            ts = self.events[idx-1]['timestamp']
+        return datetime.datetime.fromtimestamp(ts).strftime("%m/%d %H:%M:%S")
+        
         if self.current_time >= self.end_time and self.is_playing and self.play_direction == 1:
             self.pause()
             
