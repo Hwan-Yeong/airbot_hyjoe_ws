@@ -300,7 +300,7 @@ class LogAnalysisMainWindow(QMainWindow):
             file_name = self.log_manager.file_names[ev['file_idx']]
             if file_name == target_name:
                 self._clear_dynamic_layers()
-                self.log_manager.set_current_time(ev['global_line_idx'])
+                self.log_manager.set_current_time(ev['global_line_idx'], is_jump=True)
                 break
                 
     def _on_log_reordered(self, parent, start, end, destination, row):
@@ -327,7 +327,7 @@ class LogAnalysisMainWindow(QMainWindow):
         if self.log_manager.load_files(self.loaded_file_paths):
             self._clear_dynamic_layers()
             # 시간 보정 (새로운 파일 구성에 따라 타임라인이 달라졌을 수 있음)
-            self.log_manager.set_current_time(last_time)
+            self.log_manager.set_current_time(last_time, is_jump=True)
             if was_playing:
                 self.log_manager.play_forward()
                 
@@ -340,7 +340,7 @@ class LogAnalysisMainWindow(QMainWindow):
         
     def _on_trace_limit_changed(self, val):
         # 개수 변경 시 즉시 다시 랜더링 반영하기 위해 시간 강제 업데이트
-        self.log_manager.set_current_time(self.log_manager.current_time)
+        self.log_manager.set_current_time(self.log_manager.current_time, is_jump=True)
         
     def _on_jump_clicked(self):
         # 입력된 Real time을 기반으로 적절한 virtual time을 찾음
@@ -356,7 +356,7 @@ class LogAnalysisMainWindow(QMainWindow):
                 closest_line = ev['global_line_idx']
                 
         self._clear_dynamic_layers()
-        self.log_manager.set_current_time(closest_line)
+        self.log_manager.set_current_time(closest_line, is_jump=True)
             
     def _on_slider_moved(self, value):
         # 실시간성: 마우스를 드래그하는 중에도 로봇 위치 업데이트
@@ -365,7 +365,7 @@ class LogAnalysisMainWindow(QMainWindow):
             ratio = value / 100000.0
             t = self.log_manager.start_time + ratio * (self.log_manager.end_time - self.log_manager.start_time)
             self._clear_dynamic_layers()
-            self.log_manager.set_current_time(t)
+            self.log_manager.set_current_time(t, is_jump=True)
             
     def _on_time_updated(self, current_time, real_time):
         if self.log_manager.end_time > self.log_manager.start_time:
@@ -499,16 +499,22 @@ class LogAnalysisMainWindow(QMainWindow):
         
         # Target 목적지는 별(★) 모양 또는 눈에 띄는 초록색 X자 등으로 그릴 수 있습니다.
         # 간편하게 X자로 교차하는 라인을 그룹이나 패스로 그립니다.
-        size = 6
+        size = 12
         path = QPainterPath()
         path.moveTo(px - size/2, py - size/2)
         path.lineTo(px + size/2, py + size/2)
         path.moveTo(px + size/2, py - size/2)
         path.lineTo(px - size/2, py + size/2)
         
-        # 목적지에 방향을 그릴 수도 있습니다(원한다면)
-        
-        item = self.scene.addPath(path, QPen(Qt.green, 3))
+        # ----------------------------------------------------
+        # 가장 최근 목적지만 빨간색으로 표기
+        # 이전에 추가된 타겟 궤적이 있다면 먼저 전부 초록색으로 바꿉니다.
+        # ----------------------------------------------------
+        if self.target_items:
+            self.target_items[-1].setPen(QPen(Qt.green, 3))
+            self.target_items[-1].setZValue(59)
+            
+        item = self.scene.addPath(path, QPen(Qt.red, 4))
         item.setZValue(60)
         item.setVisible(self.chk_target.isChecked())
         self.target_items.append(item)

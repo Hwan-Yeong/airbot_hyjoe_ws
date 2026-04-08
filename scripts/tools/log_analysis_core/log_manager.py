@@ -73,13 +73,14 @@ class LogManager(QObject):
         if new_events:
             self.events = new_events
             self.glines = [e['global_line_idx'] for e in self.events]
-            self.start_time = 0.0
-            self.end_time = float(total_lines)
-            self.set_current_time(self.start_time)
+            self.start_time = 0.0 # start_time 변수명 유지 (실제로는 line index)
+            self.end_time = float(total_lines) # end_time 도 line index
+            self.last_event_idx = 0
+            self.set_current_time(self.start_time, is_jump=True)
             return True
         return False
         
-    def set_current_time(self, time_val):
+    def set_current_time(self, time_val, is_jump=False):
         # time_val은 실제로는 global_line_idx (float 형식)
         self.current_time = max(self.start_time, min(time_val, self.end_time))
         
@@ -88,11 +89,16 @@ class LogManager(QObject):
             
         import bisect
         idx = bisect.bisect_right(self.glines, self.current_time)
-        triggered = self.events[:idx]
+        old_idx = getattr(self, 'last_event_idx', 0)
         
-        latest_event = triggered[-1] if triggered else self.events[0]
+        if is_jump or idx < old_idx:
+            triggered = self.events[:idx]
+        else:
+            triggered = self.events[old_idx:idx]
+            
+        self.last_event_idx = idx
         
-        self.last_event_idx = idx - 1
+        latest_event = triggered[-1] if triggered else (self.events[idx-1] if idx > 0 else self.events[0])
         
         real_time = latest_event['timestamp']
         self.time_updated.emit(self.current_time, real_time)
