@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QAction, QToolBar, QSpinBox, QComboBox, QTextEdit, QAbstractItemView,
                              QSplitter, QDateTimeEdit)
 from PyQt5.QtCore import Qt, QDateTime
-from PyQt5.QtGui import QPen, QBrush, QColor, QTransform, QPolygonF, QPainter
+from PyQt5.QtGui import QPen, QBrush, QColor, QTransform, QPolygonF, QPainter, QPainterPath, QPixmap
 from PyQt5.QtCore import QPointF
 
 from .map_manager import MapManager
@@ -30,9 +30,13 @@ class LogAnalysisMainWindow(QMainWindow):
         # 로그 렌더링에 사용할 변수들
         self.robot_path_items = [] # 궤적 아이템들 리스트
         
-        # 장애물들을 개별 아이템으로 관리
+        # ----------------------------------------------------
+        # [새로운 Obstacle / 타겟 레이어 생성 방법 가이드]
+        # 1. 새 마커 객체들을 보관할 전용 리스트를 하나 선언합니다. 하단 예시:
+        # ----------------------------------------------------
         self.drop_off_items = []
         self.tof_items = []
+        self.target_items = [] # 목적지를 그리기 위한 새 리스트 추가
         
         self.last_cleared_time = 0.0 # Clear 기능용
         
@@ -140,9 +144,18 @@ class LogAnalysisMainWindow(QMainWindow):
         self.chk_tof.setChecked(True)
         self.chk_tof.toggled.connect(self._update_log_visibility)
         
+        # ----------------------------------------------------
+        # [새로운 Obstacle / 타겟 레이어 생성 가이드]
+        # 2. QCheckBox 를 선언하고 _update_log_visibility 함수와 connect 한 뒤 Layout에 붙입니다.
+        # ----------------------------------------------------
+        self.chk_target = QCheckBox("Target Pose")
+        self.chk_target.setChecked(True)
+        self.chk_target.toggled.connect(self._update_log_visibility)
+        
         log_layout.addWidget(self.chk_robot)
         log_layout.addWidget(self.chk_drop_off)
         log_layout.addWidget(self.chk_tof)
+        log_layout.addWidget(self.chk_target)
         group_log.setLayout(log_layout)
         right_layout.addWidget(group_log)
         
@@ -408,6 +421,12 @@ class LogAnalysisMainWindow(QMainWindow):
                 self._add_drop_off(ev['x'], ev['y'])
             elif ev['type'] == '1d_tof':
                 self._add_1d_tof(ev['x'], ev['y'])
+            # ----------------------------------------------------
+            # [새로운 Obstacle / 타겟 레이어 생성 가이드]
+            # 3. 이 루프 부분에 elif 타입 매칭을 통해 새 렌더링 함수를 호출하도록 지정합니다.
+            # ----------------------------------------------------
+            elif ev['type'] == 'target_pose':
+                self._add_target(ev['x'], ev['y'], ev['yaw'])
                 
     # -- 렌더링
     def _clear_dynamic_layers(self):
@@ -422,6 +441,10 @@ class LogAnalysisMainWindow(QMainWindow):
         for item in self.tof_items:
             self.scene.removeItem(item)
         self.tof_items.clear()
+        
+        for item in self.target_items:
+            self.scene.removeItem(item)
+        self.target_items.clear()
 
     def _update_robot_pose(self, rx, ry, yaw):
         px, py = self.map_manager.to_scene_coords(rx, ry)
@@ -462,6 +485,29 @@ class LogAnalysisMainWindow(QMainWindow):
         item.setVisible(self.chk_tof.isChecked())
         self.tof_items.append(item)
         
+    def _add_target(self, rx, ry, yaw):
+        # ----------------------------------------------------
+        # [새로운 Obstacle / 타겟 레이어 생성 가이드]
+        # 4. 이곳에 어떻게 Scene 상에 그릴지 구현하고, 미리 선언한 list인 self.target_items 에 추가합니다.
+        # ----------------------------------------------------
+        px, py = self.map_manager.to_scene_coords(rx, ry)
+        
+        # Target 목적지는 별(★) 모양 또는 눈에 띄는 초록색 X자 등으로 그릴 수 있습니다.
+        # 간편하게 X자로 교차하는 라인을 그룹이나 패스로 그립니다.
+        size = 12
+        path = QPainterPath()
+        path.moveTo(px - size/2, py - size/2)
+        path.lineTo(px + size/2, py + size/2)
+        path.moveTo(px + size/2, py - size/2)
+        path.lineTo(px - size/2, py + size/2)
+        
+        # 목적지에 방향을 그릴 수도 있습니다(원한다면)
+        
+        item = self.scene.addPath(path, QPen(Qt.green, 3))
+        item.setZValue(60)
+        item.setVisible(self.chk_target.isChecked())
+        self.target_items.append(item)
+        
     def _update_log_visibility(self):
         # 로봇 궤적
         for it in self.robot_path_items:
@@ -471,6 +517,12 @@ class LogAnalysisMainWindow(QMainWindow):
             it.setVisible(self.chk_drop_off.isChecked())
         for it in self.tof_items:
             it.setVisible(self.chk_tof.isChecked())
+        # ----------------------------------------------------
+        # [새로운 Obstacle / 타겟 레이어 생성 가이드]
+        # 5. 체크박스 On/Off 시 요소들이 실제로 화면에서 Hide/Show 되도록 동기화합니다.
+        # ----------------------------------------------------
+        for it in self.target_items:
+            it.setVisible(self.chk_target.isChecked())
             
     # -- Export
     def _export_view(self):

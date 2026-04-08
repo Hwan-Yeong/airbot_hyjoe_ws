@@ -19,6 +19,11 @@ class LogParser:
         self.re_1d_tof = re.compile(
             r'\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+1D ToF detected.*1D\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
         )
+
+        # Target 목적지 정규식
+        self.re_target = re.compile(
+            r'\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+.*Move to Target \((?P<x>[-\d\.]+),\s*(?P<y>[-\d\.]+),\s*(?P<yaw>[-\d\.]+)\(deg\)\)'
+        )
         
         self.time_format = "%Y-%m-%d %H:%M:%S.%f"
         
@@ -35,8 +40,14 @@ class LogParser:
         """
         한 줄의 로그를 파싱하여 알맞은 형태의 사전 데이터로 리턴합니다.
         매칭되는 것이 없으면 None을 리턴합니다.
+
+        [새로운 형태의 로그 파싱/추가하는 방법 가이드]
+        1. __init__ 에 분석하고자 하는 로그의 문자열 패턴을 매칭하는 정규표현식(re.compile)을 추가합니다.
+           이때, 시간 정보는 (?P<time>[\d\-]+\s[\d:\.]+) 그룹으로 캡처하는 것이 좋습니다.
+        2. 아래 parse_line() 함수 내부에 해당 정규식으로 search를 시도하고,
+           데이터가 매칭되면 'timestamp', 'type'(고유 ID)과 좌표 등을 담은 dict를 반환하도록 추가합니다.
         """
-        # 1. 로봇 포즈 매칭 (제일 빈번하게 발생할 수 있음)
+        # 1. 로봇 포즈 매칭
         match = self.re_robot_pose.search(line)
         if match:
             ts = self._parse_time(match.group('time'))
@@ -71,6 +82,19 @@ class LogParser:
                     'type': '1d_tof',
                     'x': float(match.group('x')),
                     'y': float(match.group('y'))
+                }
+
+        # 4. Target 목적지 매칭
+        match = self.re_target.search(line)
+        if match:
+            ts = self._parse_time(match.group('time'))
+            if ts is not None:
+                return {
+                    'timestamp': ts,
+                    'type': 'target_pose',
+                    'x': float(match.group('x')),
+                    'y': float(match.group('y')),
+                    'yaw': float(match.group('yaw'))
                 }
                 
         return None
