@@ -12,6 +12,58 @@ from PyQt5.QtCore import QPointF
 from .map_manager import MapManager
 from .log_manager import LogManager
 
+class MarkedSlider(QSlider):
+    def __init__(self, orientation, parent=None):
+        super().__init__(orientation, parent)
+        self.marks = []
+        self.total_lines = 1.0
+        # 글자가 표시될 수 있도록 기본 슬라이더 위젯의 높이를 약간 확보
+        self.setMinimumHeight(40)
+
+    def set_marks(self, marks, total_lines):
+        self.marks = marks
+        self.total_lines = total_lines if total_lines > 0 else 1.0
+        self.update()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if not self.marks:
+            return
+            
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        font = painter.font()
+        font.setPointSize(8)
+        font.setBold(True)
+        painter.setFont(font)
+        
+        padding = 10 # 기본 노브(Handle) 마진
+        usable_width = self.width() - padding * 2
+        
+        for m in self.marks:
+            ratio = m['line_idx'] / self.total_lines
+            x = padding + ratio * usable_width
+            
+            color = QColor(Qt.red) if m['color'] == 'red' else QColor(Qt.darkBlue)
+            painter.setPen(QPen(color, 2))
+            
+            # 슬라이더 중앙 groove 아래에서 위쪽으로 세로선을 확실히 긋도록 지정
+            painter.drawLine(int(x), 15, int(x), self.height() - 5)
+            
+            # 선 색상과 맞춰서 글자를 표시
+            painter.setPen(QPen(color))
+            
+            # 글자가 선 중앙에 오도록 텍스트 길이를 계산해서 위치 튜닝
+            font_metrics = painter.fontMetrics()
+            # width() 가 PyQt5 에서 안정적으로 지원됨
+            tw = font_metrics.width(m['text'])
+            
+            # 선 위쪽 공간 (y=12) 에 텍스트를 배치
+            painter.drawText(int(x - tw/2), 12, m['text'])
+            
+        painter.end()
+
 class LogAnalysisMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -207,8 +259,8 @@ class LogAnalysisMainWindow(QMainWindow):
         self.combo_speed.currentTextChanged.connect(self._on_speed_changed)
         self.log_manager.set_playback_speed(10.0) # 기본값을 10x로
         
-        # 세세한 재생을 위해 Slider 해상도를 100,000으로 증가
-        self.slider = QSlider(Qt.Horizontal)
+        # 세세한 재생을 위해 Slider 해상도를 100,000으로 증가. 일반 QSlider 대신 MarkedSlider 사용
+        self.slider = MarkedSlider(Qt.Horizontal)
         self.slider.setRange(0, 100000)
         self.slider.sliderPressed.connect(self.log_manager.pause)
         self.slider.valueChanged.connect(self._on_slider_moved)
@@ -253,6 +305,7 @@ class LogAnalysisMainWindow(QMainWindow):
         self.log_manager.playback_status_changed.connect(self._on_play_status_changed)
         self.log_manager.current_file_updated.connect(self.lbl_current_file.setText)
         self.log_manager.raw_log_updated.connect(self._on_raw_log_updated)
+        self.log_manager.marks_updated.connect(self.slider.set_marks)
         
     # -- 줌 기능
     def wheelEvent(self, event):

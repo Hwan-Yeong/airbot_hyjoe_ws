@@ -13,6 +13,9 @@ class LogManager(QObject):
     # 추가된 기능용 시그널
     raw_log_updated = pyqtSignal(str)
     current_file_updated = pyqtSignal(str)
+    
+    # 마커(재부팅, 날짜변경) 기능용 시그널 (전체 라인 수 리스펜스용으로 두번째 인자 넘김)
+    marks_updated = pyqtSignal(list, float)
 
     def __init__(self):
         super().__init__()
@@ -69,15 +72,52 @@ class LogManager(QObject):
         new_events.sort(key=lambda x: x['global_line_idx'])
         
         import bisect
+        import datetime
         
+        marks = []
         if new_events:
             self.events = new_events
             self.glines = [e['global_line_idx'] for e in self.events]
             self.start_time = 0.0 # start_time 변수명 유지 (실제로는 line index)
             self.end_time = float(total_lines) # end_time 도 line index
             self.last_event_idx = 0
+            
+            # 마커 감지(재부팅 및 날짜 변경)
+            first_ts = self.events[0]['timestamp']
+            max_ts_seen = first_ts
+            current_day = datetime.datetime.fromtimestamp(first_ts).date()
+            
+            for ev in self.events:
+                ts = ev['timestamp']
+                dt = datetime.datetime.fromtimestamp(ts)
+                day = dt.date()
+                
+                # 5초 이상 과거로 돌아가면 재부팅으로 간주
+                if ts < max_ts_seen - 5.0:
+                    marks.append({
+                        'line_idx': ev['global_line_idx'],
+                        'text': "reboot",
+                        'color': 'red'
+                    })
+                    max_ts_seen = ts
+                    current_day = day # 새롭게 시작된 타임라인의 날짜로 갱신
+                else:
+                    if ts > max_ts_seen:
+                        max_ts_seen = ts
+                    
+                    if day > current_day:
+                        marks.append({
+                            'line_idx': ev['global_line_idx'],
+                            'text': dt.strftime("%m/%d"),
+                            'color': 'blue'
+                        })
+                        current_day = day
+                        
+            self.marks_updated.emit(marks, self.end_time)
             self.set_current_time(self.start_time, is_jump=True)
             return True
+            
+        self.marks_updated.emit([], 1.0)
         return False
         
     def set_current_time(self, time_val, is_jump=False):
