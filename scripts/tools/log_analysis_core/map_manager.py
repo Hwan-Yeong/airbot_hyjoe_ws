@@ -157,7 +157,7 @@ class MapManager:
                 px, py = self.to_scene_coords(x, y)
                 
                 # 스테이션 크기 설정 (원래 10에서 1로 줄임)
-                rad = 1.0 # (크기 설정하는 부분)
+                rad = 3.0 # (크기 설정하는 부분)
                 self.station_item = QGraphicsEllipseItem(px - rad, py - rad, rad*2, rad*2)
                 self.station_item.setBrush(QBrush(QColor(0, 255, 0, 200)))
                 self.station_item.setPen(QPen(Qt.black))

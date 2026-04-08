@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QAction, QToolBar, QSpinBox, QComboBox, QTextEdit, QAbstractItemView,
                              QSplitter, QDateTimeEdit)
 from PyQt5.QtCore import Qt, QDateTime
-from PyQt5.QtGui import QPen, QBrush, QColor, QTransform, QPolygonF, QPainter, QPainterPath, QPixmap
+from PyQt5.QtGui import QPen, QBrush, QColor, QTransform, QPolygonF, QPainter, QPainterPath, QPixmap, QIcon
 from PyQt5.QtCore import QPointF
 
 from .map_manager import MapManager
@@ -132,15 +132,19 @@ class LogAnalysisMainWindow(QMainWindow):
         
         group_log = QGroupBox("Log Display Options")
         log_layout = QVBoxLayout()
+        
         self.chk_robot = QCheckBox("Robot Pose")
+        self.chk_robot.setIcon(self._create_icon(Qt.blue, "circle"))
         self.chk_robot.setChecked(True)
         self.chk_robot.toggled.connect(self._update_log_visibility)
         
         self.chk_drop_off = QCheckBox("Drop off Obstacles")
+        self.chk_drop_off.setIcon(self._create_icon(Qt.magenta, "rect"))
         self.chk_drop_off.setChecked(True)
         self.chk_drop_off.toggled.connect(self._update_log_visibility)
         
         self.chk_tof = QCheckBox("1D ToF Obstacles")
+        self.chk_tof.setIcon(self._create_icon(Qt.yellow, "diamond"))
         self.chk_tof.setChecked(True)
         self.chk_tof.toggled.connect(self._update_log_visibility)
         
@@ -149,6 +153,7 @@ class LogAnalysisMainWindow(QMainWindow):
         # 2. QCheckBox 를 선언하고 _update_log_visibility 함수와 connect 한 뒤 Layout에 붙입니다.
         # ----------------------------------------------------
         self.chk_target = QCheckBox("Target Pose")
+        self.chk_target.setIcon(self._create_icon(Qt.green, "cross"))
         self.chk_target.setChecked(True)
         self.chk_target.toggled.connect(self._update_log_visibility)
         
@@ -469,7 +474,7 @@ class LogAnalysisMainWindow(QMainWindow):
     def _add_drop_off(self, rx, ry):
         px, py = self.map_manager.to_scene_coords(rx, ry)
         # Drop off은 모양을 ▼(삼각형) 또는 보라색 네모등으로 지정
-        size = 6
+        size = 4
         item = self.scene.addRect(px - size/2, py - size/2, size, size, QPen(Qt.black), QBrush(Qt.magenta))
         item.setZValue(50)
         item.setVisible(self.chk_drop_off.isChecked())
@@ -478,7 +483,7 @@ class LogAnalysisMainWindow(QMainWindow):
     def _add_1d_tof(self, rx, ry):
         px, py = self.map_manager.to_scene_coords(rx, ry)
         # ToF는 노란색 다이아몬드 또는 마름모
-        size = 8
+        size = 4
         polygon = QPolygonF([QPointF(px, py-size/2), QPointF(px+size/2, py), QPointF(px, py+size/2), QPointF(px-size/2, py)])
         item = self.scene.addPolygon(polygon, QPen(Qt.black), QBrush(Qt.yellow))
         item.setZValue(51)
@@ -494,7 +499,7 @@ class LogAnalysisMainWindow(QMainWindow):
         
         # Target 목적지는 별(★) 모양 또는 눈에 띄는 초록색 X자 등으로 그릴 수 있습니다.
         # 간편하게 X자로 교차하는 라인을 그룹이나 패스로 그립니다.
-        size = 12
+        size = 6
         path = QPainterPath()
         path.moveTo(px - size/2, py - size/2)
         path.lineTo(px + size/2, py + size/2)
@@ -547,3 +552,28 @@ class LogAnalysisMainWindow(QMainWindow):
         
         pixmap.save(path)
         print(f"Exported view to {path}")
+        
+    def _create_icon(self, color, shape="rect"):
+        pixmap = QPixmap(16, 16)
+        pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        if shape == "cross":
+            painter.setPen(QPen(color, 2))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawLine(2, 2, 14, 14)
+            painter.drawLine(14, 2, 2, 14)
+        else:
+            painter.setPen(QPen(Qt.black))
+            painter.setBrush(QBrush(color))
+            if shape == "rect":
+                painter.drawRect(2, 2, 12, 12)
+            elif shape == "circle":
+                painter.drawEllipse(2, 2, 12, 12)
+            elif shape == "diamond":
+                polygon = QPolygonF([QPointF(8, 2), QPointF(14, 8), QPointF(8, 14), QPointF(2, 8)])
+                painter.drawPolygon(polygon)
+                
+        painter.end()
+        return QIcon(pixmap)
