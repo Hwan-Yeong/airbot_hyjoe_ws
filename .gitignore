@@ -17,7 +17,8 @@ build_isolated/
 devel_isolated/
 csv/
 bag/
-
+map/
+example/
 
 # 외부 대용량 바이너리 디렉토리 제외
 src/spatio_temporal_voxel_layer/external/openvdb_vendor/

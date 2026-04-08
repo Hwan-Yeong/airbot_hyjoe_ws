@@ -1,0 +1,179 @@
+from PyQt5.QtCore import QObject, pyqtSignal, QTimer
+import os
+from .log_parser import LogParser
+
+class LogManager(QObject):
+    # UI에 이벤트를 전달하는 시그널들 (virtual_time, real_time)
+    time_updated = pyqtSignal(float, float)
+    playback_status_changed = pyqtSignal(bool) # True면 playing
+    
+    # 시간 변경에 따라 새로운 이벤트들이 발생했음을 알림
+    events_triggered = pyqtSignal(list) 
+    
+    # 추가된 기능용 시그널
+    raw_log_updated = pyqtSignal(str)
+    current_file_updated = pyqtSignal(str)
+
+    def __init__(self):
+        super().__init__()
+        self.parser = LogParser()
+        self.events = [] # 모든 파싱된 로그 이벤트(시간 순 정렬)
+        self.current_time = 0.0
+        
+        self.start_time = 0.0
+        self.end_time = 0.0
+        
+        self.timer = QTimer()
+        self.timer.timeout.connect(self._on_timer)
+        self.is_playing = False
+        
+        self.playback_speed = 1.0
+        self.play_direction = 1 # 1: forward, -1: backward
+        self.timer_interval = 50 # ms, 20 hz 업데이트
+        
+        # 원본 데이터 저장소
+        self.file_paths = []
+        self.file_names = []
+        self.raw_files = [] # 각 파일별 원본 라인 리스트의 리스트
+        
+        # 최적화를 위해 마지막으로 재생한 인덱스를 추적
+        self.last_event_idx = -1 
+        
+    def load_files(self, file_paths):
+        """
+        여러 파일 경로를 받아 한 번에 파싱을 진행하고 하나의 events 리스트로 병합합니다.
+        """
+        self.file_paths = file_paths
+        self.file_names = [os.path.basename(p) for p in file_paths]
+        self.raw_files = []
+        new_events = []
+        
+        self.events = []
+        self.pause()
+        
+        total_lines = 0
+        for i, filepath in enumerate(file_paths):
+            with open(filepath, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                for j, line in enumerate(lines):
+                    event = self.parser.parse_line(line)
+                    if event:
+                        event['file_idx'] = i
+                        event['line_idx'] = j
+                        event['global_line_idx'] = total_lines + j
+                        new_events.append(event)
+                self.raw_files.append(lines)
+                total_lines += len(lines)
+                        
+        # global_line_idx 기준으로 쓰여진 순서대로 재생
+        new_events.sort(key=lambda x: x['global_line_idx'])
+        
+        import bisect
+        
+        if new_events:
+            self.events = new_events
+            self.glines = [e['global_line_idx'] for e in self.events]
+            self.start_time = 0.0
+            self.end_time = float(total_lines)
+            self.set_current_time(self.start_time)
+            return True
+        return False
+        
+    def set_current_time(self, time_val):
+        # time_val은 실제로는 global_line_idx (float 형식)
+        self.current_time = max(self.start_time, min(time_val, self.end_time))
+        
+        if not self.events:
+            return
+            
+        import bisect
+        idx = bisect.bisect_right(self.glines, self.current_time)
+        triggered = self.events[:idx]
+        
+        latest_event = triggered[-1] if triggered else self.events[0]
+        
+        self.last_event_idx = idx - 1
+        
+        real_time = latest_event['timestamp']
+        self.time_updated.emit(self.current_time, real_time)
+        self.events_triggered.emit(triggered)
+        
+        self._update_raw_view(latest_event)
+        
+        if self.current_time >= self.end_time and self.is_playing and self.play_direction == 1:
+            self.pause()
+            
+    def _update_raw_view(self, event):
+        file_idx = event.get('file_idx')
+        line_idx = event.get('line_idx')
+        
+        if file_idx is not None and line_idx is not None and file_idx < len(self.raw_files):
+            file_name = self.file_names[file_idx]
+            self.current_file_updated.emit(file_name)
+            
+            lines = self.raw_files[file_idx]
+            start_idx = max(0, line_idx - 10)
+            end_idx = min(len(lines), line_idx + 11)
+            
+            raw_text_parts = []
+            for i in range(start_idx, end_idx):
+                prefix = ">> " if i == line_idx else "   "
+                raw_text_parts.append(f"{prefix}{lines[i].rstrip()}")
+                
+            self.raw_log_updated.emit('\n'.join(raw_text_parts))
+
+    def play_forward(self):
+        if not self.events:
+            return
+        if self.current_time >= self.end_time:
+            self.set_current_time(self.start_time)
+        self.play_direction = 1
+        self.is_playing = True
+        self.playback_status_changed.emit(True)
+        self.timer.start(self.timer_interval)
+
+    def play_backward(self):
+        if not self.events:
+            return
+        if self.current_time <= self.start_time:
+            self.set_current_time(self.end_time)
+        self.play_direction = -1
+        self.is_playing = True
+        self.playback_status_changed.emit(True)
+        self.timer.start(self.timer_interval)
+        
+    def pause(self):
+        self.is_playing = False
+        self.playback_status_changed.emit(False)
+        self.timer.stop()
+        
+    def toggle_play(self):
+        if self.is_playing and self.play_direction == 1:
+            self.pause()
+        else:
+            self.play_forward()
+            
+    def set_playback_speed(self, speed):
+        self.playback_speed = speed
+            
+    def _on_timer(self):
+        if not self.is_playing:
+            return
+            
+        # 1초에 약 100줄의 텍스트가 쓰여진다고 가정(20Hz 포즈 등 포함)
+        # 배속에 따라 이동할 줄(line) 개수 결정
+        base_lines_per_sec = 200.0  
+        dt_lines = (self.timer_interval / 1000.0) * self.playback_speed * base_lines_per_sec * self.play_direction
+        
+        new_time = self.current_time + dt_lines
+        
+        if new_time >= self.end_time:
+            new_time = self.end_time
+            self.set_current_time(new_time)
+            self.pause()
+        elif new_time <= 0:
+            new_time = 0
+            self.set_current_time(new_time)
+            self.pause()
+        else:
+            self.set_current_time(new_time)
