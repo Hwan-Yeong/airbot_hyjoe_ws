@@ -24,6 +24,10 @@ class LogParser:
         self.re_target = re.compile(
             r'\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+.*Move to Target \((?P<x>[-\d\.]+),\s*(?P<y>[-\d\.]+),\s*(?P<yaw>[-\d\.]+)\(deg\)\)'
         )
+
+        self.re_return = re.compile(
+            r'\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+.*soc-cmd received : ReturnToCharger'
+        )
         
         self.time_format = "%Y-%m-%d %H:%M:%S.%f"
         
@@ -95,6 +99,16 @@ class LogParser:
                     'x': float(match.group('x')),
                     'y': float(match.group('y')),
                     'yaw': float(match.group('yaw'))
+                }
+
+        # 5. Return to Charger 매칭
+        match = self.re_return.search(line)
+        if match:
+            ts = self._parse_time(match.group('time'))
+            if ts is not None:
+                return {
+                    'timestamp': ts,
+                    'type': 'return_to_charger'
                 }
                 
         return None

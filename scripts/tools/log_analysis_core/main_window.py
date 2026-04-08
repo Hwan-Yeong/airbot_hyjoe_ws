@@ -254,10 +254,10 @@ class LogAnalysisMainWindow(QMainWindow):
         self.btn_pause.clicked.connect(self.log_manager.pause)
         
         self.combo_speed = QComboBox()
-        self.combo_speed.addItems(["1.0x", "10.0x", "50.0x", "100.0x", "250.0x", "500.0x", "1000.0x"])
-        self.combo_speed.setCurrentText("10.0x")
+        self.combo_speed.addItems(["1.0x", "2.5x", "5.0x", "10.0x", "25.0x", "50.0x", "100.0x"])
+        self.combo_speed.setCurrentText("1.0x")
         self.combo_speed.currentTextChanged.connect(self._on_speed_changed)
-        self.log_manager.set_playback_speed(10.0) # 기본값을 10x로
+        self.log_manager.set_playback_speed(1.0) # 기본값을 10x로
         
         # 세세한 재생을 위해 Slider 해상도를 100,000으로 증가. 일반 QSlider 대신 MarkedSlider 사용
         self.slider = MarkedSlider(Qt.Horizontal)
@@ -475,16 +475,14 @@ class LogAnalysisMainWindow(QMainWindow):
         for ev in other_events + robot_events:
             if ev['type'] == 'robot_pose':
                 self._update_robot_pose(ev['x'], ev['y'], ev['yaw'])
+            elif ev['type'] == 'target_pose':
+                self._add_target(ev['x'], ev['y'], ev['yaw'])
+            elif ev['type'] == 'return_to_charger':
+                self._handle_return_to_charger()
             elif ev['type'] == 'drop_off':
                 self._add_drop_off(ev['x'], ev['y'])
             elif ev['type'] == '1d_tof':
                 self._add_1d_tof(ev['x'], ev['y'])
-            # ----------------------------------------------------
-            # [새로운 Obstacle / 타겟 레이어 생성 가이드]
-            # 3. 이 루프 부분에 elif 타입 매칭을 통해 새 렌더링 함수를 호출하도록 지정합니다.
-            # ----------------------------------------------------
-            elif ev['type'] == 'target_pose':
-                self._add_target(ev['x'], ev['y'], ev['yaw'])
                 
     # -- 렌더링
     def _clear_dynamic_layers(self):
@@ -503,6 +501,9 @@ class LogAnalysisMainWindow(QMainWindow):
         for item in self.target_items:
             self.scene.removeItem(item)
         self.target_items.clear()
+        
+        if hasattr(self.map_manager, 'station_item') and self.map_manager.station_item:
+            self.map_manager.station_item.setBrush(QBrush(QColor(0, 255, 0, 200)))
 
     def _update_robot_pose(self, rx, ry, yaw):
         px, py = self.map_manager.to_scene_coords(rx, ry)
@@ -571,6 +572,20 @@ class LogAnalysisMainWindow(QMainWindow):
         item.setZValue(60)
         item.setVisible(self.chk_target.isChecked())
         self.target_items.append(item)
+        
+        # 기본 목적지로 세팅되었으니 스테이션은 초록색으로 복귀
+        if hasattr(self.map_manager, 'station_item') and self.map_manager.station_item:
+            self.map_manager.station_item.setBrush(QBrush(QColor(0, 255, 0, 200)))
+            
+    def _handle_return_to_charger(self):
+        # 다른 목적지는 초록색으로 복귀
+        if self.target_items:
+            self.target_items[-1].setPen(QPen(Qt.green, 3))
+            self.target_items[-1].setZValue(59)
+            
+        # 충전기 위치(Station)를 빨간색으로 변경
+        if hasattr(self.map_manager, 'station_item') and self.map_manager.station_item:
+            self.map_manager.station_item.setBrush(QBrush(QColor(255, 0, 0, 200)))
         
     def _update_log_visibility(self):
         # 로봇 궤적
