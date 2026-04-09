@@ -74,11 +74,13 @@ class LogParser:
                         result['y'] = float(match.group('y'))
                     except (IndexError, AttributeError):
                         pass
-                    # yaw(방향각)가 있으면 추출
-                    try:
-                        result['yaw'] = float(match.group('yaw'))
-                    except (IndexError, AttributeError):
-                        pass
+                    # 정규식에 정의된 추가 named group 자동 추출 (yaw, class_id 등)
+                    for gname in compiled_re.groupindex:
+                        if gname not in ('time', 'x', 'y') and gname not in result:
+                            try:
+                                result[gname] = match.group(gname)
+                            except (IndexError, AttributeError):
+                                pass
                     return result
         
         # 2. 시스템 이벤트: ReturnToCharger (UI 레이어 아니므로 코드에 직접 유지)

@@ -11,11 +11,14 @@
 #   regex       : Python 정규식. 반드시 (?P<time>...) 그룹을 포함해야 하며,
 #                 좌표 추출이 필요하면 (?P<x>...), (?P<y>...) 그룹을 포함합니다.
 #                 방향각이 필요하면 (?P<yaw>...) 도 추가합니다.
-#   shape       : 맵 위에 그릴 도형. circle | rect | diamond | cross 중 택 1
+#   shape       : 맵 위에 그릴 도형. circle | rect | diamond | cross | labeled_rect 중 택 1
+#                 labeled_rect: 사각형 안에 label_group 값을 텍스트로 표시 (글자+도형 크기 연동)
 #   color       : 색상 이름. blue, magenta, yellow, green, red, cyan 등 Qt 표준 색상명
 #   z_value     : 렌더링 레이어 순서 (높을수록 위에 그려짐)
 #   default_size: 초기 크기(픽셀 단위)
 #   is_trace    : true이면 Robot Trace Length 제한을 따름 (궤적용)
+#   deduplicate : true이면 동일 (label, x, y) 조합이 중복 수신될 때 새로 그리지 않음 (누적 로그용)
+#   label_group : labeled_rect 도형 안에 표시할 정규식 named group 이름 (예: "class_id")
 # ============================================================
 
 layers:
@@ -72,6 +75,17 @@ layers:
     z_value: 51
     default_size: 4.0
     is_trace: false
+
+  - id: "camera_obstacle"
+    menu_name: "Camera Obstacles"
+    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+\[ID\]:\s*(?P<class_id>\d+),\s*\[Position \(X, Y\):\s*\((?P<x>[-\d\.]+),\s*(?P<y>[-\d\.]+)\)\]'
+    shape: "labeled_rect"
+    color: "orange"
+    z_value: 51
+    default_size: 6.0
+    is_trace: false
+    deduplicate: true
+    label_group: "class_id"
 
   - id: "low_level_obs"
     menu_name: "Low Level Obstacles"

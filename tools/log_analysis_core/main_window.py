@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QAction, QToolBar, QSpinBox, QComboBox, QTextEdit, QAbstractItemView,
                              QSplitter, QDateTimeEdit, QToolTip, QDoubleSpinBox)
 from PyQt5.QtCore import Qt, QDateTime
-from PyQt5.QtGui import QPen, QBrush, QColor, QTransform, QPolygonF, QPainter, QPainterPath, QPixmap, QIcon
+from PyQt5.QtGui import QPen, QBrush, QColor, QTransform, QPolygonF, QPainter, QPainterPath, QPixmap, QIcon, QFont
 from PyQt5.QtCore import QPointF
 
 from .map_manager import MapManager
@@ -238,19 +238,60 @@ class LogAnalysisMainWindow(QMainWindow):
         group_log.setLayout(self.log_display_layout)
         right_layout.addWidget(group_log)
         
-        # -- 로그 리스트
+        # -- 로그 리스트 + Class ID 참고 패널 (가로 분할)
+        log_and_classid_splitter = QSplitter(Qt.Horizontal)
+        
+        # 왼쪽: 로그 리스트
+        log_list_panel = QWidget()
+        log_list_layout = QVBoxLayout(log_list_panel)
+        log_list_layout.setContentsMargins(0, 0, 0, 0)
+        
         self.log_list_widget = QListWidget()
         self.log_list_widget.setDragDropMode(QAbstractItemView.InternalMove)
         self.log_list_widget.model().rowsMoved.connect(self._on_log_reordered)
         self.log_list_widget.itemDoubleClicked.connect(self._on_log_double_clicked)
         
-        # 파일 표시 라벨
         self.lbl_current_file = QLabel("Current Log: None")
         self.lbl_current_file.setStyleSheet("font-weight: bold; color: blue;")
         
-        right_layout.addWidget(QLabel("Loaded Logs (Drag to reorder):"))
-        right_layout.addWidget(self.log_list_widget)
-        right_layout.addWidget(self.lbl_current_file)
+        log_list_layout.addWidget(QLabel("Loaded Logs (Drag to reorder):"))
+        log_list_layout.addWidget(self.log_list_widget)
+        log_list_layout.addWidget(self.lbl_current_file)
+        
+        # 오른쪽: Object Detection Class ID 참고
+        classid_group = QGroupBox("Object Detection Class ID")
+        classid_layout = QVBoxLayout(classid_group)
+        classid_layout.setContentsMargins(3, 3, 3, 3)
+        classid_text = QTextEdit()
+        classid_text.setReadOnly(True)
+        classid_text.setStyleSheet("font-family: monospace; font-size: 9pt; background-color: #fffbe6;")
+        classid_text.setPlainText(
+            " 0: cable\n"
+            " 1: carpet [Unused]\n"
+            " 2: clothes\n"
+            " 3: liquid [Unused]\n"
+            " 4: non_obstacle [Unused]\n"
+            " 5: obstacle [Unused]\n"
+            " 6: poop\n"
+            " 7: scale\n"
+            " 8: threshold [Unused]\n"
+            " 9: person [Unused]\n"
+            "10: dog [Unused]\n"
+            "11: cat [Unused]\n"
+            "12: chair\n"
+            "13: base\n"
+            "14: shoes\n"
+            "15: electronic_device\n"
+            "16: dryingrack\n"
+            "17: bed"
+        )
+        classid_layout.addWidget(classid_text)
+        
+        log_and_classid_splitter.addWidget(log_list_panel)
+        log_and_classid_splitter.addWidget(classid_group)
+        log_and_classid_splitter.setSizes([200, 150])
+        
+        right_layout.addWidget(log_and_classid_splitter)
         
         # -- Robot Trace Limit
         trace_layout = QHBoxLayout()
@@ -345,6 +386,7 @@ class LogAnalysisMainWindow(QMainWindow):
                 'spin': spin,
                 'items': [],
                 'config': layer_cfg,
+                'seen_keys': set(),  # deduplicate용 (label, x, y) 추적 셋
             }
         
     def _connect_signals(self):
@@ -602,6 +644,40 @@ class LogAnalysisMainWindow(QMainWindow):
             path.moveTo(px + size/2, py - size/2)
             path.lineTo(px - size/2, py + size/2)
             item = self.scene.addPath(path, QPen(qt_color, max(2, size/4)))
+        elif shape == 'labeled_rect':
+            # 사각형 + 내부 텍스트 (class_id 등) 를 그룹으로 묶어 렌더링
+            label_group_name = cfg.get('label_group', '')
+            label_text = str(ev.get(label_group_name, ''))
+            
+            # 중복 제거: deduplicate=true이면 동일 (label, x, y) 조합은 건너뜀
+            if cfg.get('deduplicate', False):
+                dedup_key = (label_text, round(ev['x'], 3), round(ev['y'], 3))
+                if dedup_key in state['seen_keys']:
+                    return
+                state['seen_keys'].add(dedup_key)
+            
+            rect_item = self.scene.addRect(
+                px - size/2, py - size/2, size, size,
+                QPen(Qt.black), QBrush(qt_color)
+            )
+            rect_item.setZValue(z_val)
+            rect_item.setVisible(state['chk'].isChecked())
+            state['items'].append(rect_item)
+            
+            # 텍스트 아이템: 도형 크기에 비례하는 폰트
+            text_item = self.scene.addSimpleText(label_text)
+            font = QFont()
+            font.setPointSizeF(max(1.0, size * 0.6))
+            font.setBold(True)
+            text_item.setFont(font)
+            text_item.setBrush(QBrush(Qt.black))
+            # 텍스트 중앙 정렬
+            br = text_item.boundingRect()
+            text_item.setPos(px - br.width()/2, py - br.height()/2)
+            text_item.setZValue(z_val + 1)
+            text_item.setVisible(state['chk'].isChecked())
+            state['items'].append(text_item)
+            return  # labeled_rect는 이미 items에 추가 완료
             
         if item:
             item.setZValue(z_val)
@@ -663,6 +739,7 @@ class LogAnalysisMainWindow(QMainWindow):
             for item in state['items']:
                 self.scene.removeItem(item)
             state['items'].clear()
+            state['seen_keys'].clear()  # 중복 제거 캐시도 초기화
         
         if hasattr(self.map_manager, 'station_item') and self.map_manager.station_item:
             self.map_manager.station_item.setBrush(QBrush(QColor(0, 255, 0, 200)))
@@ -713,6 +790,16 @@ class LogAnalysisMainWindow(QMainWindow):
             poly = QPolygonF([QPointF(10, 2), QPointF(15, 8), QPointF(10, 14)])
             painter.setBrush(QBrush(Qt.yellow))
             painter.drawPolygon(poly)
+        elif shape == "labeled_rect":
+            painter.setPen(QPen(Qt.black))
+            painter.setBrush(QBrush(color))
+            painter.drawRect(1, 1, 14, 14)
+            painter.setPen(QPen(Qt.black))
+            font = painter.font()
+            font.setPointSize(7)
+            font.setBold(True)
+            painter.setFont(font)
+            painter.drawText(3, 12, "ID")
         else:
             painter.setPen(QPen(Qt.black))
             painter.setBrush(QBrush(color))
