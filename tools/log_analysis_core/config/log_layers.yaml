@@ -28,33 +28,6 @@ layers:
     default_size: 1.0
     is_trace: true
 
-  - id: "drop_off"
-    menu_name: "Drop off Obstacles"
-    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+Detect drop off.*drop\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
-    shape: "rect"
-    color: "magenta"
-    z_value: 50
-    default_size: 4.0
-    is_trace: false
-
-  - id: "low_level_obs"
-    menu_name: "Low Level Obstacles"
-    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+low level obstacle.*Obs\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
-    shape: "rect"
-    color: "cyan"
-    z_value: 51
-    default_size: 4.0
-    is_trace: false
-
-  - id: "1d_tof"
-    menu_name: "1D ToF Obstacles"
-    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+1D ToF detected.*1D\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
-    shape: "diamond"
-    color: "yellow"
-    z_value: 52
-    default_size: 4.0
-    is_trace: false
-
   - id: "target_pose"
     menu_name: "Target Pose"
     regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+.*Move to Target \((?P<x>[-\d\.]+),\s*(?P<y>[-\d\.]+),\s*(?P<yaw>[-\d\.]+)\(deg\)\)'
@@ -64,9 +37,53 @@ layers:
     default_size: 12.0
     is_trace: false
 
+  - id: "drop_off"
+    menu_name: "Drop off Obstacles"
+    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+Detect drop off.*drop\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
+    shape: "rect"
+    color: "magenta"
+    z_value: 55
+    default_size: 4.0
+    is_trace: false
+
+  - id: "collision_front"
+    menu_name: "Collision Front"
+    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+Collision detected.*Coord\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
+    shape: "diamond"
+    color: "deepskyblue"
+    z_value: 53
+    default_size: 4.0
+    is_trace: false
+
+  - id: "collision_back"
+    menu_name: "Collision Back"
+    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+Back Collision detected.*Coord\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
+    shape: "diamond"
+    color: "yellowgreen"
+    z_value: 53
+    default_size: 4.0
+    is_trace: false
+
+  - id: "1d_tof"
+    menu_name: "1D ToF Obstacles"
+    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+1D ToF detected.*1D\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
+    shape: "diamond"
+    color: "tomato"
+    z_value: 51
+    default_size: 4.0
+    is_trace: false
+
+  - id: "low_level_obs"
+    menu_name: "Low Level Obstacles"
+    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+low level obstacle.*Obs\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
+    shape: "rect"
+    color: "purple"
+    z_value: 50
+    default_size: 4.0
+    is_trace: false
+
 # ============================================================
 # [새로운 레이어 추가 예시]
-# 아래 주석을 해제하고 원하는 값으로 수정하면 즉시 적용됩니다.
 #
 #  - id: "bumper_hit"
 #    menu_name: "Bumper Hit"
