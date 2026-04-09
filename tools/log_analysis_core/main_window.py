@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QSlider, QFileDialog, QGraphicsView, QGraphicsScene,
                              QCheckBox, QGroupBox, QFormLayout, QLabel, QListWidget,
                              QAction, QToolBar, QSpinBox, QComboBox, QTextEdit, QAbstractItemView,
-                             QSplitter, QDateTimeEdit, QToolTip)
+                             QSplitter, QDateTimeEdit, QToolTip, QDoubleSpinBox)
 from PyQt5.QtCore import Qt, QDateTime
 from PyQt5.QtGui import QPen, QBrush, QColor, QTransform, QPolygonF, QPainter, QPainterPath, QPixmap, QIcon
 from PyQt5.QtCore import QPointF
@@ -190,47 +190,34 @@ class LogAnalysisMainWindow(QMainWindow):
         self.chk_wall.setChecked(True)
         self.chk_wall.toggled.connect(lambda c: self.map_manager.set_visibility("wall", c))
         
-        self.chk_station = QCheckBox("Station")
-        self.chk_station.setChecked(True)
-        self.chk_station.toggled.connect(lambda c: self.map_manager.set_visibility("station", c))
-        
         map_layout.addWidget(self.chk_area)
         map_layout.addWidget(self.chk_wall)
-        map_layout.addWidget(self.chk_station)
+        
+        self.chk_station, self.spin_station = self._add_layer_control(
+            map_layout, "Station", "station", QColor(0, 255, 0), 3.0,
+            lambda c: self.map_manager.set_visibility("station", c),
+            self._on_station_size_changed
+        )
+        
         group_map.setLayout(map_layout)
         right_layout.addWidget(group_map)
         
         group_log = QGroupBox("Log Display Options")
         log_layout = QVBoxLayout()
         
-        self.chk_robot = QCheckBox("Robot Pose")
-        self.chk_robot.setIcon(self._create_icon(Qt.blue, "circle"))
-        self.chk_robot.setChecked(True)
-        self.chk_robot.toggled.connect(self._update_log_visibility)
+        self.chk_robot, self.spin_robot = self._add_layer_control(
+            log_layout, "Robot Pose", "circle", Qt.blue, 1.0, self._update_log_visibility
+        )
+        self.chk_drop_off, self.spin_drop_off = self._add_layer_control(
+            log_layout, "Drop off Obstacles", "rect", Qt.magenta, 4.0, self._update_log_visibility
+        )
+        self.chk_tof, self.spin_tof = self._add_layer_control(
+            log_layout, "1D ToF Obstacles", "diamond", Qt.yellow, 4.0, self._update_log_visibility
+        )
+        self.chk_target, self.spin_target = self._add_layer_control(
+            log_layout, "Target Pose", "cross", Qt.green, 12.0, self._update_log_visibility
+        )
         
-        self.chk_drop_off = QCheckBox("Drop off Obstacles")
-        self.chk_drop_off.setIcon(self._create_icon(Qt.magenta, "rect"))
-        self.chk_drop_off.setChecked(True)
-        self.chk_drop_off.toggled.connect(self._update_log_visibility)
-        
-        self.chk_tof = QCheckBox("1D ToF Obstacles")
-        self.chk_tof.setIcon(self._create_icon(Qt.yellow, "diamond"))
-        self.chk_tof.setChecked(True)
-        self.chk_tof.toggled.connect(self._update_log_visibility)
-        
-        # ----------------------------------------------------
-        # [새로운 Obstacle / 타겟 레이어 생성 가이드]
-        # 2. QCheckBox 를 선언하고 _update_log_visibility 함수와 connect 한 뒤 Layout에 붙입니다.
-        # ----------------------------------------------------
-        self.chk_target = QCheckBox("Target Pose")
-        self.chk_target.setIcon(self._create_icon(Qt.green, "cross"))
-        self.chk_target.setChecked(True)
-        self.chk_target.toggled.connect(self._update_log_visibility)
-        
-        log_layout.addWidget(self.chk_robot)
-        log_layout.addWidget(self.chk_drop_off)
-        log_layout.addWidget(self.chk_tof)
-        log_layout.addWidget(self.chk_target)
         group_log.setLayout(log_layout)
         right_layout.addWidget(group_log)
         
@@ -325,6 +312,37 @@ class LogAnalysisMainWindow(QMainWindow):
         self.log_manager.current_file_updated.connect(self.lbl_current_file.setText)
         self.log_manager.raw_log_updated.connect(self._on_raw_log_updated)
         self.log_manager.marks_updated.connect(self.slider.set_marks)
+        
+    def _add_layer_control(self, layout, text, icon_shape, icon_color, default_size, toggle_cb, size_cb=None):
+        row = QHBoxLayout()
+        chk = QCheckBox(text)
+        chk.setIcon(self._create_icon(icon_color, icon_shape))
+        chk.setChecked(True)
+        chk.toggled.connect(toggle_cb)
+        
+        spin = QDoubleSpinBox()
+        spin.setRange(0.5, 100.0)
+        spin.setSingleStep(0.5)
+        spin.setValue(default_size)
+        
+        if size_cb:
+            spin.valueChanged.connect(size_cb)
+        else:
+            spin.valueChanged.connect(self._on_layer_size_changed)
+            
+        row.addWidget(chk)
+        row.addStretch()
+        row.addWidget(QLabel("Size:"))
+        row.addWidget(spin)
+        
+        layout.addLayout(row)
+        return chk, spin
+
+    def _on_layer_size_changed(self, val):
+        self.log_manager.set_current_time(self.log_manager.current_time, is_jump=True)
+        
+    def _on_station_size_changed(self, val):
+        self.map_manager.redraw_station(val)
         
     # -- 줌 기능
     def wheelEvent(self, event):
@@ -527,8 +545,8 @@ class LogAnalysisMainWindow(QMainWindow):
     def _update_robot_pose(self, rx, ry, yaw):
         px, py = self.map_manager.to_scene_coords(rx, ry)
         
-        # 로봇 크기 축소 (원래 8에서 1로 줄임)
-        rad = 1.0 # (크기 설정하는 부분) 
+        rad = self.spin_robot.value()
+
         
         # 이전 좌표를 모두 표시하되, 가장 최근 것은 다른 색상으로 표시하는 등의 효과도 가능하지만
         # 일단 모두 파란 원으로 궤적을 그리도록 합니다.
@@ -547,7 +565,7 @@ class LogAnalysisMainWindow(QMainWindow):
     def _add_drop_off(self, rx, ry):
         px, py = self.map_manager.to_scene_coords(rx, ry)
         # Drop off은 모양을 ▼(삼각형) 또는 보라색 네모등으로 지정
-        size = 4
+        size = self.spin_drop_off.value()
         item = self.scene.addRect(px - size/2, py - size/2, size, size, QPen(Qt.black), QBrush(Qt.magenta))
         item.setZValue(50)
         item.setVisible(self.chk_drop_off.isChecked())
@@ -556,7 +574,7 @@ class LogAnalysisMainWindow(QMainWindow):
     def _add_1d_tof(self, rx, ry):
         px, py = self.map_manager.to_scene_coords(rx, ry)
         # ToF는 노란색 다이아몬드 또는 마름모
-        size = 4
+        size = self.spin_tof.value()
         polygon = QPolygonF([QPointF(px, py-size/2), QPointF(px+size/2, py), QPointF(px, py+size/2), QPointF(px-size/2, py)])
         item = self.scene.addPolygon(polygon, QPen(Qt.black), QBrush(Qt.yellow))
         item.setZValue(51)
@@ -572,7 +590,7 @@ class LogAnalysisMainWindow(QMainWindow):
         
         # Target 목적지는 별(★) 모양 또는 눈에 띄는 초록색 X자 등으로 그릴 수 있습니다.
         # 간편하게 X자로 교차하는 라인을 그룹이나 패스로 그립니다.
-        size = 12
+        size = self.spin_target.value()
         path = QPainterPath()
         path.moveTo(px - size/2, py - size/2)
         path.lineTo(px + size/2, py + size/2)
@@ -657,6 +675,13 @@ class LogAnalysisMainWindow(QMainWindow):
             painter.setBrush(Qt.NoBrush)
             painter.drawLine(2, 2, 14, 14)
             painter.drawLine(14, 2, 2, 14)
+        elif shape == "station":
+            painter.setPen(QPen(Qt.black))
+            painter.setBrush(QBrush(color))
+            painter.drawRect(2, 4, 8, 8)
+            poly = QPolygonF([QPointF(10, 2), QPointF(15, 8), QPointF(10, 14)])
+            painter.setBrush(QBrush(Qt.yellow))
+            painter.drawPolygon(poly)
         else:
             painter.setPen(QPen(Qt.black))
             painter.setBrush(QBrush(color))

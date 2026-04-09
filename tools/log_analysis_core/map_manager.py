@@ -152,19 +152,49 @@ class MapManager:
         with open(path, 'r') as f:
             try:
                 data = json.load(f)
-                x = data.get('x', 0)
-                y = data.get('y', 0)
-                px, py = self.to_scene_coords(x, y)
+                station_data = data.get('station_pose', data)
+                self.station_x = station_data.get('x', 0)
+                self.station_y = station_data.get('y', 0)
+                self.station_theta = station_data.get('theta', 0.0)
                 
-                # 스테이션 크기 설정 (원래 10에서 1로 줄임)
-                rad = 3.0 # (크기 설정하는 부분)
-                self.station_item = QGraphicsEllipseItem(px - rad, py - rad, rad*2, rad*2)
-                self.station_item.setBrush(QBrush(QColor(0, 255, 0, 200)))
-                self.station_item.setPen(QPen(Qt.black))
-                self.station_item.setZValue(-40)
-                self.scene.addItem(self.station_item)
+                self.redraw_station(3.0) # 기본 사이즈 3.0
             except Exception as e:
                 print(f"Error loading station_pose.json: {e}")
+
+    def redraw_station(self, size):
+        if self.station_item is not None:
+            if self.station_item in self.scene.items():
+                self.scene.removeItem(self.station_item)
+            self.station_item = None
+            
+        if not hasattr(self, 'station_x'):
+            return
+            
+        px, py = self.to_scene_coords(self.station_x, self.station_y)
+        
+        width = size * 2.0
+        height = size * 1.5
+        arrow_size = size
+        
+        path = QPainterPath()
+        # 직사각형 몸통 추가
+        path.addRect(-width/2, -height/2, width, height)
+        
+        # 앞쪽 화살표 폴리곤 추가
+        arrow_poly = QPolygonF([
+            QPointF(width/2, -arrow_size/2),
+            QPointF(width/2 + arrow_size, 0),
+            QPointF(width/2, arrow_size/2)
+        ])
+        path.addPolygon(arrow_poly)
+        
+        self.station_item = self.scene.addPath(path, QPen(Qt.black), QBrush(QColor(0, 255, 0, 200)))
+        self.station_item.setPos(px, py)
+        
+        import math
+        # PyQt 좌표계는 y가 아래를 향하므로 회전 방향 반전 적용
+        self.station_item.setRotation(-math.degrees(self.station_theta))
+        self.station_item.setZValue(-40)
 
     def set_visibility(self, layer_name, visible):
         if layer_name == "area":
