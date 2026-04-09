@@ -22,6 +22,16 @@ class LogParser:
             r'\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+.*soc-cmd received : ReturnToCharger'
         )
         
+        # airbot_error_manager 에러 로그 파싱용 정규식
+        # Line header: timestamp + [airbot_error_manager] + [INFO] Error:
+        self.re_error_header = re.compile(
+            r'\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[airbot_error_manager\]\s+\[INFO\]\s+Error:'
+        )
+        # Individual error block: [CODE (STATUS): description]
+        self.re_error_block = re.compile(
+            r'\[(?P<code>[A-Z]\d+(?:-\d+)?)\s+\((?P<status>OCCURED|RELEASED)\):\s*(?P<desc>[^\]]+)\]'
+        )
+        
         self.time_format = "%Y-%m-%d %H:%M:%S.%f"
         
     def _load_config(self, config_path):
@@ -92,5 +102,25 @@ class LogParser:
                     'timestamp': ts,
                     'type': 'return_to_charger'
                 }
+        
+        # 3. 시스템 이벤트: Error 상태 변경 (OCCURED / RELEASED)
+        match = self.re_error_header.search(line)
+        if match:
+            ts = self._parse_time(match.group('time'))
+            if ts is not None:
+                error_blocks = self.re_error_block.findall(line)
+                if error_blocks:
+                    errors = []
+                    for code, status, desc in error_blocks:
+                        errors.append({
+                            'code': code,
+                            'status': status,
+                            'description': desc.strip()
+                        })
+                    return {
+                        'timestamp': ts,
+                        'type': 'error_status',
+                        'errors': errors
+                    }
                 
         return None

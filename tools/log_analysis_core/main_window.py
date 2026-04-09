@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QSlider, QFileDialog, QGraphicsView, QGraphicsScene,
                              QCheckBox, QGroupBox, QFormLayout, QLabel, QListWidget,
                              QAction, QToolBar, QSpinBox, QComboBox, QTextEdit, QAbstractItemView,
-                             QSplitter, QDateTimeEdit, QToolTip, QDoubleSpinBox)
+                             QSplitter, QDateTimeEdit, QToolTip, QDoubleSpinBox, QTabWidget)
 from PyQt5.QtCore import Qt, QDateTime
 from PyQt5.QtGui import QPen, QBrush, QColor, QTransform, QPolygonF, QPainter, QPainterPath, QPixmap, QIcon, QFont
 from PyQt5.QtCore import QPointF
@@ -135,6 +135,10 @@ class LogAnalysisMainWindow(QMainWindow):
         # ============================================================
         self.layer_states = {}
         
+        # Error 상태 관리
+        self.active_errors = {}  # code → description (현재 활성 에러)
+        self.error_history = []  # 에러 발생/해제 히스토리 리스트
+        
         self.last_cleared_time = 0.0 # Clear 기능용
         
         self._setup_ui()
@@ -168,17 +172,36 @@ class LogAnalysisMainWindow(QMainWindow):
         
         main_splitter.addWidget(top_splitter)
         
-        # 하단 창: Raw 로그 뷰어 존
+        # 하단 창: QTabWidget (Raw Log + Error History)
         bottom_panel = QWidget()
         bottom_layout = QVBoxLayout(bottom_panel)
         bottom_layout.setContentsMargins(5, 5, 5, 5)
         
-        bottom_layout.addWidget(QLabel("Raw Log Context:"))
+        self.bottom_tabs = QTabWidget()
+        
+        # 탭 1: Raw Log Context
+        raw_log_tab = QWidget()
+        raw_log_layout = QVBoxLayout(raw_log_tab)
+        raw_log_layout.setContentsMargins(0, 0, 0, 0)
         self.txt_raw_log = QTextEdit()
         self.txt_raw_log.setLineWrapMode(QTextEdit.NoWrap) # 한줄로 길게 보이게 (줄바꿈 방지)
         self.txt_raw_log.setReadOnly(True)
         self.txt_raw_log.setStyleSheet("font-family: monospace; font-size: 10pt; background-color: #f0f0f0;")
-        bottom_layout.addWidget(self.txt_raw_log)
+        raw_log_layout.addWidget(self.txt_raw_log)
+        self.bottom_tabs.addTab(raw_log_tab, "Raw Log Context")
+        
+        # 탭 2: Error History
+        error_hist_tab = QWidget()
+        error_hist_layout = QVBoxLayout(error_hist_tab)
+        error_hist_layout.setContentsMargins(0, 0, 0, 0)
+        self.txt_error_history = QTextEdit()
+        self.txt_error_history.setLineWrapMode(QTextEdit.NoWrap)
+        self.txt_error_history.setReadOnly(True)
+        self.txt_error_history.setStyleSheet("font-family: monospace; font-size: 10pt; background-color: #fff0f0;")
+        error_hist_layout.addWidget(self.txt_error_history)
+        self.bottom_tabs.addTab(error_hist_tab, "Error History")
+        
+        bottom_layout.addWidget(self.bottom_tabs)
         
         # -- Clear Button
         btn_clear = QPushButton("Clear Trajectory & Obstacles")
@@ -206,7 +229,10 @@ class LogAnalysisMainWindow(QMainWindow):
         btn_layout.addWidget(btn_export)
         right_layout.addLayout(btn_layout)
         
-        # -- Map Display Options (Area, Wall, Station은 YAML 레이어가 아닌 맵 고유 요소)
+        # -- Map Display Options + Active Errors (가로 배치)
+        map_and_error_splitter = QSplitter(Qt.Horizontal)
+        
+        # 왼쪽: Map Display Options
         group_map = QGroupBox("Map Display Options")
         map_layout = QVBoxLayout()
         self.chk_area = QCheckBox("Area")
@@ -227,7 +253,24 @@ class LogAnalysisMainWindow(QMainWindow):
         )
         
         group_map.setLayout(map_layout)
-        right_layout.addWidget(group_map)
+        map_and_error_splitter.addWidget(group_map)
+        
+        # 오른쪽: Active Errors 표시 패널
+        group_active_err = QGroupBox("Active Errors")
+        active_err_layout = QVBoxLayout(group_active_err)
+        active_err_layout.setContentsMargins(5, 5, 5, 5)
+        self.lbl_active_errors = QLabel("No Errors")
+        self.lbl_active_errors.setWordWrap(True)
+        self.lbl_active_errors.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        self.lbl_active_errors.setStyleSheet(
+            "font-family: monospace; font-size: 11pt; font-weight: bold;"
+            "color: #888; padding: 5px;"
+        )
+        active_err_layout.addWidget(self.lbl_active_errors)
+        map_and_error_splitter.addWidget(group_active_err)
+        map_and_error_splitter.setSizes([200, 150])
+        
+        right_layout.addWidget(map_and_error_splitter)
         
         # -- Log Display Options (YAML 기반 동적 생성)
         group_log = QGroupBox("Log Display Options")
@@ -238,8 +281,8 @@ class LogAnalysisMainWindow(QMainWindow):
         group_log.setLayout(self.log_display_layout)
         right_layout.addWidget(group_log)
         
-        # -- 로그 리스트 + Class ID 참고 패널 (가로 분할)
-        log_and_classid_splitter = QSplitter(Qt.Horizontal)
+        # -- 로그 리스트 + Class ID + Error Code Description 참고 패널 (가로 분할)
+        log_and_ref_splitter = QSplitter(Qt.Horizontal)
         
         # 왼쪽: 로그 리스트
         log_list_panel = QWidget()
@@ -258,7 +301,7 @@ class LogAnalysisMainWindow(QMainWindow):
         log_list_layout.addWidget(self.log_list_widget)
         log_list_layout.addWidget(self.lbl_current_file)
         
-        # 오른쪽: Object Detection Class ID 참고
+        # 중앙: Object Detection Class ID 참고
         classid_group = QGroupBox("Object Detection Class ID")
         classid_layout = QVBoxLayout(classid_group)
         classid_layout.setContentsMargins(3, 3, 3, 3)
@@ -287,11 +330,60 @@ class LogAnalysisMainWindow(QMainWindow):
         )
         classid_layout.addWidget(classid_text)
         
-        log_and_classid_splitter.addWidget(log_list_panel)
-        log_and_classid_splitter.addWidget(classid_group)
-        log_and_classid_splitter.setSizes([200, 150])
+        # 오른쪽: Error Code Description 참고 패널 (사용자가 내용을 채울 예정)
+        errcode_group = QGroupBox("Error Code Description")
+        errcode_layout = QVBoxLayout(errcode_group)
+        errcode_layout.setContentsMargins(3, 3, 3, 3)
+        self.txt_error_code_desc = QTextEdit()
+        self.txt_error_code_desc.setReadOnly(True)
+        self.txt_error_code_desc.setStyleSheet("font-family: monospace; font-size: 9pt; background-color: #f0f0ff;")
+        self.txt_error_code_desc.setPlainText(
+            "[E-Errors: Operation Halts]\n"
+            "E04   : Left motor stuck/unresponsive\n"
+            "E04-1 : Right motor stuck/unresponsive\n"
+            "E04-2 : Left Motor overheating\n"
+            "E04-3 : Right Motor overheating\n"
+            "E05   : Front Lidar dirty\n"
+            "E06   : Back Lidar dirty\n"
+            "E07   : Docking station not detected\n"
+            "E08   : Charging failed at dock\n"
+            "\n"
+            "[F-Errors: Hardware Failures]\n"
+            "F01   : Battery overcurrent (Chg)\n"
+            "F01-1 : Battery overcurrent (Dischg)\n"
+            "F07   : 1D ToF comm failure\n"
+            "F09-2 : Camera/AI board comm failure\n"
+            "F11   : Right motor comm failure\n"
+            "F12   : Left motor comm failure\n"
+            "F13   : Front Lidar comm failure\n"
+            "F14   : Back Lidar comm failure\n"
+            "F15   : Battery overheat (Chg)\n"
+            "F15-1 : Battery overheat (Dischg)\n"
+            "F17   : Left ToF comm failure\n"
+            "F17-1 : Right ToF comm failure\n"
+            "F20   : IMU sensor comm failure\n"
+            "\n"
+            "[S-Errors: Status Warnings]\n"
+            "S02   : Low battery level\n"
+            "S03   : Battery discharging\n"
+            "S05   : Unable to reach target\n"
+            "S06-1 : Localization fail\n"
+            "S07   : Fall Down\n"
+            "S07-1 : Robot Lifted\n"
+            "S07-2 : Cliff IR Detected\n"
+            "S08   : Unable to dock\n"
+            "S09   : 1D ToF obstacle detect\n"
+            "S10-2 : Board/Battery overheat\n"
+            "S11   : Station pogo pin overheat"
+        )
+        errcode_layout.addWidget(self.txt_error_code_desc)
         
-        right_layout.addWidget(log_and_classid_splitter)
+        log_and_ref_splitter.addWidget(log_list_panel)
+        log_and_ref_splitter.addWidget(classid_group)
+        log_and_ref_splitter.addWidget(errcode_group)
+        log_and_ref_splitter.setSizes([200, 130, 130])
+        
+        right_layout.addWidget(log_and_ref_splitter)
         
         # -- Robot Trace Limit
         trace_layout = QHBoxLayout()
@@ -577,6 +669,16 @@ class LogAnalysisMainWindow(QMainWindow):
     # ============================================================
     def _on_events_triggered(self, events):
         """로그 매니저로부터 누적 수신된 이벤트들을 범용 렌더러로 처리합니다."""
+        if not events:
+            return
+            
+        # 체크: 만약 첫 번째 이벤트가 로그의 시작점이라면, 
+        # 이는 Jump 또는 Backward play로 인해 처음부터 다시 그리는 상황입니다.
+        if events[0]['global_line_idx'] == self.log_manager.events[0]['global_line_idx']:
+            # 임시로 _clear_dynamic_layers를 직접 호출하는 대신 
+            # 내부 상태만 초기화하여 잔상을 방지함
+            self._clear_dynamic_layers()
+
         limit = self.spin_trace.value()
         
         valid_events = [ev for ev in events if ev['global_line_idx'] > self.last_cleared_time]
@@ -587,8 +689,9 @@ class LogAnalysisMainWindow(QMainWindow):
             if state['config'].get('is_trace', False):
                 trace_ids.add(lid)
         
+        system_types = {'return_to_charger', 'error_status'}
         trace_events = [ev for ev in valid_events if ev['type'] in trace_ids]
-        other_events = [ev for ev in valid_events if ev['type'] not in trace_ids and ev['type'] != 'return_to_charger']
+        other_events = [ev for ev in valid_events if ev['type'] not in trace_ids and ev['type'] not in system_types]
         system_events = [ev for ev in valid_events if ev['type'] == 'return_to_charger']
         
         if len(trace_events) > limit:
@@ -598,15 +701,23 @@ class LogAnalysisMainWindow(QMainWindow):
             layer_id = ev['type']
             
             if layer_id in self.layer_states:
-                # target_pose의 경우: 가장 최근 목적지만 빨간색으로 표기하는 특수 로직 유지
+                # target_pose: 가장 최근 목적지만 빨간색으로 표기하는 특수 로직
                 if layer_id == 'target_pose':
                     self._add_target_special(ev)
+                # robot_pose: 가장 최근 위치만 빨간색으로 표기하는 특수 로직
+                elif layer_id == 'robot_pose':
+                    self._add_robot_pose_special(ev)
                 else:
                     self._render_generic_item(ev)
                     
         # 시스템 이벤트 처리 (ReturnToCharger)
         for ev in system_events:
             self._handle_return_to_charger()
+            
+        # 시스템 이벤트 처리 (Error 상태 변경)
+        error_events = [ev for ev in valid_events if ev['type'] == 'error_status']
+        for ev in error_events:
+            self._handle_error_event(ev)
     
     def _render_generic_item(self, ev):
         """YAML 설정에 따라 범용적으로 도형을 그리는 렌더러입니다."""
@@ -730,6 +841,95 @@ class LogAnalysisMainWindow(QMainWindow):
         if hasattr(self.map_manager, 'station_item') and self.map_manager.station_item:
             self.map_manager.station_item.setBrush(QBrush(QColor(255, 0, 0, 200)))
     
+    def _add_robot_pose_special(self, ev):
+        """robot_pose 전용 특수 렌더링 (최신 위치만 빨간색, 이전은 파란색)."""
+        state = self.layer_states['robot_pose']
+        
+        px, py = self.map_manager.to_scene_coords(ev['x'], ev['y'])
+        size = state['spin'].value()
+        
+        # 이전 최신 위치를 원래 색상(blue)으로 복귀
+        if state['items']:
+            state['items'][-1].setPen(QPen(Qt.black))
+            state['items'][-1].setBrush(QBrush(Qt.blue))
+            state['items'][-1].setZValue(100)
+        
+        # 최신 위치는 빨간색으로 표시
+        item = self.scene.addEllipse(
+            px - size, py - size, size * 2, size * 2,
+            QPen(Qt.black), QBrush(Qt.red)
+        )
+        item.setZValue(101)  # 다른 pose보다 위에 표시
+        item.setVisible(state['chk'].isChecked())
+        state['items'].append(item)
+        
+        # Trace 제한 적용
+        limit = self.spin_trace.value()
+        while len(state['items']) > limit:
+            old = state['items'].pop(0)
+            self.scene.removeItem(old)
+    
+    def _handle_error_event(self, ev):
+        """Error 상태 변경 이벤트를 처리합니다."""
+        import datetime as dt
+        
+        ts = ev['timestamp']
+        time_str = dt.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+        
+        for err in ev.get('errors', []):
+            code = err['code']
+            status = err['status']
+            desc = err['description']
+            
+            # Active errors 딕셔너리 업데이트 (code → (desc, time_str))
+            if status == 'OCCURED':
+                self.active_errors[code] = (desc, time_str)
+            elif status == 'RELEASED':
+                self.active_errors.pop(code, None)
+            
+            # Error History 기록 추가
+            status_tag = "🔴 OCCURED" if status == 'OCCURED' else "🟢 RELEASED"
+            history_line = f"[{time_str}] {status_tag}  {code:8s}  {desc}"
+            self.error_history.append(history_line)
+        
+        # Active Errors 패널 UI 업데이트
+        self._update_active_errors_display()
+        
+        # Error History 텍스트 업데이트
+        self.txt_error_history.setPlainText('\n'.join(self.error_history))
+        # 최하단으로 자동 스크롤
+        scrollbar = self.txt_error_history.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+    
+    def _update_active_errors_display(self):
+        """Active Errors 패널의 표시를 갱신합니다."""
+        if not self.active_errors:
+            self.lbl_active_errors.setText("No Errors")
+            self.lbl_active_errors.setStyleSheet(
+                "font-family: monospace; font-size: 11pt; font-weight: bold;"
+                "color: #888; padding: 5px;"
+            )
+        else:
+            codes = sorted(self.active_errors.keys())
+            # 각 에러 코드를 빨간 배경 + 흰 글자 태그로 표시 (발생 시각 포함)
+            tags = []
+            for c in codes:
+                desc, time_str = self.active_errors[c]
+                # 연도-월-일 시간:분:초 형식으로 표시
+                short_time = time_str[:19]  # 'YYYY-MM-DD HH:MM:SS'
+                tags.append(
+                    f'<span style="background-color: #d32f2f; color: white; '
+                    f'padding: 3px 8px; margin: 2px; border-radius: 4px; '
+                    f'font-weight: bold; font-size: 12pt;">{c}</span>'
+                    f'<br/>'
+                    f'<span style="color: #d32f2f; font-size: 8pt;">'
+                    f'  {short_time}</span>'
+                )
+            self.lbl_active_errors.setText('<br/>'.join(tags))
+            self.lbl_active_errors.setStyleSheet(
+                "font-family: monospace; padding: 5px;"
+            )
+    
     # ============================================================
     # 동적 레이어 초기화/가시성
     # ============================================================
@@ -740,6 +940,12 @@ class LogAnalysisMainWindow(QMainWindow):
                 self.scene.removeItem(item)
             state['items'].clear()
             state['seen_keys'].clear()  # 중복 제거 캐시도 초기화
+        
+        # 에러 상태/히스토리도 초기화 (jump/clear 시 재구축됨)
+        self.active_errors.clear()
+        self.error_history.clear()
+        self._update_active_errors_display()
+        self.txt_error_history.clear()
         
         if hasattr(self.map_manager, 'station_item') and self.map_manager.station_item:
             self.map_manager.station_item.setBrush(QBrush(QColor(0, 255, 0, 200)))
