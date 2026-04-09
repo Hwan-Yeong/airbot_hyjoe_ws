@@ -12,6 +12,33 @@ from PyQt5.QtCore import QPointF
 from .map_manager import MapManager
 from .log_manager import LogManager
 
+# ============================================================
+# Qt 색상 이름 → QColor 변환 매핑 테이블
+# YAML 설정의 color 필드에 쓸 수 있는 색상 이름들입니다.
+# 새 색상을 추가하려면 여기에 항목을 추가하세요.
+# ============================================================
+COLOR_MAP = {
+    "blue": Qt.blue,
+    "red": Qt.red,
+    "green": Qt.green,
+    "yellow": Qt.yellow,
+    "magenta": Qt.magenta,
+    "cyan": Qt.cyan,
+    "white": Qt.white,
+    "black": Qt.black,
+    "darkblue": Qt.darkBlue,
+    "darkred": Qt.darkRed,
+    "darkgreen": Qt.darkGreen,
+    "darkyellow": Qt.darkYellow,
+    "darkmagenta": Qt.darkMagenta,
+    "darkcyan": Qt.darkCyan,
+    "orange": QColor(255, 165, 0),
+    "pink": QColor(255, 105, 180),
+    "purple": QColor(128, 0, 128),
+    "lime": QColor(0, 255, 0),
+    "brown": QColor(139, 69, 19),
+}
+
 class MarkedSlider(QSlider):
     def __init__(self, orientation, parent=None):
         super().__init__(orientation, parent)
@@ -74,7 +101,6 @@ class MarkedSlider(QSlider):
             
             # 글자가 선 중앙에 오도록 텍스트 길이를 계산해서 위치 튜닝
             font_metrics = painter.fontMetrics()
-            # width() 가 PyQt5 에서 안정적으로 지원됨
             tw = font_metrics.width(m['text'])
             
             # 선 위쪽 공간 (y=12) 에 텍스트를 배치
@@ -97,16 +123,12 @@ class LogAnalysisMainWindow(QMainWindow):
         self.map_manager = MapManager(self.scene)
         self.log_manager = LogManager()
         
-        # 로그 렌더링에 사용할 변수들
-        self.robot_path_items = [] # 궤적 아이템들 리스트
-        
-        # ----------------------------------------------------
-        # [새로운 Obstacle / 타겟 레이어 생성 방법 가이드]
-        # 1. 새 마커 객체들을 보관할 전용 리스트를 하나 선언합니다. 하단 예시:
-        # ----------------------------------------------------
-        self.drop_off_items = []
-        self.tof_items = []
-        self.target_items = [] # 목적지를 그리기 위한 새 리스트 추가
+        # ============================================================
+        # 동적 레이어 상태 관리 딕셔너리
+        # layer_id → { 'chk': QCheckBox, 'spin': QDoubleSpinBox,
+        #              'items': [QGraphicsItem...], 'config': dict }
+        # ============================================================
+        self.layer_states = {}
         
         self.last_cleared_time = 0.0 # Clear 기능용
         
@@ -179,7 +201,7 @@ class LogAnalysisMainWindow(QMainWindow):
         btn_layout.addWidget(btn_export)
         right_layout.addLayout(btn_layout)
         
-        # -- 체크박스 그룹
+        # -- Map Display Options (Area, Wall, Station은 YAML 레이어가 아닌 맵 고유 요소)
         group_map = QGroupBox("Map Display Options")
         map_layout = QVBoxLayout()
         self.chk_area = QCheckBox("Area")
@@ -202,23 +224,13 @@ class LogAnalysisMainWindow(QMainWindow):
         group_map.setLayout(map_layout)
         right_layout.addWidget(group_map)
         
+        # -- Log Display Options (YAML 기반 동적 생성)
         group_log = QGroupBox("Log Display Options")
-        log_layout = QVBoxLayout()
+        self.log_display_layout = QVBoxLayout()
         
-        self.chk_robot, self.spin_robot = self._add_layer_control(
-            log_layout, "Robot Pose", "circle", Qt.blue, 1.0, self._update_log_visibility
-        )
-        self.chk_drop_off, self.spin_drop_off = self._add_layer_control(
-            log_layout, "Drop off Obstacles", "rect", Qt.magenta, 4.0, self._update_log_visibility
-        )
-        self.chk_tof, self.spin_tof = self._add_layer_control(
-            log_layout, "1D ToF Obstacles", "diamond", Qt.yellow, 4.0, self._update_log_visibility
-        )
-        self.chk_target, self.spin_target = self._add_layer_control(
-            log_layout, "Target Pose", "cross", Qt.green, 12.0, self._update_log_visibility
-        )
+        self._build_dynamic_layer_ui(self.log_display_layout)
         
-        group_log.setLayout(log_layout)
+        group_log.setLayout(self.log_display_layout)
         right_layout.addWidget(group_log)
         
         # -- 로그 리스트
@@ -262,7 +274,7 @@ class LogAnalysisMainWindow(QMainWindow):
         self.combo_speed.addItems(["1.0x", "2.5x", "5.0x", "10.0x", "25.0x", "50.0x", "100.0x"])
         self.combo_speed.setCurrentText("1.0x")
         self.combo_speed.currentTextChanged.connect(self._on_speed_changed)
-        self.log_manager.set_playback_speed(1.0) # 기본값을 10x로
+        self.log_manager.set_playback_speed(1.0)
         
         # 세세한 재생을 위해 Slider 해상도를 100,000으로 증가. 일반 QSlider 대신 MarkedSlider 사용
         self.slider = MarkedSlider(Qt.Horizontal)
@@ -304,6 +316,31 @@ class LogAnalysisMainWindow(QMainWindow):
         
         dock.addWidget(controls_wrapper)
         self.addToolBar(Qt.BottomToolBarArea, dock)
+    
+    # ============================================================
+    # YAML 기반 동적 UI 빌드
+    # ============================================================
+    def _build_dynamic_layer_ui(self, layout):
+        """LogParser의 YAML 설정에 따라 체크박스 + 사이즈 스핀박스를 자동으로 생성합니다."""
+        for layer_cfg in self.log_manager.parser.layer_configs:
+            layer_id = layer_cfg['id']
+            color_name = layer_cfg.get('color', 'blue')
+            qt_color = COLOR_MAP.get(color_name.lower(), Qt.gray)
+            shape = layer_cfg.get('shape', 'circle')
+            default_size = layer_cfg.get('default_size', 4.0)
+            menu_name = layer_cfg.get('menu_name', layer_id)
+            
+            chk, spin = self._add_layer_control(
+                layout, menu_name, shape, qt_color, default_size,
+                self._update_log_visibility
+            )
+            
+            self.layer_states[layer_id] = {
+                'chk': chk,
+                'spin': spin,
+                'items': [],
+                'config': layer_cfg,
+            }
         
     def _connect_signals(self):
         self.log_manager.time_updated.connect(self._on_time_updated)
@@ -339,6 +376,7 @@ class LogAnalysisMainWindow(QMainWindow):
         return chk, spin
 
     def _on_layer_size_changed(self, val):
+        self._clear_dynamic_layers()
         self.log_manager.set_current_time(self.log_manager.current_time, is_jump=True)
         
     def _on_station_size_changed(self, val):
@@ -436,7 +474,7 @@ class LogAnalysisMainWindow(QMainWindow):
         # 입력된 Real time을 기반으로 적절한 virtual time을 찾음
         js = self.dt_jump.dateTime().toPyDateTime().timestamp()
         
-        # 가장 가까운 실제 시간을 찾아 그에 맞는 가상 시간을 설정. 시간 역순이 없다는 보장이 사라졌으므로 직접 검색.
+        # 가장 가까운 실제 시간을 찾아 그에 맞는 가상 시간을 설정
         closest_line = 0.0
         min_diff = float('inf')
         for ev in self.log_manager.events:
@@ -449,8 +487,6 @@ class LogAnalysisMainWindow(QMainWindow):
         self.log_manager.set_current_time(closest_line, is_jump=True)
             
     def _on_slider_moved(self, value):
-        # 실시간성: 마우스를 드래그하는 중에도 로봇 위치 업데이트
-        # timer 등에 의한 업데이트와 무한 루프 방지 위해 판단
         if self.slider.isSliderDown() and self.log_manager.end_time > 0:
             ratio = value / 100000.0
             t = self.log_manager.start_time + ratio * (self.log_manager.end_time - self.log_manager.start_time)
@@ -460,19 +496,16 @@ class LogAnalysisMainWindow(QMainWindow):
     def _on_time_updated(self, current_time, real_time):
         if self.log_manager.end_time > self.log_manager.start_time:
             ratio = (current_time - self.log_manager.start_time) / (self.log_manager.end_time - self.log_manager.start_time)
-            # 슬라이더가 눌려져 있지 않을 때만 업데이트
             if not self.slider.isSliderDown():
                 self.slider.blockSignals(True)
                 self.slider.setValue(int(ratio * 100000))
                 self.slider.blockSignals(False)
                 
-        # 타임 스트링 포맷 연도-월-일 시간:분:초.000 로 수락 (real_time 기준)
         ct = datetime.datetime.fromtimestamp(real_time)
         et = datetime.datetime.fromtimestamp(self.log_manager.events[-1]['timestamp'] if self.log_manager.events else 0)
         self.lbl_time.setText(f"{ct.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]} / {et.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]}")
         
-        # Jump DateTime 값도 동기화 (단, 슬라이더 변경 시 너무 잦은 업데이트가 부담될 수 있으나 편의를 위해 시도)
-        if not self.dt_jump.hasFocus(): # 사용자가 입력 중이 아닐 때만
+        if not self.dt_jump.hasFocus():
             self.dt_jump.blockSignals(True)
             self.dt_jump.setDateTime(QDateTime(ct.year, ct.month, ct.day, ct.hour, ct.minute, ct.second, int(ct.microsecond/1000)))
             self.dt_jump.blockSignals(False)
@@ -483,168 +516,162 @@ class LogAnalysisMainWindow(QMainWindow):
         # >> 가 표시된 곳으로 자동 스크롤 하도록 강제 이동
         doc = self.txt_raw_log.document()
         cursor = self.txt_raw_log.textCursor()
-        cursor.setPosition(0) # 처음부터 검색
+        cursor.setPosition(0)
         cursor = doc.find(">>", cursor)
         if not cursor.isNull():
             self.txt_raw_log.setTextCursor(cursor)
             self.txt_raw_log.ensureCursorVisible()
         
     def _on_play_status_changed(self, playing):
-        # playing 상태에 따라 버튼 활성화/비활성화 처리 등 가능
         pass
-        
+    
+    # ============================================================
+    # 이벤트 수신 및 범용 렌더링 엔진
+    # ============================================================
     def _on_events_triggered(self, events):
-        """
-        로그 매니저로부터 누적 수신된 이벤트들.
-        """
-        # events 중 현재 타임라인데 그려져야 할 것만 필터링 (last_cleared_time 기준 + robot 궤적 제한 처리)
-        # 로봇은 궤적 개수 제한때문에 따로 수집
+        """로그 매니저로부터 누적 수신된 이벤트들을 범용 렌더러로 처리합니다."""
         limit = self.spin_trace.value()
         
         valid_events = [ev for ev in events if ev['global_line_idx'] > self.last_cleared_time]
         
-        robot_events = [ev for ev in valid_events if ev['type'] == 'robot_pose']
-        other_events = [ev for ev in valid_events if ev['type'] != 'robot_pose']
+        # is_trace=true 인 레이어(robot_pose 등)는 궤적 제한 적용
+        trace_ids = set()
+        for lid, state in self.layer_states.items():
+            if state['config'].get('is_trace', False):
+                trace_ids.add(lid)
         
-        if len(robot_events) > limit:
-            robot_events = robot_events[-limit:]
+        trace_events = [ev for ev in valid_events if ev['type'] in trace_ids]
+        other_events = [ev for ev in valid_events if ev['type'] not in trace_ids and ev['type'] != 'return_to_charger']
+        system_events = [ev for ev in valid_events if ev['type'] == 'return_to_charger']
+        
+        if len(trace_events) > limit:
+            trace_events = trace_events[-limit:]
             
-        for ev in other_events + robot_events:
-            if ev['type'] == 'robot_pose':
-                self._update_robot_pose(ev['x'], ev['y'], ev['yaw'])
-            elif ev['type'] == 'target_pose':
-                self._add_target(ev['x'], ev['y'], ev['yaw'])
-            elif ev['type'] == 'return_to_charger':
-                self._handle_return_to_charger()
-            elif ev['type'] == 'drop_off':
-                self._add_drop_off(ev['x'], ev['y'])
-            elif ev['type'] == '1d_tof':
-                self._add_1d_tof(ev['x'], ev['y'])
-                
-    # -- 렌더링
-    def _clear_dynamic_layers(self):
-        for item in self.robot_path_items:
-            self.scene.removeItem(item)
-        self.robot_path_items.clear()
+        for ev in other_events + trace_events:
+            layer_id = ev['type']
+            
+            if layer_id in self.layer_states:
+                # target_pose의 경우: 가장 최근 목적지만 빨간색으로 표기하는 특수 로직 유지
+                if layer_id == 'target_pose':
+                    self._add_target_special(ev)
+                else:
+                    self._render_generic_item(ev)
+                    
+        # 시스템 이벤트 처리 (ReturnToCharger)
+        for ev in system_events:
+            self._handle_return_to_charger()
+    
+    def _render_generic_item(self, ev):
+        """YAML 설정에 따라 범용적으로 도형을 그리는 렌더러입니다."""
+        layer_id = ev['type']
+        state = self.layer_states[layer_id]
+        cfg = state['config']
         
-        for item in self.drop_off_items:
-            self.scene.removeItem(item)
-        self.drop_off_items.clear()
+        px, py = self.map_manager.to_scene_coords(ev['x'], ev['y'])
+        size = state['spin'].value()
         
-        for item in self.tof_items:
-            self.scene.removeItem(item)
-        self.tof_items.clear()
+        color_name = cfg.get('color', 'blue')
+        qt_color = COLOR_MAP.get(color_name.lower(), Qt.gray)
+        z_val = cfg.get('z_value', 50)
+        shape = cfg.get('shape', 'circle')
+        is_trace = cfg.get('is_trace', False)
         
-        for item in self.target_items:
-            self.scene.removeItem(item)
-        self.target_items.clear()
+        item = None
+        if shape == 'circle':
+            rad = size
+            item = self.scene.addEllipse(px - rad, py - rad, rad*2, rad*2, QPen(Qt.black), QBrush(qt_color))
+        elif shape == 'rect':
+            item = self.scene.addRect(px - size/2, py - size/2, size, size, QPen(Qt.black), QBrush(qt_color))
+        elif shape == 'diamond':
+            polygon = QPolygonF([
+                QPointF(px, py - size/2),
+                QPointF(px + size/2, py),
+                QPointF(px, py + size/2),
+                QPointF(px - size/2, py)
+            ])
+            item = self.scene.addPolygon(polygon, QPen(Qt.black), QBrush(qt_color))
+        elif shape == 'cross':
+            path = QPainterPath()
+            path.moveTo(px - size/2, py - size/2)
+            path.lineTo(px + size/2, py + size/2)
+            path.moveTo(px + size/2, py - size/2)
+            path.lineTo(px - size/2, py + size/2)
+            item = self.scene.addPath(path, QPen(qt_color, max(2, size/4)))
+            
+        if item:
+            item.setZValue(z_val)
+            item.setVisible(state['chk'].isChecked())
+            state['items'].append(item)
+            
+            # Trace 제한 적용
+            if is_trace:
+                limit = self.spin_trace.value()
+                while len(state['items']) > limit:
+                    old = state['items'].pop(0)
+                    self.scene.removeItem(old)
+    
+    def _add_target_special(self, ev):
+        """target_pose 전용 특수 렌더링 (최신 목적지만 빨간색, 이전은 초록색)."""
+        state = self.layer_states['target_pose']
         
-        if hasattr(self.map_manager, 'station_item') and self.map_manager.station_item:
-            self.map_manager.station_item.setBrush(QBrush(QColor(0, 255, 0, 200)))
-
-    def _update_robot_pose(self, rx, ry, yaw):
-        px, py = self.map_manager.to_scene_coords(rx, ry)
+        px, py = self.map_manager.to_scene_coords(ev['x'], ev['y'])
+        size = state['spin'].value()
         
-        rad = self.spin_robot.value()
-
-        
-        # 이전 좌표를 모두 표시하되, 가장 최근 것은 다른 색상으로 표시하는 등의 효과도 가능하지만
-        # 일단 모두 파란 원으로 궤적을 그리도록 합니다.
-        item = self.scene.addEllipse(px - rad, py - rad, rad*2, rad*2, QPen(Qt.black), QBrush(Qt.blue))
-        item.setZValue(100)
-        item.setVisible(self.chk_robot.isChecked())
-        
-        self.robot_path_items.append(item)
-        
-        # limit 처리 (실시간 재생 시 이벤트가 들어올 때 초과분 삭제)
-        limit = self.spin_trace.value()
-        while len(self.robot_path_items) > limit:
-            old_item = self.robot_path_items.pop(0)
-            self.scene.removeItem(old_item)
-
-    def _add_drop_off(self, rx, ry):
-        px, py = self.map_manager.to_scene_coords(rx, ry)
-        # Drop off은 모양을 ▼(삼각형) 또는 보라색 네모등으로 지정
-        size = self.spin_drop_off.value()
-        item = self.scene.addRect(px - size/2, py - size/2, size, size, QPen(Qt.black), QBrush(Qt.magenta))
-        item.setZValue(50)
-        item.setVisible(self.chk_drop_off.isChecked())
-        self.drop_off_items.append(item)
-        
-    def _add_1d_tof(self, rx, ry):
-        px, py = self.map_manager.to_scene_coords(rx, ry)
-        # ToF는 노란색 다이아몬드 또는 마름모
-        size = self.spin_tof.value()
-        polygon = QPolygonF([QPointF(px, py-size/2), QPointF(px+size/2, py), QPointF(px, py+size/2), QPointF(px-size/2, py)])
-        item = self.scene.addPolygon(polygon, QPen(Qt.black), QBrush(Qt.yellow))
-        item.setZValue(51)
-        item.setVisible(self.chk_tof.isChecked())
-        self.tof_items.append(item)
-        
-    def _add_target(self, rx, ry, yaw):
-        # ----------------------------------------------------
-        # [새로운 Obstacle / 타겟 레이어 생성 가이드]
-        # 4. 이곳에 어떻게 Scene 상에 그릴지 구현하고, 미리 선언한 list인 self.target_items 에 추가합니다.
-        # ----------------------------------------------------
-        px, py = self.map_manager.to_scene_coords(rx, ry)
-        
-        # Target 목적지는 별(★) 모양 또는 눈에 띄는 초록색 X자 등으로 그릴 수 있습니다.
-        # 간편하게 X자로 교차하는 라인을 그룹이나 패스로 그립니다.
-        size = self.spin_target.value()
         path = QPainterPath()
         path.moveTo(px - size/2, py - size/2)
         path.lineTo(px + size/2, py + size/2)
         path.moveTo(px + size/2, py - size/2)
         path.lineTo(px - size/2, py + size/2)
         
-        # ----------------------------------------------------
-        # 가장 최근 목적지만 빨간색으로 표기
-        # 이전에 추가된 타겟 궤적이 있다면 먼저 전부 초록색으로 바꿉니다.
-        # ----------------------------------------------------
-        if self.target_items:
-            self.target_items[-1].setPen(QPen(Qt.green, 3))
-            self.target_items[-1].setZValue(59)
+        # 이전 최신 목적지를 초록색으로 복귀
+        if state['items']:
+            state['items'][-1].setPen(QPen(Qt.green, 3))
+            state['items'][-1].setZValue(59)
             
         item = self.scene.addPath(path, QPen(Qt.red, 4))
         item.setZValue(60)
-        item.setVisible(self.chk_target.isChecked())
-        self.target_items.append(item)
+        item.setVisible(state['chk'].isChecked())
+        state['items'].append(item)
         
-        # 기본 목적지로 세팅되었으니 스테이션은 초록색으로 복귀
+        # 다른 목적지가 세팅되었으니 스테이션은 초록색으로 복귀
         if hasattr(self.map_manager, 'station_item') and self.map_manager.station_item:
             self.map_manager.station_item.setBrush(QBrush(QColor(0, 255, 0, 200)))
-            
+    
     def _handle_return_to_charger(self):
-        # 다른 목적지는 초록색으로 복귀
-        if self.target_items:
-            self.target_items[-1].setPen(QPen(Qt.green, 3))
-            self.target_items[-1].setZValue(59)
-            
+        """ReturnToCharger 시스템 이벤트: 스테이션을 빨간색으로 변경."""
+        # target_pose 레이어가 있으면 마지막 목적지를 초록색으로
+        if 'target_pose' in self.layer_states:
+            items = self.layer_states['target_pose']['items']
+            if items:
+                items[-1].setPen(QPen(Qt.green, 3))
+                items[-1].setZValue(59)    
         # 충전기 위치(Station)를 빨간색으로 변경
         if hasattr(self.map_manager, 'station_item') and self.map_manager.station_item:
             self.map_manager.station_item.setBrush(QBrush(QColor(255, 0, 0, 200)))
+    
+    # ============================================================
+    # 동적 레이어 초기화/가시성
+    # ============================================================
+    def _clear_dynamic_layers(self):
+        """모든 동적 레이어의 아이템을 Scene에서 제거합니다."""
+        for lid, state in self.layer_states.items():
+            for item in state['items']:
+                self.scene.removeItem(item)
+            state['items'].clear()
         
+        if hasattr(self.map_manager, 'station_item') and self.map_manager.station_item:
+            self.map_manager.station_item.setBrush(QBrush(QColor(0, 255, 0, 200)))
+
     def _update_log_visibility(self):
-        # 로봇 궤적
-        for it in self.robot_path_items:
-            it.setVisible(self.chk_robot.isChecked())
-        # 장애물
-        for it in self.drop_off_items:
-            it.setVisible(self.chk_drop_off.isChecked())
-        for it in self.tof_items:
-            it.setVisible(self.chk_tof.isChecked())
-        # ----------------------------------------------------
-        # [새로운 Obstacle / 타겟 레이어 생성 가이드]
-        # 5. 체크박스 On/Off 시 요소들이 실제로 화면에서 Hide/Show 되도록 동기화합니다.
-        # ----------------------------------------------------
-        for it in self.target_items:
-            it.setVisible(self.chk_target.isChecked())
+        """모든 동적 레이어의 가시성을 체크박스 상태와 동기화합니다."""
+        for lid, state in self.layer_states.items():
+            visible = state['chk'].isChecked()
+            for it in state['items']:
+                it.setVisible(visible)
             
     # -- Export
     def _export_view(self):
-        """
-        QGraphicsScene의 현재 표시 영역을 파일로 Export 합니다.
-        """
+        """QGraphicsScene의 현재 표시 영역을 파일로 Export 합니다."""
         path, _ = QFileDialog.getSaveFileName(self, "Save Scene as Image", "map_screenshot.png", "PNG (*.png);;JPG (*.jpg)")
         if not path:
             return
@@ -656,7 +683,6 @@ class LogAnalysisMainWindow(QMainWindow):
         pixmap.fill(Qt.transparent)
         
         painter = QPainter(pixmap)
-        # 랜더링 품질 설정
         painter.setRenderHint(QPainter.Antialiasing)
         self.scene.render(painter)
         painter.end()

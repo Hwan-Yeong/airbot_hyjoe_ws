@@ -1,40 +1,52 @@
 import re
+import os
+import yaml
 from datetime import datetime
 
 class LogParser:
-    def __init__(self):
-        # 정규식 패턴 사전 정리
+    def __init__(self, config_path=None):
+        """
+        YAML 설정 파일에서 레이어 정의를 로드하여 정규식을 동적으로 구성합니다.
+        config_path가 None이면 기본 경로(config/log_layers.yaml)를 사용합니다.
+        """
+        if config_path is None:
+            config_path = os.path.join(os.path.dirname(__file__), 'config', 'log_layers.yaml')
         
-        # [2026-04-03 21:29:38.607] ... Current RobotPose [1](0.072, 0.092, 1.7(deg))
-        self.re_robot_pose = re.compile(
-            r'\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+Current RobotPose.*?\]\((?P<x>[-\d\.]+),\s*(?P<y>[-\d\.]+),\s*(?P<yaw>[-\d\.]+)\(deg\)\)'
-        )
+        self.layer_configs = []  # YAML에서 읽어온 레이어 설정 리스트
+        self._compiled_layers = []  # (compiled_regex, layer_config) 튜플 리스트
         
-        # [2026-02-04 10:04:56.215] ... Detect drop off. robot_xy(-2.212, 0.791), drop(x:-2.745, y:0.949, dist: 0.556, diff:0.083)
-        self.re_drop_off = re.compile(
-            r'\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+Detect drop off.*drop\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
-        )
+        self._load_config(config_path)
         
-        # [2026-04-03 22:00:53.472] ... 1D ToF detected. robot_xy(-2.228, 0.854), 1D(x:-2.729, y:0.997, Dist:0.521)
-        self.re_1d_tof = re.compile(
-            r'\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+1D ToF detected.*1D\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
-        )
-
-        # Target 목적지 정규식
-        self.re_target = re.compile(
-            r'\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+.*Move to Target \((?P<x>[-\d\.]+),\s*(?P<y>[-\d\.]+),\s*(?P<yaw>[-\d\.]+)\(deg\)\)'
-        )
-
+        # ReturnToCharger는 UI 표시용 레이어가 아닌 시스템 이벤트이므로 코드에 직접 유지
         self.re_return = re.compile(
             r'\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+.*soc-cmd received : ReturnToCharger'
         )
         
         self.time_format = "%Y-%m-%d %H:%M:%S.%f"
         
+    def _load_config(self, config_path):
+        """YAML 설정 파일을 읽어 레이어 정규식을 컴파일합니다."""
+        if not os.path.isfile(config_path):
+            print(f"[LogParser] Warning: config file not found at {config_path}")
+            return
+            
+        with open(config_path, 'r', encoding='utf-8') as f:
+            data = yaml.safe_load(f)
+            
+        if not data or 'layers' not in data:
+            print("[LogParser] Warning: no 'layers' key found in config")
+            return
+            
+        for layer_def in data['layers']:
+            try:
+                compiled = re.compile(layer_def['regex'])
+                self.layer_configs.append(layer_def)
+                self._compiled_layers.append((compiled, layer_def))
+            except re.error as e:
+                print(f"[LogParser] Warning: regex error in layer '{layer_def.get('id', '?')}': {e}")
+    
     def _parse_time(self, time_str):
         try:
-            # datetime 객체로 변환하거나, 간단히 timestamp를 사용할 수 있습니다.
-            # 하지만 여러 파일에서 순서를 매기려면 datetime 변환이 가장 좋습니다.
             dt = datetime.strptime(time_str, self.time_format)
             return dt.timestamp()
         except Exception:
@@ -43,65 +55,33 @@ class LogParser:
     def parse_line(self, line):
         """
         한 줄의 로그를 파싱하여 알맞은 형태의 사전 데이터로 리턴합니다.
-        매칭되는 것이 없으면 None을 리턴합니다.
-
-        [새로운 형태의 로그 파싱/추가하는 방법 가이드]
-        1. __init__ 에 분석하고자 하는 로그의 문자열 패턴을 매칭하는 정규표현식(re.compile)을 추가합니다.
-           이때, 시간 정보는 (?P<time>[\d\-]+\s[\d:\.]+) 그룹으로 캡처하는 것이 좋습니다.
-        2. 아래 parse_line() 함수 내부에 해당 정규식으로 search를 시도하고,
-           데이터가 매칭되면 'timestamp', 'type'(고유 ID)과 좌표 등을 담은 dict를 반환하도록 추가합니다.
+        YAML에 정의된 레이어 정규식을 순회하며 매칭을 시도합니다.
+        매칭되는 것이 없으면 시스템 이벤트(ReturnToCharger)를 확인한 뒤 None을 리턴합니다.
         """
-        # 1. 로봇 포즈 매칭
-        match = self.re_robot_pose.search(line)
-        if match:
-            ts = self._parse_time(match.group('time'))
-            if ts is not None:
-                return {
-                    'timestamp': ts,
-                    'type': 'robot_pose',
-                    'x': float(match.group('x')),
-                    'y': float(match.group('y')),
-                    'yaw': float(match.group('yaw'))
-                }
-                
-        # 2. Drop off 매칭
-        match = self.re_drop_off.search(line)
-        if match:
-            ts = self._parse_time(match.group('time'))
-            if ts is not None:
-                return {
-                    'timestamp': ts,
-                    'type': 'drop_off',
-                    'x': float(match.group('x')),
-                    'y': float(match.group('y'))
-                }
-                
-        # 3. 1D ToF 매칭
-        match = self.re_1d_tof.search(line)
-        if match:
-            ts = self._parse_time(match.group('time'))
-            if ts is not None:
-                return {
-                    'timestamp': ts,
-                    'type': '1d_tof',
-                    'x': float(match.group('x')),
-                    'y': float(match.group('y'))
-                }
-
-        # 4. Target 목적지 매칭
-        match = self.re_target.search(line)
-        if match:
-            ts = self._parse_time(match.group('time'))
-            if ts is not None:
-                return {
-                    'timestamp': ts,
-                    'type': 'target_pose',
-                    'x': float(match.group('x')),
-                    'y': float(match.group('y')),
-                    'yaw': float(match.group('yaw'))
-                }
-
-        # 5. Return to Charger 매칭
+        # 1. YAML 정의 레이어 순회
+        for compiled_re, layer_def in self._compiled_layers:
+            match = compiled_re.search(line)
+            if match:
+                ts = self._parse_time(match.group('time'))
+                if ts is not None:
+                    result = {
+                        'timestamp': ts,
+                        'type': layer_def['id'],
+                    }
+                    # x, y 좌표가 있으면 추출
+                    try:
+                        result['x'] = float(match.group('x'))
+                        result['y'] = float(match.group('y'))
+                    except (IndexError, AttributeError):
+                        pass
+                    # yaw(방향각)가 있으면 추출
+                    try:
+                        result['yaw'] = float(match.group('yaw'))
+                    except (IndexError, AttributeError):
+                        pass
+                    return result
+        
+        # 2. 시스템 이벤트: ReturnToCharger (UI 레이어 아니므로 코드에 직접 유지)
         match = self.re_return.search(line)
         if match:
             ts = self._parse_time(match.group('time'))

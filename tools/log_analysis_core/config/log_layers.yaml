@@ -1,0 +1,70 @@
+# ============================================================
+# Log Display Layers Configuration
+# ============================================================
+# 이 파일에 새로운 항목을 추가하면, 코드 수정 없이 자동으로
+# Log Display Options 패널에 체크박스/사이즈 조절기가 생성되고,
+# 해당 정규식에 매칭되는 로그가 맵 위에 렌더링됩니다.
+#
+# [필드 설명]
+#   id          : 내부 식별자 (고유해야 함)
+#   menu_name   : UI에 표시될 이름
+#   regex       : Python 정규식. 반드시 (?P<time>...) 그룹을 포함해야 하며,
+#                 좌표 추출이 필요하면 (?P<x>...), (?P<y>...) 그룹을 포함합니다.
+#                 방향각이 필요하면 (?P<yaw>...) 도 추가합니다.
+#   shape       : 맵 위에 그릴 도형. circle | rect | diamond | cross 중 택 1
+#   color       : 색상 이름. blue, magenta, yellow, green, red, cyan 등 Qt 표준 색상명
+#   z_value     : 렌더링 레이어 순서 (높을수록 위에 그려짐)
+#   default_size: 초기 크기(픽셀 단위)
+#   is_trace    : true이면 Robot Trace Length 제한을 따름 (궤적용)
+# ============================================================
+
+layers:
+  - id: "robot_pose"
+    menu_name: "Robot Pose"
+    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+Current RobotPose.*?\]\((?P<x>[-\d\.]+),\s*(?P<y>[-\d\.]+),\s*(?P<yaw>[-\d\.]+)\(deg\)\)'
+    shape: "circle"
+    color: "blue"
+    z_value: 100
+    default_size: 1.0
+    is_trace: true
+
+  - id: "drop_off"
+    menu_name: "Drop off Obstacles"
+    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+Detect drop off.*drop\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
+    shape: "rect"
+    color: "magenta"
+    z_value: 50
+    default_size: 4.0
+    is_trace: false
+
+  - id: "1d_tof"
+    menu_name: "1D ToF Obstacles"
+    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+1D ToF detected.*1D\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
+    shape: "diamond"
+    color: "yellow"
+    z_value: 51
+    default_size: 4.0
+    is_trace: false
+
+  - id: "target_pose"
+    menu_name: "Target Pose"
+    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+.*Move to Target \((?P<x>[-\d\.]+),\s*(?P<y>[-\d\.]+),\s*(?P<yaw>[-\d\.]+)\(deg\)\)'
+    shape: "cross"
+    color: "green"
+    z_value: 60
+    default_size: 12.0
+    is_trace: false
+
+# ============================================================
+# [새로운 레이어 추가 예시]
+# 아래 주석을 해제하고 원하는 값으로 수정하면 즉시 적용됩니다.
+#
+#  - id: "bumper_hit"
+#    menu_name: "Bumper Hit"
+#    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\].*bumper.*hit.*\((?P<x>[-\d\.]+),\s*(?P<y>[-\d\.]+)\)'
+#    shape: "rect"
+#    color: "red"
+#    z_value: 52
+#    default_size: 5.0
+#    is_trace: false
+# ============================================================
