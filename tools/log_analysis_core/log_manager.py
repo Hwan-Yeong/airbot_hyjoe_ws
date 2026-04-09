@@ -56,7 +56,7 @@ class LogManager(QObject):
         
         total_lines = 0
         for i, filepath in enumerate(file_paths):
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
                 lines = f.readlines()
                 for j, line in enumerate(lines):
                     event = self.parser.parse_line(line)
