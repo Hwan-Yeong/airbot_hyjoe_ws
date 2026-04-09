@@ -218,10 +218,11 @@ class LogManager(QObject):
         if not self.is_playing:
             return
             
-        # 1초에 약 100줄의 텍스트가 쓰여진다고 가정(20Hz 포즈 등 포함)
-        # 배속에 따라 이동할 줄(line) 개수 결정
-        base_lines_per_sec = 200.0  
-        dt_lines = (self.timer_interval / 1000.0) * self.playback_speed * base_lines_per_sec * self.play_direction
+        # [중요] 재생 로직은 로그의 실제 Timestamp를 완전히 무시하고 '줄(Line) 수'를 기준으로 합니다.
+        # 1.0x 속도일 때, 초당 200줄을 읽는 것을 기본으로 하며, 
+        # 타이머 주기(50ms)마다 배속에 맞춰 일정 줄 수를 건너뜁니다.
+        base_lines_per_tick = 10.0 # 1.0x 기준 50ms당 10줄 (초당 200줄)
+        dt_lines = self.playback_speed * base_lines_per_tick * self.play_direction
         
         new_time = self.current_time + dt_lines
         
