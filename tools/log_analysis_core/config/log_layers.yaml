@@ -37,12 +37,21 @@ layers:
     default_size: 4.0
     is_trace: false
 
+  - id: "low_level_obs"
+    menu_name: "Low Level Obstacles"
+    regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+low level obstacle.*Obs\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
+    shape: "rect"
+    color: "cyan"
+    z_value: 51
+    default_size: 4.0
+    is_trace: false
+
   - id: "1d_tof"
     menu_name: "1D ToF Obstacles"
     regex: '\[(?P<time>[\d\-]+\s[\d:\.]+)\]\s+\[.*?\]\s+\[.*?\]\s+1D ToF detected.*1D\(x:(?P<x>[-\d\.]+),\s*y:(?P<y>[-\d\.]+)'
     shape: "diamond"
     color: "yellow"
-    z_value: 51
+    z_value: 52
     default_size: 4.0
     is_trace: false
 
