@@ -57,9 +57,29 @@ class SensorManagerNode : public rclcpp::Node {
   void InitConverters(const YAML::Node& config);
 
   /**
-   * @brief Main timer of the node that periodically performs pointcloud publishing.
+   * @brief Helper function to process sensor buffers safely
    */
-  void PublishPointcloudTimer();
+  template <typename BufferT, typename MsgT>
+  bool ProcessBuffer(BufferT& buffer, MsgT& msg_copied_out, rclcpp::Time& recv_time_out, rclcpp::Time& last_time) {
+    std::lock_guard<std::mutex> lock(buffer.mtx);
+    if (buffer.latest_msg != nullptr && buffer.receive_time > last_time) {
+      msg_copied_out = buffer.latest_msg;
+      recv_time_out = buffer.receive_time;
+      last_time = buffer.receive_time;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * @brief Individual timers of the node that periodically perform pointcloud publishing.
+   */
+  void PublishTofMonoTimerCallback();
+  void PublishTofMultiTimerCallback();
+  void PublishCameraTimerCallback();
+  void PublishBottomIrTimerCallback();
+  void PublishCollisionFrontTimerCallback();
+  void PublishCollisionRearTimerCallback();
 
   /**
    * @brief Converts sensor data and publishes the message.
@@ -127,7 +147,7 @@ class SensorManagerNode : public rclcpp::Node {
   std::shared_ptr<rclcpp::ParameterCallbackHandle>
       target_frame_callback_handle_;
 
-  rclcpp::TimerBase::SharedPtr timer_;
+  std::unordered_map<std::string, rclcpp::TimerBase::SharedPtr> timers_;
 
   bool node_active_cmd_;
 

@@ -160,11 +160,32 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud") {
                         .c_str());
       });
 
-  // PointCloud Publish Timer
-  timer_ =
-    this->create_wall_timer(
-      std::chrono::milliseconds(10),
-      std::bind(&SensorManagerNode::PublishPointcloudTimer, this));
+  // Parse publishing rates for timers securely with bounds check
+  if (this->config_["sensors"]) {
+    for (const auto& sensor_pair : this->config_["sensors"]) {
+      std::string sn = sensor_pair.first.as<std::string>();
+      if (sensor_pair.second["publish_rate_ms"]) {
+        pointcloud_publishing_rate_map_[sn] =
+            sensor_pair.second["publish_rate_ms"].as<unsigned int>();
+      }
+    }
+  }
+
+  // Helper lambda to start individual timers
+  auto start_timer_if_exists = [&](const std::string& name, auto callback) {
+    if (pointcloud_publishing_rate_map_.count(name) && pointcloud_publishing_rate_map_[name] > 0) {
+      timers_[name] = this->create_wall_timer(
+          std::chrono::milliseconds(pointcloud_publishing_rate_map_[name]), callback);
+    }
+  };
+
+  // Create individual PointCloud Publish Timers
+  start_timer_if_exists("tof_mono", std::bind(&SensorManagerNode::PublishTofMonoTimerCallback, this));
+  start_timer_if_exists("tof_multi", std::bind(&SensorManagerNode::PublishTofMultiTimerCallback, this));
+  start_timer_if_exists("camera", std::bind(&SensorManagerNode::PublishCameraTimerCallback, this));
+  start_timer_if_exists("bottom_ir", std::bind(&SensorManagerNode::PublishBottomIrTimerCallback, this));
+  start_timer_if_exists("collision_front", std::bind(&SensorManagerNode::PublishCollisionFrontTimerCallback, this));
+  start_timer_if_exists("collision_rear", std::bind(&SensorManagerNode::PublishCollisionRearTimerCallback, this));
 
   // Dynamic Parameter Handler (for changing parameters at runtime)
   param_handler_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
@@ -241,13 +262,9 @@ void SensorManagerNode::InitPublisher(const YAML::Node& config) {
         (sensor_name == "tof_multi_right");
     if (is_not_used_publihser) continue;
 
-    // init publishing rate
-    unsigned int rate_ms = 0;
-    if (sensor_config["publish_rate_ms"]) {
-      const std::string sensor_name = sensor_pair.first.as<std::string>();
-      rate_ms = sensor_config["publish_rate_ms"].as<unsigned int>();
-      pointcloud_publishing_rate_map_[sensor_name] = rate_ms;
-      oss << "  " << sensor_name << " : " << rate_ms << " ms\n";
+    // log publishing rate
+    if (pointcloud_publishing_rate_map_.count(sensor_name)) {
+      oss << "  " << sensor_name << " : " << pointcloud_publishing_rate_map_[sensor_name] << " ms\n";
     }
 
     // init publisher
@@ -387,91 +404,87 @@ void SensorManagerNode::InitializeRuntime() {
   this->collision_buffer_.Reset();
 }
 
-void SensorManagerNode::PublishPointcloudTimer() {
-  if ((!this->node_active_cmd_) &&
-      (mtof_calibrator_->GetCalibrationState() == MToFCalibState::kInactive)) {
-    return;
-  }
+void SensorManagerNode::PublishTofMonoTimerCallback() {
+  if (!this->node_active_cmd_ && mtof_calibrator_->GetCalibrationState() == MToFCalibState::kInactive) return;
 
-  auto process_buffer = [&](auto& buffer, auto& msg_copied_out,
-                            rclcpp::Time& recv_time_out) -> bool {
-    if (buffer.updated.load()) {
-      std::lock_guard<std::mutex> lock(buffer.mtx);
-      msg_copied_out = std::move(buffer.latest_msg);
-      recv_time_out = buffer.receive_time;
-      buffer.updated.store(false);
-      return (msg_copied_out != nullptr);
-    }
-    return false;
-  };
+  static rclcpp::Time last_pub_time = rclcpp::Time(0, 0, RCL_ROS_TIME);
+  robot_custom_msgs::msg::TofData::SharedPtr msg_copied;
+  rclcpp::Time recv_time;
 
-  tof_buffer_.publishing_cnt_map["tof_mono"] += 10;
-  tof_buffer_.publishing_cnt_map["tof_multi"] += 10;
-  robot_custom_msgs::msg::TofData::SharedPtr tof_msg_copied;
-  rclcpp::Time tof_recv_time;
-  if (process_buffer(tof_buffer_, tof_msg_copied, tof_recv_time)) {
-    // --- Calibration Interrupt ---
+  if (this->ProcessBuffer(tof_buffer_, msg_copied, recv_time, last_pub_time)) {
     if (mtof_calibrator_->GetCalibrationState() != MToFCalibState::kInactive) {
-      this->RunMultizoneToFCalibration(tof_msg_copied);
+      this->RunMultizoneToFCalibration(msg_copied);
       return;
     }
+    PublishPointcloud(SensorType::kTofMono, msg_copied, recv_time);
+  }
+}
 
-    if (tof_buffer_.publishing_cnt_map["tof_mono"] >=
-        pointcloud_publishing_rate_map_["tof_mono"]) {
-      PublishPointcloud(SensorType::kTofMono, tof_msg_copied, tof_recv_time);
-      tof_buffer_.publishing_cnt_map["tof_mono"] = 0;
+void SensorManagerNode::PublishTofMultiTimerCallback() {
+  if (!this->node_active_cmd_ && mtof_calibrator_->GetCalibrationState() == MToFCalibState::kInactive) return;
+
+  static rclcpp::Time last_pub_time = rclcpp::Time(0, 0, RCL_ROS_TIME);
+  robot_custom_msgs::msg::TofData::SharedPtr msg_copied;
+  rclcpp::Time recv_time;
+
+  if (this->ProcessBuffer(tof_buffer_, msg_copied, recv_time, last_pub_time)) {
+    if (mtof_calibrator_->GetCalibrationState() != MToFCalibState::kInactive) {
+      this->RunMultizoneToFCalibration(msg_copied);
+      return;
     }
-    if (tof_buffer_.publishing_cnt_map["tof_multi"] >=
-        pointcloud_publishing_rate_map_["tof_multi"]) {
-      PublishPointcloud(SensorType::kTofMultiLeft, tof_msg_copied,
-                        tof_recv_time);
-      PublishPointcloud(SensorType::kTofMultiRight, tof_msg_copied,
-                        tof_recv_time);
-      tof_buffer_.publishing_cnt_map["tof_multi"] = 0;
+    PublishPointcloud(SensorType::kTofMultiLeft, msg_copied, recv_time);
+    PublishPointcloud(SensorType::kTofMultiRight, msg_copied, recv_time);
+  }
+}
+
+void SensorManagerNode::PublishCameraTimerCallback() {
+  if (!this->node_active_cmd_) return;
+
+  static rclcpp::Time last_pub_time = rclcpp::Time(0, 0, RCL_ROS_TIME);
+  robot_custom_msgs::msg::CameraDataArray::SharedPtr msg_copied;
+  rclcpp::Time recv_time;
+
+  if (this->ProcessBuffer(camera_buffer_, msg_copied, recv_time, last_pub_time)) {
+    PublishPointcloud(SensorType::kCamera, msg_copied, recv_time);
+  }
+}
+
+void SensorManagerNode::PublishBottomIrTimerCallback() {
+  if (!this->node_active_cmd_) return;
+
+  static rclcpp::Time last_pub_time = rclcpp::Time(0, 0, RCL_ROS_TIME);
+  robot_custom_msgs::msg::BottomIrData::SharedPtr msg_copied;
+  rclcpp::Time recv_time;
+
+  if (this->ProcessBuffer(bottom_ir_buffer_, msg_copied, recv_time, last_pub_time)) {
+    PublishPointcloud(SensorType::kBottomIr, msg_copied, recv_time);
+  }
+}
+
+void SensorManagerNode::PublishCollisionFrontTimerCallback() {
+  if (!this->node_active_cmd_) return;
+
+  static rclcpp::Time last_pub_time = rclcpp::Time(0, 0, RCL_ROS_TIME);
+  robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg_copied;
+  rclcpp::Time recv_time;
+
+  if (this->ProcessBuffer(collision_buffer_, msg_copied, recv_time, last_pub_time)) {
+    if (msg_copied->event_trigger == 1) {
+      PublishPointcloud(SensorType::kCollisionFront, msg_copied, recv_time);
     }
   }
+}
 
-  camera_buffer_.publishing_cnt += 10;
-  robot_custom_msgs::msg::CameraDataArray::SharedPtr camera_msg_copied;
-  rclcpp::Time camera_recv_time;
-  if (process_buffer(camera_buffer_, camera_msg_copied, camera_recv_time) &&
-      (camera_buffer_.publishing_cnt >=
-       pointcloud_publishing_rate_map_["camera"])) {
-    PublishPointcloud(SensorType::kCamera, camera_msg_copied, camera_recv_time);
-    camera_buffer_.publishing_cnt = 0;
-  }
+void SensorManagerNode::PublishCollisionRearTimerCallback() {
+  if (!this->node_active_cmd_) return;
 
-  bottom_ir_buffer_.publishing_cnt += 10;
-  robot_custom_msgs::msg::BottomIrData::SharedPtr bottom_ir_msg_copied;
-  rclcpp::Time bottom_ir_recv_time;
-  if (process_buffer(bottom_ir_buffer_, bottom_ir_msg_copied,
-                     bottom_ir_recv_time) &&
-      (bottom_ir_buffer_.publishing_cnt >=
-       pointcloud_publishing_rate_map_["bottom_ir"])) {
-    PublishPointcloud(SensorType::kBottomIr, bottom_ir_msg_copied,
-                      bottom_ir_recv_time);
-    bottom_ir_buffer_.publishing_cnt = 0;
-  }
+  static rclcpp::Time last_pub_time = rclcpp::Time(0, 0, RCL_ROS_TIME);
+  robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg_copied;
+  rclcpp::Time recv_time;
 
-  collision_buffer_.publishing_cnt_map["collision_front"] += 10;
-  collision_buffer_.publishing_cnt_map["collision_rear"] += 10;
-  robot_custom_msgs::msg::AbnormalEventData::SharedPtr collision_msg_copied;
-  rclcpp::Time collision_recv_time;
-  if (process_buffer(collision_buffer_, collision_msg_copied,
-                     collision_recv_time)) {
-    if (collision_buffer_.publishing_cnt_map["collision_front"] >=
-            pointcloud_publishing_rate_map_["collision_front"] &&
-        collision_msg_copied->event_trigger == 1) {
-      PublishPointcloud(SensorType::kCollisionFront, collision_msg_copied,
-                        collision_recv_time);
-      collision_buffer_.publishing_cnt_map["collision_front"] = 0;
-    }
-    if (collision_buffer_.publishing_cnt_map["collision_rear"] >=
-            pointcloud_publishing_rate_map_["collision_rear"] &&
-        collision_msg_copied->event_trigger == -1) {
-      PublishPointcloud(SensorType::kCollisionRear, collision_msg_copied,
-                        collision_recv_time);
-      collision_buffer_.publishing_cnt_map["collision_rear"] = 0;
+  if (this->ProcessBuffer(collision_buffer_, msg_copied, recv_time, last_pub_time)) {
+    if (msg_copied->event_trigger == -1) {
+      PublishPointcloud(SensorType::kCollisionRear, msg_copied, recv_time);
     }
   }
 }
