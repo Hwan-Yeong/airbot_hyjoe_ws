@@ -55,10 +55,11 @@ void BoardOverheatErrorMonitor::startMonitor(
 void BoardOverheatErrorMonitor::timerCallback() {
   auto ap = blackboard_->getApTemperatureData();
 
-  if (checkDataState(paramNamespace(), 100, {ap.last_update_time}) !=
-      DataState::NORMAL) {
-    return;
-  }
+  // 보드 온도는 주기적으로 발행되는 데이터가 아니므로 latency 체크하지 않음
+  // if (checkDataState(paramNamespace(), 100, {ap.last_update_time}) !=
+  //     DataState::NORMAL) {
+  //   return;
+  // }
 
   static rclcpp::Clock clock(RCL_STEADY_TIME);
 
