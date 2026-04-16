@@ -70,7 +70,7 @@ activate Launch
     ' end note
 
     ' New USB CAM
-    loop timeout ?? sec
+    loop timeout <color:red>90</color> sec
       Node_vision_detector -> Camera : try to comm w. camera
       break
         Node_vision_detector -> Node_vision_detector : <color:blue>**Success**</color> to connection Node <-> CAM
@@ -83,7 +83,7 @@ activate Launch
       Node_vision_detector -> Node_error_monitor : publish /camera_type <color:blue>**(3)**</color>
     else
       Node_vision_detector -> Node_error_manager : Publish /error/f_code/camera <color:red>**(F09-2)**</color>
-      Node_vision_detector -> Node_vision_detector : Stop trying to comm w. camera
+      Node_vision_detector -> Node_vision_detector : Retrying to comm w. camera\nevery <color:red>10</color> sec
     end
 
     ' note right Node_node_manager #LightCyan
