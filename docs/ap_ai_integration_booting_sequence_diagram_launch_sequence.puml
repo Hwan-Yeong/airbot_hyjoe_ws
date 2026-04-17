@@ -27,47 +27,22 @@ activate Launch
     Node_error_monitor -> Node_error_monitor : set default ai_mode (UART CAM)
     Launch -> Node_error_manager : launch error_manager
 
-    ' note right Node_node_manager #AntiqueWhite
-    '   **[NOTE]**
-    '   * Initialize error_monitor with default mode (UART CAM)
-    ' end note
-
     Launch -> Node_node_manager : launch node_manager
     Node_node_manager -> Node_node_manager : monitoring required node_list\nincluding <color:blue>/ai_interface</color>, <color:blue>/vision_detector</color>
 
-    ' note right Node_node_manager #AntiqueWhite
-    '   **[NOTE]**
-    '   * Initialize node_manager with default mode
-    '     - Postpone AI node monitoring until the preferred mode is identified.
-    ' end note
-
-    ' note right Node_node_manager #AntiqueWhite
-    '   **[NOTE]**
-    '   * Trigger all nodes via initial Launcher
-    ' end note
-
-    ' Legacy UART CAM
-    loop timeout ?? sec
-      Node_uart_ai -> Camera : try to comm w. camera
-      break
-        Node_uart_ai -> Node_uart_ai : <color:blue>**Success**</color> to connection Node <-> CAM
+    alt open Serial == True
+      Node_uart_ai -> Node_uart_ai : ebable Parsing Timer (40ms)
+      loop 40ms
+        alt success to connect w.cam == True
+          Node_uart_ai -> Camera : parse cam data
+          Node_uart_ai -> Node_error_monitor : publish topics (camera, temp, version, type)
+        else
+          Node_uart_ai -> Node_error_manager : Publish /error/f_code/camera <color:red>**(F09-2)**</color> 
+        end
       end
-    end
-
-    alt success_to_connect == True
-      Node_uart_ai -> Camera : parse cam data
-      Node_uart_ai -> Node_error_monitor : publish topics (camera, temp, version, type)
     else
-      Node_uart_ai -> Node_error_manager : Publish /error/f_code/camera <color:red>**(F09-2)**</color> 
-      Node_uart_ai -> Node_uart_ai : Stop trying to comm w. camera
+      Node_uart_ai -> Node_uart_ai : no retry, serial open fail.
     end
-
-    ' note right Node_node_manager #LightCyan
-    '   **[NOTE: UART (legacy)]**
-    '   * //ai_interface// follows legacy behavior.
-    '   * Topics (camera, temp, version) are published **only after** UART handshake.
-    '   * Connection timeout: <color:red>90s</color> (Attempts stop after timeout).
-    ' end note
 
     ' New USB CAM
     loop timeout <color:red>90</color> sec
@@ -77,7 +52,7 @@ activate Launch
       end
     end
 
-    alt success_to_connect == True
+    alt success to connect w.cam == True
       Node_vision_detector -> Camera : parse cam data
       Node_vision_detector -> Node_error_monitor : publish topics (camera, temp, version)
       Node_vision_detector -> Node_error_monitor : publish /camera_type <color:blue>**(3)**</color>
@@ -86,15 +61,6 @@ activate Launch
       Node_vision_detector -> Node_vision_detector : Retrying to comm w. camera\nevery <color:red>10</color> sec
     end
 
-    ' note right Node_node_manager #LightCyan
-    '   **[NOTE: USB (new)]**
-    '   * if //vision_detector// logic differs from legacy, follow these specs:
-    '     - **Default Version:** <color:green>"0.0" (Used as a 'Not Connected' flag).</color>
-    '     - **Update Trigger:** Update AI Version immediately upon successful connection.
-    '       (//error_monitor// treats "0.0" as a connection failure)
-    '   * Connection timeout: <color:red>90s</color> (Attempts stop after timeout).
-    ' end note
-      
     ' Check Activating Nodes (Error Monitor / Node Manager)
     loop timeout <color:red>120</color> sec
       Node_error_monitor -> Node_error_monitor : Listening for version topics...
@@ -111,14 +77,7 @@ activate Launch
       ' Node_error_monitor -> Node_node_manager : publish **ai_mode** (USB)
     end
 
-    Node_error_monitor -> Node_error_monitor : File Writing AI version info to\n <color:blue>**"/home/airbot/app_rw/ai_mode.txt"**
-    ' Node_node_manager -> Node_node_manager : update required node_list\naccording to **ai_mode**
-
-    ' note right Node_node_manager #LightCyan
-    '   **[NOTE: ERROR MONITOR / NODE MANAGER]**
-    '   * Dynamically selects AI mode based on incoming metadata.
-    '   * Updates error/node monitoring policies based on version info from nodes
-    ' end note
+    Node_error_monitor -> Node_error_monitor : File Writing AI version info to\n <color:blue>**"/home/airbot/app_rw/ai/mode.txt"**
   end
   Launch -> User : terminated
 deactivate Launch
