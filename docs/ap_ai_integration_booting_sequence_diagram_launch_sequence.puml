@@ -4,7 +4,7 @@ skinparam Style strictuml
 skinparam SequenceMessageAlignment center
 skinparam DefaultFontName "Verdana"
 
-title Robot Software (AI Node) Boot Sequence Framework
+title Robot Software (AI Node) Boot Sequence Diagram
 
 ' 참여 객체 정의 (Participants)
 actor "User" as User
@@ -37,7 +37,7 @@ activate Launch
           Node_uart_ai -> Camera : parse cam data
           Node_uart_ai -> Node_error_monitor : publish topics (camera, temp, version, type)
         else
-          Node_uart_ai -> Node_error_manager : Publish /error/f_code/camera <color:red>**(F09-2)**</color> 
+          Node_uart_ai -> Node_error_manager : Publish /error/f_code/uart_camera <color:red>**(F09-2)**</color> 
         end
       end
     else
@@ -57,7 +57,7 @@ activate Launch
       Node_vision_detector -> Node_error_monitor : publish topics (camera, temp, version)
       Node_vision_detector -> Node_error_monitor : publish /camera_type <color:blue>**(3)**</color>
     else
-      Node_vision_detector -> Node_error_manager : Publish /error/f_code/camera <color:red>**(F09-2)**</color>
+      Node_vision_detector -> Node_error_manager : Publish /error/f_code/usb_camera <color:red>**(F09-4)**</color>
       Node_vision_detector -> Node_vision_detector : Retrying to comm w. camera\nevery <color:red>10</color> sec
     end
 
@@ -77,7 +77,7 @@ activate Launch
       ' Node_error_monitor -> Node_node_manager : publish **ai_mode** (USB)
     end
 
-    Node_error_monitor -> Node_error_monitor : File Writing AI version info to\n <color:blue>**"/home/airbot/app_rw/ai/mode.txt"**
+    Node_error_monitor -> Node_error_monitor : File Writing AI version info to\n <color:blue>**"/home/airbot/app_rw/ai/mode"**
   end
   Launch -> User : terminated
 deactivate Launch
