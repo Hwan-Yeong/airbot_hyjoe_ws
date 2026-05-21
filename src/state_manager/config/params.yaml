@@ -1,0 +1,22 @@
+state_manager:
+  ros__parameters:
+    enable_lidar_onoff : true
+    enable_camera_onoff : true
+    enable_tof_onoff : true
+    direct_velocity_v : 0.4
+    direct_velocity_w : 0.6
+    undocking_distance : 0.3
+    odom_reset_timeout: 5.0
+    lidar_wait_timeout: 10.0
+    tof_wait_timeout: 11.0
+    camera_wait_timeout: 3.0
+    odom_reset_retry_count: 6
+    lidar_retry_count: 6
+    tof_retry_count: 6
+    camera_retry_count: 6
+    localization_retry_count: 3
+    localization_check_error_count: 3
+    move_goal_retry_count : 2
+    sensor_off_time : 60.0
+    factory_velocity_w : 0.7
+    return_charger_try_docking_distance_th_m: 2.0
