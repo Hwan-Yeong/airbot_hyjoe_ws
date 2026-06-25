@@ -12,7 +12,14 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
-add_executable(depth_to_pointcloud_node src/depth_to_pointcloud_node.cpp)
+add_executable(depth_to_pointcloud_node
+  src/main.cpp
+  src/depth_to_pointcloud_node.cpp
+)
+
+target_include_directories(depth_to_pointcloud_node PRIVATE
+  include
+)
 
 ament_target_dependencies(depth_to_pointcloud_node
   rclcpp
@@ -23,7 +30,7 @@ install(TARGETS depth_to_pointcloud_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY launch rviz
+install(DIRECTORY launch config rviz
   DESTINATION share/${PROJECT_NAME}
 )
 
