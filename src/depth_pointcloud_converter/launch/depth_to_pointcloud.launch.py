@@ -1,21 +1,26 @@
 #!/usr/bin/env python3
 #
-# depth_to_pointcloud 실험용 launch.
+# depth_to_pointcloud 실행 launch.
 #
 # 이 launch 는 inusensor_ros2_driver 가 "이미 실행 중"이라고 가정한다.
 # (드라이버가 /camera/depth/image_raw, /camera/depth/camera_info 를 발행하고
 #  robot_state_publisher 가 camera_link -> ... -> inusensor_depth TF 를 발행함)
 #
-# 여기서 추가로 띄우는 것:
+# 여기서 띄우는 것:
 #   1) base_link -> camera_link static TF  (로봇 본체에 카메라를 붙임)
 #   2) depth_to_pointcloud_node            (depth -> PointCloud2 변환)
 #
+# 노드 파라미터는 config/depth_to_pointcloud_params.yaml (share 에 설치됨)에서 로드한다.
 # RViz는 이 launch에서 띄우지 않는다(별도 PC/세션에서 직접 실행).
 #
 # 실행 예:
 #   ros2 launch depth_pointcloud_converter depth_to_pointcloud.launch.py
 #   ros2 launch depth_pointcloud_converter depth_to_pointcloud.launch.py launch_static_tf:=false
+#   ros2 launch depth_pointcloud_converter depth_to_pointcloud.launch.py \
+#       params_file:=/path/to/custom_params.yaml
 
+import os
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
@@ -24,34 +29,13 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
+    pkg_share = get_package_share_directory('depth_pointcloud_converter')
+    default_params = os.path.join(pkg_share, 'config', 'depth_to_pointcloud_params.yaml')
+
     # ---------------- launch arguments ----------------
-    depth_topic_arg = DeclareLaunchArgument(
-        'depth_topic', default_value='/camera/depth/image_raw',
-        description='Input depth image topic (sensor_msgs/Image, 16UC1, mm)')
-
-    camera_info_topic_arg = DeclareLaunchArgument(
-        'camera_info_topic', default_value='/camera/depth/camera_info',
-        description='Input depth CameraInfo topic')
-
-    output_topic_arg = DeclareLaunchArgument(
-        'output_topic', default_value='/camera/depth/points',
-        description='Output PointCloud2 topic')
-
-    range_min_arg = DeclareLaunchArgument(
-        'range_min', default_value='0.1',
-        description='Minimum valid depth [m]')
-
-    range_max_arg = DeclareLaunchArgument(
-        'range_max', default_value='5.0',
-        description='Maximum valid depth [m]')
-
-    row_step_arg = DeclareLaunchArgument(
-        'row_step', default_value='1',
-        description='Row downsample step (1 = full resolution)')
-
-    col_step_arg = DeclareLaunchArgument(
-        'col_step', default_value='1',
-        description='Column downsample step (1 = full resolution)')
+    params_file_arg = DeclareLaunchArgument(
+        'params_file', default_value=default_params,
+        description='Path to the ROS2 params yaml for depth_to_pointcloud_node')
 
     launch_static_tf_arg = DeclareLaunchArgument(
         'launch_static_tf', default_value='true',
@@ -66,7 +50,6 @@ def generate_launch_description():
     cam_yaw_arg = DeclareLaunchArgument('cam_yaw', default_value='0.0')
 
     # ---------------- nodes ----------------
-    # base_link -> camera_link static transform
     static_tf_node = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -89,29 +72,13 @@ def generate_launch_description():
         package='depth_pointcloud_converter',
         executable='depth_to_pointcloud_node',
         name='depth_to_pointcloud_node',
-        parameters=[{
-            'depth_topic': LaunchConfiguration('depth_topic'),
-            'camera_info_topic': LaunchConfiguration('camera_info_topic'),
-            'output_topic': LaunchConfiguration('output_topic'),
-            'output_frame': '',          # 비우면 depth 이미지 frame_id(inusensor_depth) 사용
-            'depth_scale': 0.001,        # 16UC1 mm -> m
-            'range_min': LaunchConfiguration('range_min'),
-            'range_max': LaunchConfiguration('range_max'),
-            'row_step': LaunchConfiguration('row_step'),
-            'col_step': LaunchConfiguration('col_step'),
-        }],
+        parameters=[LaunchConfiguration('params_file')],
         output='screen',
         emulate_tty=True,
     )
 
     return LaunchDescription([
-        depth_topic_arg,
-        camera_info_topic_arg,
-        output_topic_arg,
-        range_min_arg,
-        range_max_arg,
-        row_step_arg,
-        col_step_arg,
+        params_file_arg,
         launch_static_tf_arg,
         cam_x_arg,
         cam_y_arg,
