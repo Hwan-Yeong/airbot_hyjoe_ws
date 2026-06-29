@@ -80,6 +80,7 @@ class SensorManagerNode : public rclcpp::Node {
   void PublishBottomIrTimerCallback();
   void PublishCollisionFrontTimerCallback();
   void PublishCollisionRearTimerCallback();
+  void PublishDepthCameraTimerCallback();
 
   /**
    * @brief Converts sensor data and publishes the message.
@@ -133,6 +134,8 @@ class SensorManagerNode : public rclcpp::Node {
       camera_sub_;
   rclcpp::Subscription<robot_custom_msgs::msg::AbnormalEventData>::SharedPtr
       collision_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr
+      depth_camera_sub_;
 
   std::unordered_map<std::string, PC2PublisherPtr> pointcloud_pubs_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
@@ -163,6 +166,7 @@ class SensorManagerNode : public rclcpp::Node {
   SensorBuffer<robot_custom_msgs::msg::CameraDataArray> camera_buffer_;
   SensorBuffer<robot_custom_msgs::msg::BottomIrData> bottom_ir_buffer_;
   SensorBuffer<robot_custom_msgs::msg::AbnormalEventData> collision_buffer_;
+  SensorBuffer<sensor_msgs::msg::PointCloud2> depth_camera_buffer_;
 
   /*
     Multizone ToF Calibration

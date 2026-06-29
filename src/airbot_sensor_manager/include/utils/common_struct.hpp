@@ -280,5 +280,6 @@ enum class SensorType {
   kCamera,
   kBottomIr,
   kCollisionFront,
-  kCollisionRear
+  kCollisionRear,
+  kDepthCamera
 };
