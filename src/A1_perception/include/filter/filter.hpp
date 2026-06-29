@@ -421,6 +421,58 @@ class LowObstacleFilter : public BaseFilter
 };
 
 /**
+ * @brief DepthCameraLowObstacleFilter
+ *        depth 카메라(dpc → sensor_manager) PointCloud2 로부터 "낮은 장애물"(높이 3~18cm)을
+ *        판단하는 필터. 입력 클라우드는 map 좌표계(A1_perception 파이프라인 규약). 내부에서
+ *        robot pose 로 base_link 로 변환해 높이/코리도를 판정하고, 출력은 map 좌표를 유지한다.
+ *
+ *        파이프라인:
+ *          1) (robot pose 로 변환) 높이 band + 전방 코리도 RoI
+ *             (지면 높이 [min_height, max_height], x[x_min,x_max], |y|<=corridor_half_width)
+ *          2) VoxelGrid 복셀당 최소 점수    (흩어진 노이즈/flying pixel 제거 = 공간 확정)
+ *          3) Euclidean cluster 최소 크기    (고립 복셀 제거 → 진짜 물체)
+ *          4) 바닥 투영(z=0)                 (obstacle_layer 용 2D 풋프린트)
+ *
+ *        높이 변환: z = H - ground_offset. map 파이프라인은 robot 평면변환이라 z 보존 →
+ *        map z = 지면 위 높이 이므로 ground_offset=0 (map 원점이 바닥이 아니면만 보정).
+ *
+ * [YAML 설정 예시]
+ * --------------------------------------------------
+ * depth_camera_low_obstacle:
+ *   min_height: 0.03              # 감지 최소 높이(지면 기준, m)
+ *   max_height: 0.18              # 감지 최대 높이(지면 기준, m)
+ *   ground_offset: 0.045          # base_link 원점의 지면 높이(h_bl, m)
+ *   x_min: 0.10                   # 전방 최소 거리(m)
+ *   x_max: 2.0                    # 전방 최대 거리(m)
+ *   corridor_half_width: 0.20     # 좌우 코리도 반폭(m) (로봇폭/2 + 마진)
+ *   voxel_leaf: 0.04              # 복셀 한 변(m)
+ *   min_points_per_voxel: 3       # 복셀당 최소 점수(클수록 노이즈에 강하지만 작은 물체 놓침)
+ *   cluster_tolerance: 0.08       # 클러스터 결합 거리(m)
+ *   min_cluster_size: 3           # 최소 클러스터 점수(클수록 오감지↓, 작은 물체 놓침↑)
+ *   project_to_ground: true       # 살아남은 점을 z=0 으로 투영
+ * --------------------------------------------------
+ */
+class DepthCameraLowObstacleFilter : public BaseFilter
+{
+   public:
+    DepthCameraLowObstacleFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config);
+
+   private:
+    LayerVector updateImpl(LayerVector layer_vector) override;
+
+    float z_min{};                  // base_link z 하한 = min_height - ground_offset
+    float z_max{};                  // base_link z 상한 = max_height - ground_offset
+    float x_min{};
+    float x_max{};
+    float corridor_half_width{};
+    float voxel_leaf{};
+    int32_t min_points_per_voxel{};
+    float cluster_tolerance{};
+    int32_t min_cluster_size{};
+    bool project_to_ground{true};
+};
+
+/**
  * @brief OneDRoIFilter 클래스는 다각형 영역 내 또는 외부의 포인트를 필터링합니다.
  *
  * [YAML 설정 예시]

@@ -15,12 +15,12 @@ namespace sensor_manager {
  *       dpc 단계에서 range 게이트 + decimation 만 적용된 상태.
  *
  * 이 converter 의 책임(현재):
- *   1) 입력 클라우드를 target_frame_ 으로 TF 변환
- *   2) target_frame 기준 x/y/z 박스 크롭 (단순 크롭만)
+ *   1) 입력 클라우드를 target_frame_(=map) 으로 TF 변환
+ *   2) 높이(z) crop (지면 위 높이 범위만 통과)
  *
  * @note 추후 필터(voxel grid, statistical/radius outlier 등)는
  *       ApplyFilterPipeline() 안에 단계로 추가하면 된다.
- *       (현재는 crop_box 한 단계만 존재)
+ *       (현재는 height crop 한 단계만 존재)
  */
 class DepthCameraCloudConverter : public CloudConverterStrategy {
  public:
@@ -37,18 +37,17 @@ class DepthCameraCloudConverter : public CloudConverterStrategy {
   /**
    * @brief target_frame 기준으로 필터 파이프라인을 적용한다.
    *
-   * @note 현재는 crop_box 만. 향후 voxel/outlier 등을 순차 추가하는 지점.
+   * @note 현재는 height crop 만. 향후 voxel/outlier 등을 순차 추가하는 지점.
    */
   void ApplyFilterPipeline(sensor_msgs::msg::PointCloud2& cloud) const;
 
-  // ---- crop box (target_frame 기준) ----
+  // ---- 높이(z) crop ----
+  // target_frame=map 의 z = 지면 위 높이(map 원점이 바닥일 때).
+  // x/y crop 은 map 프레임에서 world 좌표라 의미가 없어 두지 않는다.
+  // (robot-relative 전방 코리도는 A1_perception 의 depth_camera_low_obstacle 필터가 담당)
   bool crop_enable_ = true;
-  double crop_min_x_ = -3.0;
-  double crop_max_x_ = 3.0;
-  double crop_min_y_ = -3.0;
-  double crop_max_y_ = 3.0;
-  double crop_min_z_ = 0.03;
-  double crop_max_z_ = 1.5;
+  double crop_min_z_ = 0.03;   // 지면 위 최소 높이 [m]
+  double crop_max_z_ = 0.60;   // 지면 위 최대 높이 [m] (로봇 높이 0.55 + 여유)
 
   // TF lookup timeout [s] (입력 stamp 기준 변환 실패 시 latest 로 폴백)
   double tf_timeout_sec_ = 0.05;

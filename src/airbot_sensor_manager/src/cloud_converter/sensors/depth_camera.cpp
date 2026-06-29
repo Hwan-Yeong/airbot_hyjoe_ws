@@ -3,7 +3,7 @@
 #include <sstream>
 #include <utility>
 
-#include <pcl/filters/crop_box.h>
+#include <pcl/filters/passthrough.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -24,24 +24,15 @@ DepthCameraCloudConverter::DepthCameraCloudConverter(SensorManagerNode* node_ptr
 
   LoadCommonConfig(config);
 
-  // per-sensor target_frame 오버라이드.
-  // depth 카메라 클라우드엔 robot_pose 가 없어 tf_buffer 의 live TF 에 의존한다.
-  // 전역 target_frame 이 "map" 이어도 localization 없이 동작하도록,
-  // 이 센서만 별도 프레임(기본 base_link)으로 변환할 수 있게 한다.
-  if (config["target_frame"] && config["target_frame"].IsScalar()) {
-    this->target_frame_ = config["target_frame"].as<std::string>();
-  }
+  // target_frame 은 전역 파라미터(node target_frame, 보통 "map")를 그대로 사용한다.
+  // (base 클래스 생성자에서 target_frame_ = node->GetTargetFrame() 로 이미 설정됨)
 
-  // crop box (target_frame 기준)
-  if (config["filters"] && config["filters"]["crop_box"]) {
-    const auto& cb = config["filters"]["crop_box"];
-    crop_enable_ = cb["enable"] ? cb["enable"].as<bool>() : true;
-    crop_min_x_ = cb["min_x"] ? cb["min_x"].as<double>() : crop_min_x_;
-    crop_max_x_ = cb["max_x"] ? cb["max_x"].as<double>() : crop_max_x_;
-    crop_min_y_ = cb["min_y"] ? cb["min_y"].as<double>() : crop_min_y_;
-    crop_max_y_ = cb["max_y"] ? cb["max_y"].as<double>() : crop_max_y_;
-    crop_min_z_ = cb["min_z"] ? cb["min_z"].as<double>() : crop_min_z_;
-    crop_max_z_ = cb["max_z"] ? cb["max_z"].as<double>() : crop_max_z_;
+  // 높이(z) crop (지면 위 높이). x/y crop 은 map 프레임에서 무의미하여 두지 않는다.
+  if (config["filters"] && config["filters"]["height_crop"]) {
+    const auto& hc = config["filters"]["height_crop"];
+    crop_enable_ = hc["enable"] ? hc["enable"].as<bool>() : true;
+    crop_min_z_ = hc["min_z"] ? hc["min_z"].as<double>() : crop_min_z_;
+    crop_max_z_ = hc["max_z"] ? hc["max_z"].as<double>() : crop_max_z_;
   }
   if (config["tf_timeout_sec"]) {
     tf_timeout_sec_ = config["tf_timeout_sec"].as<double>();
@@ -49,11 +40,9 @@ DepthCameraCloudConverter::DepthCameraCloudConverter(SensorManagerNode* node_ptr
 
   std::ostringstream oss;
   oss << GetCommonConfigInfo("DEPTH CAMERA");
-  oss << "  effective target_frame    : " << this->target_frame_ << "\n";
-  oss << "  crop_box enable           : " << std::boolalpha << crop_enable_ << "\n";
-  oss << "  crop_box x [m]            : " << crop_min_x_ << " ~ " << crop_max_x_ << "\n";
-  oss << "  crop_box y [m]            : " << crop_min_y_ << " ~ " << crop_max_y_ << "\n";
-  oss << "  crop_box z [m]            : " << crop_min_z_ << " ~ " << crop_max_z_ << "\n";
+  oss << "  target_frame (global)     : " << this->target_frame_ << "\n";
+  oss << "  height crop enable         : " << std::boolalpha << crop_enable_ << "\n";
+  oss << "  height crop z [m]          : " << crop_min_z_ << " ~ " << crop_max_z_ << "\n";
   oss << "  tf_timeout_sec            : " << tf_timeout_sec_ << "\n";
   oss << "----------------------------------------------------";
   RCLCPP_INFO(this->node_ptr_->get_logger(), "%s", oss.str().c_str());
@@ -117,19 +106,16 @@ void DepthCameraCloudConverter::ApplyFilterPipeline(
       new pcl::PointCloud<pcl::PointXYZ>());
   pcl::fromROSMsg(cloud, *pcl_cloud);
 
-  // ---- Stage 1: crop box (target_frame 기준 x/y/z 박스) ----
+  // ---- Stage 1: 높이(z) crop (지면 위 높이 범위만 통과) ----
   if (crop_enable_) {
-    pcl::CropBox<pcl::PointXYZ> crop;
-    crop.setInputCloud(pcl_cloud);
-    crop.setMin(Eigen::Vector4f(static_cast<float>(crop_min_x_),
-                                static_cast<float>(crop_min_y_),
-                                static_cast<float>(crop_min_z_), 1.0f));
-    crop.setMax(Eigen::Vector4f(static_cast<float>(crop_max_x_),
-                                static_cast<float>(crop_max_y_),
-                                static_cast<float>(crop_max_z_), 1.0f));
+    pcl::PassThrough<pcl::PointXYZ> pass;
+    pass.setInputCloud(pcl_cloud);
+    pass.setFilterFieldName("z");
+    pass.setFilterLimits(static_cast<float>(crop_min_z_),
+                         static_cast<float>(crop_max_z_));
     pcl::PointCloud<pcl::PointXYZ>::Ptr cropped(
         new pcl::PointCloud<pcl::PointXYZ>());
-    crop.filter(*cropped);
+    pass.filter(*cropped);
     pcl_cloud.swap(cropped);
   }
 
