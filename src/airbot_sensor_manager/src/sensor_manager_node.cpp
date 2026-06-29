@@ -66,62 +66,69 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud") {
         }
       });
 
-  // ToF Msg Subscriber
-  tof_sub_ =
-    this->create_subscription<robot_custom_msgs::msg::TofData>(
-      "/tof_data", rclcpp::SensorDataQoS(),
-      [this](robot_custom_msgs::msg::TofData::SharedPtr msg) {
-        if (!this->node_active_cmd_) return;
-        std::lock_guard<std::mutex> lock(tof_buffer_.mtx);
-        tof_buffer_.latest_msg = msg;
-        tof_buffer_.receive_time = this->now();
-        tof_buffer_.updated.store(true);
-      });
+  // 토픽 해석/use 판정은 멤버 메서드(ResolveInputTopic / IsAnySensorUsed)로 분리되어 있다.
+  // 스트림을 소비하는 converter 중 use:true 가 하나라도 있을 때만 구독을 생성한다.
 
-  // Camera Msg Subscriber
-  camera_sub_ =
-    this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
-      "/camera_data", rclcpp::SensorDataQoS(),
-      [this](robot_custom_msgs::msg::CameraDataArray::SharedPtr msg) {
-        if (!this->node_active_cmd_) return;
-        std::lock_guard<std::mutex> lock(camera_buffer_.mtx);
-        camera_buffer_.latest_msg = msg;
-        camera_buffer_.receive_time = this->now();
-        camera_buffer_.updated.store(true);
-      });
+  // ToF Msg Subscriber (스트림: tof -> tof_mono + tof_multi_left/right 가 공유 소비)
+  if (IsAnySensorUsed({"tof_mono", "tof_multi_left", "tof_multi_right"})) {
+    tof_sub_ =
+      this->create_subscription<robot_custom_msgs::msg::TofData>(
+        ResolveInputTopic("tof", "/tof_data"), rclcpp::SensorDataQoS(),
+        [this](robot_custom_msgs::msg::TofData::SharedPtr msg) {
+          if (!this->node_active_cmd_) return;
+          std::lock_guard<std::mutex> lock(tof_buffer_.mtx);
+          tof_buffer_.latest_msg = msg;
+          tof_buffer_.receive_time = this->now();
+          tof_buffer_.updated.store(true);
+        });
+  }
 
-  // Bottom IR Msg Subscriber
-  bottom_ir_sub_ =
-    this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
-      "/bottom_ir_data", rclcpp::SensorDataQoS(),
-      [this](robot_custom_msgs::msg::BottomIrData::SharedPtr msg) {
-        if (!this->node_active_cmd_) return;
-        std::lock_guard<std::mutex> lock(bottom_ir_buffer_.mtx);
-        bottom_ir_buffer_.latest_msg = msg;
-        bottom_ir_buffer_.receive_time = this->now();
-        bottom_ir_buffer_.updated.store(true);
-      });
+  // Camera Msg Subscriber (스트림: camera)
+  if (IsAnySensorUsed({"camera"})) {
+    camera_sub_ =
+      this->create_subscription<robot_custom_msgs::msg::CameraDataArray>(
+        ResolveInputTopic("camera", "/camera_data"), rclcpp::SensorDataQoS(),
+        [this](robot_custom_msgs::msg::CameraDataArray::SharedPtr msg) {
+          if (!this->node_active_cmd_) return;
+          std::lock_guard<std::mutex> lock(camera_buffer_.mtx);
+          camera_buffer_.latest_msg = msg;
+          camera_buffer_.receive_time = this->now();
+          camera_buffer_.updated.store(true);
+        });
+  }
 
-  // Collision Msg Subscriber
-  collision_sub_ =
-    this->create_subscription<robot_custom_msgs::msg::AbnormalEventData>(
-      "/collision_detected", rclcpp::QoS(10).reliable(),
-      [this](robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg) {
-        if (!this->node_active_cmd_) return;
-        std::lock_guard<std::mutex> lock(collision_buffer_.mtx);
-        collision_buffer_.latest_msg = msg;
-        collision_buffer_.receive_time = this->now();
-        collision_buffer_.updated.store(true);
-      });
+  // Bottom IR Msg Subscriber (스트림: bottom_ir)
+  if (IsAnySensorUsed({"bottom_ir"})) {
+    bottom_ir_sub_ =
+      this->create_subscription<robot_custom_msgs::msg::BottomIrData>(
+        ResolveInputTopic("bottom_ir", "/bottom_ir_data"), rclcpp::SensorDataQoS(),
+        [this](robot_custom_msgs::msg::BottomIrData::SharedPtr msg) {
+          if (!this->node_active_cmd_) return;
+          std::lock_guard<std::mutex> lock(bottom_ir_buffer_.mtx);
+          bottom_ir_buffer_.latest_msg = msg;
+          bottom_ir_buffer_.receive_time = this->now();
+          bottom_ir_buffer_.updated.store(true);
+        });
+  }
 
-  // Depth Camera PointCloud2 Subscriber (input = depth_pointcloud_converter 출력)
-  {
-    std::string depth_camera_input_topic = "/camera/depth/points";
-    if (config_["sensors"] && config_["sensors"]["depth_camera"] &&
-        config_["sensors"]["depth_camera"]["input_topic"]) {
-      depth_camera_input_topic =
-          config_["sensors"]["depth_camera"]["input_topic"].as<std::string>();
-    }
+  // Collision Msg Subscriber (스트림: collision -> collision_front + collision_rear 가 공유 소비)
+  if (IsAnySensorUsed({"collision_front", "collision_rear"})) {
+    collision_sub_ =
+      this->create_subscription<robot_custom_msgs::msg::AbnormalEventData>(
+        ResolveInputTopic("collision", "/collision_detected"), rclcpp::QoS(10).reliable(),
+        [this](robot_custom_msgs::msg::AbnormalEventData::SharedPtr msg) {
+          if (!this->node_active_cmd_) return;
+          std::lock_guard<std::mutex> lock(collision_buffer_.mtx);
+          collision_buffer_.latest_msg = msg;
+          collision_buffer_.receive_time = this->now();
+          collision_buffer_.updated.store(true);
+        });
+  }
+
+  // Depth Camera PointCloud2 Subscriber (스트림: depth_camera, input = dpc 출력)
+  if (IsAnySensorUsed({"depth_camera"})) {
+    const std::string depth_camera_input_topic =
+        ResolveInputTopic("depth_camera", "/camera/depth/points");
     depth_camera_sub_ =
       this->create_subscription<sensor_msgs::msg::PointCloud2>(
         depth_camera_input_topic, rclcpp::SensorDataQoS(),
@@ -194,22 +201,31 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud") {
     }
   }
 
-  // Helper lambda to start individual timers
-  auto start_timer_if_exists = [&](const std::string& name, auto callback) {
-    if (pointcloud_publishing_rate_map_.count(name) && pointcloud_publishing_rate_map_[name] > 0) {
+  // Helper lambda to start individual timers.
+  // 구독/publisher 와 동일하게, 해당 타이머가 서비스하는 센서가 use:true 일 때만 생성한다.
+  // (use:false 면 구독·publisher 도 없으므로 타이머가 돌아봐야 헛돈다)
+  auto start_timer_if_exists = [&](const std::string& name, bool used, auto callback) {
+    if (used && pointcloud_publishing_rate_map_.count(name) && pointcloud_publishing_rate_map_[name] > 0) {
       timers_[name] = this->create_wall_timer(
           std::chrono::milliseconds(pointcloud_publishing_rate_map_[name]), callback);
     }
   };
 
-  // Create individual PointCloud Publish Timers
-  start_timer_if_exists("tof_mono", std::bind(&SensorManagerNode::PublishTofMonoTimerCallback, this));
-  start_timer_if_exists("tof_multi", std::bind(&SensorManagerNode::PublishTofMultiTimerCallback, this));
-  start_timer_if_exists("camera", std::bind(&SensorManagerNode::PublishCameraTimerCallback, this));
-  start_timer_if_exists("bottom_ir", std::bind(&SensorManagerNode::PublishBottomIrTimerCallback, this));
-  start_timer_if_exists("collision_front", std::bind(&SensorManagerNode::PublishCollisionFrontTimerCallback, this));
-  start_timer_if_exists("collision_rear", std::bind(&SensorManagerNode::PublishCollisionRearTimerCallback, this));
-  start_timer_if_exists("depth_camera", std::bind(&SensorManagerNode::PublishDepthCameraTimerCallback, this));
+  // Create individual PointCloud Publish Timers (해당 센서 use 기준 게이트)
+  start_timer_if_exists("tof_mono", IsAnySensorUsed({"tof_mono"}),
+                        std::bind(&SensorManagerNode::PublishTofMonoTimerCallback, this));
+  start_timer_if_exists("tof_multi", IsAnySensorUsed({"tof_multi_left", "tof_multi_right"}),
+                        std::bind(&SensorManagerNode::PublishTofMultiTimerCallback, this));
+  start_timer_if_exists("camera", IsAnySensorUsed({"camera"}),
+                        std::bind(&SensorManagerNode::PublishCameraTimerCallback, this));
+  start_timer_if_exists("bottom_ir", IsAnySensorUsed({"bottom_ir"}),
+                        std::bind(&SensorManagerNode::PublishBottomIrTimerCallback, this));
+  start_timer_if_exists("collision_front", IsAnySensorUsed({"collision_front"}),
+                        std::bind(&SensorManagerNode::PublishCollisionFrontTimerCallback, this));
+  start_timer_if_exists("collision_rear", IsAnySensorUsed({"collision_rear"}),
+                        std::bind(&SensorManagerNode::PublishCollisionRearTimerCallback, this));
+  start_timer_if_exists("depth_camera", IsAnySensorUsed({"depth_camera"}),
+                        std::bind(&SensorManagerNode::PublishDepthCameraTimerCallback, this));
 
   // Dynamic Parameter Handler (for changing parameters at runtime)
   param_handler_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
@@ -249,6 +265,27 @@ void SensorManagerNode::LoadConfig() {
         YAML::LoadFile(fallback_path)["airbot_sensor_manager"]
                       ["ros__parameters"];
   }
+}
+
+std::string SensorManagerNode::ResolveInputTopic(const std::string& stream_key,
+                                                 const std::string& default_topic) {
+  if (config_["input_topics"] && config_["input_topics"][stream_key]) {
+    return config_["input_topics"][stream_key].as<std::string>();
+  }
+  return default_topic;
+}
+
+bool SensorManagerNode::IsSensorUsed(const std::string& sensor_key) {
+  if (!config_["sensors"] || !config_["sensors"][sensor_key]) return false;
+  const auto& s = config_["sensors"][sensor_key];
+  return s["use"] ? s["use"].as<bool>() : true;  // LoadCommonConfig 와 동일한 기본값(true)
+}
+
+bool SensorManagerNode::IsAnySensorUsed(const std::vector<std::string>& sensor_keys) {
+  for (const auto& key : sensor_keys) {
+    if (IsSensorUsed(key)) return true;
+  }
+  return false;
 }
 
 void SensorManagerNode::Init() {
@@ -390,6 +427,12 @@ void SensorManagerNode::InitConverters(const YAML::Node& config) {
   for (const auto& sensor : config) {
     std::string sensor_name = sensor.first.as<std::string>();
     const YAML::Node& sensor_config = sensor.second;
+
+    // use:false 센서는 converter 를 생성하지 않는다(리소스 절약, 구독/타이머와 일관).
+    // use 키가 없으면 사용으로 간주(기존 동작 유지).
+    if (!IsSensorUsed(sensor_name)) {
+      continue;
+    }
 
     auto converter = sensor_manager::CloudConverterFactory::Create(
         this, sensor_name, sensor_config);
