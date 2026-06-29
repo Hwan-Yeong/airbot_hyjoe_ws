@@ -44,6 +44,24 @@ class SensorManagerNode : public rclcpp::Node {
   void InitializeRuntime();
 
   /**
+   * @brief input_topics[stream_key] 구독 토픽을 반환한다. 없으면 default_topic.
+   */
+  std::string ResolveInputTopic(const std::string& stream_key,
+                                const std::string& default_topic);
+
+  /**
+   * @brief sensors[sensor_key].use 조회. 블록이 없으면 false,
+   *        use 키가 생략되면 true(LoadCommonConfig 의 기본값과 동일).
+   */
+  bool IsSensorUsed(const std::string& sensor_key);
+
+  /**
+   * @brief 주어진 소비 센서들 중 하나라도 use:true 이면 true.
+   *        하나의 입력 스트림을 공유하는 converter 들의 사용 여부 판정용.
+   */
+  bool IsAnySensorUsed(const std::vector<std::string>& sensor_keys);
+
+  /**
    * @brief Initializes publishers.
    *
    * @note Topic format based on 'target frame': /sensor_manager/pointcloud/{sensor_name}

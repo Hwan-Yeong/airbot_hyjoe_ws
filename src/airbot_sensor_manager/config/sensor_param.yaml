@@ -3,6 +3,16 @@ airbot_sensor_manager:
     target_frame: "map" # "map" or "base_link"
     output_topic_prefix: "sensor_to_pointcloud/"
 
+    # 노드가 실제로 구독하는 입력 스트림 토픽 (converter 와 독립).
+    # 키 하나 = 구독 1개. 하나의 스트림을 여러 converter 가 공유할 수 있고,
+    # 아래 sensors 에서 converter 를 켜고/꺼도 구독은 그대로 유지된다.
+    input_topics:
+      tof: "/tof_data"                      # tof_mono, tof_multi
+      camera: "/camera_data"                # camera
+      bottom_ir: "/bottom_ir_data"          # bottom_ir
+      collision: "/collision_detected"      # collision_front, collision_rear
+      depth_camera: "/camera/depth/points"  # depth_camera
+
     sensors:
       tof_mono:
         output_topic_suffix: "tof/mono"
@@ -177,8 +187,6 @@ airbot_sensor_manager:
         enable_target_frame_cloud: true # target frame 기준 PointCloud 발행
         enable_sensor_tf_cloud: false # 별도 static TF 불필요(dpc launch + URDF가 TF 제공)
         reset_timeout_sec: 5.0 # 마지막 수신 후 타임아웃 시 내부 상태 리셋
-        input_topic: "/camera/depth/points" # dpc 출력(구독 대상)
-        # target_frame 은 전역 파라미터(상단 target_frame: "map")를 그대로 사용한다.
         tf_timeout_sec: 0.05 # 입력 stamp 기준 TF 변환 timeout (실패 시 latest 폴백)
         filters:
           # 높이(z) crop 만 수행 (= 지면 위 높이, robot 무관). x/y 는 map 에서 world 좌표라
