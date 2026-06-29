@@ -24,7 +24,8 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud") {
       {SensorType::kCamera, {"camera", "camera_object"}},
       {SensorType::kBottomIr, {"bottom_ir", "bottom_ir"}},
       {SensorType::kCollisionFront, {"collision_front", "collision/front"}},
-      {SensorType::kCollisionRear, {"collision_rear", "collision/rear"}}};
+      {SensorType::kCollisionRear, {"collision_rear", "collision/rear"}},
+      {SensorType::kDepthCamera, {"depth_camera", "depth_camera"}}};
 
   // Initialize Multizone ToF Calibrator
   mtof_calibrator_ = std::make_unique<MultizoneTofCalibrator>(
@@ -113,6 +114,28 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud") {
         collision_buffer_.updated.store(true);
       });
 
+  // Depth Camera PointCloud2 Subscriber (input = depth_pointcloud_converter 출력)
+  {
+    std::string depth_camera_input_topic = "/camera/depth/points";
+    if (config_["sensors"] && config_["sensors"]["depth_camera"] &&
+        config_["sensors"]["depth_camera"]["input_topic"]) {
+      depth_camera_input_topic =
+          config_["sensors"]["depth_camera"]["input_topic"].as<std::string>();
+    }
+    depth_camera_sub_ =
+      this->create_subscription<sensor_msgs::msg::PointCloud2>(
+        depth_camera_input_topic, rclcpp::SensorDataQoS(),
+        [this](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+          if (!this->node_active_cmd_) return;
+          std::lock_guard<std::mutex> lock(depth_camera_buffer_.mtx);
+          depth_camera_buffer_.latest_msg = msg;
+          depth_camera_buffer_.receive_time = this->now();
+          depth_camera_buffer_.updated.store(true);
+        });
+    RCLCPP_INFO(this->get_logger(), "  Depth Camera input topic: '%s'",
+                depth_camera_input_topic.c_str());
+  }
+
   // Multizone ToF Calibration Cmd Subscriber
   mtof_calibration_cmd_sub_ =
     this->create_subscription<std_msgs::msg::UInt8>(
@@ -186,6 +209,7 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud") {
   start_timer_if_exists("bottom_ir", std::bind(&SensorManagerNode::PublishBottomIrTimerCallback, this));
   start_timer_if_exists("collision_front", std::bind(&SensorManagerNode::PublishCollisionFrontTimerCallback, this));
   start_timer_if_exists("collision_rear", std::bind(&SensorManagerNode::PublishCollisionRearTimerCallback, this));
+  start_timer_if_exists("depth_camera", std::bind(&SensorManagerNode::PublishDepthCameraTimerCallback, this));
 
   // Dynamic Parameter Handler (for changing parameters at runtime)
   param_handler_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
@@ -489,6 +513,18 @@ void SensorManagerNode::PublishCollisionRearTimerCallback() {
   }
 }
 
+void SensorManagerNode::PublishDepthCameraTimerCallback() {
+  if (!this->node_active_cmd_) return;
+
+  static rclcpp::Time last_pub_time = rclcpp::Time(0, 0, RCL_ROS_TIME);
+  sensor_msgs::msg::PointCloud2::SharedPtr msg_copied;
+  rclcpp::Time recv_time;
+
+  if (this->ProcessBuffer(depth_camera_buffer_, msg_copied, recv_time, last_pub_time)) {
+    PublishPointcloud(SensorType::kDepthCamera, msg_copied, recv_time);
+  }
+}
+
 void SensorManagerNode::PublishPointcloud(SensorType sensor_type,
                                           const std::shared_ptr<void> msg_copied,
                                           const rclcpp::Time& receive_time) {
@@ -516,6 +552,8 @@ void SensorManagerNode::PublishPointcloud(SensorType sensor_type,
     rate_ms = pointcloud_publishing_rate_map_["collision_front"];
   else if (sensor_type == SensorType::kCollisionRear)
     rate_ms = pointcloud_publishing_rate_map_["collision_rear"];
+  else if (sensor_type == SensorType::kDepthCamera)
+    rate_ms = pointcloud_publishing_rate_map_["depth_camera"];
 
   self_diagnosis_->CheckLatency(sensor_type, receive_time, rate_ms);
 

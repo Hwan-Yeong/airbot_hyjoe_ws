@@ -49,6 +49,9 @@ void SelfDiagnosis::CheckLatency(SensorType sensor_type,
       case SensorType::kCollisionRear:
         sensor_name = "COLLISION_REAR";
         break;
+      case SensorType::kDepthCamera:
+        sensor_name = "DEPTH_CAMERA";
+        break;
       default:
         sensor_name = "UNKNOWN";
         break;

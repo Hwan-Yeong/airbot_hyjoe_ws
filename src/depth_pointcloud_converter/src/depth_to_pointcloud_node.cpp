@@ -104,7 +104,7 @@ void DepthToPointCloudNode::publishTimerCallback()
   {
     std::lock_guard<std::mutex> lk(depth_mutex_);
     if (!latest_depth_) {
-      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 3000,
+      RCLCPP_WARN_THROTTLE(get_logger(), *this->get_clock(), 3000,
         "Waiting for depth image on %s ...", depth_topic_.c_str());
       return;
     }
@@ -123,7 +123,7 @@ void DepthToPointCloudNode::publishTimerCallback()
     intr = intrinsics_;
   }
   if (!intr.valid) {
-    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 3000,
+    RCLCPP_WARN_THROTTLE(get_logger(), *this->get_clock(), 3000,
       "Waiting for valid camera_info on %s ...", camera_info_topic_.c_str());
     return;
   }
@@ -141,10 +141,10 @@ void DepthToPointCloudNode::publishTimerCallback()
 // ===================== depth -> PointCloud2 =====================
 bool DepthToPointCloudNode::buildPointCloud(const sensor_msgs::msg::Image & depth,
                                             const CameraIntrinsics & intr,
-                                            sensor_msgs::msg::PointCloud2 & cloud) const
+                                            sensor_msgs::msg::PointCloud2 & cloud)
 {
   if (depth.encoding != "16UC1") {
-    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 3000,
+    RCLCPP_WARN_THROTTLE(get_logger(), *this->get_clock(), 3000,
       "Unexpected depth encoding '%s' (expected 16UC1) - skipping", depth.encoding.c_str());
     return false;
   }

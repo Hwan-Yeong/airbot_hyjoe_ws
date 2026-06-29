@@ -170,6 +170,35 @@ airbot_sensor_manager:
             child: "collision_rear_link"
           distance: -0.19 # backward point offset (negative)
 
+      depth_camera: # NU4100 depth -> dpc(PointCloud2) -> 크롭 -> costmap source
+        output_topic_suffix: "depth_camera"
+        publish_rate_ms: 66 # ~15Hz
+        use: true # 센서 모듈 사용 여부
+        enable_target_frame_cloud: true # target frame 기준 PointCloud 발행
+        enable_sensor_tf_cloud: false # 별도 static TF 불필요(dpc launch + URDF가 TF 제공)
+        reset_timeout_sec: 5.0 # 마지막 수신 후 타임아웃 시 내부 상태 리셋
+        input_topic: "/camera/depth/points" # dpc 출력(구독 대상)
+        # 이 센서만의 target_frame 오버라이드(전역 target_frame 무시).
+        # depth 클라우드는 live TF 에 의존하므로 localization 없이도 동작하는
+        # base_link(또는 odom)를 권장. map 으로 두면 localization 필요.
+        target_frame: "base_link"
+        tf_timeout_sec: 0.05 # 입력 stamp 기준 TF 변환 timeout (실패 시 latest 폴백)
+        filters:
+          # 현재는 단순 x/y/z 박스 크롭만. (voxel/outlier 등은 추후 추가)
+          # 좌표계 = target_frame (아래 target_frame 설정값). 보통 base_link 기준 권장.
+          crop_box:
+            enable: true
+            min_x: -0.2 # 뒤쪽
+            max_x: 3.0 # 전방
+            min_y: -2.0 # 우측
+            max_y: 2.0 # 좌측
+            # min_z 는 base_link 원점 기준(지면 아님!).
+            #   지면 기준 컷 높이 = h_bl + min_z,  h_bl = base_link 원점의 지면 높이(=0.045)
+            #   바닥면 자체는 z_bl = -h_bl = -0.045 → min_z 를 -0.045보다 낮추면 바닥이 장애물로 들어옴
+            #   현재 -0.035 = 지면 1.0cm 위부터 통과 (저장애물 감지 + 바닥 노이즈 마진)
+            min_z: -0.035 # 지면 ~1cm 위. 바닥 false positive 나면 -0.025(지면 2cm)로 올릴 것
+            max_z: 0.55 # 로봇 높이 정도까지(지면 기준 0.595m)
+
       empty: # use_tf2 = true 인 모드에서는 작동되지 않음
         use: true # 센서 모듈 사용 여부
         enable_target_frame_cloud: true # target frame 기준 통합 PointCloud 발행

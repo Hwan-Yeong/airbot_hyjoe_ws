@@ -46,6 +46,7 @@ add_executable(sensor_manager
   src/cloud_converter/cloud_converter_strategy.cpp
   src/cloud_converter/sensors/bottom_ir.cpp
   src/cloud_converter/sensors/camera.cpp
+  src/cloud_converter/sensors/depth_camera.cpp
   src/cloud_converter/sensors/tof_mono.cpp
   src/cloud_converter/sensors/tof_multi.cpp
   src/cloud_converter/virtual/collision.cpp

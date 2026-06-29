@@ -57,7 +57,7 @@ private:
   // (향후 후처리 필터를 끼울 경우 이 결과를 입력으로 받는 단계를 추가하면 됨)
   bool buildPointCloud(const sensor_msgs::msg::Image & depth,
                        const CameraIntrinsics & intr,
-                       sensor_msgs::msg::PointCloud2 & cloud_out) const;
+                       sensor_msgs::msg::PointCloud2 & cloud_out);
 
   // ---- 파라미터 ----
   std::string depth_topic_;

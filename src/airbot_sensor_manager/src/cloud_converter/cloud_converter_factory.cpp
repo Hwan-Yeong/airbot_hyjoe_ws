@@ -4,6 +4,7 @@
 #include "cloud_converter/empty_converter.hpp"
 #include "cloud_converter/sensors/bottom_ir.hpp"
 #include "cloud_converter/sensors/camera.hpp"
+#include "cloud_converter/sensors/depth_camera.hpp"
 #include "cloud_converter/sensors/tof_mono.hpp"
 #include "cloud_converter/sensors/tof_multi.hpp"
 #include "cloud_converter/virtual/collision.hpp"
@@ -32,6 +33,9 @@ CloudConverterPtr CloudConverterFactory::Create(
        }},
       {"bottom_ir", [](auto n, auto c) {
          return std::make_shared<BottomIrCloudConverter>(n, c);
+       }},
+      {"depth_camera", [](auto n, auto c) {
+         return std::make_shared<DepthCameraCloudConverter>(n, c);
        }},
       {"collision_front", [](auto n, auto c) {
          return std::make_shared<CollisionCloudConverter>(n, c);
