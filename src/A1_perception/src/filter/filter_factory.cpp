@@ -61,6 +61,10 @@ FilterFactory::create(std::shared_ptr<PerceptionNode> node_ptr, const std::strin
     {
         return std::make_shared<DepthCameraLowObstacleFilter>(node_ptr, config);
     }
+    else if (type == "obstacle_logger")
+    {
+        return std::make_shared<ObstacleLoggerFilter>(node_ptr, config);
+    }
     else if (type == "collision_tof")
     {
         return std::make_shared<CollisionTofFilter>(node_ptr, config);
