@@ -422,34 +422,40 @@ class LowObstacleFilter : public BaseFilter
 
 /**
  * @brief DepthCameraLowObstacleFilter
- *        depth 카메라(dpc → sensor_manager) PointCloud2 로부터 "낮은 장애물"(높이 3~18cm)을
- *        판단하는 필터. 입력 클라우드는 map 좌표계(A1_perception 파이프라인 규약). 내부에서
- *        robot pose 로 base_link 로 변환해 높이/코리도를 판정하고, 출력은 map 좌표를 유지한다.
+ *        depth 카메라 PointCloud2 에서 낮은 장애물(3~20cm)을 감지/확정하는 필터.
  *
- *        파이프라인:
- *          1) (robot pose 로 변환) 높이 band + 전방 코리도 RoI
- *             (지면 높이 [min_height, max_height], x[x_min,x_max], |y|<=corridor_half_width)
- *          2) VoxelGrid 복셀당 최소 점수    (흩어진 노이즈/flying pixel 제거 = 공간 확정)
- *          3) Euclidean cluster 최소 크기    (고립 복셀 제거 → 진짜 물체)
- *          4) 바닥 투영(z=0)                 (obstacle_layer 용 2D 풋프린트)
+ * 기존 multi tof low_obstacle 과 동일한 생성/제거 정책을 따른다:
+ *  - 생성: 검증(높이 band + 전방 코리도 + 스냅샷 내 이웃 수 + lidar 미가시
+ *          + 연속 프레임 관측)을 통과한 점을 isDeletable=false 레이어에
+ *          "확정(lock)" 하여 영구 유지.
+ *  - 제거: timeout 없음. costmap clear(goal/initialpose/UDP) 로만 제거된다.
+ *          lidar 검사는 확정 "전" 1회만 수행한다 (lidar 가 보이는 곳이면
+ *          벽/일반 장애물이므로 애초에 찍지 않음). 확정된 점을 매 tick
+ *          lidar 근접으로 지우면 벽 근처 낮은 장애물이 삭제/재확정을
+ *          반복하며 costmap 이 깜박이므로, 체인에 lidar_dist_check 를
+ *          두지 말 것.
+ *  - 승월(climb) 중에는 신규 감지를 중단한다 (locked 점은 유지).
  *
- *        높이 변환: z = H - ground_offset. map 파이프라인은 robot 평면변환이라 z 보존 →
- *        map z = 지면 위 높이 이므로 ground_offset=0 (map 원점이 바닥이 아니면만 보정).
+ * timerCallback 이 매 tick 같은 스냅샷을 중복 push 하므로, 아직 처리하지 않은
+ * 최신 스냅샷 1개만 검사하고 나머지 미확정 레이어는 모두 소모(clear)한다.
+ * 확정 점은 단일 locked 레이어 하나에 누적되며, radius 내 중복 확정을 막아
+ * 점 밀도를 자체 제한한다. (별도 density/polygon_roi/timeout 필터 불필요)
  *
  * [YAML 설정 예시]
  * --------------------------------------------------
- * depth_camera_low_obstacle:
- *   min_height: 0.03              # 감지 최소 높이(지면 기준, m)
- *   max_height: 0.18              # 감지 최대 높이(지면 기준, m)
- *   ground_offset: 0.045          # base_link 원점의 지면 높이(h_bl, m)
- *   x_min: 0.10                   # 전방 최소 거리(m)
- *   x_max: 2.0                    # 전방 최대 거리(m)
- *   corridor_half_width: 0.20     # 좌우 코리도 반폭(m) (로봇폭/2 + 마진)
- *   voxel_leaf: 0.04              # 복셀 한 변(m)
- *   min_points_per_voxel: 3       # 복셀당 최소 점수(클수록 노이즈에 강하지만 작은 물체 놓침)
- *   cluster_tolerance: 0.08       # 클러스터 결합 거리(m)
- *   min_cluster_size: 3           # 최소 클러스터 점수(클수록 오감지↓, 작은 물체 놓침↑)
- *   project_to_ground: true       # 살아남은 점을 z=0 으로 투영
+ * compose:
+ *  filters:
+ *    depth_camera_low_obstacle:
+ *      min_height: 0.03          # 감지 최소 높이 (map z, m)
+ *      max_height: 0.18          # 감지 최대 높이 (map z, m)
+ *      min_neighbors: 4          # 스냅샷 내 radius 이내 최소 이웃 수 (공간 확인)
+ *      radius: 0.05              # 이웃/연속프레임 매칭/중복 확정 방지 반경 (m)
+ *      x_min: 0.10               # 전방 코리도 최소 x (base_link, m)
+ *      x_max: 2.0                # 전방 코리도 최대 x (base_link, m)
+ *      half_width: 0.20          # 전방 코리도 좌우 반폭 (base_link, m)
+ *      confirm_frames: 2         # 확정에 필요한 연속 스냅샷 관측 횟수 (시간 확인)
+ *      lidar_check_radius: 0.10  # 후보 이내에 lidar 리턴 있으면 확정 제외 (m, <=0 비활성)
+ *    obstacle_logger: { ... }
  * --------------------------------------------------
  */
 class DepthCameraLowObstacleFilter : public BaseFilter
@@ -460,16 +466,56 @@ class DepthCameraLowObstacleFilter : public BaseFilter
    private:
     LayerVector updateImpl(LayerVector layer_vector) override;
 
-    float z_min{};                  // base_link z 하한 = min_height - ground_offset
-    float z_max{};                  // base_link z 상한 = max_height - ground_offset
+    /**
+     * @brief 스냅샷(map frame)에서 낮은 장애물 후보 점 추출.
+     *        높이 band + 전방 코리도 크롭 후, radius 내 이웃 min_neighbors
+     *        이상인 점만 남기고 (고립 노이즈 제거), lidar 가 보고 있는
+     *        위치(lidar_check_radius 이내 리턴 존재)는 벽/일반 장애물로
+     *        판단하여 후보에서 제외한다.
+     */
+    pcl::PointCloud<pcl::PointXYZ> extractCandidates(const pcl::PointCloud<pcl::PointXYZ>& snapshot_cloud);
+
+    float min_height{};
+    float max_height{};
+    int32_t min_neighbors{};
+    float radius{};
     float x_min{};
     float x_max{};
-    float corridor_half_width{};
-    float voxel_leaf{};
-    int32_t min_points_per_voxel{};
-    float cluster_tolerance{};
-    int32_t min_cluster_size{};
-    bool project_to_ground{true};
+    float half_width{};
+    int32_t confirm_frames{};
+    float lidar_check_radius{};
+
+    // ---- 프레임 간 유지되는 상태 ----
+    struct PendingPoint
+    {
+        pcl::PointXYZ point;  // map frame
+        int32_t hits;         // 연속 스냅샷 관측 횟수
+    };
+    std::vector<PendingPoint> pending{};  // 확정 대기 후보
+    rclcpp::Time last_snapshot_stamp{};   // 마지막으로 처리한 스냅샷 timestamp
+};
+
+/**
+ * @brief ObstacleLoggerFilter
+ *        체인 "마지막"에 두는 관측 전용 필터. 레이어를 변경하지 않고,
+ *        최종 생존(=실제 발행될) 점들의 요약을 1Hz 로 로깅한다.
+ *        rviz2 디스플레이와 동기화된 디버깅용. (grep tag 는 yaml 의 tag 로 지정)
+ *
+ * [YAML 설정 예시]
+ * --------------------------------------------------
+ * obstacle_logger:
+ *   tag: "DEPTH_OBS"    # 로그 grep 태그
+ * --------------------------------------------------
+ */
+class ObstacleLoggerFilter : public BaseFilter
+{
+   public:
+    ObstacleLoggerFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config);
+
+   private:
+    LayerVector updateImpl(LayerVector layer_vector) override;
+
+    std::string tag{};
 };
 
 /**

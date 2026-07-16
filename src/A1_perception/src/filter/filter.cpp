@@ -7,11 +7,9 @@
 
 #include <pcl/common/distances.h>
 #include <pcl/common/transforms.h>
-#include <pcl/filters/voxel_grid.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/search/kdtree.h>
-#include <pcl/segmentation/extract_clusters.h>
 #include <pcl/segmentation/extract_polygonal_prism_data.h>
 #include <yaml-cpp/yaml.h>
 #include <Eigen/Dense>
@@ -978,177 +976,310 @@ DepthCameraLowObstacleFilter::DepthCameraLowObstacleFilter(
     std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config)
     : BaseFilter(node_ptr_)
 {
-    float min_height = getYamlValue<float>(__FUNCTION__, config, "min_height", 0.03f);
-    float max_height = getYamlValue<float>(__FUNCTION__, config, "max_height", 0.18f);
-    // map 프레임 파이프라인에서는 robot 변환이 평면(amcl x,y,yaw)이라 z 가 보존되고,
-    // map z = 지면 위 높이 이므로 ground_offset=0 이 기본. (map 원점이 바닥이 아니면 보정)
-    float ground_offset = getYamlValue<float>(__FUNCTION__, config, "ground_offset", 0.0f);
-
-    // 지면 높이 -> 판정 z 변환 (z = H - ground_offset)
-    this->z_min = min_height - ground_offset;
-    this->z_max = max_height - ground_offset;
-
+    this->min_height = getYamlValue<float>(__FUNCTION__, config, "min_height", 0.03f);
+    this->max_height = getYamlValue<float>(__FUNCTION__, config, "max_height", 0.18f);
+    this->min_neighbors = getYamlValue<int>(__FUNCTION__, config, "min_neighbors", 4);
+    this->radius = getYamlValue<float>(__FUNCTION__, config, "radius", 0.05f);
     this->x_min = getYamlValue<float>(__FUNCTION__, config, "x_min", 0.10f);
     this->x_max = getYamlValue<float>(__FUNCTION__, config, "x_max", 2.0f);
-    this->corridor_half_width = getYamlValue<float>(__FUNCTION__, config, "corridor_half_width", 0.20f);
-    this->voxel_leaf = getYamlValue<float>(__FUNCTION__, config, "voxel_leaf", 0.04f);
-    this->min_points_per_voxel = getYamlValue<int>(__FUNCTION__, config, "min_points_per_voxel", 3);
-    this->cluster_tolerance = getYamlValue<float>(__FUNCTION__, config, "cluster_tolerance", 0.08f);
-    this->min_cluster_size = getYamlValue<int>(__FUNCTION__, config, "min_cluster_size", 3);
-    this->project_to_ground = getYamlValue<bool>(__FUNCTION__, config, "project_to_ground", true);
+    this->half_width = getYamlValue<float>(__FUNCTION__, config, "half_width", 0.20f);
+    this->confirm_frames = getYamlValue<int>(__FUNCTION__, config, "confirm_frames", 2);
+    this->lidar_check_radius = getYamlValue<float>(__FUNCTION__, config, "lidar_check_radius", 0.10f);
+    this->last_snapshot_stamp = node_ptr_->now();
 
     RCLCPP_INFO(node_ptr->get_logger(),
-                "[DepthCameraLowObstacleFilter] height(ground)[%.3f,%.3f] -> z_bl[%.3f,%.3f], "
-                "x[%.2f,%.2f], |y|<=%.2f, voxel=%.3f/min_pts=%d, cluster_tol=%.3f/min=%d, project=%d",
-                min_height, max_height, z_min, z_max, x_min, x_max, corridor_half_width, voxel_leaf,
-                min_points_per_voxel, cluster_tolerance, min_cluster_size,
-                static_cast<int>(project_to_ground));
+                "[DepthCameraLowObstacleFilter] height(map z)[%.3f,%.3f]m, "
+                "corridor x[%.2f,%.2f] |y|<=%.2f, "
+                "confirm: min_neighbors=%d in radius=%.3fm x %d frames, "
+                "lidar_check_radius=%.2fm (pre-lock only), "
+                "lock-and-persist (no timeout)",
+                min_height, max_height, x_min, x_max, half_width,
+                min_neighbors, radius, confirm_frames, lidar_check_radius);
 }
 
-LayerVector DepthCameraLowObstacleFilter::updateImpl(LayerVector layer_vector)
+pcl::PointCloud<pcl::PointXYZ> DepthCameraLowObstacleFilter::extractCandidates(
+    const pcl::PointCloud<pcl::PointXYZ>& snapshot_cloud)
 {
-    LayerVector out;
-
-    // 입력 클라우드는 map 좌표계. 높이 band / 전방 코리도는 robot-relative 판정이므로
-    // (다른 RoI 필터와 동일하게) robot pose 로 map -> base_link 역변환해서 판정한다.
-    // 단, 출력은 map 프레임을 유지해야 하므로 "원본 map 점" 을 모은다.
-    auto node = this->node_ptr;
+    auto node = this->getNodePtr();
     auto position = node->getPosition();
     geometry_msgs::msg::Transform transform_msg;
     tf2::toMsg(position.getTransform().inverse(), transform_msg);
     Eigen::Affine3f inverse_transform = tf2::transformToEigen(transform_msg).cast<float>();
 
-    // 1) 입력 레이어 병합 + 높이 band / 전방 코리도 RoI
-    //
-    // 주의: 이 노드는 매 틱 layers[name] 에 입력을 append 하고 필터 출력으로 교체한다.
-    //       즉 우리의 직전 출력(z=0 투영)이 다음 틱에 다시 입력으로 들어온다(feedback).
-    //       타임아웃 기반 지속을 올바르게 하려면, 출력 timestamp 를
-    //       "실제로 점을 기여한 레이어들 중 최신 stamp" 로 잡아야 한다.
-    //       (물체 존재 중엔 fresh 입력이 기여 → stamp 갱신; 물체 사라지면
-    //        직전 출력만 기여 → stamp 정지 → timeout(체인 앞단)이 지워줌)
-    pcl::PointCloud<pcl::PointXYZ>::Ptr roi(new pcl::PointCloud<pcl::PointXYZ>());  // map 좌표 유지
-    rclcpp::Time stamp{};
-    rclcpp::Time sensor_stamp{};
-    bool have_stamp = false;
-    for (const auto& layer : layer_vector)
+    pcl::PointCloud<pcl::PointXYZ> cloud_bl;
+    pcl::transformPointCloud(snapshot_cloud, cloud_bl, inverse_transform);
+
+    // 1) 높이 band(map z) + 전방 코리도(base_link) 크롭 - 한 패스 O(N)
+    pcl::PointCloud<pcl::PointXYZ> band;     // map frame
+    pcl::PointCloud<pcl::PointXYZ> band_bl;  // base_link frame (lidar 비교용)
+    for (std::size_t i = 0; i < snapshot_cloud.size(); ++i)
     {
-        if (layer.cloud.empty()) continue;
+        const auto& pm = snapshot_cloud[i];  // map frame
+        const auto& pb = cloud_bl[i];        // base_link frame
+        if (pm.z < this->min_height || pm.z > this->max_height) continue;
+        if (pb.x < this->x_min || pb.x > this->x_max || std::abs(pb.y) > this->half_width) continue;
+        band.push_back(pm);
+        band_bl.push_back(pb);
+    }
+    if (band.empty())
+    {
+        return {};
+    }
 
-        // map -> base_link 변환본(판정 전용)
-        pcl::PointCloud<pcl::PointXYZ> cloud_bl;
-        pcl::transformPointCloud(layer.cloud, cloud_bl, inverse_transform);
-
-        bool contributed = false;
-        for (std::size_t i = 0; i < layer.cloud.size(); ++i)
+    // 2) 공간 확인: 반경 radius 내 이웃 min_neighbors 이상 (고립 노이즈 제거)
+    std::vector<bool> keep(band.size(), true);
+    if (this->min_neighbors > 0 && this->radius > 0.0f)
+    {
+        if (band.size() <= static_cast<std::size_t>(this->min_neighbors))
         {
-            const auto& pb = cloud_bl[i];  // robot 기준 (x=전방, y=좌, z=지면 위 높이)
-            if (pb.z < z_min || pb.z > z_max) continue;                       // 높이 band
-            if (pb.x < x_min || pb.x > x_max) continue;                       // 전방 거리
-            if (pb.y < -corridor_half_width || pb.y > corridor_half_width) continue;  // 코리도
-            roi->push_back(layer.cloud[i]);  // 원본 map 점을 출력용으로 보관
-            contributed = true;
+            return {};
         }
-        if (contributed && (!have_stamp || layer.timestamp > stamp))
+        pcl::search::KdTree<pcl::PointXYZ> kdtree;
+        kdtree.setInputCloud(band.makeShared());
+        for (std::size_t i = 0; i < band.size(); ++i)
         {
-            stamp = layer.timestamp;
-            sensor_stamp = layer.sensor_timestamp;
-            have_stamp = true;
+            std::vector<int> indices;
+            std::vector<float> sqr_dists;
+            int found = kdtree.radiusSearch(band[i], this->radius, indices, sqr_dists);
+            keep[i] = (found - 1 >= this->min_neighbors);  // 자기 자신 제외
         }
     }
-    if (roi->empty()) return out;
 
-    // 2) VoxelGrid 복셀당 최소 점수 (공간 확정 - 흩어진 노이즈 제거)
-    pcl::PointCloud<pcl::PointXYZ>::Ptr voxelized(new pcl::PointCloud<pcl::PointXYZ>());
-    if (min_points_per_voxel > 1 && voxel_leaf > 0.0f)
+    Layer lidar_pc = node->getSensorLayer("lidar_pc_baselink");
+    const bool use_lidar_check =
+        this->lidar_check_radius > 0.0f && !lidar_pc.cloud.empty();
+    const float lidar_r_sqr = this->lidar_check_radius * this->lidar_check_radius;
+
+    pcl::PointCloud<pcl::PointXYZ> candidates;
+    for (std::size_t i = 0; i < band.size(); ++i)
     {
-        pcl::VoxelGrid<pcl::PointXYZ> vg;
-        vg.setInputCloud(roi);
-        vg.setLeafSize(voxel_leaf, voxel_leaf, voxel_leaf);
-        vg.setMinimumPointsNumberPerVoxel(static_cast<unsigned int>(min_points_per_voxel));
-        vg.filter(*voxelized);
-    }
-    else
-    {
-        *voxelized = *roi;
-    }
-    if (voxelized->empty()) return out;
-
-    // 3) Euclidean cluster 최소 크기 (고립 복셀 제거)
-    pcl::PointCloud<pcl::PointXYZ>::Ptr confirmed(new pcl::PointCloud<pcl::PointXYZ>());
-    if (min_cluster_size > 1 && cluster_tolerance > 0.0f)
-    {
-        pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
-        tree->setInputCloud(voxelized);
-
-        std::vector<pcl::PointIndices> cluster_indices;
-        pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-        ec.setClusterTolerance(cluster_tolerance);
-        ec.setMinClusterSize(min_cluster_size);
-        ec.setMaxClusterSize(std::numeric_limits<int>::max());
-        ec.setSearchMethod(tree);
-        ec.setInputCloud(voxelized);
-        ec.extract(cluster_indices);
-
-        for (const auto& ci : cluster_indices)
+        if (!keep[i]) continue;
+        if (use_lidar_check)
         {
-            for (int idx : ci.indices)
+            bool near_lidar = false;
+            for (const auto& lp : lidar_pc.cloud)
             {
-                confirmed->push_back((*voxelized)[idx]);
+                const float dx = lp.x - band_bl[i].x;
+                const float dy = lp.y - band_bl[i].y;
+                if (dx * dx + dy * dy <= lidar_r_sqr)
+                {
+                    near_lidar = true;
+                    break;
+                }
+            }
+            if (near_lidar) continue;
+        }
+        candidates.push_back(band[i]);
+    }
+    return candidates;
+}
+
+LayerVector DepthCameraLowObstacleFilter::updateImpl(LayerVector layer_vector)
+{
+    auto node = this->getNodePtr();
+
+    // locked(확정) 레이어와 미처리 최신 스냅샷을 찾는다.
+    // timerCallback 이 매 tick 같은 스냅샷을 중복 push 하므로 timestamp 로
+    // 신규 여부를 판별하고, 미확정 레이어는 이번 tick 에 전부 소모한다.
+    std::ptrdiff_t locked_idx = -1;
+    std::ptrdiff_t newest_idx = -1;
+    for (std::size_t i = 0; i < layer_vector.size(); ++i)
+    {
+        auto& layer = layer_vector[i];
+        if (layer.isDeletable == false)
+        {
+            locked_idx = static_cast<std::ptrdiff_t>(i);
+        }
+        else if (layer.timestamp > this->last_snapshot_stamp)
+        {
+            if (newest_idx < 0 || layer.timestamp > layer_vector[newest_idx].timestamp)
+            {
+                newest_idx = static_cast<std::ptrdiff_t>(i);
             }
         }
     }
-    else
-    {
-        *confirmed = *voxelized;
-    }
-    if (confirmed->empty()) return out;
 
-    // 디버깅 로그: 로봇 기준 가장 가까운 감지 위치/높이 (1Hz throttle, grep tag [DEPTH_OBS])
+    // 승월 중 신규 감지 중단 (기존 mtof low_obstacle 과 동일 정책).
+    // pitch 상황에서는 upstream RANSAC 바닥 제거가 실패할 수 있어 오확정 위험이 크다.
+    // locked 점은 유지된다.
+    if (node->isClimb())
     {
-        pcl::PointCloud<pcl::PointXYZ> confirmed_bl;
-        pcl::transformPointCloud(*confirmed, confirmed_bl, inverse_transform);
-
-        float min_range = std::numeric_limits<float>::max();
-        float fwd = 0.0f, lat = 0.0f;
-        float h_min = std::numeric_limits<float>::max();
-        float h_max = -std::numeric_limits<float>::max();
-        for (const auto& p : confirmed_bl.points)
+        this->pending.clear();
+        for (auto& layer : layer_vector)
         {
-            const float range = std::sqrt(p.x * p.x + p.y * p.y);
+            if (layer.isDeletable)
+                layer.cloud.clear();
+        }
+        return layer_vector;
+    }
+
+    pcl::PointCloud<pcl::PointXYZ> new_locked_points;
+    if (newest_idx >= 0)
+    {
+        this->last_snapshot_stamp = layer_vector[newest_idx].timestamp;
+        auto candidates = this->extractCandidates(layer_vector[newest_idx].cloud);
+
+        const float match_sqr = this->radius * this->radius;
+        const pcl::PointCloud<pcl::PointXYZ>* locked_cloud =
+            (locked_idx >= 0) ? &layer_vector[locked_idx].cloud : nullptr;
+
+        // 시간 확인: 연속 confirm_frames 스냅샷에서 관측된 후보만 확정.
+        // 이미 확정된 점 근방(radius)의 후보는 중복이므로 버린다 (밀도 자체 제한).
+        std::vector<PendingPoint> next_pending;
+        for (const auto& p : candidates)
+        {
+            bool duplicated = false;
+            if (locked_cloud != nullptr)
+            {
+                for (const auto& lp : *locked_cloud)
+                {
+                    const float dx = lp.x - p.x, dy = lp.y - p.y;
+                    if (dx * dx + dy * dy <= match_sqr)
+                    {
+                        duplicated = true;
+                        break;
+                    }
+                }
+            }
+            for (const auto& np : new_locked_points)
+            {
+                const float dx = np.x - p.x, dy = np.y - p.y;
+                if (dx * dx + dy * dy <= match_sqr)
+                {
+                    duplicated = true;
+                    break;
+                }
+            }
+            if (duplicated) continue;
+
+            int32_t hits = 1;
+            for (const auto& prev : this->pending)
+            {
+                const float dx = prev.point.x - p.x, dy = prev.point.y - p.y;
+                if (dx * dx + dy * dy <= match_sqr)
+                {
+                    hits = prev.hits + 1;
+                    break;
+                }
+            }
+
+            if (hits >= this->confirm_frames)
+            {
+                new_locked_points.push_back(p);
+            }
+            else
+            {
+                next_pending.push_back({p, hits});
+            }
+        }
+        // 이번 스냅샷에서 관측되지 않은 pending 은 폐기 (연속 관측 조건)
+        this->pending = std::move(next_pending);
+    }
+
+    // 미확정(스냅샷) 레이어는 모두 소모: 판정은 위에서 끝났고,
+    // 빈 cloud 레이어는 BaseFilter::update() 가 vector 에서 제거한다.
+    for (auto& layer : layer_vector)
+    {
+        if (layer.isDeletable)
+            layer.cloud.clear();
+    }
+
+    // 신규 확정 점을 locked 레이어에 누적 (없으면 생성).
+    if (!new_locked_points.empty())
+    {
+        auto now = node->now();
+        if (locked_idx < 0)
+        {
+            Layer locked_layer;
+            locked_layer.isDeletable = false;
+            layer_vector.push_back(locked_layer);
+            locked_idx = static_cast<std::ptrdiff_t>(layer_vector.size() - 1);
+        }
+        auto& locked_layer = layer_vector[locked_idx];
+        locked_layer.cloud.insert(
+            locked_layer.cloud.end(), new_locked_points.begin(), new_locked_points.end());
+        locked_layer.timestamp = now;
+        locked_layer.sensor_timestamp = now;
+
+        if (logIntervalPassed())
+        {
+            auto position = node->getPosition();
+            const auto& p0 = new_locked_points[0];
+            RCLCPP_INFO(
+                node->get_logger(),
+                "Low obstacle locked (depth). robot_xy(%.3f, %.3f), Obs(x:%.3f, y:%.3f, z:%.3f), "
+                "new:%zu total:%zu",
+                position.x,
+                position.y,
+                p0.x,
+                p0.y,
+                p0.z,
+                new_locked_points.size(),
+                locked_layer.cloud.size());
+        }
+    }
+
+    return layer_vector;
+}
+
+ObstacleLoggerFilter::ObstacleLoggerFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config)
+    : BaseFilter(node_ptr_)
+{
+    this->tag = getYamlValue<std::string>(__FUNCTION__, config, "tag", "OBS");
+}
+
+LayerVector ObstacleLoggerFilter::updateImpl(LayerVector layer_vector)
+{
+    if (!this->logIntervalPassed())
+    {
+        return layer_vector;
+    }
+
+    auto node = this->getNodePtr();
+    auto position = node->getPosition();
+    geometry_msgs::msg::Transform transform_msg;
+    tf2::toMsg(position.getTransform().inverse(), transform_msg);
+    Eigen::Affine3f inverse_transform = tf2::transformToEigen(transform_msg).cast<float>();
+
+    std::size_t total_pts = 0;
+    std::size_t locked_layers = 0;
+    float min_range = std::numeric_limits<float>::max();
+    float fwd = 0.0f, lat = 0.0f;
+    float h_min = std::numeric_limits<float>::max();
+    float h_max = -std::numeric_limits<float>::max();
+    for (const auto& layer : layer_vector)
+    {
+        if (layer.isDeletable == false) ++locked_layers;
+        if (layer.cloud.empty()) continue;
+
+        pcl::PointCloud<pcl::PointXYZ> cloud_bl;
+        pcl::transformPointCloud(layer.cloud, cloud_bl, inverse_transform);
+        for (std::size_t i = 0; i < cloud_bl.size(); ++i)
+        {
+            const float range =
+                std::sqrt(cloud_bl[i].x * cloud_bl[i].x + cloud_bl[i].y * cloud_bl[i].y);
             if (range < min_range)
             {
                 min_range = range;
-                fwd = p.x;
-                lat = p.y;
+                fwd = cloud_bl[i].x;
+                lat = cloud_bl[i].y;
             }
-            h_min = std::min(h_min, p.z);
-            h_max = std::max(h_max, p.z);
-        }
-        if (this->logIntervalPassed())
-        {
-            RCLCPP_INFO(node->get_logger(),
-                        "[DEPTH_OBS] detected pts=%zu nearest=%.2fm (fwd=%.2f lat=%+.2f) height=[%.2f,%.2f]m",
-                        confirmed->size(), min_range, fwd, lat, h_min, h_max);
+            h_min = std::min(h_min, layer.cloud[i].z);
+            h_max = std::max(h_max, layer.cloud[i].z);
+            ++total_pts;
         }
     }
 
-    // 4) 바닥 투영(z=0) - obstacle_layer 용 2D 풋프린트
-    if (project_to_ground)
+    if (total_pts > 0)
     {
-        for (auto& p : confirmed->points)
-        {
-            p.z = 0.0f;
-        }
+        RCLCPP_INFO(node->get_logger(),
+                    "[%s] published pts=%zu layers=%zu(locked=%zu) nearest=%.2fm "
+                    "(fwd=%.2f lat=%+.2f) height=[%.2f,%.2f]m",
+                    this->tag.c_str(), total_pts, layer_vector.size(), locked_layers,
+                    min_range, fwd, lat, h_min, h_max);
     }
 
-    // 5) 출력 레이어 구성
-    Layer obstacle_layer;
-    obstacle_layer.cloud = *confirmed;
-    obstacle_layer.timestamp = have_stamp ? stamp : this->getNodePtr()->now();
-    obstacle_layer.sensor_timestamp = sensor_stamp;
-    obstacle_layer.isDeletable = true;
-    out.push_back(obstacle_layer);
-    return out;
+    return layer_vector;
 }
 
 OneDRoIFilter::OneDRoIFilter(std::shared_ptr<PerceptionNode> node_ptr_, const YAML::Node& config)

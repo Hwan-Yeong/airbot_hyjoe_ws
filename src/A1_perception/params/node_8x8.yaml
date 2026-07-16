@@ -44,7 +44,7 @@ A1_perception:
         topic: "/sensor_to_pointcloud/tof/mono"
         type: "PointCloud2"
 
-      #[From everybot(sensor_manager)] NU4100 depth -> dpc -> sensor_manager(depth_camera)
+      # NU4100 depth -> dpc -> sensor_manager(depth_camera)
       depth_camera_points:
         topic: "/sensor_to_pointcloud/depth_camera"
         type: "PointCloud2"
@@ -124,24 +124,18 @@ A1_perception:
         filter:
           compose:
             filters:
-              timeout:
-                timeout_milliseconds: 300   # depth ~15Hz, 오래된 프레임 무효화
               depth_camera_low_obstacle:
-                # 높이 band (지면 위 높이). 입력은 map 프레임, 내부에서 robot pose 로
-                # 평면 변환하므로 z = map z = 지면 위 높이 -> ground_offset=0
-                min_height: 0.03            # 3cm
-                max_height: 0.18            # 18cm
-                ground_offset: 0.0          # map 원점이 바닥이 아니면만 보정
-                # 전방 코리도 (robot 기준: x=전방, y=좌. 내부에서 robot pose 로 변환 후 판정)
+                min_height: 0.03
+                max_height: 0.18
+                min_neighbors: 4
+                radius: 0.05
                 x_min: 0.10
                 x_max: 2.0
-                corridor_half_width: 0.20   # 로봇폭 0.35 -> ±0.175 + 마진
-                # 공간 확정 (노이즈 제거)
-                voxel_leaf: 0.04
-                min_points_per_voxel: 3     # 오감지↑면 키우고, 작은물체 놓치면 낮춤
-                cluster_tolerance: 0.08
-                min_cluster_size: 3         # 오감지↑면 키우고, 작은물체 놓치면 낮춤(1=비활성)
-                project_to_ground: true     # z=0 풋프린트 (obstacle_layer 용)
+                half_width: 0.20
+                confirm_frames: 2
+                lidar_check_radius: 0.10
+              obstacle_logger:
+                tag: "DEPTH_OBS"
 
       collision:
         inputs:
