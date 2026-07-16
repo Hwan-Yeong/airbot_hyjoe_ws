@@ -1,5 +1,6 @@
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
+#include "robot_custom_msgs/msg/depth_camera_data.hpp"
 #include "sensor_manager_node.hpp"
 
 namespace sensor_manager {
@@ -66,9 +67,6 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud") {
         }
       });
 
-  // 토픽 해석/use 판정은 멤버 메서드(ResolveInputTopic / IsAnySensorUsed)로 분리되어 있다.
-  // 스트림을 소비하는 converter 중 use:true 가 하나라도 있을 때만 구독을 생성한다.
-
   // ToF Msg Subscriber (스트림: tof -> tof_mono + tof_multi_left/right 가 공유 소비)
   if (IsAnySensorUsed({"tof_mono", "tof_multi_left", "tof_multi_right"})) {
     tof_sub_ =
@@ -125,22 +123,40 @@ SensorManagerNode::SensorManagerNode() : Node("airbot_sensor_to_pointcloud") {
         });
   }
 
-  // Depth Camera PointCloud2 Subscriber (스트림: depth_camera, input = dpc 출력)
+  // Depth Camera Raw Image Subscriber (스트림: depth_camera)
   if (IsAnySensorUsed({"depth_camera"})) {
-    const std::string depth_camera_input_topic =
-        ResolveInputTopic("depth_camera", "/camera/depth/points");
-    depth_camera_sub_ =
-      this->create_subscription<sensor_msgs::msg::PointCloud2>(
-        depth_camera_input_topic, rclcpp::SensorDataQoS(),
-        [this](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+    const std::string depth_camera_img_input_topic =
+        ResolveInputTopic("depth_img", "/camera/depth/image_raw");
+    depth_img_sub_ =
+      this->create_subscription<sensor_msgs::msg::Image>(
+        depth_camera_img_input_topic, rclcpp::SensorDataQoS(),
+        [this](sensor_msgs::msg::Image::SharedPtr msg) {
           if (!this->node_active_cmd_) return;
-          std::lock_guard<std::mutex> lock(depth_camera_buffer_.mtx);
-          depth_camera_buffer_.latest_msg = msg;
-          depth_camera_buffer_.receive_time = this->now();
-          depth_camera_buffer_.updated.store(true);
+          std::lock_guard<std::mutex> lock(depth_img_buffer_.mtx);
+          depth_img_buffer_.latest_msg = msg;
+          depth_img_buffer_.receive_time = this->now();
+          depth_img_buffer_.updated.store(true);
         });
-    RCLCPP_INFO(this->get_logger(), "  Depth Camera input topic: '%s'",
-                depth_camera_input_topic.c_str());
+    RCLCPP_INFO(this->get_logger(), "  Depth Camera Image input topic: '%s'",
+                depth_camera_img_input_topic.c_str());
+  }
+
+  // Depth Camera Info Subscriber (스트림: depth_camera)
+  if (IsAnySensorUsed({"depth_camera"})) {
+    const std::string depth_camera_info_input_topic =
+        ResolveInputTopic("depth_info", "/camera/depth/camera_info");
+    depth_info_sub_ =
+      this->create_subscription<sensor_msgs::msg::CameraInfo>(
+        depth_camera_info_input_topic, rclcpp::SensorDataQoS(),
+        [this](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
+          if (!this->node_active_cmd_) return;
+          std::lock_guard<std::mutex> lock(depth_info_buffer_.mtx);
+          depth_info_buffer_.latest_msg = msg;
+          depth_info_buffer_.receive_time = this->now();
+          depth_info_buffer_.updated.store(true);
+        });
+    RCLCPP_INFO(this->get_logger(), "  Depth Camera Info input topic: '%s'",
+                depth_camera_info_input_topic.c_str());
   }
 
   // Multizone ToF Calibration Cmd Subscriber
@@ -278,7 +294,7 @@ std::string SensorManagerNode::ResolveInputTopic(const std::string& stream_key,
 bool SensorManagerNode::IsSensorUsed(const std::string& sensor_key) {
   if (!config_["sensors"] || !config_["sensors"][sensor_key]) return false;
   const auto& s = config_["sensors"][sensor_key];
-  return s["use"] ? s["use"].as<bool>() : true;  // LoadCommonConfig 와 동일한 기본값(true)
+  return s["use"] ? s["use"].as<bool>() : true;
 }
 
 bool SensorManagerNode::IsAnySensorUsed(const std::vector<std::string>& sensor_keys) {
@@ -429,7 +445,6 @@ void SensorManagerNode::InitConverters(const YAML::Node& config) {
     const YAML::Node& sensor_config = sensor.second;
 
     // use:false 센서는 converter 를 생성하지 않는다(리소스 절약, 구독/타이머와 일관).
-    // use 키가 없으면 사용으로 간주(기존 동작 유지).
     if (!IsSensorUsed(sensor_name)) {
       continue;
     }
@@ -469,6 +484,8 @@ void SensorManagerNode::InitializeRuntime() {
   this->camera_buffer_.Reset();
   this->bottom_ir_buffer_.Reset();
   this->collision_buffer_.Reset();
+  this->depth_img_buffer_.Reset();
+  this->depth_info_buffer_.Reset();
 }
 
 void SensorManagerNode::PublishTofMonoTimerCallback() {
@@ -560,12 +577,31 @@ void SensorManagerNode::PublishDepthCameraTimerCallback() {
   if (!this->node_active_cmd_) return;
 
   static rclcpp::Time last_pub_time = rclcpp::Time(0, 0, RCL_ROS_TIME);
-  sensor_msgs::msg::PointCloud2::SharedPtr msg_copied;
+  sensor_msgs::msg::Image::SharedPtr img_msg_copied;
   rclcpp::Time recv_time;
 
-  if (this->ProcessBuffer(depth_camera_buffer_, msg_copied, recv_time, last_pub_time)) {
-    PublishPointcloud(SensorType::kDepthCamera, msg_copied, recv_time);
+  // 새 depth 프레임이 있을 때만 변환한다 (freshness 게이트는 image 기준).
+  if (!this->ProcessBuffer(depth_img_buffer_, img_msg_copied, recv_time, last_pub_time)) {
+    return;
   }
+
+  // camera_info 는 준정적(intrinsics) 데이터라 최신 값만 있으면 된다.
+  sensor_msgs::msg::CameraInfo::SharedPtr info_msg_copied;
+  {
+    std::lock_guard<std::mutex> lock(depth_info_buffer_.mtx);
+    info_msg_copied = depth_info_buffer_.latest_msg;
+  }
+  if (!info_msg_copied) {
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 3000,
+                         "[depth_camera] Waiting for camera_info ...");
+    return;
+  }
+
+  auto msg_copied = std::make_shared<robot_custom_msgs::msg::DepthCameraData>();
+  msg_copied->timestamp = recv_time;
+  msg_copied->image = *img_msg_copied;
+  msg_copied->camera_info = *info_msg_copied;
+  PublishPointcloud(SensorType::kDepthCamera, msg_copied, recv_time);
 }
 
 void SensorManagerNode::PublishPointcloud(SensorType sensor_type,

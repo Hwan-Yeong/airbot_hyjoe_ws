@@ -48,6 +48,7 @@ class SelfDiagnosis {
   std::shared_ptr<void> CreateDummyCameraData();
   std::shared_ptr<void> CreateDummyBottomIrData();
   std::shared_ptr<void> CreateDummyCollisionData();
+  std::shared_ptr<void> CreateDummyDepthCameraData();
 };
 
 }  // namespace sensor_manager
