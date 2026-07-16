@@ -8,6 +8,8 @@
 
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
+#include "sensor_msgs/msg/image.hpp"
+#include "sensor_msgs/msg/camera_info.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/u_int8.hpp"
 #include <rclcpp/rclcpp.hpp>
@@ -152,8 +154,8 @@ class SensorManagerNode : public rclcpp::Node {
       camera_sub_;
   rclcpp::Subscription<robot_custom_msgs::msg::AbnormalEventData>::SharedPtr
       collision_sub_;
-  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr
-      depth_camera_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr depth_img_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr depth_info_sub_;
 
   std::unordered_map<std::string, PC2PublisherPtr> pointcloud_pubs_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
@@ -184,7 +186,8 @@ class SensorManagerNode : public rclcpp::Node {
   SensorBuffer<robot_custom_msgs::msg::CameraDataArray> camera_buffer_;
   SensorBuffer<robot_custom_msgs::msg::BottomIrData> bottom_ir_buffer_;
   SensorBuffer<robot_custom_msgs::msg::AbnormalEventData> collision_buffer_;
-  SensorBuffer<sensor_msgs::msg::PointCloud2> depth_camera_buffer_;
+  SensorBuffer<sensor_msgs::msg::Image> depth_img_buffer_;
+  SensorBuffer<sensor_msgs::msg::CameraInfo> depth_info_buffer_;
 
   /*
     Multizone ToF Calibration

@@ -3,6 +3,7 @@
 #include "robot_custom_msgs/msg/abnormal_event_data.hpp"
 #include "robot_custom_msgs/msg/bottom_ir_data.hpp"
 #include "robot_custom_msgs/msg/camera_data_array.hpp"
+#include "robot_custom_msgs/msg/depth_camera_data.hpp"
 #include "robot_custom_msgs/msg/tof_data.hpp"
 
 namespace sensor_manager {
@@ -23,7 +24,8 @@ void SelfDiagnosis::CheckLatency(SensorType sensor_type,
 
   rclcpp::Time now = node_->now();
   double latency_ms = (now - receive_time).seconds() * 1000.0;
-  double threshold_ms = static_cast<double>(publish_rate_ms) * 5.0;
+  // 임의로 10배로 설정, 필요시 조정 가능
+  double threshold_ms = static_cast<double>(publish_rate_ms) * 10.0;
 
   if (latency_ms > threshold_ms) {
     std::string sensor_name;
@@ -124,6 +126,8 @@ void SelfDiagnosis::CheckSingleSensor(const std::string& sensor_name,
   } else if (sensor_name == "collision_front" ||
              sensor_name == "collision_rear") {
     dummy_data = CreateDummyCollisionData();
+  } else if (sensor_name == "depth_camera") {
+    dummy_data = CreateDummyDepthCameraData();
   } else {
     RCLCPP_INFO(node_->get_logger(),
                 "[SelfDiagnosis] Skipping unknown sensor type: %s",
@@ -213,6 +217,46 @@ std::shared_ptr<void> SelfDiagnosis::CreateDummyCollisionData() {
   msg->robot_x = 0.0;
   msg->robot_y = 0.0;
   msg->robot_angle = 0.0;
+  return std::static_pointer_cast<void>(msg);
+}
+
+std::shared_ptr<void> SelfDiagnosis::CreateDummyDepthCameraData() {
+  auto msg = std::make_shared<robot_custom_msgs::msg::DepthCameraData>();
+  auto& img_msg = msg->image;
+  auto& info_msg = msg->camera_info;
+
+  std::string target_frame = "map";
+  node_->get_parameter("target_frame", target_frame);
+
+  img_msg.header.stamp = node_->now();
+  img_msg.header.frame_id = target_frame;
+  img_msg.height = 480;
+  img_msg.width = 640;
+  img_msg.encoding = "16UC1";  // Depth image encoding
+  img_msg.is_bigendian = false;
+  img_msg.step = img_msg.width * 2;  // 2 bytes per pixel
+  img_msg.data.resize(img_msg.height * img_msg.step);
+  auto* depth = reinterpret_cast<uint16_t*>(img_msg.data.data());
+  std::fill(depth, depth + img_msg.height * img_msg.width, 500);
+
+  info_msg.header = img_msg.header;
+  info_msg.height = img_msg.height;
+  info_msg.width = img_msg.width;
+  info_msg.distortion_model = "plumb_bob";
+  info_msg.d.resize(5, 0.0);
+  info_msg.k.fill(0.0);
+  info_msg.k[0] = 525.0;                    // fx
+  info_msg.k[4] = 525.0;                    // fy
+  info_msg.k[2] = img_msg.width / 2.0;      // cx
+  info_msg.k[5] = img_msg.height / 2.0;     // cy
+  info_msg.r.fill(0.0);
+  info_msg.r[0] = info_msg.r[4] = info_msg.r[8] = 1.0;  // Identity
+  info_msg.p.fill(0.0);
+  info_msg.p[0] = info_msg.p[5] = info_msg.k[0];  // fx, fy
+  info_msg.p[2] = info_msg.k[2];                  // cx
+  info_msg.p[6] = info_msg.k[5];                  // cy
+
+  msg->timestamp = node_->now();
   return std::static_pointer_cast<void>(msg);
 }
 

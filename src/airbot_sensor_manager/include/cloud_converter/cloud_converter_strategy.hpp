@@ -27,7 +27,7 @@ using PointCloudMsgVector = std::vector<PointCloudMsg>;
 struct ConverterOutput {
   PointCloudMsgVector target_frame_clouds;
   PointCloudMsgVector local_frame_clouds;
-  std::string local_topic_suffix;
+  std::string local_topic_suffix = "/local";
 };
 
 /**
