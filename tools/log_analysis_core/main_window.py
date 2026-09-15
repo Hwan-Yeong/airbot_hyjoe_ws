@@ -841,8 +841,28 @@ class LogAnalysisMainWindow(QMainWindow):
         if hasattr(self.map_manager, 'station_item') and self.map_manager.station_item:
             self.map_manager.station_item.setBrush(QBrush(QColor(255, 0, 0, 200)))
     
+    def _make_robot_pose_path(self, size):
+        """
+        로봇 pose 도형(위치 원 + 헤딩 바늘)을 로컬 좌표계 기준으로 생성합니다.
+        원점이 로봇 위치이고 +x 방향이 헤딩 0도이므로, 실제 배치는
+        setPos()/setRotation() 으로 처리합니다. (station 표현 방식과 동일)
+        """
+        radius = size
+        needle_len = size * 2.2      # 원 중심에서 바깥으로 뻗는 길이
+        needle_half_w = size * 0.22  # 바늘 두께의 절반
+
+        circle = QPainterPath()
+        circle.addEllipse(-radius, -radius, radius * 2, radius * 2)
+
+        needle = QPainterPath()
+        needle.addRect(0.0, -needle_half_w, needle_len, needle_half_w * 2)
+
+        # 합집합으로 합쳐 겹치는 내부 경계선 없이 하나의 도형처럼 보이게 함
+        return circle.united(needle)
+
     def _add_robot_pose_special(self, ev):
-        """robot_pose 전용 특수 렌더링 (최신 위치만 빨간색, 이전은 파란색)."""
+        """robot_pose 전용 특수 렌더링 (최신 위치만 빨간색, 이전은 파란색).
+        위치는 원, 헤딩은 원 밖으로 뻗는 바늘로 한 도형에 묶어 표현합니다."""
         state = self.layer_states['robot_pose']
         
         px, py = self.map_manager.to_scene_coords(ev['x'], ev['y'])
@@ -855,10 +875,16 @@ class LogAnalysisMainWindow(QMainWindow):
             state['items'][-1].setZValue(100)
         
         # 최신 위치는 빨간색으로 표시
-        item = self.scene.addEllipse(
-            px - size, py - size, size * 2, size * 2,
+        item = self.scene.addPath(
+            self._make_robot_pose_path(size),
             QPen(Qt.black), QBrush(Qt.red)
         )
+        item.setPos(px, py)
+        # yaw 는 로그상 degree 단위. Scene 은 y축이 아래를 향하므로 회전 방향 반전.
+        try:
+            item.setRotation(-float(ev['yaw']))
+        except (KeyError, TypeError, ValueError):
+            pass  # yaw 가 없거나 파싱 불가하면 헤딩 0도로 둔다
         item.setZValue(101)  # 다른 pose보다 위에 표시
         item.setVisible(state['chk'].isChecked())
         state['items'].append(item)
