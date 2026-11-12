@@ -121,6 +121,10 @@ struct CameraParams {
   // [m] 실 bag 에서 0.5~0.8 m 카메라 검출률 0.99 (무릎 100% 보임). 더 가까우면 데이터 없음
   double check_min_range{0.6};
   double check_max_range{3.5};
+  // 한 사람 검출(사람 1 + 그 다리 2)은 트랙 하나만 확인한다 (2026-11-13).
+  // 묶지 않으면 한 사람의 다리가 따로 잡힌 트랙까지 "카메라 확인 사람"이 되어 거짓 모호(멈칫)를 만든다.
+  // 다리 위치는 그대로 연관에 쓰므로 사람 위치가 빗나가도 확인은 이어진다. 사람 상자가 없는 다리는 혼자
+  bool group_legs_with_person{true};
 };
 
 // 획득 (mode ACQUIRE), SPEC 6.2

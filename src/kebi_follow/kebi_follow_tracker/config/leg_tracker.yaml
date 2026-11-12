@@ -92,6 +92,7 @@ leg_tracker:
       check_half_fov_deg: 35.0    # 카메라로 타깃을 확인할 수 있는 영역 (target.camera_lost_s)
       check_min_range: 0.6        # [m] 실 bag 0.5~0.8 m 카메라 검출률 0.99 (W1). 앞 가까운 고정 물체에 붙은 락을 3 s 안에 푼다
       check_max_range: 3.5        # [m]
+      group_legs_with_person: true  # 한 사람 검출(사람 + 그 다리)은 트랙 하나만 확인 (거짓 모호 방지)
 
     acquire:                      # mode ACQUIRE, SPEC 6.2
       require_camera: true

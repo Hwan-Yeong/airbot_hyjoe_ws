@@ -288,7 +288,8 @@ class LegTracker : public rclcpp::Node {
       return;
     }
     camera_dets_.clear();
-    for (const auto& d : msg.detections) {
+    for (std::size_t i = 0; i < msg.detections.size(); ++i) {
+      const auto& d = msg.detections[i];
       if (!d.has_position || (d.class_id != CamLeg::CLASS_PERSON &&
                               d.class_id != CamLeg::CLASS_LEG)) {
         continue;
@@ -297,10 +298,32 @@ class LegTracker : public rclcpp::Node {
       det.position = tracker::transformPoint(cam_in_base,
                                              Vec2{d.position.x, d.position.y});
       det.score = d.score;
+      det.group = params_.camera.group_legs_with_person ? personGroup(msg, i) : -1;
+      det.primary = d.class_id == CamLeg::CLASS_PERSON;
       camera_dets_.push_back(det);
     }
     core_->processCamera(rclcpp::Time(msg.header.stamp).seconds(), robot_pose,
                          camera_dets_);
+  }
+
+  // 묶음 번호: 사람 검출은 자기 순번. 다리 검출은 바로 앞 사람 검출의 순번 (검출기는 사람 뒤에 그 사람의
+  // 다리를 붙여 낸다) — 다리 상자 가운데가 그 사람 상자 안일 때만. 아니면 -1 (혼자)
+  static int personGroup(const CamLegArray& msg, std::size_t index) {
+    const CamLeg& d = msg.detections[index];
+    if (d.class_id == CamLeg::CLASS_PERSON) {
+      return static_cast<int>(index);
+    }
+    for (std::size_t k = index; k-- > 0;) {
+      const CamLeg& p = msg.detections[k];
+      if (p.class_id != CamLeg::CLASS_PERSON) {
+        continue;
+      }
+      const double u = 0.5 * (d.u_min + d.u_max);
+      const double v = 0.5 * (d.v_min + d.v_max);
+      const bool inside = u >= p.u_min && u <= p.u_max && v >= p.v_min && v <= p.v_max;
+      return inside ? static_cast<int>(k) : -1;
+    }
+    return -1;
   }
 
   void publishTarget(const builtin_interfaces::msg::Time& stamp,

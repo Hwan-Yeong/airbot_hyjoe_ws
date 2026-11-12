@@ -100,7 +100,12 @@ class PeopleTracker {
   void update(double t, const Pose2& robot_pose,
               const std::vector<Segment>& segments);
   // 카메라 검출(odom 위치, 시각 t)과 트랙을 연관해 camera 확인 시각을 갱신. 연관 수를 돌려준다.
-  int associateCamera(double t, const std::vector<Vec2>& positions);
+  // groups[i] >= 0 이면 같은 값끼리 한 사람(상자)에서 나온 검출이다. 묶음마다 트랙 하나만 확인한다
+  // (락 타깃 > 대표(사람 검출, primary)가 붙은 트랙 > 카메라 확인이 많은 트랙 > 가까운 쪽).
+  // 비어 있으면 묶지 않는다.
+  int associateCamera(double t, const std::vector<Vec2>& positions,
+                      const std::vector<int>& groups = {},
+                      const std::vector<char>& primary = {});
 
   const std::vector<PersonTrack>& tracks() const { return tracks_; }
   const PersonTrack* findTrack(int id) const;
@@ -188,6 +193,7 @@ class PeopleTracker {
   std::vector<PairOption> birth_pairs_;
   std::vector<double> cam_cost_;
   std::vector<int> cam_assign_;
+  std::vector<char> cam_keep_;
   std::vector<Vec2> cam_track_pos_;
   AssignmentSolver solver_;
 };

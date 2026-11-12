@@ -17,6 +17,8 @@ namespace tracker {
 struct CameraDetection {
   Vec2 position;  // base_link, 검출 stamp 시각
   double score{0.0};
+  int group{-1};  // 같은 사람 상자에서 나온 검출 묶음 번호 (-1: 혼자). 묶음은 트랙 하나만 확인한다
+  bool primary{false};  // 묶음의 대표 (사람 검출). 묶음 안에서 이 검출의 연관을 먼저 쓴다
 };
 
 class LegTrackerCore {
@@ -52,6 +54,8 @@ class LegTrackerCore {
   double last_stamp_{0.0};
   Pose2 last_robot_pose_;
   std::vector<Vec2> camera_odom_;
+  std::vector<int> camera_group_;
+  std::vector<char> camera_primary_;
 };
 
 }  // namespace tracker

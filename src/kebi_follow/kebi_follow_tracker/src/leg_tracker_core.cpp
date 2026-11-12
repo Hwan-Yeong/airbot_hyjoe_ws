@@ -13,6 +13,8 @@ LegTrackerCore::LegTrackerCore(const TrackerParams& params)
       tracker_(params),
       target_(params) {
   camera_odom_.reserve(kReserveCameraDetections);
+  camera_group_.reserve(kReserveCameraDetections);
+  camera_primary_.reserve(kReserveCameraDetections);
 }
 
 void LegTrackerCore::reset() {
@@ -46,12 +48,16 @@ int LegTrackerCore::processCamera(
   }
   tracker_.noteCameraFrame(stamp);  // 검출이 없는 프레임도 "카메라 살아 있음"
   camera_odom_.clear();
+  camera_group_.clear();
+  camera_primary_.clear();
   for (const auto& d : detections) {
     if (d.score >= params_.camera.min_score) {
       camera_odom_.push_back(transformPoint(robot_pose, d.position));
+      camera_group_.push_back(d.group);
+      camera_primary_.push_back(d.primary ? 1 : 0);
     }
   }
-  return tracker_.associateCamera(stamp, camera_odom_);
+  return tracker_.associateCamera(stamp, camera_odom_, camera_group_, camera_primary_);
 }
 
 }  // namespace tracker

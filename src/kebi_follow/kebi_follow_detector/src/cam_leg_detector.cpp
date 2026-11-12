@@ -546,6 +546,7 @@ private:
       p.depth_valid_ratio = static_cast<float>(e.valid_ratio);
       p.appearance = e.appearance;
       out.detections.push_back(std::move(p));
+      // 사람 바로 뒤에 그 사람의 다리를 붙인다. leg_tracker 가 이 순서로 한 사람 검출을 묶는다
       for (const LegEstimate & leg : e.legs) {
         if (!leg.valid) {
           continue;

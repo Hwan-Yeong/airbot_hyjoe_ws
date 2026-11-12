@@ -80,6 +80,7 @@ void visitParams(TrackerParams& p, Visitor&& visit) {
   visit("camera.check_half_fov_deg", p.camera.check_half_fov_deg);
   visit("camera.check_min_range", p.camera.check_min_range);
   visit("camera.check_max_range", p.camera.check_max_range);
+  visit("camera.group_legs_with_person", p.camera.group_legs_with_person);
 
   visit("acquire.require_camera", p.acquire.require_camera);
   visit("acquire.min_range", p.acquire.min_range);

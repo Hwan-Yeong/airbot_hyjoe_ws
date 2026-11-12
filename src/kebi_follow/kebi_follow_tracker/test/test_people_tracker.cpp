@@ -152,6 +152,99 @@ TEST(PeopleTracker, CameraAssociationConfirmsNearestTrackOnly) {
   EXPECT_EQ(h.core.processCamera(h.t, h.robot, far), 0);
 }
 
+namespace {
+// 사람 1 + 다리 2 검출 (한 사람). 다리 하나는 갈라진 트랙 B 쪽
+std::vector<kt::CameraDetection> personWithLegs(int group) {
+  std::vector<kt::CameraDetection> d(3);
+  d[0].position = {1.2, 0.05};  // 사람
+  d[1].position = {1.2, 0.0};   // 다리 (트랙 A)
+  d[2].position = {1.2, 0.68};  // 다리 (트랙 B)
+  for (auto& x : d) {
+    x.score = 0.9;
+    x.group = group;
+  }
+  return d;
+}
+
+int cameraConfirmedCount(const ks::Harness& h) {
+  int n = 0;
+  for (const auto& tr : h.core.tracker().tracks()) {
+    n += tr.cameraConfirmed(h.t, h.core.params().camera.confirm_window_s) ? 1 : 0;
+  }
+  return n;
+}
+}  // namespace
+
+TEST(PeopleTracker, CameraGroupConfirmsOneTrackPerPerson) {
+  // 다리 두 개가 쌍 간격(0.6 m)보다 멀어 두 트랙으로 갈라진 사람
+  ks::Harness h(ks::lidarOnlyParams());
+  h.world.circles.push_back({{1.2, 0.0}, 0.06});
+  h.world.circles.push_back({{1.2, 0.7}, 0.06});
+  h.run(4);
+  ASSERT_EQ(confirmedCount(h.core.tracker()), 2);
+  // 묶지 않으면 두 트랙 모두 카메라 확인 → 서로 "다른 사람"이 된다
+  EXPECT_EQ(h.core.processCamera(h.t, h.robot, personWithLegs(-1)), 2);
+  EXPECT_EQ(cameraConfirmedCount(h), 2);
+}
+
+TEST(PeopleTracker, CameraGroupKeepsBestMatchOnly) {
+  ks::Harness h(ks::lidarOnlyParams());
+  h.world.circles.push_back({{1.2, 0.0}, 0.06});
+  h.world.circles.push_back({{1.2, 0.7}, 0.06});
+  h.run(4);
+  ASSERT_EQ(confirmedCount(h.core.tracker()), 2);
+  // 한 묶음이면 트랙 하나만 (확인 횟수가 같으면 더 가까운 A)
+  EXPECT_EQ(h.core.processCamera(h.t, h.robot, personWithLegs(0)), 1);
+  ASSERT_EQ(cameraConfirmedCount(h), 1);
+  for (const auto& tr : h.core.tracker().tracks()) {
+    const bool is_a = kt::distance(tr.kf.position(), {1.2, 0.0}) < 0.2;
+    EXPECT_EQ(tr.cameraConfirmed(h.t, h.core.params().camera.confirm_window_s), is_a);
+  }
+}
+
+TEST(PeopleTracker, CameraGroupPrefersPersonDetectionMatch) {
+  ks::Harness h(ks::lidarOnlyParams());
+  h.world.circles.push_back({{1.2, 0.0}, 0.06});
+  h.world.circles.push_back({{1.2, 0.7}, 0.06});
+  h.run(4);
+  ASSERT_EQ(confirmedCount(h.core.tracker()), 2);
+  std::vector<kt::CameraDetection> d(2);
+  d[0].position = {1.2, 0.68};  // 사람 검출 (대표) → B
+  d[0].primary = true;
+  d[1].position = {1.2, 0.0};   // 다리 → A (더 가깝다)
+  for (auto& x : d) {
+    x.score = 0.9;
+    x.group = 0;
+  }
+  EXPECT_EQ(h.core.processCamera(h.t, h.robot, d), 1);
+  for (const auto& tr : h.core.tracker().tracks()) {
+    const bool is_b = kt::distance(tr.kf.position(), {1.2, 0.7}) < 0.2;
+    EXPECT_EQ(tr.cameraConfirmed(h.t, h.core.params().camera.confirm_window_s), is_b);
+  }
+}
+
+TEST(PeopleTracker, CameraGroupPrefersTrackConfirmedMoreOften) {
+  ks::Harness h(ks::lidarOnlyParams());
+  h.world.circles.push_back({{1.2, 0.0}, 0.06});
+  h.world.circles.push_back({{1.2, 0.7}, 0.06});
+  h.run(4);
+  ASSERT_EQ(confirmedCount(h.core.tracker()), 2);
+  // B 를 먼저 여러 번 확인해 둔다 (그 사람의 원래 트랙)
+  std::vector<kt::CameraDetection> b(1);
+  b[0].position = {1.2, 0.7};
+  b[0].score = 0.9;
+  for (int k = 0; k < 3; ++k) {
+    ASSERT_EQ(h.core.processCamera(h.t, h.robot, b), 1);
+  }
+  h.run(static_cast<int>(h.core.params().camera.confirm_window_s / ks::kScanPeriod) + 2);  // 확인 창이 지나게
+  ASSERT_EQ(cameraConfirmedCount(h), 0);
+  EXPECT_EQ(h.core.processCamera(h.t, h.robot, personWithLegs(0)), 1);
+  for (const auto& tr : h.core.tracker().tracks()) {
+    const bool is_b = kt::distance(tr.kf.position(), {1.2, 0.7}) < 0.2;
+    EXPECT_EQ(tr.cameraConfirmed(h.t, h.core.params().camera.confirm_window_s), is_b);
+  }
+}
+
 TEST(PeopleTracker, StaticPersonStaysPutInOdomWhileRobotRotates) {
   ks::Harness h(ks::lidarOnlyParams());
   h.world.walkers.emplace_back(ks::standingPerson({1.3, 0.2}));

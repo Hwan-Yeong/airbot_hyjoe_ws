@@ -94,6 +94,7 @@ PeopleTracker::PeopleTracker(const TrackerParams& params) : params_(params) {
   cam_cost_.reserve(kReserveCameraDetections *
                     (params_.track.max_tracks + kReserveCameraDetections));
   cam_assign_.reserve(kReserveCameraDetections);
+  cam_keep_.reserve(kReserveCameraDetections);
   cam_track_pos_.reserve(params_.track.max_tracks);
   edits_.reserve(kReserveEdits);
   assign_stack_.resize(kMaxSearchDepth);
@@ -735,7 +736,9 @@ void PeopleTracker::update(double t, const Pose2& robot_pose,
 }
 
 int PeopleTracker::associateCamera(double t,
-                                   const std::vector<Vec2>& positions) {
+                                   const std::vector<Vec2>& positions,
+                                   const std::vector<int>& groups,
+                                   const std::vector<char>& primary) {
   const int nd = static_cast<int>(positions.size());
   const int nt = static_cast<int>(tracks_.size());
   if (nd == 0 || nt == 0) {
@@ -760,10 +763,50 @@ int PeopleTracker::associateCamera(double t,
     row[nt + i] = gate;
   }
   solver_.solve(cam_cost_, nd, width, cam_assign_);
+  // 한 사람(묶음)은 트랙 하나만 확인한다: 사람 1 + 다리 2 검출이 그 사람의 갈라진 트랙들을 모두
+  // "카메라 확인 사람"으로 만들어 거짓 모호를 내지 않게 (2026-11-13, 실차 bag 재생으로 확인)
+  const auto matchedTrack = [&](int i) {
+    const int k = cam_assign_[i];
+    return (k >= 0 && k < nt) ? k : -1;
+  };
+  const auto better = [&](int i, int j) {  // 검출 i 의 연관이 j 의 연관보다 나은가
+    const PersonTrack& a = tracks_[matchedTrack(i)];
+    const PersonTrack& b = tracks_[matchedTrack(j)];
+    if ((a.id == protected_id_) != (b.id == protected_id_)) {
+      return a.id == protected_id_;
+    }
+    if (primary.size() == positions.size() && primary[i] != primary[j]) {
+      return primary[i] != 0;  // 사람 검출(대표)은 그 사람 다리 쌍 가운데에 가깝다
+    }
+    if (a.camera_hits != b.camera_hits) {
+      return a.camera_hits > b.camera_hits;
+    }
+    return cam_cost_[static_cast<std::size_t>(i) * width + matchedTrack(i)] <=
+           cam_cost_[static_cast<std::size_t>(j) * width + matchedTrack(j)];
+  };
+  cam_keep_.assign(nd, 1);
+  if (groups.size() == positions.size()) {
+    for (int i = 0; i < nd; ++i) {
+      if (groups[i] < 0 || !cam_keep_[i] || matchedTrack(i) < 0) {
+        continue;
+      }
+      for (int j = i + 1; j < nd; ++j) {
+        if (groups[j] != groups[i] || !cam_keep_[j] || matchedTrack(j) < 0) {
+          continue;
+        }
+        if (better(i, j)) {
+          cam_keep_[j] = 0;
+        } else {
+          cam_keep_[i] = 0;
+          break;
+        }
+      }
+    }
+  }
   int matched = 0;
   for (int i = 0; i < nd; ++i) {
-    const int k = cam_assign_[i];
-    if (k < 0 || k >= nt) {
+    const int k = matchedTrack(i);
+    if (k < 0 || !cam_keep_[i]) {
       continue;
     }
     PersonTrack& tr = tracks_[k];
