@@ -20,6 +20,8 @@ struct ControllerParams {
   // S3 장애물 (거리는 로봇 앞면 기준)
   double slow_distance{1.0};  // 이 거리부터 감속 [m]
   double stop_margin{0.25};   // 제동거리 + 이 값 이내 정지 [m]
+  // 장애물 감속·정지 계산에 넣는 지연: 스캔 주기·처리·명령 주기·베이스 응답 [s]
+  double obstacle_reaction_time{0.25};
   // depth 점 정지 여유 (카메라 근거리 사각 전에 선다) [m]
   double depth_stop_margin{0.5};
   // 이보다 느리면 원호 대신 직진 경로만 [m/s]

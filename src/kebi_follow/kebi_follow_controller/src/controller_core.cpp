@@ -153,11 +153,12 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
     }
   };
   const double slow_len = std::max(0.0, p_.slow_distance - p_.stop_margin);
+  const double t_react = p_.obstacle_reaction_time;
   auto obstacleCap = [&]() {
-    return std::min(
-        obstacleSpeedCap(d_scan, p_.stop_margin, slow_len, decel, v_max),
-        obstacleSpeedCap(d_depth, p_.depth_stop_margin, slow_len, decel,
-                         v_max));
+    return std::min(obstacleSpeedCap(d_scan, p_.stop_margin, slow_len, decel,
+                                     v_max, t_react),
+                    obstacleSpeedCap(d_depth, p_.depth_stop_margin, slow_len,
+                                     decel, v_max, t_react));
   };
   // --- 선속도 상한 (S1·S3·S6·S7) ---
   const bool measured = fresh_lock;
@@ -187,8 +188,9 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
   }
   const double v_ref = std::max(limiter_.v(), in.measured_speed);
   const bool obs_emergency =
-      obstacleStopRequired(d_scan, p_.stop_margin, v_ref, decel) ||
-      obstacleStopRequired(d_depth, p_.depth_stop_margin, v_ref, decel);
+      obstacleStopRequired(d_scan, p_.stop_margin, v_ref, decel, t_react) ||
+      obstacleStopRequired(d_depth, p_.depth_stop_margin, v_ref, decel,
+                           t_react);
 
   const double v_cap = std::min(v_limit_other, cap_obs);
   double v_des = std::min(law_cmd.v * occl_factor, v_cap);

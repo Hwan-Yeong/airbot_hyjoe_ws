@@ -112,7 +112,7 @@ double pathCurvature(double v, double w, double min_speed,
 }
 
 double obstacleSpeedCap(double d, double stop_margin, double slow_length,
-                        double decel, double v_max) {
+                        double decel, double v_max, double reaction_time) {
   if (!std::isfinite(d)) {
     return v_max;
   }
@@ -122,18 +122,20 @@ double obstacleSpeedCap(double d, double stop_margin, double slow_length,
   }
   const double ramp =
       (slow_length > 0.0) ? v_max * std::min(1.0, free / slow_length) : v_max;
-  const double brake = std::sqrt(2.0 * decel * free);
+  // v·t_r + v²/(2a) = free 의 양의 근
+  const double at = decel * std::max(0.0, reaction_time);
+  const double brake = -at + std::sqrt(at * at + 2.0 * decel * free);
   return std::min({ramp, brake, v_max});
 }
 
 bool obstacleStopRequired(double d, double stop_margin, double v_now,
-                          double decel) {
+                          double decel, double reaction_time) {
   if (!std::isfinite(d)) {
     return false;
   }
   const double v = std::max(0.0, v_now);
   const double braking = (decel > 0.0) ? v * v / (2.0 * decel) : kInf;
-  return d <= stop_margin + braking;
+  return d <= stop_margin + v * std::max(0.0, reaction_time) + braking;
 }
 
 }  // namespace kebi_follow

@@ -63,12 +63,14 @@ class SafetyGate {
 double pathCurvature(double v, double w, double min_speed,
                      double max_curvature);
 
-// S3 속도 상한: slow_length 구간 선형 감속 + 물리적 제동 곡선 sqrt(2 a (d - margin))
+// S3 속도 상한: slow_length 구간 선형 감속 + 물리적 제동 곡선.
+// 제동 곡선은 v·t_r + v²/(2a) = d - margin 의 근 (t_r = reaction_time, 0 이면 sqrt(2 a (d - margin)))
 double obstacleSpeedCap(double d, double stop_margin, double slow_length,
-                        double decel, double v_max);
+                        double decel, double v_max,
+                        double reaction_time = 0.0);
 
-// S3 즉시 정지 조건: d <= 제동거리(v) + margin
+// S3 즉시 정지 조건: d <= margin + v·t_r + 제동거리(v)
 bool obstacleStopRequired(double d, double stop_margin, double v_now,
-                          double decel);
+                          double decel, double reaction_time = 0.0);
 
 }  // namespace kebi_follow

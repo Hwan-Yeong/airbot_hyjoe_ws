@@ -24,16 +24,17 @@ follow_controller:
       state: /kebi_follow/state
 
     # S1 속도·가감속 (후진 없음)
-    max_linear_speed: 0.5         # T3 까지는 follow_me.yaml 에서 0.2
-    max_angular_speed: 0.8
-    max_linear_accel: 0.4
+    # 편안함 기준 상한 (SPEC 6.3 근거): 고령자 평상 보행 0.8~0.9 m/s, 로봇 선호 속도는 사람 보행보다 느림
+    max_linear_speed: 0.8
+    max_angular_speed: 1.0        # 약 57°/s: 1.2 m 에서 옆으로 1 m/s 로 도는 사람(0.83 rad/s)을 놓치지 않는 값
+    max_linear_accel: 0.5
     max_linear_decel: 0.8         # 일반 정지. HALT·장애물·근접·센서 끊김은 즉시 0
     max_linear_jerk: 2.0          # 가속 쪽만 (제동은 늦추지 않음). 0 이면 끔
     max_angular_accel: 1.5
     max_angular_decel: 1.5
 
     # 추종 법칙 (6.3, S2)
-    follow_distance: 1.0
+    follow_distance: 1.2          # 개인/사회 공간 경계. 빠를수록 아래 제동 상한 때문에 약 1.5 m 까지 늘어난다
     stop_distance: 0.8            # 이 거리 이내면 즉시 정지, 사람이 다가와도 물러서지 않음
     approach_margin: 0.1          # 사람이 갑자기 서도 stop_distance + 이 값 앞에서 서는 속도로 제한
     reaction_time: 0.2            # 위 제한 계산용 측정·명령 지연
@@ -55,8 +56,9 @@ follow_controller:
     corridor_max_curvature: 2.0   # [1/m]
     curvature_min_speed: 0.05     # 이보다 느리면 직진 경로만
     target_exclusion_radius: 0.4  # 타깃 주변 점은 장애물로 보지 않음
-    slow_distance: 1.0            # 여기부터 감속
+    slow_distance: 1.6            # 여기부터 감속 (선속도 상한 0.8 의 2 배)
     stop_margin: 0.25             # 제동거리 + 이 값 이내 정지 (라이다)
+    obstacle_reaction_time: 0.25  # 감속·정지 계산의 지연: 명령→실제 0.09~0.13 s(실측) + 스캔 주기 0.1 s
     depth_stop_margin: 0.5        # depth 로 본 점의 정지 여유: 카메라 근거리 사각(약 0.45 m) 전에 선다
     body_filter_radius: 0.20      # 라이다 점 중 이 안은 로봇 자기 몸체로 보고 버림
     scan_max_range: 4.0

@@ -81,6 +81,8 @@ constexpr std::size_t kTargetHistoryCapacity = 64;  // 10 Hz 로 약 6 s
 constexpr std::size_t kDepthLagWindow = 64;
 // stamp 가 최신 odom 보다 이만큼 늦어도 최신 자세 사용 [s]
 constexpr double kOdomLookupAhead = 0.1;
+// 자세 변화로 실측 선속도를 구하는 창 [s] (odom 100 Hz 로 약 10 개)
+constexpr double kOdomSpeedWindowS = 0.1;
 constexpr int kWarnThrottleMs = 2000;
 constexpr double kAckTimeoutMs = 100.0;  // 종료 시 0 명령 전달 대기
 // 계속 발행되는 HALT 토픽(IR 100 Hz, lifted 83 Hz, fall_down 1 Hz)의 true 를 "켜짐"으로 보는 시간.
@@ -340,6 +342,8 @@ class FollowController : public rclcpp::Node {
         param("target_exclusion_radius", cor.target_exclusion_radius);
     cp_.slow_distance = param("slow_distance", cp_.slow_distance);
     cp_.stop_margin = param("stop_margin", cp_.stop_margin);
+    cp_.obstacle_reaction_time =
+        param("obstacle_reaction_time", cp_.obstacle_reaction_time);
     cp_.depth_stop_margin = param("depth_stop_margin", cp_.depth_stop_margin);
     cp_.curvature_min_speed =
         param("curvature_min_speed", cp_.curvature_min_speed);
@@ -747,10 +751,20 @@ class FollowController : public rclcpp::Node {
   void onOdom(const nav_msgs::msg::Odometry& m) {
     odom_rx_ = monoNow();
     have_odom_ = true;
-    odom_speed_ = m.twist.twist.linear.x;
-    odom_hist_.add(toSec(m.header.stamp),
-                   Pose2D{m.pose.pose.position.x, m.pose.pose.position.y,
-                          yawOf(m.pose.pose.orientation)});
+    const double t = toSec(m.header.stamp);
+    const Pose2D pose{m.pose.pose.position.x, m.pose.pose.position.y,
+                      yawOf(m.pose.pose.orientation)};
+    odom_hist_.add(t, pose);
+    // 실측 선속도: twist 와 자세 변화(창 kOdomSpeedWindowS) 중 큰 값.
+    // 일부 베이스(popo 실측)는 /odom twist 를 늘 0 으로 보낸다
+    double pose_speed = 0.0;
+    Pose2D past;
+    if (odom_hist_.at(t - kOdomSpeedWindowS, 0.0, &past)) {
+      pose_speed = ((pose.x - past.x) * std::cos(pose.yaw) +
+                    (pose.y - past.y) * std::sin(pose.yaw)) /
+                   kOdomSpeedWindowS;
+    }
+    odom_speed_ = std::max(m.twist.twist.linear.x, pose_speed);
   }
 
   // base_frame ← frame 평면 변환 (정적 TF, 최신 값)

@@ -107,6 +107,23 @@ TEST(SafetyGate, SpeedCapAndStop) {
   EXPECT_FALSE(obstacleStopRequired(kInf, m, 0.5, a));
 }
 
+TEST(SafetyGate, ReactionTime) {
+  const double m = 0.25, a = 0.8, vmax = 2.0, tr = 0.25;
+  // 제동 곡선: v·t_r + v²/(2a) = d - m. d = 1.0 이면 v = -0.2 + sqrt(0.04 + 1.2)
+  EXPECT_NEAR(obstacleSpeedCap(1.0, m, 0.0, a, vmax, tr),
+              -0.2 + std::sqrt(0.04 + 1.2), kTol);
+  // t_r = 0 이면 기존 곡선과 같다
+  EXPECT_NEAR(obstacleSpeedCap(1.0, m, 0.0, a, vmax, 0.0),
+              std::sqrt(2 * a * 0.75), kTol);
+  // 1.0 m/s: 0.25 + 1.0·0.25 + 1.0²/1.6 = 1.125 m 이내 즉시 정지
+  EXPECT_TRUE(obstacleStopRequired(1.12, m, 1.0, a, tr));
+  EXPECT_FALSE(obstacleStopRequired(1.13, m, 1.0, a, tr));
+  // 상한 곡선과 정지 경계가 같은 식이다: 상한보다 조금 느리면 정지하지 않는다
+  const double v = obstacleSpeedCap(1.5, m, 0.0, a, vmax, tr);
+  EXPECT_FALSE(obstacleStopRequired(1.5, m, v - 1e-3, a, tr));
+  EXPECT_TRUE(obstacleStopRequired(1.5, m, v + 1e-3, a, tr));
+}
+
 TEST(SafetyGate, PathCurvature) {
   EXPECT_DOUBLE_EQ(pathCurvature(0.01, 0.5, 0.05, 2.0), 0.0);
   EXPECT_NEAR(pathCurvature(0.5, 0.25, 0.05, 2.0), 0.5, kTol);
