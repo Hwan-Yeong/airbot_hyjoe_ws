@@ -49,6 +49,8 @@ class TargetManager {
  public:
   explicit TargetManager(const TrackerParams& params);
 
+  // 실행 중 조정 (값은 쓸 때마다 읽는다)
+  void setParams(const TrackerParams& params) { params_ = params; }
   void setMode(Mode mode);
   Mode mode() const { return mode_; }
   // scan 처리 직후 호출. robot_pose: odom <- base_link (scan 시각)

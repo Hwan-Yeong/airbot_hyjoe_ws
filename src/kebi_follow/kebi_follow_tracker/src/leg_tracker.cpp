@@ -4,6 +4,8 @@
 #include <chrono>
 #include <cmath>
 #include <memory>
+#include <mutex>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -24,6 +26,7 @@
 
 #include "kebi_follow_tracker/leg_tracker_core.hpp"
 #include "kebi_follow_tracker/param_table.hpp"
+#include "kebi_follow_tracker/tunables.hpp"
 
 namespace kebi_follow {
 
@@ -92,7 +95,14 @@ class LegTracker : public rclcpp::Node {
   explicit LegTracker(const rclcpp::NodeOptions& options)
       : Node("leg_tracker", options) {
     loadParameters();
+    const std::string why = tracker::trackerInconsistency(params_);
+    if (!why.empty()) {
+      RCLCPP_FATAL(get_logger(), "leg_tracker: %s. Check the YAML override.", why.c_str());
+      throw std::invalid_argument("leg_tracker: " + why);
+    }
     core_ = std::make_unique<tracker::LegTrackerCore>(params_);
+    param_cb_ = add_on_set_parameters_callback(
+        [this](const std::vector<rclcpp::Parameter>& ps) { return onSetParams(ps); });
 
     tf_buffer_ = std::make_unique<tf2_ros::Buffer>(get_clock());
     tf_listener_ =
@@ -130,13 +140,84 @@ class LegTracker : public rclcpp::Node {
   }
 
  private:
+  // 기동 때만 읽는 파라미터는 read_only: 실행 중 변경을 거부해서 "바꿨는데 안 바뀜"을 막는다.
+  // kTrackerTunables 에 있는 이름만 실행 중 조정을 허용하고 범위를 알린다 (범위 밖이면 기동 실패)
+  static rcl_interfaces::msg::ParameterDescriptor descriptorFor(const std::string& name) {
+    rcl_interfaces::msg::ParameterDescriptor d;
+    d.read_only = true;
+    const tracker::TrackerTunable* spec = tracker::findTrackerTunable(name);
+    if (spec != nullptr) {
+      d.read_only = false;
+      d.description = spec->desc;
+      rcl_interfaces::msg::FloatingPointRange r;
+      r.from_value = spec->lo;
+      r.to_value = spec->hi;
+      r.step = 0.0;
+      d.floating_point_range.push_back(r);
+    }
+    return d;
+  }
+
   template <typename T>
   void declareParam(const std::string& name, T& value) {
-    value = declare_parameter<T>(name, value);
+    value = declare_parameter<T>(name, value, descriptorFor(name));
   }
 
   void declareParam(const std::string& name, int& value) {
-    value = static_cast<int>(declare_parameter<int64_t>(name, value));
+    value = static_cast<int>(declare_parameter<int64_t>(name, value, descriptorFor(name)));
+  }
+
+  // 실행 중 조정 (kTrackerTunables 만): 검사만 하고, 적용은 다음 scan 처리 시작에 한다
+  rcl_interfaces::msg::SetParametersResult onSetParams(
+      const std::vector<rclcpp::Parameter>& ps) {
+    rcl_interfaces::msg::SetParametersResult res;
+    res.successful = true;
+    std::lock_guard<std::mutex> lk(tune_mutex_);
+    tracker::TrackerParams cand = tune_pending_ ? tune_params_ : params_;
+    std::string changes;
+    for (const auto& p : ps) {
+      const tracker::TrackerTunable* spec = tracker::findTrackerTunable(p.get_name());
+      if (spec == nullptr) {
+        continue;  // 기동 전용(read_only)은 rclcpp 가 먼저 거부한다. use_sim_time 등은 그대로 둔다
+      }
+      if (p.get_type() != rclcpp::ParameterType::PARAMETER_DOUBLE) {
+        res.successful = false;
+        res.reason = p.get_name() + " must be a double";
+        return res;
+      }
+      const double x = p.as_double();
+      if (!std::isfinite(x) || x < spec->lo || x > spec->hi) {
+        res.successful = false;
+        res.reason = p.get_name() + " " + std::to_string(x) + " outside [" +
+                     std::to_string(spec->lo) + ", " + std::to_string(spec->hi) + "]";
+        return res;
+      }
+      changes += (changes.empty() ? "" : ", ") + std::string(spec->name) + " " +
+                 std::to_string(spec->get(cand)) + " -> " + std::to_string(x);
+      spec->set(cand, x);
+    }
+    const std::string why = tracker::trackerInconsistency(cand);
+    if (!why.empty()) {
+      res.successful = false;
+      res.reason = why;
+      return res;
+    }
+    if (!changes.empty()) {
+      tune_params_ = cand;
+      tune_pending_ = true;
+      RCLCPP_INFO(get_logger(), "tuning: %s", changes.c_str());
+    }
+    return res;
+  }
+
+  void applyPendingTuning() {
+    std::lock_guard<std::mutex> lk(tune_mutex_);
+    if (!tune_pending_) {
+      return;
+    }
+    params_ = tune_params_;
+    core_->updateParams(params_);
+    tune_pending_ = false;
   }
 
   void loadParameters() {
@@ -244,6 +325,7 @@ class LegTracker : public rclcpp::Node {
   }
 
   void onScan(const sensor_msgs::msg::LaserScan& msg) {
+    applyPendingTuning();
     Pose2 sensor_in_base;
     Pose2 robot_pose;
     if (!lookupStatic(msg.header.frame_id, scan_frame_, scan_in_base_)) {
@@ -554,6 +636,11 @@ class LegTracker : public rclcpp::Node {
   double timing_log_period_s_{60.0};
   int initial_mode_{FollowMode::OFF};
   tracker::TrackerParams params_;
+  // 실행 중 조정: 받은 값은 다음 scan 처리 시작에 적용
+  std::mutex tune_mutex_;
+  tracker::TrackerParams tune_params_;
+  bool tune_pending_{false};
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_;
 
   std::unique_ptr<tracker::LegTrackerCore> core_;
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;

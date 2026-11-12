@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "kebi_follow_tracker/param_table.hpp"
+#include "kebi_follow_tracker/tunables.hpp"
 
 namespace kt = kebi_follow::tracker;
 
@@ -120,4 +121,29 @@ TEST(Config, SpecValues) {
   EXPECT_DOUBLE_EQ(p.target.reacquire_confirm_s, 0.5);
   EXPECT_DOUBLE_EQ(p.ambiguity.radius, 0.6);
   EXPECT_DOUBLE_EQ(p.scan.robot_radius, 0.22);
+}
+
+TEST(Config, TunablesAreRealDoubleParamsWithDefaultsInRange) {
+  // 실행 중 조정 표(tunables.hpp)의 이름은 실제 실수 파라미터이고, 기본값이 범위 안이며 서로 모순이 없다
+  kt::TrackerParams p;
+  std::map<std::string, double> doubles;
+  kt::visitParams(p, [&](const char* name, auto& value) {
+    if constexpr (std::is_same_v<std::decay_t<decltype(value)>, double>) {
+      doubles[name] = value;
+    }
+  });
+  for (const auto& t : kt::kTrackerTunables) {
+    ASSERT_TRUE(doubles.count(t.name)) << t.name;
+    EXPECT_DOUBLE_EQ(t.get(p), doubles[t.name]) << t.name;
+    EXPECT_GE(t.get(p), t.lo) << t.name;
+    EXPECT_LE(t.get(p), t.hi) << t.name;
+    EXPECT_LT(t.lo, t.hi) << t.name;
+  }
+  EXPECT_EQ(kt::trackerInconsistency(p), "");
+  kt::TrackerParams bad = p;
+  bad.acquire.min_range = 1.4;  // max_range 1.5 와 0.2 m 안
+  EXPECT_NE(kt::trackerInconsistency(bad), "");
+  bad = p;
+  bad.target.lost_s = p.track.delete_s + 0.5;
+  EXPECT_NE(kt::trackerInconsistency(bad), "");
 }

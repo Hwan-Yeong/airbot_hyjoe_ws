@@ -25,7 +25,7 @@ ros2 topic pub --once /follow/ui/client follow_msgs/msg/UiClient "{cmd: 1}"   # 
 
 ## 주행 튜닝 화면
 
-실행 중에 속도 상한, 가감속·jerk(S 곡선), 필터, 추종·정지 거리 등 35개 값을 바꿔 보며 튜닝한다 ([SPEC 6.3 실행 중 조정](docs/SPEC.md)).
+실행 중에 속도 상한, 가감속·jerk(S 곡선), 필터, 추종·정지 거리 등 컨트롤러 35개와 모호(다른 사람 근접)·처음 고정·놓침 등 추적기 13개 값을 바꿔 보며 튜닝한다 ([SPEC 6.3 실행 중 조정](docs/SPEC.md)).
 
 ```bash
 # 같은 ROS 네트워크(로봇 또는 시뮬레이션)에서
@@ -34,7 +34,7 @@ python3 tools/tune_ui/tune_server.py                       # 브라우저: http:
 python3 tools/tune_ui/tune_server.py --agent-cmd "ssh robot 'source ...; python3 -u tune_agent.py'"
 ```
 
-- 슬라이더로 고친 뒤 "적용"을 누르면 다음 제어 주기(0.05 s)부터 쓰인다. 범위 밖이거나 모순인 값은 로봇이 거부한다.
+- 슬라이더로 고친 뒤 "적용"을 누르면 다음 제어 주기(0.05 s, 추적기는 다음 scan)부터 쓰인다. 범위 밖이거나 모순인 값은 로봇이 거부한다.
 - 시작·정지·비상정지 버튼, 실시간 상태와 30 s 그래프, 프리셋, 변경 이력(CSV), YAML 내보내기가 있다.
 
 ## 실차 시험 (2026-11-12)

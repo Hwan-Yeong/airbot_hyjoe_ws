@@ -245,6 +245,22 @@ TEST(PeopleTracker, CameraGroupPrefersTrackConfirmedMoreOften) {
   }
 }
 
+TEST(PeopleTracker, CameraGateCanChangeAtRuntime) {
+  ks::Harness h(ks::lidarOnlyParams());
+  h.world.walkers.emplace_back(ks::standingPerson({1.2, 0.0}));
+  h.run(4);
+  ASSERT_EQ(confirmedCount(h.core.tracker()), 1);
+  std::vector<kt::CameraDetection> det(1);
+  det[0].position = {1.2, 0.5};  // 기본 게이트 0.4 m 밖
+  det[0].score = 0.9;
+  EXPECT_EQ(h.core.processCamera(h.t, h.robot, det), 0);
+  kt::TrackerParams p = h.core.params();
+  p.camera.gate = 0.6;
+  h.core.updateParams(p);
+  EXPECT_DOUBLE_EQ(h.core.params().camera.gate, 0.6);
+  EXPECT_EQ(h.core.processCamera(h.t, h.robot, det), 1);
+}
+
 TEST(PeopleTracker, StaticPersonStaysPutInOdomWhileRobotRotates) {
   ks::Harness h(ks::lidarOnlyParams());
   h.world.walkers.emplace_back(ks::standingPerson({1.3, 0.2}));

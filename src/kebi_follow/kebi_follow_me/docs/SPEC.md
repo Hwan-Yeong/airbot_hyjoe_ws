@@ -239,10 +239,20 @@
 | 장애물 | `slow_distance` (0.5~3.0), `stop_margin` (0.15~0.6), `depth_stop_margin` (0.3~1.0), `obstacle_reaction_time` (0~0.5) |
 | 회전·놓침 | `rotation_limit_s` (1~10), `rotation_rearm_s` (0.5~5), `target_lost_s` (0.3~2), `occluded_speed_factor` (0~1), `camera_missing_speed_cap` (0~0.5) |
 
+- leg_tracker 도 13개를 실행 중 바꿀 수 있다 (2026-11-13). 받은 값은 다음 scan 처리 시작에 적용한다. 나머지는 read_only.
+  - 처음 고정 최소 거리 + 0.2 m 는 최대 거리 이하, `target.lost_s` 는 `track.delete_s` 이하여야 한다.
+
+| 묶음 (leg_tracker) | 파라미터 (범위) |
+|---|---|
+| 모호·사람 판정 | `ambiguity.radius` (0.2~1.5), `ambiguity.min_person_score` (0~1), `ambiguity.lost_s` (0~10, 0 끔), `camera.gate` (0.1~1.0), `camera.person_weight` (0~1) |
+| 처음 고정 | `acquire.min_range` (0.3~1.5), `acquire.max_range` (0.8~3.0), `acquire.max_bearing_deg` (5~60), `acquire.confirm_s` (0.2~3) |
+| 놓침·재획득 | `target.lost_s` (0.5~5), `target.reacquire_radius` (0.3~2), `target.reacquire_confirm_s` (0.1~2), `target.camera_lost_s` (0~10, 0 끔) |
+
 - 조정 화면 `kebi_follow_me/tools/tune_ui`:
   - `tune_server.py` 는 PC 웹 서버다(표준 라이브러리, http://localhost:8765).
   - `tune_agent.py` 는 로봇에서 도는 중계다(rclpy, stdin/stdout JSON). 서버가 `--agent-cmd` 로 띄운다(로컬 또는 SSH). 로봇에 포트를 열지 않는다.
   - 화면 기능: 파라미터 슬라이더(범위·기본값 표시, 한꺼번에 적용), 시작·정지·비상정지, 실시간 상태와 30 s 그래프(사람 거리, 명령·실제 속도, 상태).
+  - leg_tracker 값은 화면에서 `leg_tracker/` 를 붙인 이름으로 보인다 (예 `leg_tracker/ambiguity.radius`). YAML 내보내기는 두 노드를 나눠 쓴다.
   - 기록 기능: 프리셋 저장·불러오기, 변경 이력 CSV, 현재 값 YAML 내보내기(덮어쓰기 파일에 붙여 다음 실행 기본값으로).
 
 ## 7. 안전 사양 v0 (임시)

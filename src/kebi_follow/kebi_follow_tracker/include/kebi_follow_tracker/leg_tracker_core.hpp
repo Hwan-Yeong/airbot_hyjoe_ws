@@ -26,6 +26,8 @@ class LegTrackerCore {
   explicit LegTrackerCore(const TrackerParams& params);
 
   void setMode(Mode mode) { target_.setMode(mode); }
+  // 실행 중 조정 (tunables.hpp 의 값만 바뀐다고 본다: 다리 검출·칼만 값은 기동 때 것을 쓴다)
+  void updateParams(const TrackerParams& params);
   Mode mode() const { return target_.mode(); }
   void reset();
 

@@ -17,6 +17,12 @@ LegTrackerCore::LegTrackerCore(const TrackerParams& params)
   camera_primary_.reserve(kReserveCameraDetections);
 }
 
+void LegTrackerCore::updateParams(const TrackerParams& params) {
+  params_ = params;
+  tracker_.setParams(params);
+  target_.setParams(params);
+}
+
 void LegTrackerCore::reset() {
   tracker_.reset();
   const Mode mode = target_.mode();

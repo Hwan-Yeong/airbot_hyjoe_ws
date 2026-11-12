@@ -6,7 +6,8 @@ tune_agent.py 를 --agent-cmd 로 띄우고(로컬이면 python3, 로봇이면 S
 - 프리셋 저장·불러오기, 변경 이력(CSV), 현재 값을 YAML 로 내보내기 (data-dir 아래)
 - --hook "이름=셸 명령" 을 주면 화면에 버튼이 생긴다 (예: 컨테이너 시작·정지)
 usage: tune_server.py [--agent-cmd CMD] [--port 8765] [--data-dir ~/.kebi_follow_tune]
-                      [--defaults-yaml follow_controller.yaml] [--hook NAME=CMD ...]
+                      [--defaults-yaml follow_controller.yaml] [--tracker-defaults-yaml leg_tracker.yaml]
+                      [--hook NAME=CMD ...]
 """
 import argparse
 import collections
@@ -27,18 +28,44 @@ LOG_KEEP = 200
 REPLY_TIMEOUT_S = 8.0
 
 
-def load_defaults(path):
-    """follow_controller.yaml 의 실수 파라미터 (기본값 표시용). PyYAML 이 없으면 빈 값."""
-    if not path or not os.path.exists(path):
-        return {}
+TRACKER_PREFIX = "leg_tracker/"   # tune_agent.py 와 같은 이름 규칙
+
+
+def yaml_float(v):
+    """실수는 소수점을 붙여 쓴다 (1 로 쓰면 ROS 가 정수로 읽어 실수 파라미터를 거부한다)."""
+    s = f"{v:.4g}"
+    return s if any(c in s for c in ".eEn") else s + ".0"
+
+
+def _is_number(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def load_defaults(path, tracker_path=None):
+    """기본값 표시용: follow_controller.yaml 의 실수 + leg_tracker.yaml 의 실수(이름 앞에 leg_tracker/,
+    섹션은 점으로 잇는다 예 leg_tracker/ambiguity.radius). PyYAML 이 없으면 빈 값."""
     try:
         import yaml
     except ImportError:
         return {}
-    with open(path) as f:
-        doc = yaml.safe_load(f) or {}
-    p = (doc.get("follow_controller") or {}).get("ros__parameters") or {}
-    return {k: float(v) for k, v in p.items() if isinstance(v, (int, float)) and not isinstance(v, bool)}
+    out = {}
+    if path and os.path.exists(path):
+        with open(path) as f:
+            doc = yaml.safe_load(f) or {}
+        p = (doc.get("follow_controller") or {}).get("ros__parameters") or {}
+        out.update({k: float(v) for k, v in p.items() if _is_number(v)})
+    if tracker_path and os.path.exists(tracker_path):
+        with open(tracker_path) as f:
+            doc = yaml.safe_load(f) or {}
+
+        def walk(d, prefix):
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    walk(v, prefix + k + ".")
+                elif _is_number(v):
+                    out[TRACKER_PREFIX + prefix + k] = float(v)
+        walk((doc.get("leg_tracker") or {}).get("ros__parameters") or {}, "")
+    return out
 
 
 class AgentLink:
@@ -132,7 +159,7 @@ class App:
         self.csv_path = os.path.join(a.data_dir, "tune_log.csv")
         self.logs = collections.deque(maxlen=LOG_KEEP)
         self.loglock = threading.Lock()
-        self.defaults = load_defaults(a.defaults_yaml)
+        self.defaults = load_defaults(a.defaults_yaml, a.tracker_defaults_yaml)
         self.hooks = dict(h.split("=", 1) for h in a.hook)
         self.agent = AgentLink(a.agent_cmd, self.log)
 
@@ -182,10 +209,21 @@ class App:
 
     def export_yaml(self):
         vals = self.agent.params
+        ctl = {k: v for k, v in vals.items() if not k.startswith(TRACKER_PREFIX)}
+        trk = {}
+        for k, v in vals.items():
+            if k.startswith(TRACKER_PREFIX):
+                sec, _, name = k[len(TRACKER_PREFIX):].partition(".")
+                trk.setdefault(sec, {})[name] = v
         lines = ["# kebi follow-me 조정 결과 (" + datetime.datetime.now().isoformat(timespec="seconds") + ")",
                  "# 로봇 덮어쓰기 파일(params:=...)에 붙여 쓰면 다음 실행부터 기본값이 된다.",
                  "follow_controller:", "  ros__parameters:"]
-        lines += [f"    {k}: {v:.4g}" for k, v in sorted(vals.items())]
+        lines += [f"    {k}: {yaml_float(v)}" for k, v in sorted(ctl.items())]
+        if trk:
+            lines += ["leg_tracker:", "  ros__parameters:"]
+            for sec in sorted(trk):
+                lines.append(f"    {sec}:")
+                lines += [f"      {n}: {yaml_float(v)}" for n, v in sorted(trk[sec].items())]
         text = "\n".join(lines) + "\n"
         d = os.path.join(self.a.data_dir, "exports")
         os.makedirs(d, exist_ok=True)
@@ -295,6 +333,8 @@ def main():
     ap.add_argument("--data-dir", default=os.path.expanduser("~/.kebi_follow_tune"))
     ap.add_argument("--defaults-yaml", default=os.path.join(HERE, "..", "..", "..", "kebi_follow_controller",
                                                             "config", "follow_controller.yaml"))
+    ap.add_argument("--tracker-defaults-yaml", default=os.path.join(HERE, "..", "..", "..", "kebi_follow_tracker",
+                                                                    "config", "leg_tracker.yaml"))
     ap.add_argument("--hook", action="append", default=[], help='"버튼 이름=셸 명령"')
     a = ap.parse_args()
     app = App(a)

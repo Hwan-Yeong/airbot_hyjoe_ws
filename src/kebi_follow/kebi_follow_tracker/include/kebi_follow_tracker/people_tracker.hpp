@@ -94,6 +94,8 @@ class PeopleTracker {
   explicit PeopleTracker(const TrackerParams& params);
 
   void reset();
+  // 실행 중 조정 (카메라·모호 값 등은 쓸 때마다 읽는다. track.max_tracks 는 바꾸지 않는다)
+  void setParams(const TrackerParams& params) { params_ = params; }
   // 정지 물체 모델을 쓰지 않을 트랙 (락 타깃). -1 이면 없음
   void setProtectedTrack(int id) { protected_id_ = id; }
   // segments: base_link 기준 detector 출력, robot_pose: odom <- base_link (scan 시각)

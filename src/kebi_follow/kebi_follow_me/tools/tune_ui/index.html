@@ -144,6 +144,11 @@ const GROUPS = [
   ["단호 정지 (근접·장애물·센서)", ["firm_linear_decel", "firm_linear_jerk", "firm_angular_decel", "firm_angular_jerk"]],
   ["장애물", ["slow_distance", "stop_margin", "depth_stop_margin", "obstacle_reaction_time"]],
   ["회전·놓침", ["rotation_limit_s", "rotation_rearm_s", "target_lost_s", "occluded_speed_factor", "camera_missing_speed_cap"]],
+  ["추적기: 모호(다른 사람 근접)·사람 판정", ["leg_tracker/ambiguity.radius", "leg_tracker/ambiguity.min_person_score",
+                  "leg_tracker/ambiguity.lost_s", "leg_tracker/camera.gate", "leg_tracker/camera.person_weight"]],
+  ["추적기: 처음 고정·놓침·재획득", ["leg_tracker/acquire.min_range", "leg_tracker/acquire.max_range",
+                  "leg_tracker/acquire.max_bearing_deg", "leg_tracker/acquire.confirm_s", "leg_tracker/target.lost_s",
+                  "leg_tracker/target.reacquire_radius", "leg_tracker/target.reacquire_confirm_s", "leg_tracker/target.camera_lost_s"]],
 ];
 const FSM = {0: ["대기", "#8c959f"], 1: ["찾는 중", "#bf8700"], 2: ["따라가는 중", "#1a7f37"], 3: ["일시 정지", "#cf222e"],
              4: ["비상 정지", "#8250df"], 5: ["종료", "#0969da"]};

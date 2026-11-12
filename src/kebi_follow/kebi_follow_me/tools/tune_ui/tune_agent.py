@@ -4,7 +4,8 @@
 tune_server.py 가 이 프로그램을 (보통 SSH 로) 띄우고 stdin/stdout 을 잇는다. 로봇에 포트를 열 필요가 없다.
   입력  {"op": "get" | "set" | "cmd", "id": N, "values": {...}, "cmd": "start" | "stop" | "estop"}
   출력  {"type": "hello" | "params" | "result" | "tel" | "log", ...}
-조정 대상: follow_controller 파라미터 중 read_only 가 아니고 범위(floating_point_range)가 있는 것.
+조정 대상: follow_controller·leg_tracker 파라미터 중 read_only 가 아니고 범위(floating_point_range)가 있는 것.
+  이름: follow_controller 는 그대로(예 max_linear_speed), leg_tracker 는 "leg_tracker/" 를 붙인다(예 leg_tracker/ambiguity.radius).
 """
 import json
 import math
@@ -22,7 +23,8 @@ from rcl_interfaces.msg import Parameter, ParameterType, ParameterValue
 from rcl_interfaces.srv import DescribeParameters, GetParameters, ListParameters, SetParametersAtomically
 from rclpy.qos import QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
 
-NODE = "/follow_controller"
+NODE = "/follow_controller"       # 없으면 조정 불가 (주 노드)
+NODES = {"": NODE, "leg_tracker/": "/leg_tracker"}   # 화면 이름 접두어 → 노드
 TEL_HZ = 10.0
 SPEED_WIN_S = 0.2        # 실측 속도 창 [s] (popo 의 /odom twist 는 늘 0 → 자세 변화로 계산)
 CMD_CONFIRM_S = 2.0      # START/STOP 뒤 FSM 확인 대기 [s]
@@ -49,10 +51,12 @@ class Agent:
     def __init__(self):
         self.n = rclpy.create_node("kebi_follow_tune_agent")
         mk = self.n.create_client
-        self.c_list = mk(ListParameters, NODE + "/list_parameters")
-        self.c_desc = mk(DescribeParameters, NODE + "/describe_parameters")
-        self.c_get = mk(GetParameters, NODE + "/get_parameters")
-        self.c_set = mk(SetParametersAtomically, NODE + "/set_parameters_atomically")
+        self.cl = {pre: {"list": mk(ListParameters, node + "/list_parameters"),
+                         "desc": mk(DescribeParameters, node + "/describe_parameters"),
+                         "get": mk(GetParameters, node + "/get_parameters"),
+                         "set": mk(SetParametersAtomically, node + "/set_parameters_atomically")}
+                   for pre, node in NODES.items()}
+        self.c_get = self.cl[""]["get"]
         rel = QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE)
         self.ui = self.n.create_publisher(UiClient, "/follow/ui/client", rel)
         self.vel = self.n.create_publisher(Twist, "/cmd_vel", 1)
@@ -110,48 +114,81 @@ class Agent:
         self.pending.append((time.monotonic() + timeout, client.call_async(req), finisher))
 
     def get(self, rid):
-        def got_list(res):
-            if res is None:
+        """모든 노드의 조정 가능 값을 읽어 한 번에 알린다. 주 노드(follow_controller)가 없으면 실패."""
+        acc = {"values": {}, "ranges": {}, "left": len(NODES), "main_ok": False}
+
+        def node_done(pre, ok, ranges=None, values=None):
+            if ok:
+                acc["ranges"].update(ranges)
+                acc["values"].update(values)
+                if pre == "":
+                    acc["main_ok"] = True
+            acc["left"] -= 1
+            if acc["left"] > 0:
+                return
+            if not acc["main_ok"]:
                 out({"type": "result", "id": rid, "ok": False, "reason": "follow_controller 없음 (컨테이너가 떠 있나?)"})
                 return
+            self.ranges = acc["ranges"]
+            out({"type": "params", "values": acc["values"], "ranges": acc["ranges"]})
+            out({"type": "result", "id": rid, "ok": True})
+
+        for pre, c in self.cl.items():
+            self._get_node(pre, c, node_done)
+
+    def _get_node(self, pre, c, done):
+        def got_list(res):
+            if res is None:
+                done(pre, False)
+                return
             names = list(res.result.names)
-            self._call(self.c_desc, DescribeParameters.Request(names=names), lambda r: got_desc(r, names))
+            self._call(c["desc"], DescribeParameters.Request(names=names), lambda r: got_desc(r, names))
 
         def got_desc(res, names):
             if res is None:
-                out({"type": "result", "id": rid, "ok": False, "reason": "describe 실패"})
+                done(pre, False)
                 return
-            self.ranges = {d.name: [d.floating_point_range[0].from_value, d.floating_point_range[0].to_value, d.description]
-                           for d in res.descriptors if not d.read_only and d.floating_point_range}
-            tun = sorted(self.ranges)
-            self._call(self.c_get, GetParameters.Request(names=tun), lambda r: got_vals(r, tun))
+            ranges = {d.name: [d.floating_point_range[0].from_value, d.floating_point_range[0].to_value, d.description]
+                      for d in res.descriptors if not d.read_only and d.floating_point_range}
+            tun = sorted(ranges)
+            self._call(c["get"], GetParameters.Request(names=tun), lambda r: got_vals(r, tun, ranges))
 
-        def got_vals(res, tun):
+        def got_vals(res, tun, ranges):
             if res is None:
-                out({"type": "result", "id": rid, "ok": False, "reason": "get 실패"})
+                done(pre, False)
                 return
-            vals = {n: as_number(v) for n, v in zip(tun, res.values)}
-            out({"type": "params", "values": vals, "ranges": self.ranges})
-            out({"type": "result", "id": rid, "ok": True})
+            done(pre, True, {pre + n: r for n, r in ranges.items()},
+                 {pre + n: as_number(v) for n, v in zip(tun, res.values)})
 
-        self._call(self.c_list, ListParameters.Request(), got_list)
+        self._call(c["list"], ListParameters.Request(), got_list)
 
     def set(self, rid, values):
-        ps = []
+        """노드별로 나눠 원자적으로 바꾼다. 하나라도 거부되면 실패로 알린다 (다른 노드 것은 이미 적용됐을 수 있다)."""
+        groups = {}
         for k, v in values.items():
+            pre = next((p for p in sorted(NODES, key=len, reverse=True) if p and k.startswith(p)), "")
             pv = ParameterValue(type=ParameterType.PARAMETER_DOUBLE, double_value=float(v))
-            ps.append(Parameter(name=k, value=pv))
+            groups.setdefault(pre, []).append(Parameter(name=k[len(pre):], value=pv))
+        acc = {"left": len(groups), "ok": True, "reasons": []}
 
-        def done(res):
+        def done(pre, res):
             if res is None:
-                out({"type": "result", "id": rid, "ok": False, "reason": "set 응답 없음"})
-                return
-            r = res.result
-            out({"type": "result", "id": rid, "ok": bool(r.successful), "reason": r.reason})
-            if r.successful:
+                acc["ok"] = False
+                acc["reasons"].append(f"{NODES[pre]} 응답 없음")
+            elif not res.result.successful:
+                acc["ok"] = False
+                acc["reasons"].append(f"{NODES[pre]}: {res.result.reason}")
+            acc["left"] -= 1
+            if acc["left"] == 0:
+                out({"type": "result", "id": rid, "ok": acc["ok"], "reason": "; ".join(acc["reasons"])})
                 self.get(-1)   # 바뀐 값 다시 알림
 
-        self._call(self.c_set, SetParametersAtomically.Request(parameters=ps), done)
+        if not groups:
+            out({"type": "result", "id": rid, "ok": True, "reason": ""})
+            return
+        for pre, ps in groups.items():
+            self._call(self.cl[pre]["set"], SetParametersAtomically.Request(parameters=ps),
+                       lambda r, pre=pre: done(pre, r))
 
     # ------------------------------------------------------------- START / STOP
     def cmd(self, rid, what):
@@ -240,17 +277,17 @@ def main():
     a = Agent()
     threading.Thread(target=read_stdin, args=(a.inbox,), daemon=True).start()
     out({"type": "hello", "node": NODE})
-    last_check, was_ready = 0.0, False
+    last_check, was_ready = 0.0, {}
     while rclpy.ok():
         rclpy.spin_once(a.n, timeout_sec=0.02)
         now = time.monotonic()
         if now - last_check > SERVICE_CHECK_S:
-            # 컨테이너가 (다시) 뜨면 값을 자동으로 읽고, 내려가면 목록을 비운다
+            # 컨테이너(노드)가 (다시) 뜨면 값을 자동으로 읽고, 주 노드가 내려가면 목록을 비운다
             last_check = now
-            ready = a.c_get.service_is_ready()
-            if ready and (not was_ready or not a.ranges):
+            ready = {pre: c["get"].service_is_ready() for pre, c in a.cl.items()}
+            if ready[""] and (ready != was_ready or not a.ranges):
                 a.get(-1)
-            elif was_ready and not ready:
+            elif was_ready.get("") and not ready[""]:
                 a.ranges = {}
                 out({"type": "params", "values": {}, "ranges": {}})
             was_ready = ready
