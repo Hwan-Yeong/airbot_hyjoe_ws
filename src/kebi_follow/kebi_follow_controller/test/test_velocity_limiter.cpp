@@ -193,3 +193,65 @@ TEST(Limiter, AngularSCurve) {
   }
   EXPECT_NEAR(lim.w(), 0.8, kTol);
 }
+
+namespace {
+// 야간 기본값 (follow_controller.yaml): 선 0.8 m/s, 가속 0.5, 감속 0.8, jerk 0.6, 단호 jerk 15
+LimiterParams nightParams() {
+  LimiterParams p;
+  p.max_linear_speed = 0.8;
+  p.max_linear_accel = 0.5;
+  p.max_linear_decel = 0.8;
+  p.max_linear_jerk = 0.6;
+  p.firm_linear_jerk = 15.0;
+  return p;
+}
+
+// 0.8 을 향해 가속도가 0.45 이상 붙을 때까지 가속한다
+void accelerateHard(VelocityLimiter& lim) {
+  for (int i = 0; i < 200 && lim.linearAccel() < 0.45; ++i)
+    lim.step(0.8, 0.0, kDt);
+  ASSERT_GE(lim.linearAccel(), 0.45);
+}
+}  // namespace
+
+TEST(Limiter, ComfortSCurveOvershootsSuddenLowerTarget) {
+  // 리뷰 2026-11-13: 편안 S 곡선은 가속 중 목표가 갑자기 내려가면 가속도를 jerk 로 줄이는 동안 지나친다
+  VelocityLimiter lim(nightParams());
+  accelerateHard(lim);
+  const double v0 = lim.v();
+  double v_max = v0;
+  for (int i = 0; i < 40; ++i) {
+    lim.step(v0 - 0.1, 0.0, kDt, StopProfile::kComfort);
+    v_max = std::max(v_max, lim.v());
+  }
+  EXPECT_GT(v_max - (v0 - 0.1), 0.2);  // 이래서 안전 상한에는 kCap 을 쓴다
+}
+
+TEST(Limiter, CapProfileStopsAccelerationAndBrakesQuickly) {
+  VelocityLimiter lim(nightParams());
+  accelerateHard(lim);
+  const double v0 = lim.v();
+  const double cap = v0 - 0.1;
+  double v_max = v0;
+  double t_reach = -1.0;
+  for (int i = 0; i < 40; ++i) {
+    lim.step(cap, 0.0, kDt, StopProfile::kCap);
+    v_max = std::max(v_max, lim.v());
+    EXPECT_GE(lim.linearAccel(), -0.8 - kTol);  // 감속 크기는 편안 값
+    if (t_reach < 0.0 && lim.v() <= cap + 1e-6)
+      t_reach = (i + 1) * kDt;
+  }
+  EXPECT_LE(v_max, v0 + 0.03);  // 가속을 바로 멈춘다 (편안이면 +0.2 m/s 넘게)
+  ASSERT_GT(t_reach, 0.0);
+  EXPECT_LE(t_reach, 0.6);
+  EXPECT_NEAR(lim.v(), cap, 1e-6);
+}
+
+TEST(Limiter, JerkSwitchedOffAtTargetSnapsInsteadOfOvershooting) {
+  // 실행 중 jerk 를 0 으로 바꾼 직후: 목표에 있는데 S 곡선의 가속도가 남아 있다
+  double v = 0.5;
+  double a = 0.3;
+  sCurveStep(0.5, 0.5, 0.8, 0.0, kDt, &v, &a);
+  EXPECT_DOUBLE_EQ(v, 0.5);
+  EXPECT_DOUBLE_EQ(a, 0.0);
+}

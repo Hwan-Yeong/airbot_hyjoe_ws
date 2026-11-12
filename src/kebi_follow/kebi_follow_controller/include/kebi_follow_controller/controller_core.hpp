@@ -156,6 +156,7 @@ class ControllerCore {
 
   FsmState state() const { return fsm_.state(); }
   const ControllerParams& params() const { return p_; }
+  const VelocityLimiter& limiter() const { return limiter_; }  // 시험·진단용 (현재 속도·가속도)
   // 실행 중 조정: FSM·속도·회전 상태는 유지하고 파라미터만 바꾼다 (다음 step 부터 적용)
   void updateParams(const ControllerParams& p);
 
@@ -175,6 +176,7 @@ class ControllerCore {
   double w_law_f_{0.0};
   bool law_f_init_{false};
   bool too_close_latched_{false};  // S2 근접 히스테리시스
+  bool cap_active_{false};  // 안전 상한 감속(kCap) 중: 상한에 닿을 때까지 유지 (중간에 편안으로 바꾸면 출렁인다)
 };
 
 }  // namespace kebi_follow

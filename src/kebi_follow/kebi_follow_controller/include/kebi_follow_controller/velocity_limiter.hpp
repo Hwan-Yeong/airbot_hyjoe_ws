@@ -4,13 +4,15 @@
 // - 정지 종류 (StopProfile)
 //   kComfort: 평소 값 (max_*_accel/decel/jerk). 추종, 놓침, 모호, 회전 상한
 //   kFirm:    단호한 감속 (firm_*). 근접(S2), 장애물(S3), 센서 끊김(S6), 회전 금지(S4)
+//   kCap:     안전 상한(사람 앞 제동·장애물·카메라 이상)이 지금 궤적 아래로 갑자기 내려갔을 때 (선속도만).
+//             감속 크기는 편안 값, jerk 는 단호 값: 가속을 바로 멈추고 감속을 빨리 건다 (상한을 지나치지 않게)
 //   즉시 0:   stopLinear()/stopAngular()/reset(). HALT(낭떠러지·충돌·들림·비상정지)
 // - 후진 없음: 목표 선속도는 [0, max_linear_speed] 로 자른다
 #pragma once
 
 namespace kebi_follow {
 
-enum class StopProfile { kComfort, kFirm };
+enum class StopProfile { kComfort, kFirm, kCap };
 
 struct LimiterParams {
   double max_linear_speed{0.5};   // [m/s]

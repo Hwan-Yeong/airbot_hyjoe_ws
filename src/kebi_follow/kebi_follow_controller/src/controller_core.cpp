@@ -17,6 +17,10 @@ constexpr uint32_t kFirmAngularWaitMask =
 constexpr double kStoppedSpeed = 0.02;
 // 근접 정지가 풀리는 여유 [m]
 constexpr double kTooCloseHysteresis = 0.05;
+// 카메라·depth 이상 상한이 나머지 목표보다 이만큼 낮아야 "그 상한이 걸렸다"로 본다 [m/s]
+constexpr double kCapBindingEps = 1e-3;
+// 편안 S 곡선으로 그 상한을 이보다 더 지나칠 참이면 kCap (가속을 바로 멈추고 감속을 빨리 건다) [m/s]
+constexpr double kCapOverrunTol = 0.05;
 }  // namespace
 
 int16_t DetectUserFilter::update(int16_t raw, double now) {
@@ -77,6 +81,7 @@ void ControllerCore::resetMotion() {
   rotation_latched_ = false;
   law_f_init_ = false;
   too_close_latched_ = false;
+  cap_active_ = false;
 }
 
 bool ControllerCore::onStart(double now) {
@@ -243,8 +248,11 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
   const double w_des = law_w;
 
   // --- 회전 (S4) ---
-  const bool in_place_req = tracked && v_des <= p_.in_place_linear_eps &&
-                            std::abs(w_des) > p_.in_place_angular_eps;
+  // 제자리 회전 요청: 명령 선속도가 거의 0 이거나, 법칙이 제자리 회전을 요구할 때 (걸러진 선속도가
+  // 줄어드는 몇 초 동안에도 회전 여유 검사를 건다, 리뷰 2026-11-13)
+  const bool in_place_req =
+      tracked && (v_des <= p_.in_place_linear_eps || law_cmd.in_place) &&
+      std::abs(w_des) > p_.in_place_angular_eps;
   const bool rot_blocked = in_place_req && r_min <= p_.rotation_clearance;
   if (rotation_latched_ && (now - rotation_latched_at_ >= p_.rotation_rearm_s ||
                             (tracked && !in_place_req))) {
@@ -326,8 +334,24 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
       }
       // S2·S3: 단호 정지 (S 곡선)
       const bool firm_v = too_close || obs_emergency;
+      // 카메라·depth 이상 상한(S6, 0.3 m/s)은 뒤를 받치는 단호 정지가 없다(낮은 장애물이 안 보인다).
+      // 그 상한이 걸렸는데 편안 S 곡선으로는 kCapOverrunTol 넘게 지나칠 참이면 kCap (리뷰 2026-11-13).
+      // 사람 앞 제동·장애물 상한은 근접(S2)·장애물 비상(S3) 단호 정지가 받치므로 편안 S 곡선 그대로 둔다
+      const double v_soft = std::min(
+          {law_v * occl_factor, cap_obs, v_max});  // 카메라 상한만 뺀 목표 (실행 중 낮춘 상한은 편안 S 곡선)
+      const double a_up = std::max(limiter_.linearAccel(), 0.0);
+      const double j_c = p_.limiter.max_linear_jerk;
+      const double v_peak =
+          limiter_.v() + ((j_c > 0.0) ? a_up * a_up / (2.0 * j_c) : 0.0);
+      const bool cap_binding = v_t + kCapBindingEps < v_soft;
+      if (!cap_binding || limiter_.v() <= v_t + kCapBindingEps) {
+        cap_active_ = false;  // 상한이 풀렸거나 상한에 닿았다
+      } else if (v_peak > v_t + kCapOverrunTol) {
+        cap_active_ = true;
+      }
       limiter_.step(v_t, w_des, dt,
-                    firm_v ? StopProfile::kFirm : StopProfile::kComfort,
+                    firm_v ? StopProfile::kFirm
+                           : (cap_active_ ? StopProfile::kCap : StopProfile::kComfort),
                     StopProfile::kComfort);
       v = limiter_.v();
       w = limiter_.w();

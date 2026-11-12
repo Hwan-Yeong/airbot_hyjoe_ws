@@ -12,7 +12,8 @@ constexpr double kEps = 1e-9;
 void sCurveStep(double target, double a_up, double a_dn, double jerk, double dt,
                 double* v, double* a) {
   const double e = target - *v;
-  if (std::abs(e) < kEps && std::abs(*a) < kEps) {
+  // 목표에 있다: 가속도가 없거나, jerk 제한이 없으면(실행 중 0 으로 바꾼 직후 남은 가속도 포함) 붙인다
+  if (std::abs(e) < kEps && (jerk <= 0.0 || std::abs(*a) < kEps)) {
     *v = target;
     *a = 0.0;
     return;
@@ -66,10 +67,11 @@ void VelocityLimiter::step(double v_target, double w_target, double dt,
 
   // 선속도
   const bool firm_v = (linear == StopProfile::kFirm);
+  const bool cap_v = (linear == StopProfile::kCap);
   const double v_dn = firm_v ? std::max(p_.firm_linear_decel, p_.max_linear_decel)
                              : p_.max_linear_decel;
   double j_v = p_.max_linear_jerk;
-  if (firm_v && j_v > 0.0) {
+  if ((firm_v || cap_v) && j_v > 0.0) {
     j_v = std::max(p_.firm_linear_jerk, j_v);
   }
   const bool v_within = v_ <= p_.max_linear_speed + 1e-9;

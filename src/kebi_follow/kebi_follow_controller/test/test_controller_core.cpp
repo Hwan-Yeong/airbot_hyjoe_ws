@@ -89,6 +89,36 @@ struct Harness {
     return took;
   }
 
+  static constexpr double kCapLandingTol = 0.005;  // [m/s]
+  // 장애물 단호 감속: 첫 출력부터 v 가 늘지 않고, 감속은 단호 한계 안이며, max_s 안에 장애물 상한
+  // (v_limit) 이하로 내려가 그 뒤로 넘지 않는다. 시험 하네스는 로봇이 실제로 다가가지 않아 상한이
+  // 그대로이므로 0 까지가 아니라 상한까지만 본다 (실제로는 다가가며 상한이 줄어 정지 여유에서 선다)
+  double expectFirmSlowdownToCap(const CycleOutput& first, double v_before,
+                                 double max_s, const char* what) {
+    const auto& L = core.params().limiter;
+    const double dmax = std::max(L.firm_linear_decel, L.max_linear_decel) * kDt + 1e-9;
+    double prev = v_before;
+    CycleOutput o = first;
+    double took = kDt;
+    for (int i = 0; i < 400; ++i) {
+      EXPECT_LE(o.v, prev + 1e-9) << what;
+      EXPECT_GE(o.v, 0.0) << what;
+      EXPECT_LE(prev - o.v, dmax) << what;
+      prev = o.v;
+      if (o.v <= o.v_limit + 1e-6) {
+        break;
+      }
+      o = step();
+      took += kDt;
+    }
+    EXPECT_LE(took, max_s + 1e-9) << what;
+    const double cap = o.v_limit;
+    for (int i = 0; i < 20; ++i) {  // 상한 위로 다시 달리지 않는다 (S 곡선 착지 오차 5 mm/s 안)
+      EXPECT_LE(step().v, cap + kCapLandingTol) << what;
+    }
+    return took;
+  }
+
   ControllerCore core;
   CycleInput in;
   CycleOutput last;
@@ -362,9 +392,9 @@ TEST(Core, ObstacleInsideBrakingDistanceStopsFirmly) {
   EXPECT_EQ(o.state, FsmState::kFollowing);
   EXPECT_TRUE(o.stop_reasons & stop_reason::kObstacle);
   EXPECT_NEAR(o.scan_obstacle_distance, 0.38, 1e-9);
-  // 단호 정지 동안 간 거리 (≈ v·t/2) 는 0.38 m 보다 충분히 작다
-  const double took = h.expectFirmStop(o, 0.5, 0.6, "obstacle");
-  EXPECT_LT(0.5 * took * 0.5, 0.2);
+  // 단호 감속 동안 간 거리 (≈ v·t) 는 0.38 m 보다 충분히 작다
+  const double took = h.expectFirmSlowdownToCap(o, 0.5, 0.6, "obstacle");
+  EXPECT_LT(0.5 * took, 0.2);
 }
 
 TEST(Core, ObstacleSlowdownZone) {
@@ -373,9 +403,9 @@ TEST(Core, ObstacleSlowdownZone) {
   h.scan = {{0.22 + 0.625, 0.0}};  // d = 0.625 → 상한 0.25
   auto o = h.step();
   EXPECT_NEAR(o.v_limit, 0.25, 1e-9);
-  // 즉시 정지가 아닌 편안 감속 (jerk 로 차오름)
+  // 즉시 정지가 아닌 감속. 안전 상한이 갑자기 내려가면 편안 감속 크기로 바로 건다 (kCap, 리뷰 2026-11-13)
   EXPECT_LT(o.v, 0.5);
-  EXPECT_GT(o.v, 0.5 - 0.8 * kDt);
+  EXPECT_GE(o.v, 0.5 - 0.8 * kDt - 1e-9);
   h.run(1.0);
   EXPECT_LE(h.last.v, 0.25 + 1e-6);
   // 통로 밖 점은 무시
@@ -392,7 +422,7 @@ TEST(Core, DepthObstacleUsesLargerMargin) {
   auto o = h.step();
   EXPECT_NEAR(o.depth_obstacle_distance, 0.55, 1e-9);
   EXPECT_TRUE(o.stop_reasons & stop_reason::kObstacle);  // 0.156 + 0.5 안
-  h.expectFirmStop(o, 0.5, 0.6, "depth obstacle");
+  h.expectFirmSlowdownToCap(o, 0.5, 0.6, "depth obstacle");
   // 같은 거리라도 camera 가 꺼져 있으면 depth 점은 쓰지 않는다 (대신 0.3 상한)
   Harness g;
   g.cruise();
@@ -570,6 +600,73 @@ TEST(Core, ApproachingPersonNeverMakesRobotAdvanceInsideStopDistance) {
   }
 }
 
+namespace {
+// 야간 기본값의 선속도 제한 (jerk 0.6: 리뷰가 지적한 지나침이 생기는 값)
+ControllerParams nightLimiterParams() {
+  ControllerParams p;
+  p.limiter.max_linear_speed = 0.5;
+  p.limiter.max_linear_accel = 0.5;
+  p.limiter.max_linear_decel = 0.8;
+  p.limiter.max_linear_jerk = 0.6;
+  p.limiter.firm_linear_jerk = 15.0;
+  p.law.max_linear_speed = 0.5;
+  return p;
+}
+}  // namespace
+
+TEST(Core, SuddenSafetyCapDoesNotOvershoot) {
+  // 리뷰 2026-11-13: 가속 중 카메라 이상(0.3 m/s 상한)이 걸리면 상한을 지나치지 않고 바로 줄인다
+  Harness h(nightLimiterParams());
+  h.target(3.0, 0.0);
+  h.start();
+  for (int i = 0; i < 200 && !(h.last.v > 0.32 && h.core.limiter().linearAccel() > 0.3); ++i)
+    h.step();
+  ASSERT_GT(h.core.limiter().linearAccel(), 0.3);
+  const double v0 = h.last.v;
+  h.in.sensors.camera_ok = false;
+  double v_max = v0;
+  double t_reach = -1.0;
+  for (int i = 0; i < 40; ++i) {
+    h.step();
+    v_max = std::max(v_max, h.last.v);
+    if (t_reach < 0.0 && h.last.v <= 0.3 + 1e-6)
+      t_reach = (i + 1) * kDt;
+  }
+  EXPECT_EQ(h.last.state, FsmState::kFollowing);
+  EXPECT_LE(v_max, v0 + 0.03);
+  ASSERT_GT(t_reach, 0.0);
+  EXPECT_LE(t_reach, 0.6);
+}
+
+TEST(Core, TurnInPlaceRequestChecksRotationClearanceWhileSlowing) {
+  // 리뷰 2026-11-13: 사람이 옆으로 비켜서면(방위 > 45°) 걸러진 선속도가 줄어드는 동안에도 회전 여유 검사를 건다
+  Harness h(nightLimiterParams());
+  h.cruise();
+  h.scan = {{-0.1, -0.27}};  // 중심에서 0.29 m (뒤 오른쪽: 전진 통로는 막지 않는다)
+  h.target(0.5, 1.4);        // 왼쪽 약 70°
+  bool blocked = false;
+  for (int i = 0; i < 6 && !blocked; ++i) {
+    h.step();
+    blocked = (h.last.state == FsmState::kWaiting) &&
+              (h.last.stop_reasons & stop_reason::kRotationBlocked);
+  }
+  EXPECT_TRUE(blocked);
+  // 장애물이 없으면: 선속도는 끊지 않고(부드럽게) 줄어 몇 초 안에 제자리 회전이 된다
+  Harness g(nightLimiterParams());
+  g.cruise();
+  g.target(0.5, 1.4);
+  double t = 0.0;
+  double prev = g.last.v;
+  while (g.last.v > 0.01 && t < 5.0) {
+    g.step();
+    t += kDt;
+    EXPECT_LE(g.last.v, prev + 1e-9);
+    prev = g.last.v;
+  }
+  EXPECT_LE(t, 3.5);
+  EXPECT_EQ(g.last.state, FsmState::kFollowing);
+}
+
 TEST(DetectUserFilter, DebounceAndImmediateZero) {
   DetectUserFilter f(0.3);
   EXPECT_EQ(f.update(detect_user::kNoPerson, 0.0), detect_user::kNoPerson);
@@ -717,7 +814,7 @@ TEST(Core, DegradedDepthCapsSpeedButKeepsPoints) {
   h.depth = {{0.22 + 0.55, 0.0}};
   const auto o = h.step();
   EXPECT_NEAR(o.depth_obstacle_distance, 0.55, 1e-9);
-  h.expectFirmStop(o, 0.5, 0.6, "degraded depth points");  // depth 점 정지 (0.156 + 0.5 안)
+  h.expectFirmSlowdownToCap(o, 0.5, 0.6, "degraded depth points");  // depth 점 (0.156 + 0.5 안)
   Harness g;
   g.cruise();
   g.in.sensors.camera_ok = false;

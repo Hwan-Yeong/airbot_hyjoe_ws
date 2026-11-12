@@ -123,8 +123,8 @@ def main():
         except RuntimeError as e:
             continue
         results.append((total, dict(zip([k for k, _ in axes], combo))))
-        if (i + 1) % 200 == 0:
-            print(f"  {i + 1}/{len(combos)} best {min(results)[0]:.2f}", file=sys.stderr, flush=True)
+        if (i + 1) % 200 == 0 and results:   # 점수가 같으면 dict 끼리 비교하지 않게 점수로만
+            print(f"  {i + 1}/{len(combos)} best {min(r[0] for r in results):.2f}", file=sys.stderr, flush=True)
     results.sort(key=lambda r: r[0])
     for total, combo in results[: a.top]:
         print(f"{total:8.2f}  " + "  ".join(f"{k}={v:g}" for k, v in combo.items()))
