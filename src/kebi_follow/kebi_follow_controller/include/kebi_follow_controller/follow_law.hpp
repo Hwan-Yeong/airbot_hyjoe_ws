@@ -14,7 +14,8 @@ struct FollowLawParams {
   double k_v{1.0};            // 거리 오차 이득 [1/s]
   double k_w{1.2};            // 방위 이득 [1/s]
   double ff_gain{1.0};        // 타깃 전방 속도 feed-forward 이득
-  // 이보다 느린 타깃 속도는 잡음으로 보고 무시 [m/s]
+  // 타깃 속도 feed-forward 는 이 값의 0.5 배에서 0, 1.5 배에서 전부가 되도록 부드럽게 섞는다
+  // (그보다 느린 속도는 잡음으로 본다. 계단으로 켜고 끄면 출발·정지가 덜컥거린다) [m/s]
   double ff_min_target_speed{0.1};
   double bearing_deadband{0.05};        // [rad]
   double slow_bearing{degToRad(15.0)};  // 여기서부터 v 감소 [rad]
@@ -23,6 +24,7 @@ struct FollowLawParams {
   double max_linear_speed{0.5};   // [m/s]
   double max_angular_speed{0.8};  // [rad/s]
   double brake_decel{0.8};        // 제동 상한 계산용 감속 [m/s^2]
+  double brake_jerk{0.0};  // 제동 상한 계산용 jerk [m/s^3] (감속이 차오르는 시간만큼 반응이 늦다), 0 이하 끔
 };
 
 struct FollowCommand {

@@ -48,8 +48,10 @@ TEST(FollowLaw, FeedForwardWithDeadband) {
   // 목표 거리 1.0 m 보다 0.15 m 멀 때, 타깃이 0.2 m/s 로 멀어지면 v = k_v e + v_ff
   const auto c = law.compute(1.15, 0.0, 0.2);
   EXPECT_NEAR(c.v, 1.0 * 0.15 + 0.2, 1e-9);
-  // 0.1 m/s 이하 타깃 속도는 잡음으로 보고 무시
-  EXPECT_NEAR(law.compute(1.15, 0.0, 0.08).v, 0.15, 1e-9);
+  // 느린 타깃 속도는 부드럽게 섞는다: 0.05 m/s 이하 0, 0.15 m/s 이상 전부 (ff_min 0.1 기준)
+  EXPECT_NEAR(law.compute(1.15, 0.0, 0.04).v, 0.15, 1e-9);
+  EXPECT_NEAR(law.compute(1.15, 0.0, 0.1).v, 0.15 + 0.5 * 0.1, 1e-9);
+  EXPECT_NEAR(law.compute(1.15, 0.0, 0.15).v, 0.15 + 0.15, 1e-9);
   // 다가오는 성분은 쓰지 않는다
   EXPECT_NEAR(law.compute(1.15, 0.0, -0.4).v, 0.15, 1e-9);
 }

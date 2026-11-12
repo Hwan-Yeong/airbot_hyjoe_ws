@@ -38,14 +38,21 @@ FollowCommand FollowLaw::compute(double range, double bearing,
   }
 
   const double e = range - p_.follow_distance;
-  const double v_ff = (target_forward_speed > p_.ff_min_target_speed)
-                          ? p_.ff_gain * target_forward_speed
-                          : 0.0;
+  // 타깃 속도 feed-forward: 0.5·ff_min 에서 0, 1.5·ff_min 에서 1 이 되도록 섞는다
+  const double s = std::max(0.0, target_forward_speed);
+  const double lo = 0.5 * p_.ff_min_target_speed;
+  const double hi = 1.5 * p_.ff_min_target_speed;
+  const double blend =
+      (hi > lo) ? std::clamp((s - lo) / (hi - lo), 0.0, 1.0) : (s > 0.0 ? 1.0 : 0.0);
+  const double v_ff = p_.ff_gain * s * blend;
   double v = std::max(0.0, p_.k_v * e + v_ff);
 
-  // 사람이 지금 멈춰도 stop_distance + approach_margin 앞에서 설 수 있는 속도까지만
+  // 사람이 지금 멈춰도 stop_distance + approach_margin 앞에서 설 수 있는 속도까지만.
+  // 감속이 jerk 제한으로 차오르는 동안(a/2j 만큼) 반응이 늦은 것으로 본다
+  const double t_jerk =
+      (p_.brake_jerk > 0.0) ? p_.brake_decel / (2.0 * p_.brake_jerk) : 0.0;
   c.v_cap = stoppingSpeed(range - p_.stop_distance - p_.approach_margin,
-                          p_.brake_decel, p_.reaction_time);
+                          p_.brake_decel, p_.reaction_time + t_jerk);
   v = std::min({v, c.v_cap, p_.max_linear_speed});
 
   // 방위 오차가 크면 감속, turn_in_place_bearing 부터 제자리 회전

@@ -35,6 +35,12 @@ struct ControllerParams {
   double in_place_linear_eps{0.01};
   // 이보다 빠른 각속도만 회전으로 센다 [rad/s]
   double in_place_angular_eps{0.05};
+  // 서 있을 때 이보다 작은 선속도 요구로는 출발하지 않는다 [m/s] (0: 끔)
+  double start_speed{0.0};
+  // 추종 법칙 출력 저역 통과 시간 상수 [s] (0: 끔). 다리 흔들림·속도 추정 잡음이 가가속도로 번지지 않게.
+  // 안전 상한(사람 앞 제동·장애물·근접)은 걸러진 값 뒤에 그대로 건다
+  double v_filter_s{0.0};
+  double w_filter_s{0.0};
   // S6 센서
   double camera_missing_speed_cap{0.3};  // depth 가 없을 때 선속도 상한 [m/s]
   // S7 타깃
@@ -165,6 +171,10 @@ class ControllerCore {
   double rotation_since_{-1.0};  // 제자리 회전 시작 시각 (<0: 회전 안 함)
   bool rotation_latched_{false};  // S4 연속 회전 상한 걸림
   double rotation_latched_at_{0.0};
+  double v_law_f_{0.0};  // 걸러진 추종 법칙 출력
+  double w_law_f_{0.0};
+  bool law_f_init_{false};
+  bool too_close_latched_{false};  // S2 근접 히스테리시스
 };
 
 }  // namespace kebi_follow

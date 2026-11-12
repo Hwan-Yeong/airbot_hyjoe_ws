@@ -9,9 +9,14 @@ namespace {
 // 이보다 큰 각속도 명령에는 S10 creep 을 붙인다 [rad/s]
 constexpr double kZeroAngular = 1e-4;
 // WAITING 진입 사유 중 감속 제한 없이 바로 세우는 것
-constexpr uint32_t kImmediateWaitMask = stop_reason::kSensorTimeout |
-                                        stop_reason::kRotationBlocked |
-                                        stop_reason::kRotationLimit;
+// WAITING 중 단호 정지 (센서를 못 믿거나 회전하면 닿는다). 나머지(놓침·모호·회전 상한)는 편안 정지
+constexpr uint32_t kFirmLinearWaitMask = stop_reason::kSensorTimeout;
+constexpr uint32_t kFirmAngularWaitMask =
+    stop_reason::kSensorTimeout | stop_reason::kRotationBlocked;
+// 이보다 느리면 "서 있다"로 본다 (출발 문턱 판단) [m/s]
+constexpr double kStoppedSpeed = 0.02;
+// 근접 정지가 풀리는 여유 [m]
+constexpr double kTooCloseHysteresis = 0.05;
 }  // namespace
 
 int16_t DetectUserFilter::update(int16_t raw, double now) {
@@ -70,6 +75,8 @@ void ControllerCore::resetMotion() {
   limiter_.reset();
   rotation_since_ = -1.0;
   rotation_latched_ = false;
+  law_f_init_ = false;
+  too_close_latched_ = false;
 }
 
 bool ControllerCore::onStart(double now) {
@@ -130,13 +137,39 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
   if (tracked) {
     law_cmd = law_.compute(range, bearing, t.velocity.x);
   }
+  // 추종 법칙 출력 저역 통과 (다리 흔들림·속도 추정 잡음이 가가속도로 번지지 않게).
+  // 사람 앞 제동 상한은 걸러진 값 뒤에 다시 건다 (안전 상한은 늦추지 않는다)
+  double law_v = law_cmd.v;
+  double law_w = law_cmd.w;
+  if (tracked) {
+    if (!law_f_init_) {
+      v_law_f_ = limiter_.v();
+      w_law_f_ = limiter_.w();
+      law_f_init_ = true;
+    }
+    const double av = (p_.v_filter_s > 0.0) ? dt / (p_.v_filter_s + dt) : 1.0;
+    const double aw = (p_.w_filter_s > 0.0) ? dt / (p_.w_filter_s + dt) : 1.0;
+    v_law_f_ += av * (law_cmd.v - v_law_f_);
+    w_law_f_ += aw * (law_cmd.w - w_law_f_);
+    law_v = std::min(v_law_f_, law_cmd.v_cap);
+    law_w = w_law_f_;
+  } else {
+    law_f_init_ = false;
+  }
   // S2: 위치를 아는 타깃(모호·가림 포함)이 stop_distance 안이면 어느 이동 상태에서든 즉시 정지
   const bool target_pos_known =
       t.received &&
       (locked || occluded || t.status == TargetStatus::kCandidate) &&
       t.msg_age <= p_.target_lost_s;
-  const bool too_close =
+  // S2 근접: 들어갈 때는 stop_distance, 풀릴 때는 + kTooCloseHysteresis (다리 하나만 잡힐 때 거리가
+  // 0.1 m 남짓 튀어 문턱에서 켜졌다 꺼졌다 하지 않게)
+  bool too_close =
       law_cmd.too_close || (target_pos_known && range <= p_.law.stop_distance);
+  if (!too_close && too_close_latched_ && target_pos_known &&
+      range <= p_.law.stop_distance + kTooCloseHysteresis) {
+    too_close = true;
+  }
+  too_close_latched_ = too_close;
 
   // --- 장애물 (S3) ---
   const double v_max = p_.limiter.max_linear_speed;
@@ -161,11 +194,14 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
   };
   const double slow_len = std::max(0.0, p_.slow_distance - p_.stop_margin);
   const double t_react = p_.obstacle_reaction_time;
+  const double j_lin = p_.limiter.max_linear_jerk;
+  const double t_react_cap =
+      t_react + ((j_lin > 0.0) ? decel / (2.0 * j_lin) : 0.0);
   auto obstacleCap = [&]() {
     return std::min(obstacleSpeedCap(d_scan, p_.stop_margin, slow_len, decel,
-                                     v_max, t_react),
+                                     v_max, t_react_cap),
                     obstacleSpeedCap(d_depth, p_.depth_stop_margin, slow_len,
-                                     decel, v_max, t_react));
+                                     decel, v_max, t_react_cap));
   };
   // --- 선속도 상한 (S1·S3·S6·S7) ---
   const bool measured = fresh_lock;
@@ -177,14 +213,14 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
   }
   // 1차: 법칙의 (v, w) 경로
   const double kappa0 = pathCurvature(
-      law_cmd.v, law_cmd.w, p_.curvature_min_speed, p_.corridor.max_curvature);
+      law_v, law_w, p_.curvature_min_speed, p_.corridor.max_curvature);
   checkPath(kappa0);
   double cap_obs = obstacleCap();
   // 2차: 상한을 적용한 v 와 같은 w 의 실제 경로 (v 가 줄면 곡률이 커진다)
   const double v_first =
-      std::min({law_cmd.v * occl_factor, v_limit_other, cap_obs});
+      std::min({law_v * occl_factor, v_limit_other, cap_obs});
   const double kappa1 = pathCurvature(
-      v_first, law_cmd.w, p_.curvature_min_speed, p_.corridor.max_curvature);
+      v_first, law_w, p_.curvature_min_speed, p_.corridor.max_curvature);
   if (kappa1 != kappa0) {
     checkPath(kappa1);
     cap_obs = obstacleCap();
@@ -200,15 +236,15 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
                            t_react);
 
   const double v_cap = std::min(v_limit_other, cap_obs);
-  double v_des = std::min(law_cmd.v * occl_factor, v_cap);
+  double v_des = std::min(law_v * occl_factor, v_cap);
   if (obs_emergency || too_close) {
     v_des = 0.0;
   }
-  const double w_des = law_cmd.w;
+  const double w_des = law_w;
 
   // --- 회전 (S4) ---
-  const bool in_place_req =
-      tracked && v_des <= p_.in_place_linear_eps && w_des != 0.0;
+  const bool in_place_req = tracked && v_des <= p_.in_place_linear_eps &&
+                            std::abs(w_des) > p_.in_place_angular_eps;
   const bool rot_blocked = in_place_req && r_min <= p_.rotation_clearance;
   if (rotation_latched_ && (now - rotation_latched_at_ >= p_.rotation_rearm_s ||
                             (tracked && !in_place_req))) {
@@ -269,30 +305,35 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
       limiter_.reset();
       publish = true;
       break;
-    case FsmState::kWaiting:
-      if ((wait & kImmediateWaitMask) != 0) {
-        limiter_.reset();
-      } else {
-        limiter_.step(0.0, 0.0, dt);
-      }
-      // S2·S3 는 WAITING 감속 중에도 즉시
-      if (obs_emergency || too_close) {
-        limiter_.stopLinear();
-      }
+    case FsmState::kWaiting: {
+      // 놓침·모호·회전 상한은 편안 정지, 센서 끊김·회전 금지·근접·장애물은 단호 정지 (S 곡선, 즉시 0 아님)
+      const bool firm_v = (wait & kFirmLinearWaitMask) != 0 || obs_emergency ||
+                          too_close;
+      const bool firm_w = (wait & kFirmAngularWaitMask) != 0;
+      limiter_.step(0.0, 0.0, dt,
+                    firm_v ? StopProfile::kFirm : StopProfile::kComfort,
+                    firm_w ? StopProfile::kFirm : StopProfile::kComfort);
       v = limiter_.v();
       w = limiter_.w();
       publish = true;
       break;
-    case FsmState::kFollowing:
-      limiter_.step(v_des, w_des, dt);
-      // S2·S3: 감속 제한 없이 즉시
-      if (too_close || obs_emergency) {
-        limiter_.stopLinear();
+    }
+    case FsmState::kFollowing: {
+      double v_t = v_des;
+      // 서 있을 때 아주 작은 출발 요구는 무시한다 (사람이 거의 그대로면 덜컥 출발·정지를 반복하지 않게)
+      if (limiter_.v() < kStoppedSpeed && v_t < p_.start_speed) {
+        v_t = 0.0;
       }
+      // S2·S3: 단호 정지 (S 곡선)
+      const bool firm_v = too_close || obs_emergency;
+      limiter_.step(v_t, w_des, dt,
+                    firm_v ? StopProfile::kFirm : StopProfile::kComfort,
+                    StopProfile::kComfort);
       v = limiter_.v();
       w = limiter_.w();
       publish = true;
       break;
+    }
   }
 
   // S4: 제자리 회전 연속 상한
@@ -302,11 +343,10 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
       rotation_since_ = now;
     }
     if (now - rotation_since_ >= p_.rotation_limit_s) {
+      // 각속도를 끊지 않는다: 다음 주기부터 WAITING 에서 편안 정지(S 곡선)로 줄인다
       rotation_latched_ = true;
       rotation_latched_at_ = now;
       rotation_since_ = -1.0;
-      limiter_.stopAngular();
-      w = 0.0;
     }
   } else {
     rotation_since_ = -1.0;

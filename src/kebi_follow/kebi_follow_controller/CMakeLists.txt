@@ -46,6 +46,14 @@ rclcpp_components_register_node(${PROJECT_NAME}_component
 install(TARGETS ${PROJECT_NAME}_component
   ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION bin)
 install(DIRECTORY include/ DESTINATION include)
+
+# 빠른 폐루프 시뮬레이터 (튜닝용, ROS 없음). 로봇 빌드에는 넣지 않는다: -DKEBI_FOLLOW_BUILD_SIM=ON
+option(KEBI_FOLLOW_BUILD_SIM "build follow_core_sim" OFF)
+if(KEBI_FOLLOW_BUILD_SIM)
+  add_executable(follow_core_sim tools/follow_core_sim.cpp)
+  target_link_libraries(follow_core_sim ${PROJECT_NAME}_core)
+  install(TARGETS follow_core_sim DESTINATION lib/${PROJECT_NAME})
+endif()
 install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)

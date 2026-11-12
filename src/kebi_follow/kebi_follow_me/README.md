@@ -25,7 +25,7 @@ ros2 topic pub --once /follow/ui/client follow_msgs/msg/UiClient "{cmd: 1}"   # 
 
 ## 주행 튜닝 화면
 
-실행 중에 속도 상한, 가감속, 추종·정지 거리 등 26개 값을 바꿔 보며 튜닝한다 ([SPEC 6.3 실행 중 조정](docs/SPEC.md)).
+실행 중에 속도 상한, 가감속·jerk(S 곡선), 필터, 추종·정지 거리 등 35개 값을 바꿔 보며 튜닝한다 ([SPEC 6.3 실행 중 조정](docs/SPEC.md)).
 
 ```bash
 # 같은 ROS 네트워크(로봇 또는 시뮬레이션)에서

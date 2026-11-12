@@ -1,6 +1,7 @@
 // 가감속·jerk 제한 (S1)
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 
 #include "kebi_follow_controller/velocity_limiter.hpp"
@@ -24,13 +25,14 @@ TEST(Limiter, AccelLimitWithoutJerk) {
   EXPECT_NEAR(lim.v(), 0.5, kTol);
 }
 
-TEST(Limiter, DecelLimit) {
+TEST(Limiter, DecelLimitWithoutJerk) {
   LimiterParams p;
+  p.max_linear_jerk = 0.0;  // jerk 끔: 사다리꼴 (예전 감속 동작)
   VelocityLimiter lim(p);
   for (int i = 0; i < 200; ++i)
     lim.step(0.5, 0.0, kDt);
   ASSERT_NEAR(lim.v(), 0.5, kTol);
-  lim.step(0.0, 0.0, kDt);  // 제동은 jerk 제한 없이 바로 0.8 m/s^2
+  lim.step(0.0, 0.0, kDt);  // jerk 끄면 바로 0.8 m/s^2
   EXPECT_NEAR(lim.v(), 0.5 - 0.8 * kDt, kTol);
   for (int i = 0; i < 4; ++i)
     lim.step(0.0, 0.0, kDt);
@@ -109,4 +111,85 @@ TEST(Limiter, ZeroOrNegativeDtIgnored) {
   lim.step(0.5, 0.5, -1.0);
   EXPECT_DOUBLE_EQ(lim.v(), 0.0);
   EXPECT_DOUBLE_EQ(lim.w(), 0.0);
+}
+
+TEST(Limiter, SCurveDecelerationBothWays) {
+  // 2026-11-13: 감속도 jerk 제한 (S 곡선). 가속도 변화 <= jerk·dt, 목표 아래로 내려가지 않고 0 에서 선다
+  LimiterParams p;  // jerk 2.0, 감속 0.8
+  VelocityLimiter lim(p);
+  for (int i = 0; i < 200; ++i)
+    lim.step(0.5, 0.0, kDt);
+  ASSERT_NEAR(lim.v(), 0.5, kTol);
+  double a_prev = 0.0;
+  double v_prev = lim.v();
+  double min_a = 0.0;
+  for (int i = 0; i < 100; ++i) {
+    lim.step(0.0, 0.0, kDt);
+    const double a = (lim.v() - v_prev) / kDt;
+    EXPECT_GE(a, -p.max_linear_decel - kTol) << i;
+    // 착지 마지막 한 걸음(속도 0.01 m/s 미만)은 이산 시간이라 jerk 한계를 15 % 까지 넘을 수 있다
+    EXPECT_LE(std::abs(a - a_prev), 1.15 * p.max_linear_jerk * kDt) << i;
+    EXPECT_GE(lim.v(), 0.0);
+    EXPECT_LE(lim.v(), v_prev + kTol);
+    min_a = std::min(min_a, a);
+    a_prev = a;
+    v_prev = lim.v();
+  }
+  EXPECT_DOUBLE_EQ(lim.v(), 0.0);
+  EXPECT_LT(min_a, -0.5);  // 감속 상한 가까이까지는 쓴다
+}
+
+TEST(Limiter, FirmStopIsFasterButContinuous) {
+  LimiterParams p;
+  VelocityLimiter comfort(p), firm(p);
+  for (int i = 0; i < 200; ++i) {
+    comfort.step(0.5, 0.0, kDt);
+    firm.step(0.5, 0.0, kDt);
+  }
+  int n_comfort = 0, n_firm = 0;
+  while (comfort.v() > 0.0 && n_comfort < 200) {
+    comfort.step(0.0, 0.0, kDt);
+    ++n_comfort;
+  }
+  double v_prev = firm.v();
+  while (firm.v() > 0.0 && n_firm < 200) {
+    firm.step(0.0, 0.0, kDt, StopProfile::kFirm);
+    EXPECT_LE(v_prev - firm.v(), p.firm_linear_decel * kDt + kTol);  // 단호 감속 한계 안
+    v_prev = firm.v();
+    ++n_firm;
+  }
+  EXPECT_LT(n_firm, n_comfort);
+  EXPECT_LE(n_firm * kDt, 0.6);  // 0.5 m/s 에서 0.6 s 안
+}
+
+TEST(Limiter, LoweringCapAtRuntimeDeceleratesSmoothly) {
+  // 실행 중 상한을 낮추면 잘라 내지 않고 S 곡선으로 내려간다
+  LimiterParams p;
+  VelocityLimiter lim(p);
+  for (int i = 0; i < 200; ++i)
+    lim.step(0.5, 0.0, kDt);
+  p.max_linear_speed = 0.2;
+  lim.setParams(p);
+  lim.step(0.5, 0.0, kDt);
+  EXPECT_GT(lim.v(), 0.45);
+  for (int i = 0; i < 100; ++i)
+    lim.step(0.5, 0.0, kDt);
+  EXPECT_NEAR(lim.v(), 0.2, kTol);
+}
+
+TEST(Limiter, AngularSCurve) {
+  LimiterParams p;
+  p.max_angular_jerk = 4.0;
+  VelocityLimiter lim(p);
+  double al_prev = 0.0;
+  double w_prev = 0.0;
+  for (int i = 0; i < 60; ++i) {
+    lim.step(0.0, 0.8, kDt);
+    const double al = (lim.w() - w_prev) / kDt;
+    EXPECT_LE(std::abs(al - al_prev), 1.15 * p.max_angular_jerk * kDt) << i;
+    EXPECT_LE(lim.w(), 0.8 + kTol);
+    al_prev = al;
+    w_prev = lim.w();
+  }
+  EXPECT_NEAR(lim.w(), 0.8, kTol);
 }

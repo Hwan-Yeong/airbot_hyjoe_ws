@@ -736,15 +736,16 @@ TEST_F(NodeTest, TunableParametersApplyAtRuntime) {
   for (const auto& c : cmds_) {
     EXPECT_LE(c.v, 0.3 + 1e-9);
   }
-  // 따라가는 중에 낮추면 감속 제한으로 내려가고 상태는 그대로
+  // 따라가는 중에 낮추면 S 곡선 감속으로 내려가고 (잘라 내지 않음) 상태는 그대로
   EXPECT_TRUE(ctrl_->set_parameter(rclcpp::Parameter("max_linear_speed", 0.15))
                   .successful);
   cmds_.clear();
-  spinFor(1.0);
+  spinFor(1.5);
   ASSERT_FALSE(cmds_.empty());
-  for (const auto& c : cmds_) {
-    if (c.t > cmds_.back().t - 0.5) {
-      EXPECT_LE(c.v, 0.15 + 1e-9);
+  for (size_t i = 1; i < cmds_.size(); ++i) {
+    EXPECT_LE(cmds_[i - 1].v - cmds_[i].v, 0.8 * 0.06 + 1e-6);  // 단번에 떨어지지 않는다
+    if (cmds_[i].t > cmds_.back().t - 0.5) {
+      EXPECT_LE(cmds_[i].v, 0.15 + 1e-6);
     }
   }
   EXPECT_EQ(fsm(), FollowState::FSM_FOLLOWING);

@@ -23,25 +23,33 @@ follow_controller:
       mode: /kebi_follow/mode
       state: /kebi_follow/state
 
-    # S1 속도·가감속 (후진 없음)
-    # 편안함 기준 상한 (SPEC 6.3 근거): 고령자 평상 보행 0.8~0.9 m/s, 로봇 선호 속도는 사람 보행보다 느림
-    max_linear_speed: 0.8
-    max_angular_speed: 1.0        # 약 57°/s: 1.2 m 에서 옆으로 1 m/s 로 도는 사람(0.83 rad/s)을 놓치지 않는 값
+    # S1 속도·가감속 (후진 없음). 2026-11-13 야간 튜닝: S 곡선(가속·감속 모두 jerk 제한)
+    # 근거·시뮬레이터 비교: SPEC 6.3 "부드러운 모션", tools/follow_core_sim + tools/sim_tune.py
+    max_linear_speed: 0.8         # 사용자 결정 (편안함: 고령자 평상 보행 0.8~0.9 m/s)
+    max_angular_speed: 1.5        # 사용자 결정 (약 86°/s)
     max_linear_accel: 0.5
-    max_linear_decel: 0.8         # 일반 정지. HALT·장애물·근접·센서 끊김은 즉시 0
-    max_linear_jerk: 2.0          # 가속 쪽만 (제동은 늦추지 않음). 0 이면 끔
+    max_linear_decel: 0.8         # 편안 정지 (놓침·모호). 근접·장애물·센서 끊김은 단호 정지, HALT 만 즉시 0
+    max_linear_jerk: 0.6          # 가속·감속 모두 (S 곡선). 0 이면 끔
     max_angular_accel: 1.5
-    max_angular_decel: 1.5
+    max_angular_decel: 2.0
+    max_angular_jerk: 2.0         # [rad/s^3] 0 이면 끔
+    firm_linear_decel: 1.5        # 단호 정지 (근접·장애물·센서 끊김): 빠르지만 연속
+    firm_linear_jerk: 15.0
+    firm_angular_decel: 4.0       # 단호 정지 (회전 금지·센서 끊김)
+    firm_angular_jerk: 40.0
 
     # 추종 법칙 (6.3, S2)
-    follow_distance: 1.2          # 개인/사회 공간 경계. 빠를수록 아래 제동 상한 때문에 약 1.5 m 까지 늘어난다
-    stop_distance: 0.8            # 이 거리 이내면 즉시 정지, 사람이 다가와도 물러서지 않음
-    approach_margin: 0.1          # 사람이 갑자기 서도 stop_distance + 이 값 앞에서 서는 속도로 제한
-    reaction_time: 0.2            # 위 제한 계산용 측정·명령 지연
-    k_v: 1.0                      # v = k_v (range - follow_distance) + v_ff
+    follow_distance: 1.2          # 개인/사회 공간 경계. 빠를수록 제동 상한 때문에 늘어난다 (0.5 m/s 약 1.5 m, 0.8 m/s 약 2.0 m)
+    stop_distance: 0.8            # 이 거리 이내면 단호 정지 (풀릴 때는 +0.05 m), 사람이 다가와도 물러서지 않음
+    approach_margin: 0.15         # 사람이 갑자기 서도 stop_distance + 이 값 앞에서 서는 속도로 제한
+    reaction_time: 0.2            # 위 제한 계산용 측정·명령 지연 (감속이 jerk 로 차오르는 시간 a/2j 는 따로 더한다)
+    k_v: 0.8                      # v = k_v (range - follow_distance) + v_ff
     k_w: 1.2                      # w = k_w (bearing - 불감대)
     ff_gain: 1.0                  # v_ff = ff_gain * 타깃 지면 속도의 전방 성분 (0 이상만)
-    ff_min_target_speed: 0.1      # 이보다 느린 타깃 속도는 잡음으로 보고 v_ff = 0
+    ff_min_target_speed: 0.1      # v_ff 를 0.05 m/s 에서 0, 0.15 m/s 에서 전부가 되도록 섞는다 (계단 아님)
+    v_filter_s: 0.6               # 추종 선속도 요구 저역 통과 [s] (다리 흔들림·속도 추정 잡음). 안전 상한은 필터 뒤
+    w_filter_s: 0.3               # 추종 각속도 요구 저역 통과 [s]
+    start_speed: 0.0              # 서 있을 때 이보다 작은 요구로는 출발 안 함 [m/s] (0: 끔)
     bearing_deadband: 0.05        # [rad]
     slow_bearing_deg: 15.0        # 여기부터 v 를 줄여
     turn_in_place_deg: 45.0       # 여기서 0, 넘으면 제자리 회전
