@@ -1,0 +1,119 @@
+# leg_tracker 기본 파라미터 (docs/SPEC.md 6.2). 코드 기본값(include/kebi_follow_tracker/params.hpp)과
+# 같아야 한다 (test_config 가 확인). 실수형은 소수점을 붙인다 (정수로 읽히면 ROS 가 거부한다).
+leg_tracker:
+  ros__parameters:
+    odom_frame: odom
+    base_frame: base_link
+    scan_topic: /scan
+    cam_legs_topic: /kebi_follow/cam_legs
+    mode_topic: /kebi_follow/mode
+    target_topic: /kebi_follow/target
+    tracks_topic: /kebi_follow/tracks
+    markers_topic: /kebi_follow/leg_tracker/markers
+    publish_markers: true
+    tf_tolerance_s: 0.05          # [s] scan stamp 가 최신 TF 보다 이만큼 늦으면 최신 TF 를 쓴다
+    timing_log_period_s: 60.0     # [s] 처리 시간 로그 주기 (0: 끔)
+    initial_mode: 0               # 시험용: 0 OFF, 1 ACQUIRE, 2 TRACK (보통 controller 가 정한다)
+
+    scan:
+      robot_radius: 0.22          # [m] SPEC 3절
+      body_margin: 0.05           # [m] 반경 + 여유 안의 점은 로봇 몸체
+      max_range: 5.0              # [m] base_link 기준 추적 거리
+      jump_min: 0.10              # [m] 분할 거리 점프 임계 하한
+      jump_ratio: 3.0             # 임계 = max(jump_min, ratio * r * dphi * 빔수)
+      max_invalid_gap: 1          # 분할 안에서 건너뛸 수 있는 무효 빔 수
+
+    leg:                          # SPEC: 폭 0.05~0.25 m, 점 수, 원호 적합
+      min_width: 0.05             # [m] 추정 폭 = 양끝 거리 + 빔 간격
+      max_width: 0.25
+      min_points: 2
+      min_point_width: 0.07       # [m] 거리별 최소 점 수 = round(값 / (r * dphi)) (가는 의자 다리 제외)
+      concave_tol: 0.015          # [m] 오목하면 버린다
+      max_occluder_gap: 0.8       # [m] 한쪽을 가린 앞 물체가 이보다 앞이면 배경 조각 (사람 뒤 벽)
+      arc_min_points: 5
+      arc_max_radius: 0.25        # [m]
+      arc_max_residual: 0.03      # [m]
+      arc_fail_score: 0.5
+      blob_min_width: 0.18        # [m] 두 다리가 붙은 덩어리, 치마
+      blob_max_width: 0.60
+      blob_min_points: 4
+      pair_min_sep: 0.10          # [m] 다리 쌍 간격 (SPEC 0.1~0.6), 새 트랙
+      pair_max_sep: 0.60
+      max_leg_spread: 0.80        # [m] 기존 트랙에 붙이는 두 다리 간격 상한 (보폭)
+      center_offset_ratio: 0.65
+      center_offset_max_radius: 0.07
+
+    kf:                           # odom 등속 칼만 필터
+      accel_std: 1.2              # [m/s^2]
+      init_vel_std: 0.8           # [m/s]
+      meas_std_pair: 0.06         # [m]
+      meas_std_merged: 0.08
+      meas_std_single: 0.18       # 다리 하나, 걷는 중 (속력 single_std_speed 이상)
+      meas_std_single_standing: 0.10  # 다리 하나, 서 있을 때 (속력에 따라 선형)
+      single_std_speed: 1.0       # [m/s]
+      max_speed: 2.5              # [m/s]
+      coast_tau_s: 0.0            # [s] 가림 중 속도 감쇠 (0: 등속 그대로)
+      static_meas_std: 0.04       # [m] 정지 트랙(가구 등) 모델: 게이트가 작아 지나가는 다리를 못 가져간다
+      static_accel_std: 0.05      # [m/s^2]
+
+    assoc:                        # Mahalanobis 게이트 + GNN
+      gate_chi2: 9.21             # 자유도 2, 99 %
+      max_gate_dist: 1.0          # [m]
+      segment_bonus: 4.0          # 후보가 설명하는 분할당 비용 감소 (다리 쌍 우대)
+
+    track:
+      confirm_hits: 3
+      tentative_max_misses: 2
+      delete_s: 2.5               # [s] (>= target.lost_s)
+      delete_std: 1.0             # [m]
+      birth_suppress_radius: 0.5  # [m] 사람 트랙 옆 조각으로 새 트랙을 만들지 않는다
+      duplicate_radius: 0.2       # [m]
+      allow_single_birth: true
+      shape_alpha: 0.15           # 형상 점수 EMA
+      pair_shape: 1.0
+      merged_shape: 0.8
+      single_shape: 0.3
+      static_shape_factor: 0.4    # 락 후보 판정: 움직인 적도 카메라 확인도 없는 트랙의 형상 비율 (1.0: 끔)
+      moved_dist: 0.3             # [m] 생성 위치에서 이만큼 움직이면 "움직인 트랙"
+      moved_scans: 5              # 생성 위치에서 moved_dist 밖에 연속 이만큼 있어야 "움직인 트랙"
+      static_min_s: 3.0           # [s] 움직인 적 없이 이 나이 이상 +
+      static_min_hits: 15         #     갱신 이만큼이면 정지 트랙 (움직임이 확인되면 해제, 락 타깃 제외)
+      merge_radius: 0.35          # [m] 움직이는 확정 트랙끼리 이 안에
+      merge_scans: 5              #     연속 이만큼 붙어 있으면 우선순위 낮은 쪽을 지운다 (한 사람 중복 트랙)
+      max_tracks: 64
+
+    camera:                       # cam_legs 융합
+      gate: 0.4                   # [m] SPEC 6.2
+      confirm_window_s: 1.0       # [s]
+      max_age_s: 1.0              # [s]
+      min_score: 0.3
+      person_weight: 0.6          # person_score = 1 - (1 - 형상) * (1 - w * 카메라)
+      alive_s: 1.0                # [s] 이 안에 프레임이 왔으면 카메라가 살아 있다
+      check_half_fov_deg: 35.0    # 카메라로 타깃을 확인할 수 있는 영역 (target.camera_lost_s)
+      check_min_range: 0.6        # [m] 실 bag 0.5~0.8 m 카메라 검출률 0.99 (W1). 앞 가까운 고정 물체에 붙은 락을 3 s 안에 푼다
+      check_max_range: 3.5        # [m]
+
+    acquire:                      # mode ACQUIRE, SPEC 6.2
+      require_camera: true
+      min_range: 0.5              # [m]
+      max_range: 1.5
+      max_bearing_deg: 20.0
+      confirm_s: 1.0              # [s]
+      min_shape_score: 0.5
+      max_coast_s: 0.3            # [s]
+      competitor_margin: 0.3      # [m] "후보 1명" 을 셀 때 영역 여유
+      competitor_margin_deg: 10.0
+
+    target:                       # mode TRACK, SPEC 6.2
+      lost_s: 2.0                 # [s]
+      max_std: 0.5                # [m]
+      reacquire_radius: 1.0       # [m]
+      reacquire_confirm_s: 0.5    # [s]
+      reacquire_from_last_seen: true  # 재획득 영역 = 마지막 관측~예측 위치 선분 주변 (false: 예측 위치 주변만)
+      camera_lost_s: 3.0          # [s] 카메라가 살아 있는데 확인 영역 안 타깃을 이만큼 못 보면 LOST (0: 끔)
+
+    ambiguity:                    # SPEC 6.2
+      radius: 0.6                 # [m]
+      cost_margin: 2.0
+      min_person_score: 0.5
+      lost_s: 0.0                 # [s] >0: 모호가 이만큼 계속되면 LOST, 모호 직전 위치에서 재획득 (기본 끔)

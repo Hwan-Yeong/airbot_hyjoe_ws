@@ -1,0 +1,5 @@
+# 로봇·시험 단계별 덮어쓰기. 기본값은 각 모듈 패키지 config/*.yaml 에 있다.
+# 실차 단계(SPEC 7절): T3 까지는 follow_controller.max_linear_speed 를 0.2 로 낮춘다.
+follow_controller:
+  ros__parameters:
+    max_linear_speed: 0.2

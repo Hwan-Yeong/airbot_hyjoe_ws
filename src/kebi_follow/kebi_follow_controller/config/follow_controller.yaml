@@ -1,0 +1,157 @@
+# follow_controller 기본 파라미터 (SPEC 5, 6.3, 7절 값). 시험 단계별 덮어쓰기는 kebi_follow_me/config/follow_me.yaml
+# 거리 [m], 속도 [m/s], 각속도 [rad/s], 시간 [s]
+# 모든 값은 기동 때만 읽는다 (실행 중 ros2 param set 은 거부된다). 실수 자리에 정수(0)를 써도 된다
+# /follow/ui/client: cmd 1 = START, 그 밖의 값은 모두 STOP (state_manager 버전별 2·3·4·5 포함)
+follow_controller:
+  ros__parameters:
+    shadow_mode: false            # launch 의 shadow:=true 가 덮어쓴다. true 면 /cmd_vel 발행자를 만들지 않는다
+    control_rate_hz: 20.0         # S10: 활성 상태에서 /cmd_vel 20 Hz
+    state_rate_hz: 10.0           # /kebi_follow/state
+    report_period_s: 1.0          # /follow/detectuser, /kebi_follow/mode: 바뀔 때 + 이 주기
+    base_frame: base_link
+
+    topics:
+      cmd_vel: /cmd_vel
+      cmd_vel_shadow: /kebi_follow/cmd_vel_shadow
+      target: /kebi_follow/target
+      scan: /scan
+      odom: /odom
+      depth: /camera/depth/image_raw
+      depth_info: /camera/depth/camera_info
+      ui: /follow/ui/client
+      detect: /follow/detectuser
+      mode: /kebi_follow/mode
+      state: /kebi_follow/state
+
+    # S1 속도·가감속 (후진 없음)
+    max_linear_speed: 0.5         # T3 까지는 follow_me.yaml 에서 0.2
+    max_angular_speed: 0.8
+    max_linear_accel: 0.4
+    max_linear_decel: 0.8         # 일반 정지. HALT·장애물·근접·센서 끊김은 즉시 0
+    max_linear_jerk: 2.0          # 가속 쪽만 (제동은 늦추지 않음). 0 이면 끔
+    max_angular_accel: 1.5
+    max_angular_decel: 1.5
+
+    # 추종 법칙 (6.3, S2)
+    follow_distance: 1.0
+    stop_distance: 0.8            # 이 거리 이내면 즉시 정지, 사람이 다가와도 물러서지 않음
+    approach_margin: 0.1          # 사람이 갑자기 서도 stop_distance + 이 값 앞에서 서는 속도로 제한
+    reaction_time: 0.2            # 위 제한 계산용 측정·명령 지연
+    k_v: 1.0                      # v = k_v (range - follow_distance) + v_ff
+    k_w: 1.2                      # w = k_w (bearing - 불감대)
+    ff_gain: 1.0                  # v_ff = ff_gain * 타깃 지면 속도의 전방 성분 (0 이상만)
+    ff_min_target_speed: 0.1      # 이보다 느린 타깃 속도는 잡음으로 보고 v_ff = 0
+    bearing_deadband: 0.05        # [rad]
+    slow_bearing_deg: 15.0        # 여기부터 v 를 줄여
+    turn_in_place_deg: 45.0       # 여기서 0, 넘으면 제자리 회전
+    max_extrapolation_s: 0.5      # 타깃 stamp 이후 외삽 상한 (stamp 가 이보다 오래면 "측정 있음" 아님)
+    target_max_range: 8.0         # 위치가 이보다 멀거나 NaN/Inf 면 타깃 없음으로 본다
+    target_max_speed: 3.0         # 타깃 속도가 이보다 크거나 NaN/Inf 면 속도 0 으로
+
+    # S3 진행 경로 장애물 (거리는 로봇 앞면 기준, 경로 = 직진 ∪ 현재 곡률 원호)
+    robot_radius: 0.22
+    corridor_half_width: 0.32     # 반경 + 0.10
+    corridor_lookahead: 2.5
+    corridor_max_curvature: 2.0   # [1/m]
+    curvature_min_speed: 0.05     # 이보다 느리면 직진 경로만
+    target_exclusion_radius: 0.4  # 타깃 주변 점은 장애물로 보지 않음
+    slow_distance: 1.0            # 여기부터 감속
+    stop_margin: 0.25             # 제동거리 + 이 값 이내 정지 (라이다)
+    depth_stop_margin: 0.5        # depth 로 본 점의 정지 여유: 카메라 근거리 사각(약 0.45 m) 전에 선다
+    body_filter_radius: 0.20      # 라이다 점 중 이 안은 로봇 자기 몸체로 보고 버림
+    scan_max_range: 4.0
+
+    # S4 회전, S10 워치독
+    rotation_clearance: 0.30      # 중심에서 이 안에 물체가 있으면 제자리 회전 금지 → WAITING
+    rotation_limit_s: 3.0         # 제자리 회전 연속 상한 → WAITING
+    rotation_rearm_s: 2.0         # 상한 정지 뒤 다시 회전 허용 (사람이 정면으로 오면 바로)
+    in_place_linear_eps: 0.01
+    in_place_angular_eps: 0.05
+    rotation_creep_speed: 0.002   # 제자리 회전 중 선속도: 베이스 워치독(|v|>0.001)이 걸리게 (모터 불감대 0.01 미만)
+
+    # S6 센서 끊김
+    scan_timeout_s: 0.3
+    odom_timeout_s: 0.2
+    bottom_ir_timeout_s: 0.2      # /bottom_ir_data 필수 (100 Hz). 0 이하면 검사 안 함 (시험용)
+    lifted_timeout_s: 1.0         # /error/s_code/lifted (약 83 Hz) 끊김
+    fall_down_timeout_s: 3.0      # /error/s_code/fall_down (1 Hz) 끊김
+    camera_timeout_s: 1.0         # depth 가 이만큼 없으면 선속도 상한
+    camera_missing_speed_cap: 0.3
+    # depth 영상 내용 지연: fm_data1 보행 구간에서 라이다 대비 약 +0.1 s (+0.02..+0.26)
+    camera_latency_s: 0.1         # depth 점을 (수신 - 이 값) 시점 odom 자세에서 현재로 옮긴다 (크면 보수적)
+    depth_exclusion_margin_s: 0.2 # depth 타깃 제외: (수신 - 지연 - 이 값) 이후 타깃 경로 + 현재 위치
+
+    # S7 타깃 상실·S8 모호
+    target_lost_s: 0.7            # 측정 없는 시간 이하는 속도 절반, 넘으면 WAITING
+    occluded_speed_factor: 0.5
+    target_fresh_s: 0.3           # 이 나이 안의 LOCKED 메시지만 "측정 있음"
+
+    # 상태기계 (5절)
+    acquire_timeout_s: 30.0
+    resume_confirm_s: 0.5
+    lost_end_timeout_s: 30.0      # WAITING 지속 → ENDED
+    halt_restart_holdoff_s: 1.0   # 마지막 HALT 사유 뒤 이 시간 안의 START 는 무시 (START 반복 대비)
+    zero_burst_count: 3           # IDLE·ENDED 진입 시 0 발행 횟수
+
+    # /follow/detectuser
+    moving_linear: 0.02           # |v| > 이 값이면 3(이동 중)
+    moving_angular: 0.05          # |w| > 이 값이면 3
+    detect_debounce_s: 0.3        # 1·2·3 사이 변화는 이 시간 유지돼야 보고 (0 은 즉시)
+
+    # S5·S9 안전 토픽 (없는 토픽은 "사건 없음")
+    safety:
+      bottom_ir_topic: /bottom_ir_data            # 플래그 하나라도 true → HALTED (CLIFF)
+      collision_topic: /collision_detected        # event_trigger != 0 → HALTED (COLLISION)
+      collision_cloud_topics:                     # 점이 있으면 → HALTED (COLLISION)
+        - /sensor_to_pointcloud/collision/front
+        - /sensor_to_pointcloud/collision/rear
+      perception_stop_topic: /perception/action/stop   # != 0 → HALTED (COLLISION)
+      lifted_topic: /error/s_code/lifted          # true → HALTED (ROBOT_STATE)
+      fall_down_topic: /error/s_code/fall_down    # true → HALTED (ROBOT_STATE)
+      cliff_detected_topic: /error/s_code/cliff_detected  # true → HALTED (CLIFF)
+      emergency_stop_topic: /emergency_stop       # true → HALTED (ROBOT_STATE)
+      # 사건형 토픽(충돌·cloud·perception·cliff·e-stop)은 한 번만 오므로 reliable 로 받는다.
+      # 발행자가 best effort 면 QoS 불일치 ERROR 가 뜬다 → false 로 바꾼다
+      # e-stop·cliff_detected 의 마지막 값이 true 인 동안 START 는 거부된다
+      event_topics_reliable: true
+
+    # depth 장애물 (S3). 카메라 TF 는 pitch 0 이고 실제 숙임은 약 9°: 아래 보정 + 프레임마다 바닥 평면 추정
+    camera_pitch_correction_deg: 9.0   # TF 위에 더하는 숙임 (+ 아래). URDF 가 실제 숙임을 갖게 되면 0 으로
+    depth:
+      enable: true                # false 면 depth 없이 camera_missing_speed_cap 적용
+      frame_convention: auto      # auto | optical | body
+      stride: 4                   # 픽셀 간격 (848x480 → 212x120 표본)
+      max_row: -1                 # 이 행부터 아래는 안 봄 (<0: 전부)
+      depth_scale: 0.001          # 16UC1 [mm]
+      min_depth: 0.25
+      max_depth: 4.0
+      max_obstacle_distance: 2.0  # base 중심 수평 거리
+      min_obstacle_height: 0.05   # 이 높이 이상 물체를 장애물로 (점 문턱 = 이 값 - height_tolerance)
+      max_obstacle_height: 1.2
+      height_tolerance: 0.015
+      body_exclusion_radius: 0.25
+      bin_deg: 1.0
+      min_points_per_bin: 3       # bin 마다 이 순번째로 가까운 점을 씀 (잡음 점 2 개까지 무시)
+      floor_fit: true
+      floor_band: 0.10
+      floor_min_distance: 0.6
+      floor_max_distance: 3.0
+      floor_inlier_threshold: 0.015
+      floor_iterations: 40
+      floor_max_samples: 1500
+      floor_min_inliers: 150
+      floor_max_tilt_deg: 3.0         # 시작·복구 때 기준 자세 대비 (세션마다 숙임 8.6~10.5°)
+      floor_max_offset: 0.03
+      floor_max_tilt_change_deg: 1.0  # 추적 중 고정 anchor 대비
+      floor_max_offset_change: 0.015
+      floor_rate_tilt_deg: 0.5        # 출력 평면 프레임당 변화 제한
+      floor_rate_offset: 0.005
+      floor_near_min: 0.6             # 가까운 띠 (로봇 앞 x): 가설은 여기 점에서만, inlier 최소 개수
+      floor_near_max: 1.0
+      floor_near_min_inliers: 40
+      floor_bootstrap_frames: 3       # 시작·복구 때 연속으로 맞아야 anchor 로 받음
+      floor_hold_s: 2.0               # 받은 평면을 healthy 로 쓰는 시간 (넘으면 degraded: v<=0.3)
+      near_region_min: 0.6            # 유효 depth 비율을 보는 가까운 바닥 영역 (로봇 앞 x, |y|)
+      near_region_max: 1.2
+      near_region_half_width: 0.8
+      min_near_valid_ratio: 0.15      # 이보다 적으면 degraded (렌즈 가림·무효 프레임)

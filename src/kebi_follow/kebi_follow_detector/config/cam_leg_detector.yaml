@@ -1,0 +1,69 @@
+# cam_leg_detector 기본값 (SPEC 3, 4, 6.1). 시험 단계별 덮어쓰기는 kebi_follow_me/config/follow_me.yaml.
+cam_leg_detector:
+  ros__parameters:
+    # 모델 — 모델·런타임 파일은 레포에 없다. model_path 는 덮어쓰기 파일이나 launch 에서 준다.
+    backend: auto              # auto(RKNN 빌드면 rknn, 아니면 opencv) | rknn | opencv
+    model_path: ""             # rknn: *.rknn, opencv: *.onnx (같은 exporter 출력)
+    model_type: pose           # pose(무릎·발목 keypoint 포함) | det
+    rknn_core_mask: auto       # auto | 0 | 1 | 2 | 01 | 012 | all
+    model_input_width: 640     # opencv 백엔드만 사용 (rknn 은 모델에서 읽는다)
+    model_input_height: 480
+    cpu_threads: 0             # opencv 백엔드 스레드 수, 0 = 기본
+
+    # 검출
+    score_threshold: 0.35
+    nms_iou: 0.45
+    max_detections: 10
+    min_box_height_px: 30.0
+    keypoint_vis_threshold: 0.5
+
+    # 구독·시간 (SPEC 3)
+    ignore_mode: false         # true: /kebi_follow/mode 와 무관하게 항상 구독 (bag 시험용)
+    base_frame: base_link
+    camera_min_latency_s: 0.10       # SPEC 3: depth 내용이 라이다보다 약 0.1 s 늦다 (첫 bag)
+    time_offset_window_s: 5.0
+    odom_max_age_s: 0.5        # 이보다 오래된 /odom 은 offset 표본으로 쓰지 않는다
+    depth_max_dt_s: 0.1        # RGB 와 짝지을 depth 의 stamp 차 상한 (같은 stamp 짝은 약 65%, 나머지는 ~67 ms 차)
+
+    # 기하
+    camera_pitch_correction_deg: 10.5  # URDF pitch 0° 대비 실제 아래 숙임 (+ = 아래), 도킹 bag 바닥 추정 10.5 ± 0.45°
+    # TF 가 없을 때만 쓰는 대체값 [x y z roll pitch yaw] (기본 비어 있음 = 사용 안 함)
+    # tf_fallback.base_to_rgb: [...]
+    # tf_fallback.rgb_to_depth: [...]
+
+    depth:
+      stride: 3                # depth 화소 표본 간격 (AMR fusion p95: 2 → 15.9 ms, 3 → 7.5 ms, 4 → 4.1 ms; 위치 정확도 같음)
+      unit_m: 0.001            # 16UC1 단위
+      min_m: 0.2
+      max_m: 6.0
+    fusion:
+      floor_height_m: 0.05     # base_link z 가 이보다 낮으면 바닥
+      max_height_m: 2.0
+      robot_exclusion_radius_m: 0.30   # base_link 원점에서 이보다 가까운 점은 로봇 몸체
+      leg_region_fraction: 0.5         # keypoint 가 없을 때 bbox 아래쪽 비율
+      leg_region_width_fraction: 0.8
+      keypoint_margin_ratio: 0.15
+      leg_half_width_ratio: 0.3        # 다리 캡슐 반폭 / 무릎-발목 길이
+      leg_min_half_width_px: 6.0
+      leg_foot_extension_ratio: 0.25
+      cluster_window_m: 0.10
+      cluster_min_points: 8
+      cluster_min_fraction: 0.05
+      person_cluster_extent_m: 0.45
+      leg_cluster_extent_m: 0.25
+      depth_noise_k: 0.01              # depth 잡음 std = k * r^2
+      spread_gain: 0.5
+      position_std_min_m: 0.05         # bag fm_data1: 오차 중앙값 약 0.05 m
+      position_std_max_m: 0.5
+    appearance:
+      enable: true             # 사람 영역의 정규화 HSV 히스토그램 (8x4 색 + 4 무채색 = 36)
+      hue_bins: 8
+      sat_bins: 4
+      gray_bins: 4
+
+    # 디버그
+    publish_debug_image: false # /kebi_follow/debug_image (jpeg)
+    debug_image_max_rate_hz: 5.0
+    debug_jpeg_quality: 70
+    publish_markers: false     # /kebi_follow/cam_leg_detector/markers
+    stats_period_s: 10.0
