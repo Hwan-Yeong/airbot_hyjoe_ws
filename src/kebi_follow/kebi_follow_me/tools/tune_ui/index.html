@@ -112,7 +112,7 @@ input[type=text] { font: inherit; padding: 5px 8px; border: 1px solid var(--line
   <div>
     <section>
       <h2>파라미터 <span id="pcount" class="warnline"></span></h2>
-      <div id="params">중계가 연결되면 로봇의 현재 값이 나옵니다.</div>
+      <div id="params"><p class="warnline">로봇 중계에 연결하는 중입니다.</p></div>
       <div class="actions">
         <button class="primary" id="applyBtn" onclick="applyEdits()" disabled>적용 (0)</button>
         <button onclick="clearEdits()">편집 취소</button>
@@ -148,7 +148,7 @@ const FSM = {0: ["대기", "#8c959f"], 1: ["찾는 중", "#bf8700"], 2: ["따라
 const TGT = {0: "없음", 1: "후보", 2: "고정", 3: "가림", 4: "놓침"};
 const STOP = {1: "타깃 없음", 2: "너무 가까움", 4: "장애물", 8: "회전 금지", 16: "낭떠러지", 32: "충돌", 64: "센서 끊김",
               128: "다른 사람 근접(모호)", 256: "로봇 상태", 512: "회전 상한"};
-let S = {params: {}, ranges: {}, defaults: {}}, tel = [], since = 0, edits = {}, built = "", shadow = null;
+let S = {params: {}, ranges: {}, defaults: {}}, tel = [], since = 0, edits = {}, built = null, shadow = null;
 
 const $ = id => document.getElementById(id);
 const f = (x, d = 2) => (x === null || x === undefined) ? "-" : Number(x).toFixed(d);
@@ -168,8 +168,12 @@ function stepOf(lo, hi) { const s = (hi - lo) / 200; const p = Math.pow(10, Math
 function buildParams() {
   const names = Object.keys(S.ranges);
   const key = names.sort().join(",");
-  if (!names.length || key === built) return;
+  if (key === built) return;
   built = key;
+  if (!names.length) {   // 컨트롤러가 없을 때
+    $("params").innerHTML = '<p class="warnline">follow_controller 가 보이지 않습니다. 위의 "컨테이너 시작" 버튼을 누르면 1~2초 뒤 로봇의 현재 값이 나옵니다.</p>';
+    $("pcount").textContent = ""; return;
+  }
   const used = new Set(); let html = "";
   const rows = list => list.filter(n => S.ranges[n]).map(n => { used.add(n);
     const [lo, hi, desc] = S.ranges[n]; const st = stepOf(lo, hi);

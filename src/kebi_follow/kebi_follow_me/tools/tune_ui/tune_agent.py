@@ -27,6 +27,7 @@ TEL_HZ = 10.0
 SPEED_WIN_S = 0.2        # 실측 속도 창 [s] (popo 의 /odom twist 는 늘 0 → 자세 변화로 계산)
 CMD_CONFIRM_S = 2.0      # START/STOP 뒤 FSM 확인 대기 [s]
 ESTOP_ZEROS = 20         # 비상정지: /cmd_vel 0 을 20 Hz 로 1 s
+SERVICE_CHECK_S = 1.0    # follow_controller 가 떴는지 확인하는 주기 [s]
 FSM_IDLE = 0
 CMD = {"start": 1, "stop": 3, "estop": 3}
 
@@ -239,13 +240,20 @@ def main():
     a = Agent()
     threading.Thread(target=read_stdin, args=(a.inbox,), daemon=True).start()
     out({"type": "hello", "node": NODE})
-    t_ready = time.monotonic()
-    announced = False
+    last_check, was_ready = 0.0, False
     while rclpy.ok():
         rclpy.spin_once(a.n, timeout_sec=0.02)
-        if not announced and (a.c_get.service_is_ready() or time.monotonic() - t_ready > 5.0):
-            announced = True
-            a.get(0)
+        now = time.monotonic()
+        if now - last_check > SERVICE_CHECK_S:
+            # 컨테이너가 (다시) 뜨면 값을 자동으로 읽고, 내려가면 목록을 비운다
+            last_check = now
+            ready = a.c_get.service_is_ready()
+            if ready and (not was_ready or not a.ranges):
+                a.get(-1)
+            elif was_ready and not ready:
+                a.ranges = {}
+                out({"type": "params", "values": {}, "ranges": {}})
+            was_ready = ready
         if not a.step():
             break
     a.n.destroy_node()
