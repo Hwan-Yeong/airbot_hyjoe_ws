@@ -63,7 +63,7 @@ inline const TunableSpec kTunables[] = {
     {"follow_distance", 0.8, 2.5, "추종 거리 [m]",
      [](const ControllerParams& p) { return p.law.follow_distance; },
      [](ControllerParams& p, double v) { p.law.follow_distance = v; }},
-    {"stop_distance", 0.5, 1.5, "이 거리 이내면 즉시 정지 [m]",
+    {"stop_distance", 0.5, 1.5, "이 거리 이내면 단호 정지 [m]",
      [](const ControllerParams& p) { return p.law.stop_distance; },
      [](ControllerParams& p, double v) { p.law.stop_distance = v; }},
     {"approach_margin", 0.0, 0.5, "사람이 갑자기 서도 정지 거리 + 이 값 앞에서 선다 [m]",
