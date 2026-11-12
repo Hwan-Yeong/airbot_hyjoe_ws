@@ -689,12 +689,13 @@ TEST_F(NodeTest, DoublePitchCorrectionDegradesDepth) {
   EXPECT_FALSE(ever_ok);
 }
 
-TEST_F(NodeTest, ParametersReadOnlyAndTypeTolerant) {
-  // m9: 정수로 쓴 실수 파라미터는 받고, 실행 중 변경은 거부, 엉뚱한 타입은 이름을 밝혀 실패
+TEST_F(NodeTest, ParametersTypeTolerantAndStartupOnlyReadOnly) {
+  // m9: 정수로 쓴 실수 파라미터는 받고, 기동 전용 파라미터의 실행 중 변경은 거부,
+  // 엉뚱한 타입·범위 밖 값은 이름을 밝혀 기동 실패
   startNode({rclcpp::Parameter("max_linear_speed", 0)});
-  const auto r =
-      ctrl_->set_parameter(rclcpp::Parameter("max_linear_speed", 0.3));
-  EXPECT_FALSE(r.successful);
+  EXPECT_FALSE(
+      ctrl_->set_parameter(rclcpp::Parameter("control_rate_hz", 10.0))
+          .successful);
   ui(1);
   spinFor(1.0);
   for (const auto& c : cmds_) {
@@ -703,6 +704,50 @@ TEST_F(NodeTest, ParametersReadOnlyAndTypeTolerant) {
   rclcpp::NodeOptions bad;
   bad.parameter_overrides({rclcpp::Parameter("max_linear_speed", "fast")});
   EXPECT_THROW(kebi_follow::createFollowController(bad), std::invalid_argument);
+  rclcpp::NodeOptions out;
+  out.parameter_overrides({rclcpp::Parameter("max_linear_speed", 2.0)});
+  EXPECT_THROW(kebi_follow::createFollowController(out), std::invalid_argument);
+}
+
+TEST_F(NodeTest, TunableParametersApplyAtRuntime) {
+  startNode();
+  // 범위 밖, 서로 모순, 엉뚱한 타입은 거부하고 값은 그대로
+  EXPECT_FALSE(
+      ctrl_->set_parameter(rclcpp::Parameter("max_linear_speed", 1.5))
+          .successful);
+  EXPECT_FALSE(ctrl_->set_parameter(rclcpp::Parameter("stop_distance", 0.95))
+                   .successful);  // 기본 follow 1.0: 0.95 + 0.1 > 1.0
+  EXPECT_FALSE(
+      ctrl_->set_parameter(rclcpp::Parameter("max_linear_speed", "fast"))
+          .successful);
+  EXPECT_DOUBLE_EQ(ctrl_->get_parameter("stop_distance").as_double(), 0.8);
+  // 한꺼번에 바꾸면 서로 맞는지 같이 본다
+  EXPECT_TRUE(ctrl_
+                  ->set_parameters_atomically(
+                      {rclcpp::Parameter("follow_distance", 1.5),
+                       rclcpp::Parameter("stop_distance", 1.2)})
+                  .successful);
+  EXPECT_TRUE(
+      ctrl_->set_parameter(rclcpp::Parameter("max_linear_speed", 0.3))
+          .successful);
+  ui(1);
+  ASSERT_TRUE(waitFor([&]() { return followingAndMoving(); }, 3.0));
+  spinFor(1.5);
+  for (const auto& c : cmds_) {
+    EXPECT_LE(c.v, 0.3 + 1e-9);
+  }
+  // 따라가는 중에 낮추면 감속 제한으로 내려가고 상태는 그대로
+  EXPECT_TRUE(ctrl_->set_parameter(rclcpp::Parameter("max_linear_speed", 0.15))
+                  .successful);
+  cmds_.clear();
+  spinFor(1.0);
+  ASSERT_FALSE(cmds_.empty());
+  for (const auto& c : cmds_) {
+    if (c.t > cmds_.back().t - 0.5) {
+      EXPECT_LE(c.v, 0.15 + 1e-9);
+    }
+  }
+  EXPECT_EQ(fsm(), FollowState::FSM_FOLLOWING);
 }
 
 int main(int argc, char** argv) {

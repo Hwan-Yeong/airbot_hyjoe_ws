@@ -135,6 +135,28 @@ TEST(Core, LockFollowAccelerateAndReportMoving) {
   EXPECT_EQ(o.detect_user, detect_user::kMoving);
 }
 
+TEST(Core, UpdateParamsKeepsStateAndAppliesNewCaps) {
+  // 실행 중 조정: FSM·현재 속도는 유지하고, 새 상한까지 감속 제한으로 내려간다
+  Harness h;
+  h.start();
+  h.step();
+  h.target(2.5, 0.0);
+  auto o = h.run(3.0);
+  ASSERT_EQ(o.state, FsmState::kFollowing);
+  ASSERT_NEAR(o.v, 0.5, 0.05);
+  ControllerParams p = h.core.params();
+  p.limiter.max_linear_speed = 0.2;
+  p.law.max_linear_speed = 0.2;
+  h.core.updateParams(p);
+  o = h.step();
+  EXPECT_EQ(o.state, FsmState::kFollowing);
+  EXPECT_GT(o.v, 0.2);  // 즉시 0 이 아니라
+  EXPECT_LT(o.v, 0.5);  // 감속 0.8 m/s^2 로 내려간다
+  o = h.run(1.0);
+  EXPECT_NEAR(o.v, 0.2, 1e-6);
+  EXPECT_DOUBLE_EQ(h.core.params().limiter.max_linear_speed, 0.2);
+}
+
 TEST(Core, StopGivesThreeZerosThenSilence) {
   Harness h;
   h.cruise();

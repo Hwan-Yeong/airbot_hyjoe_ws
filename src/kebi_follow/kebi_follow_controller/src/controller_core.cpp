@@ -59,6 +59,13 @@ ControllerCore::ControllerCore(const ControllerParams& p)
       gate_(p.corridor),
       detect_filter_(p.detect_debounce_s) {}
 
+void ControllerCore::updateParams(const ControllerParams& p) {
+  p_ = p;
+  law_.setParams(p.law);
+  limiter_.setParams(p.limiter);
+  gate_.setParams(p.corridor);
+}
+
 void ControllerCore::resetMotion() {
   limiter_.reset();
   rotation_since_ = -1.0;

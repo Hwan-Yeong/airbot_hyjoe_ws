@@ -45,6 +45,7 @@ class FollowLaw {
                         double target_forward_speed) const;
 
   const FollowLawParams& params() const { return p_; }
+  void setParams(const FollowLawParams& p) { p_ = p; }  // 실행 중 조정
 
  private:
   FollowLawParams p_;

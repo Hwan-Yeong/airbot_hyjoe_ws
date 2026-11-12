@@ -140,6 +140,150 @@ std::string reasonsToString(uint32_t r) {
   return s.empty() ? "-" : s;
 }
 
+// ---------------------------------------------------------------- 실행 중 조정
+// 조정 UI 등에서 ros2 param set 으로 바꿀 수 있는 파라미터. 범위 밖이거나 서로 모순되면 거부하고,
+// 받은 값은 다음 제어 주기 시작에 한꺼번에 적용한다 (SPEC 6.3 "실행 중 조정"). 나머지는 기동 때만 읽는다.
+struct TunableSpec {
+  const char* name;
+  double lo;
+  double hi;
+  const char* desc;
+  double (*get)(const ControllerParams&);
+  void (*set)(ControllerParams&, double);
+};
+
+constexpr double kMinStopToFollowGap = 0.1;  // stop_distance + 이 값 <= follow_distance [m]
+
+const TunableSpec kTunables[] = {
+    // S1 속도·가감속
+    {"max_linear_speed", 0.0, 1.0, "선속도 상한 [m/s]",
+     [](const ControllerParams& p) { return p.limiter.max_linear_speed; },
+     [](ControllerParams& p, double v) { p.limiter.max_linear_speed = v; }},
+    {"max_angular_speed", 0.0, 1.5, "각속도 상한 [rad/s]",
+     [](const ControllerParams& p) { return p.limiter.max_angular_speed; },
+     [](ControllerParams& p, double v) { p.limiter.max_angular_speed = v; }},
+    {"max_linear_accel", 0.1, 1.0, "선가속 [m/s^2]",
+     [](const ControllerParams& p) { return p.limiter.max_linear_accel; },
+     [](ControllerParams& p, double v) { p.limiter.max_linear_accel = v; }},
+    {"max_linear_decel", 0.3, 1.5, "선감속 (일반 정지) [m/s^2]",
+     [](const ControllerParams& p) { return p.limiter.max_linear_decel; },
+     [](ControllerParams& p, double v) { p.limiter.max_linear_decel = v; }},
+    {"max_linear_jerk", 0.0, 10.0, "가속 쪽 jerk [m/s^3] (0: 끔)",
+     [](const ControllerParams& p) { return p.limiter.max_linear_jerk; },
+     [](ControllerParams& p, double v) { p.limiter.max_linear_jerk = v; }},
+    {"max_angular_accel", 0.3, 3.0, "각가속 [rad/s^2]",
+     [](const ControllerParams& p) { return p.limiter.max_angular_accel; },
+     [](ControllerParams& p, double v) { p.limiter.max_angular_accel = v; }},
+    {"max_angular_decel", 0.3, 3.0, "각감속 [rad/s^2]",
+     [](const ControllerParams& p) { return p.limiter.max_angular_decel; },
+     [](ControllerParams& p, double v) { p.limiter.max_angular_decel = v; }},
+    // S2 추종 법칙
+    {"follow_distance", 0.8, 2.5, "추종 거리 [m]",
+     [](const ControllerParams& p) { return p.law.follow_distance; },
+     [](ControllerParams& p, double v) { p.law.follow_distance = v; }},
+    {"stop_distance", 0.5, 1.5, "이 거리 이내면 즉시 정지 [m]",
+     [](const ControllerParams& p) { return p.law.stop_distance; },
+     [](ControllerParams& p, double v) { p.law.stop_distance = v; }},
+    {"approach_margin", 0.0, 0.5, "사람이 갑자기 서도 정지 거리 + 이 값 앞에서 선다 [m]",
+     [](const ControllerParams& p) { return p.law.approach_margin; },
+     [](ControllerParams& p, double v) { p.law.approach_margin = v; }},
+    {"reaction_time", 0.0, 0.5, "사람 앞 제동 상한 계산 지연 [s]",
+     [](const ControllerParams& p) { return p.law.reaction_time; },
+     [](ControllerParams& p, double v) { p.law.reaction_time = v; }},
+    {"k_v", 0.1, 3.0, "거리 오차 → 선속도 게인 [1/s]",
+     [](const ControllerParams& p) { return p.law.k_v; },
+     [](ControllerParams& p, double v) { p.law.k_v = v; }},
+    {"k_w", 0.2, 3.0, "방향각 → 각속도 게인 [1/s]",
+     [](const ControllerParams& p) { return p.law.k_w; },
+     [](ControllerParams& p, double v) { p.law.k_w = v; }},
+    {"ff_gain", 0.0, 1.5, "사람 속도 피드포워드 배율",
+     [](const ControllerParams& p) { return p.law.ff_gain; },
+     [](ControllerParams& p, double v) { p.law.ff_gain = v; }},
+    {"bearing_deadband", 0.0, 0.3, "방향각 불감대 [rad]",
+     [](const ControllerParams& p) { return p.law.bearing_deadband; },
+     [](ControllerParams& p, double v) { p.law.bearing_deadband = v; }},
+    {"slow_bearing_deg", 0.0, 60.0, "이 방향각부터 선속도를 줄임 [deg]",
+     [](const ControllerParams& p) { return radToDeg(p.law.slow_bearing); },
+     [](ControllerParams& p, double v) { p.law.slow_bearing = degToRad(v); }},
+    {"turn_in_place_deg", 10.0, 90.0, "이 방향각부터 제자리 회전 [deg]",
+     [](const ControllerParams& p) {
+       return radToDeg(p.law.turn_in_place_bearing);
+     },
+     [](ControllerParams& p, double v) {
+       p.law.turn_in_place_bearing = degToRad(v);
+     }},
+    // S3 장애물
+    {"slow_distance", 0.5, 3.0, "장애물 감속 시작 거리 [m]",
+     [](const ControllerParams& p) { return p.slow_distance; },
+     [](ControllerParams& p, double v) { p.slow_distance = v; }},
+    {"stop_margin", 0.15, 0.6, "라이다 장애물 정지 여유 [m]",
+     [](const ControllerParams& p) { return p.stop_margin; },
+     [](ControllerParams& p, double v) { p.stop_margin = v; }},
+    {"depth_stop_margin", 0.3, 1.0, "depth 장애물 정지 여유 [m]",
+     [](const ControllerParams& p) { return p.depth_stop_margin; },
+     [](ControllerParams& p, double v) { p.depth_stop_margin = v; }},
+    {"obstacle_reaction_time", 0.0, 0.5, "장애물 제동 계산 지연 [s]",
+     [](const ControllerParams& p) { return p.obstacle_reaction_time; },
+     [](ControllerParams& p, double v) { p.obstacle_reaction_time = v; }},
+    // S4 회전, S6·S7
+    {"rotation_limit_s", 1.0, 10.0, "제자리 회전 연속 상한 [s]",
+     [](const ControllerParams& p) { return p.rotation_limit_s; },
+     [](ControllerParams& p, double v) { p.rotation_limit_s = v; }},
+    {"rotation_rearm_s", 0.5, 5.0, "회전 상한 뒤 다시 허용까지 [s]",
+     [](const ControllerParams& p) { return p.rotation_rearm_s; },
+     [](ControllerParams& p, double v) { p.rotation_rearm_s = v; }},
+    {"target_lost_s", 0.3, 2.0, "측정 없는 시간이 이를 넘으면 정지 [s]",
+     [](const ControllerParams& p) { return p.target_lost_s; },
+     [](ControllerParams& p, double v) { p.target_lost_s = v; }},
+    {"occluded_speed_factor", 0.0, 1.0, "가림 중 선속도 배율",
+     [](const ControllerParams& p) { return p.occluded_speed_factor; },
+     [](ControllerParams& p, double v) { p.occluded_speed_factor = v; }},
+    {"camera_missing_speed_cap", 0.0, 0.5, "카메라·depth 비정상 때 선속도 상한 [m/s]",
+     [](const ControllerParams& p) { return p.camera_missing_speed_cap; },
+     [](ControllerParams& p, double v) { p.camera_missing_speed_cap = v; }},
+};
+
+const TunableSpec* findTunable(const std::string& name) {
+  for (const auto& s : kTunables) {
+    if (name == s.name) {
+      return &s;
+    }
+  }
+  return nullptr;
+}
+
+// 추종 법칙이 함께 쓰는 값 (limiter 와 같아야 한다)
+void syncDerived(ControllerParams* p) {
+  p->law.max_linear_speed = p->limiter.max_linear_speed;
+  p->law.max_angular_speed = p->limiter.max_angular_speed;
+  p->law.brake_decel = p->limiter.max_linear_decel;
+}
+
+// 서로 모순되는 조합이면 이유, 아니면 빈 문자열
+std::string inconsistency(const ControllerParams& p) {
+  if (p.law.stop_distance + kMinStopToFollowGap > p.law.follow_distance) {
+    return "stop_distance (" + std::to_string(p.law.stop_distance) +
+           ") must be at least 0.1 m below follow_distance (" +
+           std::to_string(p.law.follow_distance) + ")";
+  }
+  if (p.law.slow_bearing >= p.law.turn_in_place_bearing) {
+    return "slow_bearing_deg must be below turn_in_place_deg";
+  }
+  return "";
+}
+
+bool numberOf(const rclcpp::ParameterValue& v, double* out) {
+  if (v.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
+    *out = v.get<double>();
+    return true;
+  }
+  if (v.get_type() == rclcpp::ParameterType::PARAMETER_INTEGER) {
+    *out = static_cast<double>(v.get<int64_t>());
+    return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 class FollowController : public rclcpp::Node {
@@ -148,7 +292,16 @@ class FollowController : public rclcpp::Node {
       : Node("follow_controller", options), odom_hist_(kOdomHistoryCapacity) {
     use_sim_time_ = get_parameter("use_sim_time").as_bool();
     loadParams();
+    syncDerived(&cp_);
+    if (const std::string why = inconsistency(cp_); !why.empty()) {
+      RCLCPP_FATAL(get_logger(), "follow_controller: %s", why.c_str());
+      throw std::invalid_argument("follow_controller: " + why);
+    }
     core_ = std::make_unique<ControllerCore>(cp_);
+    param_cb_ = add_on_set_parameters_callback(
+        [this](const std::vector<rclcpp::Parameter>& ps) {
+          return onSetParams(ps);
+        });
     checker_ = std::make_unique<DepthObstacleChecker>(dp_);
     detect_report_ = ChangeOrPeriodic(report_period_s_);
     mode_report_ = ChangeOrPeriodic(report_period_s_);
@@ -244,19 +397,86 @@ class FollowController : public rclcpp::Node {
     throw std::invalid_argument(msg);
   }
 
-  // 실수 파라미터: YAML 에 정수(예 0)를 써도 받는다
+  // 실수 파라미터: YAML 에 정수(예 0)를 써도 받는다.
+  // kTunables 에 있는 이름은 실행 중 조정을 허용하고 범위를 알린다 (범위 밖이면 기동 실패)
   double param(const std::string& name, double def) {
+    const TunableSpec* spec = findTunable(name);
     auto d = readOnly();
     d.dynamic_typing = true;
-    const rclcpp::ParameterValue v =
-        declare_parameter(name, rclcpp::ParameterValue(def), d);
-    if (v.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
-      return v.get<double>();
+    if (spec != nullptr) {
+      d.read_only = false;
+      d.description = spec->desc;
+      rcl_interfaces::msg::FloatingPointRange r;
+      r.from_value = spec->lo;
+      r.to_value = spec->hi;
+      r.step = 0.0;
+      d.floating_point_range.push_back(r);
     }
-    if (v.get_type() == rclcpp::ParameterType::PARAMETER_INTEGER) {
-      return static_cast<double>(v.get<int64_t>());
+    rclcpp::ParameterValue v;
+    try {
+      v = declare_parameter(name, rclcpp::ParameterValue(def), d);
+    } catch (const rclcpp::exceptions::InvalidParameterValueException& e) {
+      typeError(name, "within its range", e.what());
     }
-    typeError(name, "a number", rclcpp::to_string(v.get_type()));
+    double x = 0.0;
+    if (!numberOf(v, &x)) {
+      typeError(name, "a number", rclcpp::to_string(v.get_type()));
+    }
+    if (spec != nullptr && (!std::isfinite(x) || x < spec->lo || x > spec->hi)) {
+      typeError(name,
+                "within [" + std::to_string(spec->lo) + ", " +
+                    std::to_string(spec->hi) + "]",
+                std::to_string(x));
+    }
+    return x;
+  }
+
+  // 실행 중 조정 (kTunables 만): 검사만 하고, 적용은 다음 제어 주기 시작에 한다
+  rcl_interfaces::msg::SetParametersResult onSetParams(
+      const std::vector<rclcpp::Parameter>& params) {
+    rcl_interfaces::msg::SetParametersResult res;
+    res.successful = true;
+    std::lock_guard<std::mutex> lk(tune_mutex_);
+    ControllerParams cand = tune_pending_ ? tune_cp_ : cp_;
+    std::string changes;
+    for (const auto& p : params) {
+      const TunableSpec* spec = findTunable(p.get_name());
+      if (spec == nullptr) {
+        continue;  // 기동 전용(read_only)은 rclcpp 가 먼저 거부한다. use_sim_time 등은 그대로 둔다
+      }
+      double x = 0.0;
+      if (!numberOf(p.get_parameter_value(), &x) || !std::isfinite(x)) {
+        res.successful = false;
+        res.reason = p.get_name() + " must be a number";
+        return res;
+      }
+      if (x < spec->lo || x > spec->hi) {
+        res.successful = false;
+        res.reason = p.get_name() + " " + std::to_string(x) + " outside [" +
+                     std::to_string(spec->lo) + ", " +
+                     std::to_string(spec->hi) + "]";
+        return res;
+      }
+      char buf[160];
+      std::snprintf(buf, sizeof(buf), "%s%s %.3f -> %.3f",
+                    changes.empty() ? "" : ", ", spec->name, spec->get(cand),
+                    x);
+      changes += buf;
+      spec->set(cand, x);
+    }
+    syncDerived(&cand);
+    const std::string why = inconsistency(cand);
+    if (!why.empty()) {
+      res.successful = false;
+      res.reason = why;
+      return res;
+    }
+    if (!changes.empty()) {
+      tune_cp_ = cand;
+      tune_pending_ = true;
+      RCLCPP_INFO(get_logger(), "tuning: %s", changes.c_str());
+    }
+    return res;
   }
 
   int paramInt(const std::string& name, int def) {
@@ -829,6 +1049,12 @@ class FollowController : public rclcpp::Node {
     }
   }
 
+  // depth 스레드에서 읽는 값: 실행 중 조정과 겹치지 않게 잠그고 읽는다
+  double cameraCapLocked() {
+    std::lock_guard<std::mutex> lk(tune_mutex_);
+    return cp_.camera_missing_speed_cap;
+  }
+
   bool configureDepth(const std::string& frame) {
     geometry_msgs::msg::TransformStamped tf;
     try {
@@ -837,7 +1063,7 @@ class FollowController : public rclcpp::Node {
       RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), kWarnThrottleMs,
                            "depth TF %s <- %s: %s (depth 무시, v<=%.2f)",
                            base_frame_.c_str(), frame.c_str(), e.what(),
-                           cp_.camera_missing_speed_cap);
+                           cameraCapLocked());
       return false;
     }
     const auto& q = tf.transform.rotation;
@@ -873,7 +1099,7 @@ class FollowController : public rclcpp::Node {
                    "depth treated as degraded (v<=%.2f). Set the correction "
                    "to 0 if the URDF has the real pitch.",
                    tf_pitch, pitch_correction_deg_,
-                   cp_.camera_missing_speed_cap);
+                   cameraCapLocked());
     }
     RCLCPP_INFO(get_logger(),
                 "depth configured: frame=%s (%s) t=(%.3f %.3f %.3f) TF pitch "
@@ -962,6 +1188,15 @@ class FollowController : public rclcpp::Node {
 
   void controlTick() {
     const auto t_begin = std::chrono::steady_clock::now();
+    {
+      // 실행 중 조정 값을 주기 시작에 한꺼번에 적용 (FSM·속도 상태는 유지)
+      std::lock_guard<std::mutex> lk(tune_mutex_);
+      if (tune_pending_) {
+        cp_ = tune_cp_;
+        tune_pending_ = false;
+        core_->updateParams(cp_);
+      }
+    }
     const double t = monoNow();  // 내부 시간: 주기·신선도·상태기계
     const double t_ros = now().seconds();  // stamp 와 비교하는 시간
     const double dt =
@@ -1361,6 +1596,11 @@ class FollowController : public rclcpp::Node {
   double floor_pitch_deg_{std::nan("")};
 
   std::mutex cmd_mutex_;
+  // 실행 중 조정: 콜백이 검사한 값을 넣고 controlTick 이 적용한다
+  std::mutex tune_mutex_;
+  ControllerParams tune_cp_;
+  bool tune_pending_{false};
+  OnSetParametersCallbackHandle::SharedPtr param_cb_;
   std::atomic<bool> active_{false};
   std::atomic<bool> shutting_down_{false};
 

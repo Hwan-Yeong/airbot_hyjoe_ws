@@ -150,6 +150,8 @@ class ControllerCore {
 
   FsmState state() const { return fsm_.state(); }
   const ControllerParams& params() const { return p_; }
+  // 실행 중 조정: FSM·속도·회전 상태는 유지하고 파라미터만 바꾼다 (다음 step 부터 적용)
+  void updateParams(const ControllerParams& p);
 
  private:
   void resetMotion();

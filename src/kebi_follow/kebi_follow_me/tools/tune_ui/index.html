@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Follow-me 튜닝</title>
+<style>
+:root {
+  --bg: #f6f8fa; --panel: #ffffff; --text: #1f2328; --muted: #59636e; --line: #d0d7de;
+  --accent: #0969da; --ok: #1a7f37; --warn: #9a6700; --bad: #cf222e; --edit: #fff8c5; --chip: #eaeef2;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0d1117; --panel: #161b22; --text: #e6edf3; --muted: #9198a1; --line: #30363d;
+          --accent: #4493f8; --ok: #3fb950; --warn: #d29922; --bad: #f85149; --edit: #3b2e00; --chip: #21262d; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+       font: 14px/1.45 "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif; }
+header { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+         padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+h1 { font-size: 16px; margin: 0 12px 0 0; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: var(--bad); margin-right: 6px; }
+.dot.on { background: var(--ok); }
+.badge { padding: 3px 10px; border-radius: 12px; font-weight: 700; color: #fff; background: var(--muted); }
+button { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--chip);
+         color: var(--text); cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.go { background: var(--ok); color: #fff; border-color: var(--ok); }
+button.stop { background: var(--muted); color: #fff; border-color: var(--muted); }
+button.estop { background: var(--bad); color: #fff; border-color: var(--bad); font-weight: 700; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+.spacer { flex: 1; }
+main { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(360px, 1.1fr); gap: 14px; padding: 14px 16px; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+h2 { font-size: 14px; margin: 0 0 10px; }
+.kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.kv div { background: var(--chip); border-radius: 6px; padding: 6px 8px; }
+.kv b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+.kv span { color: var(--muted); font-size: 12px; }
+canvas { width: 100%; height: 260px; display: block; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 12px; margin-top: 6px; }
+.legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+.group { margin-bottom: 12px; }
+.group h3 { font-size: 13px; color: var(--muted); margin: 8px 0 6px; }
+.row { display: grid; grid-template-columns: 1fr 150px 78px; gap: 8px; align-items: center; padding: 5px 6px; border-radius: 6px; }
+.row.edited { background: var(--edit); }
+.row .name { font-size: 13px; }
+.row .name code { color: var(--muted); font-size: 11px; display: block; }
+.row .now { color: var(--muted); font-size: 11px; display: block; }
+.row input[type=range] { width: 100%; }
+.row input[type=number] { width: 78px; font: inherit; padding: 3px 4px; border: 1px solid var(--line); border-radius: 4px;
+                          background: var(--panel); color: var(--text); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+#toast { position: fixed; right: 16px; bottom: 16px; max-width: 460px; padding: 10px 14px; border-radius: 8px;
+         background: var(--text); color: var(--bg); opacity: 0; transition: opacity .2s; pointer-events: none; }
+#toast.show { opacity: .95; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+td { padding: 3px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.t { color: var(--muted); white-space: nowrap; }
+pre { background: var(--chip); padding: 8px; border-radius: 6px; overflow: auto; font-size: 12px; max-height: 240px; }
+input[type=text] { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px;
+                   background: var(--panel); color: var(--text); }
+.warnline { color: var(--warn); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Follow-me 튜닝</h1>
+  <span><span id="conn" class="dot"></span><span id="connText">연결 안 됨</span></span>
+  <span id="fsm" class="badge">-</span>
+  <span id="mode" class="warnline"></span>
+  <span class="spacer"></span>
+  <span id="hooks"></span>
+  <button class="go" onclick="cmd('start')">시작</button>
+  <button class="stop" onclick="cmd('stop')">정지</button>
+  <button class="estop" onclick="cmd('estop')">비상정지</button>
+  <button onclick="post('/api/agent/restart', {}).then(() => toast('중계를 다시 띄웁니다'))">다시 연결</button>
+</header>
+<main>
+  <div>
+    <section>
+      <h2>지금 상태</h2>
+      <div class="kv">
+        <div><span>타깃</span><b id="tgt">-</b></div>
+        <div><span>사람까지</span><b id="range">-</b></div>
+        <div><span>방향</span><b id="bearing">-</b></div>
+        <div><span>명령 v / w</span><b id="cmdvw">-</b></div>
+        <div><span>실제 v / w</span><b id="actvw">-</b></div>
+        <div><span>선속도 상한(이번 주기)</span><b id="vlim">-</b></div>
+        <div><span>장애물 라이다 / depth</span><b id="obs">-</b></div>
+        <div><span>멈춘 이유</span><b id="stop" style="font-size:13px">-</b></div>
+      </div>
+    </section>
+    <section>
+      <h2>최근 30초</h2>
+      <canvas id="chart" width="900" height="260"></canvas>
+      <div class="legend">
+        <span><i style="background:#cf222e"></i>사람까지 [m] (왼쪽 축)</span>
+        <span><i style="background:#0969da"></i>명령 v [m/s] (오른쪽 축)</span>
+        <span><i style="background:#1f2328"></i>실제 v</span>
+        <span><i style="background:#8c959f"></i>v 상한</span>
+        <span>배경: 초록 추종 · 빨강 일시정지 · 노랑 찾는 중</span>
+      </div>
+    </section>
+    <section>
+      <h2>변경·명령 기록</h2>
+      <table id="log"></table>
+    </section>
+  </div>
+  <div>
+    <section>
+      <h2>파라미터 <span id="pcount" class="warnline"></span></h2>
+      <div id="params">중계가 연결되면 로봇의 현재 값이 나옵니다.</div>
+      <div class="actions">
+        <button class="primary" id="applyBtn" onclick="applyEdits()" disabled>적용 (0)</button>
+        <button onclick="clearEdits()">편집 취소</button>
+        <button onclick="fillDefaults()">기본값으로 채우기</button>
+        <button onclick="post('/api/get', {}).then(r => toast(r.ok ? '로봇 값을 다시 읽었습니다' : '읽기 실패: ' + r.reason))">로봇 값 다시 읽기</button>
+      </div>
+      <p class="warnline">값은 "적용"을 눌러야 로봇에 들어가고, 다음 제어 주기(0.05 s)부터 쓰입니다. 범위 밖이거나 서로 맞지 않는 값(정지 거리 + 0.1 m > 추종 거리 등)은 로봇이 거부합니다.</p>
+    </section>
+    <section>
+      <h2>프리셋</h2>
+      <div class="actions">
+        <input type="text" id="presetName" placeholder="이름 (예: 부드럽게)">
+        <button onclick="savePreset()">지금 로봇 값 저장</button>
+        <button onclick="exportYaml()">YAML 내보내기</button>
+      </div>
+      <table id="presets"></table>
+      <pre id="yaml" style="display:none"></pre>
+    </section>
+  </div>
+</main>
+<div id="toast"></div>
+<script>
+const GROUPS = [
+  ["속도·가감속", ["max_linear_speed", "max_angular_speed", "max_linear_accel", "max_linear_decel", "max_linear_jerk",
+                  "max_angular_accel", "max_angular_decel"]],
+  ["거리·추종", ["follow_distance", "stop_distance", "approach_margin", "reaction_time", "k_v", "k_w", "ff_gain",
+               "bearing_deadband", "slow_bearing_deg", "turn_in_place_deg"]],
+  ["장애물", ["slow_distance", "stop_margin", "depth_stop_margin", "obstacle_reaction_time"]],
+  ["회전·놓침", ["rotation_limit_s", "rotation_rearm_s", "target_lost_s", "occluded_speed_factor", "camera_missing_speed_cap"]],
+];
+const FSM = {0: ["대기", "#8c959f"], 1: ["찾는 중", "#bf8700"], 2: ["따라가는 중", "#1a7f37"], 3: ["일시 정지", "#cf222e"],
+             4: ["비상 정지", "#8250df"], 5: ["종료", "#0969da"]};
+const TGT = {0: "없음", 1: "후보", 2: "고정", 3: "가림", 4: "놓침"};
+const STOP = {1: "타깃 없음", 2: "너무 가까움", 4: "장애물", 8: "회전 금지", 16: "낭떠러지", 32: "충돌", 64: "센서 끊김",
+              128: "다른 사람 근접(모호)", 256: "로봇 상태", 512: "회전 상한"};
+let S = {params: {}, ranges: {}, defaults: {}}, tel = [], since = 0, edits = {}, built = "", shadow = null;
+
+const $ = id => document.getElementById(id);
+const f = (x, d = 2) => (x === null || x === undefined) ? "-" : Number(x).toFixed(d);
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 3500); }
+async function post(url, body) {
+  try { const r = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+        return await r.json(); } catch (e) { return {ok: false, reason: String(e)}; }
+}
+async function cmd(c) {
+  if (c === "start" && shadow === false && !confirm("실제 주행 모드입니다. 로봇 주변이 비어 있고 옆에 사람이 있나요?")) return;
+  toast(c === "estop" ? "비상정지 보냄" : c === "start" ? "시작 보냄" : "정지 보냄");
+  const r = await post("/api/cmd", {cmd: c});
+  toast((r.ok ? "확인: " : "실패: ") + c + (r.reason ? " (" + r.reason + ")" : ""));
+}
+function stepOf(lo, hi) { const s = (hi - lo) / 200; const p = Math.pow(10, Math.floor(Math.log10(s))); return Math.max(p, 0.001); }
+function buildParams() {
+  const names = Object.keys(S.ranges);
+  const key = names.sort().join(",");
+  if (!names.length || key === built) return;
+  built = key;
+  const used = new Set(); let html = "";
+  const rows = list => list.filter(n => S.ranges[n]).map(n => { used.add(n);
+    const [lo, hi, desc] = S.ranges[n]; const st = stepOf(lo, hi);
+    return `<div class="row" id="row_${n}"><div class="name">${desc || n}<code>${n} · ${lo}~${hi}</code>
+      <span class="now" id="now_${n}"></span></div>
+      <input type="range" min="${lo}" max="${hi}" step="${st}" id="sl_${n}" oninput="edit('${n}', this.value, 'sl')">
+      <input type="number" min="${lo}" max="${hi}" step="${st}" id="nb_${n}" onchange="edit('${n}', this.value, 'nb')"></div>`; }).join("");
+  for (const [g, list] of GROUPS) { const r = rows(list); if (r) html += `<div class="group"><h3>${g}</h3>${r}</div>`; }
+  const rest = names.filter(n => !used.has(n)); if (rest.length) html += `<div class="group"><h3>기타</h3>${rows(rest)}</div>`;
+  $("params").innerHTML = html; $("pcount").textContent = `(${names.length}개)`;
+}
+function refreshParamValues() {
+  for (const n of Object.keys(S.ranges)) {
+    const v = S.params[n], d = S.defaults[n], e = edits[n];
+    const now = $("now_" + n); if (!now) continue;
+    now.textContent = `로봇 ${f(v, 3)}` + (d !== undefined ? ` · 기본 ${f(d, 3)}` : "");
+    const shown = e !== undefined ? e : v;
+    if (document.activeElement !== $("nb_" + n)) $("nb_" + n).value = shown === undefined ? "" : +Number(shown).toFixed(4);
+    if (document.activeElement !== $("sl_" + n)) $("sl_" + n).value = shown;
+    $("row_" + n).classList.toggle("edited", e !== undefined);
+  }
+  const k = Object.keys(edits).length; $("applyBtn").textContent = `적용 (${k})`; $("applyBtn").disabled = k === 0;
+}
+function edit(n, val, from) {
+  const x = Number(val); if (!isFinite(x)) return;
+  if (Math.abs(x - S.params[n]) < 1e-9) delete edits[n]; else edits[n] = x;
+  if (from === "sl") $("nb_" + n).value = +x.toFixed(4); else $("sl_" + n).value = x;
+  refreshParamValues();
+}
+function clearEdits() { edits = {}; refreshParamValues(); }
+function fillDefaults() {
+  for (const n of Object.keys(S.ranges)) if (S.defaults[n] !== undefined && Math.abs(S.defaults[n] - S.params[n]) > 1e-9) edits[n] = S.defaults[n];
+  refreshParamValues(); toast("기본값을 편집에 채웠습니다. 확인 후 적용을 누르세요");
+}
+async function applyEdits() {
+  const values = {...edits}; if (!Object.keys(values).length) return;
+  const r = await post("/api/set", {values});
+  if (r.ok) { edits = {}; toast("적용됨: " + Object.entries(values).map(([k, v]) => `${k}=${v}`).join(", ")); }
+  else toast("거부됨: " + (r.reason || "알 수 없음"));
+}
+async function savePreset() {
+  const name = $("presetName").value.trim(); if (!name) { toast("이름을 넣어 주세요"); return; }
+  const r = await post("/api/preset/save", {name, values: S.params}); toast(r.ok ? `프리셋 '${name}' 저장` : r.reason);
+}
+function loadPreset(name) {
+  const p = (S.presets || {})[name]; if (!p) return; edits = {};
+  for (const [k, v] of Object.entries(p.values)) if (S.ranges[k] && Math.abs(v - S.params[k]) > 1e-9) edits[k] = v;
+  refreshParamValues(); toast(`'${name}' 값을 편집에 채웠습니다. 확인 후 적용을 누르세요`);
+}
+async function delPreset(name) { if (confirm(`프리셋 '${name}' 을 지울까요?`)) await post("/api/preset/delete", {name}); }
+async function exportYaml() { const r = await post("/api/export", {}); if (r.ok) { $("yaml").style.display = "block";
+  $("yaml").textContent = r.text + "\n# 저장: " + r.path; } }
+function renderPresets() {
+  const ps = S.presets || {}; const names = Object.keys(ps).sort();
+  $("presets").innerHTML = names.map(n => `<tr><td>${n}</td><td class="t">${new Date(ps[n].saved * 1000).toLocaleString()}</td>
+    <td><button onclick="loadPreset('${n.replace(/'/g, "\\'")}')">불러오기</button>
+    <button onclick="delPreset('${n.replace(/'/g, "\\'")}')">삭제</button></td></tr>`).join("") ||
+    "<tr><td class='t'>저장된 프리셋이 없습니다</td></tr>";
+}
+function renderLog(log) {
+  $("log").innerHTML = log.slice().reverse().slice(0, 40).map(l =>
+    `<tr><td class="t">${new Date(l.t * 1000).toLocaleTimeString()}</td><td class="t">${l.kind}</td><td>${l.msg}</td></tr>`).join("");
+}
+function renderStatus(m) {
+  const fs = FSM[m.fsm] || ["-", "#8c959f"]; $("fsm").textContent = fs[0]; $("fsm").style.background = fs[1];
+  shadow = m.shadow; $("mode").textContent = m.shadow === null ? "" : m.shadow ? "그림자 모드 (바퀴 명령 없음)" : "실제 주행 모드";
+  $("tgt").textContent = m.tgt === null ? "-" : `${TGT[m.tgt] || m.tgt}${m.tgt_id >= 0 ? " #" + m.tgt_id : ""}${m.cam ? " · 카메라" : ""}${m.amb ? " · 모호" : ""}`;
+  $("range").textContent = m.range === null ? "-" : f(m.range) + " m";
+  $("bearing").textContent = m.bearing_deg === null ? "-" : (m.bearing_deg > 0 ? "+" : "") + f(m.bearing_deg, 0) + "°";
+  $("cmdvw").textContent = `${f(m.cmd_v)} / ${f(m.cmd_w)}`; $("actvw").textContent = `${f(m.act_v)} / ${f(m.act_w)}`;
+  $("vlim").textContent = f(m.v_limit) + " m/s"; $("obs").textContent = `${f(m.obs_scan, 1)} / ${f(m.obs_depth, 1)} m`;
+  $("stop").textContent = Object.entries(STOP).filter(([b]) => m.stop & b).map(([, s]) => s).join(", ") || "-";
+}
+function drawChart() {
+  const c = $("chart"), r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  c.width = r.width * dpr; c.height = r.height * dpr; const g = c.getContext("2d"); g.scale(dpr, dpr);
+  const W = r.width, H = r.height, L = 34, R = 34, T = 8, B = 20, now = Date.now() / 1000, span = 30;
+  const css = getComputedStyle(document.documentElement);
+  g.clearRect(0, 0, W, H); g.font = "11px sans-serif"; g.fillStyle = css.getPropertyValue("--muted");
+  const X = t => L + (W - L - R) * (1 - (now - t) / span), Yr = v => T + (H - T - B) * (1 - v / 2.5), Yv = v => T + (H - T - B) * (1 - v / 1.0);
+  const pts = tel.filter(m => now - m.t <= span);
+  for (let i = 0; i + 1 < pts.length; i++) { const fs = FSM[pts[i].fsm]; if (!fs || pts[i].fsm === 0) continue;
+    g.fillStyle = fs[1] + "22"; g.fillRect(X(pts[i].t), T, X(pts[i + 1].t) - X(pts[i].t) + 1, H - T - B); }
+  g.strokeStyle = css.getPropertyValue("--line"); g.lineWidth = 1; g.fillStyle = css.getPropertyValue("--muted");
+  for (let v = 0; v <= 2.5; v += 0.5) { g.beginPath(); g.moveTo(L, Yr(v)); g.lineTo(W - R, Yr(v)); g.stroke(); g.fillText(v.toFixed(1), 4, Yr(v) + 4); }
+  for (let v = 0; v <= 1.0; v += 0.2) g.fillText(v.toFixed(1), W - R + 4, Yv(v) + 4);
+  for (let s = 0; s <= span; s += 5) g.fillText(`-${s}s`, X(now - s) - 10, H - 4);
+  const line = (key, Y, color, dash) => { g.strokeStyle = color; g.setLineDash(dash || []); g.lineWidth = 1.6; g.beginPath(); let on = false;
+    for (const m of pts) { const v = m[key]; if (v === null || v === undefined) { on = false; continue; }
+      const x = X(m.t), y = Y(Math.max(0, Math.min(key === "range" ? 2.5 : 1.0, v))); if (on) g.lineTo(x, y); else { g.moveTo(x, y); on = true; } }
+    g.stroke(); g.setLineDash([]); };
+  line("v_limit", Yv, "#8c959f", [4, 3]); line("range", Yr, "#cf222e"); line("cmd_v", Yv, "#0969da");
+  line("act_v", Yv, css.getPropertyValue("--text").trim() || "#1f2328");
+}
+function renderHooks(h) {
+  const key = (h || []).join("|"); if ($("hooks")._k === key) return; $("hooks")._k = key;
+  $("hooks").innerHTML = (h || []).map(n => `<button onclick="hook('${n.replace(/'/g, "\\'")}')">${n}</button>`).join(" ");
+}
+async function hook(n) {
+  if (n.includes("실주행") && !confirm(`'${n}' 를 실행할까요? 실제 바퀴가 움직일 수 있습니다.`)) return;
+  toast(`'${n}' 실행 중…`); const r = await post("/api/hook", {name: n}); toast((r.ok ? "완료: " : "실패: ") + n + " " + (r.reason || ""));
+}
+async function poll() {
+  try {
+    const r = await fetch(`/api/state?since=${since}`); const st = await r.json();
+    $("conn").classList.toggle("on", st.connected); $("connText").textContent = st.connected ? "로봇 연결됨" : "연결 안 됨";
+    S.params = st.params; S.ranges = st.ranges; S.defaults = st.defaults; S.presets = st.presets;
+    for (const m of st.tel) { tel.push(m); since = Math.max(since, m.seq); }
+    const cut = Date.now() / 1000 - 60; while (tel.length && tel[0].t < cut) tel.shift();
+    if (tel.length) renderStatus(tel[tel.length - 1]);
+    buildParams(); refreshParamValues(); renderPresets(); renderLog(st.log || []); renderHooks(st.hooks); drawChart();
+  } catch (e) { $("conn").classList.remove("on"); $("connText").textContent = "서버 응답 없음"; }
+  setTimeout(poll, 250);
+}
+poll();
+</script>
+</body>
+</html>

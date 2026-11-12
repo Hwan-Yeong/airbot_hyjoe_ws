@@ -200,6 +200,27 @@
 - 입력: `/kebi_follow/target`, `/scan`, `/odom`, `/camera/depth/image_raw`, camera_info, TF, 7절 안전 토픽, `/follow/ui/client`.
 - 출력: `/cmd_vel`(그림자 모드면 shadow 토픽), `/follow/detectuser`, `/kebi_follow/mode`, `/kebi_follow/state`.
 
+#### 실행 중 조정 (2026-11-12)
+
+- 아래 26개는 실행 중 `ros2 param set`(SetParameters)으로 바꿀 수 있다. 나머지는 기동 때만 읽는다(read_only).
+- 범위 밖이면 rclcpp 가 거부한다. 서로 모순이어도 거부한다.
+  - 정지 거리 + 0.1 m 는 추종 거리 이하여야 한다.
+  - 감속 시작 각은 제자리 회전 각보다 작아야 한다.
+- 받은 값은 다음 제어 주기 시작에 한꺼번에 적용한다. FSM 과 현재 속도는 그대로다. 상한을 낮추면 감속 제한으로 내려간다.
+
+| 묶음 | 파라미터 (범위) |
+|---|---|
+| 속도·가감속 | `max_linear_speed` (0~1.0), `max_angular_speed` (0~1.5), `max_linear_accel` (0.1~1.0), `max_linear_decel` (0.3~1.5), `max_linear_jerk` (0~10, 0 끔), `max_angular_accel`·`max_angular_decel` (0.3~3.0) |
+| 거리·추종 | `follow_distance` (0.8~2.5), `stop_distance` (0.5~1.5), `approach_margin` (0~0.5), `reaction_time` (0~0.5), `k_v` (0.1~3), `k_w` (0.2~3), `ff_gain` (0~1.5), `bearing_deadband` (0~0.3 rad), `slow_bearing_deg` (0~60), `turn_in_place_deg` (10~90) |
+| 장애물 | `slow_distance` (0.5~3.0), `stop_margin` (0.15~0.6), `depth_stop_margin` (0.3~1.0), `obstacle_reaction_time` (0~0.5) |
+| 회전·놓침 | `rotation_limit_s` (1~10), `rotation_rearm_s` (0.5~5), `target_lost_s` (0.3~2), `occluded_speed_factor` (0~1), `camera_missing_speed_cap` (0~0.5) |
+
+- 조정 화면 `kebi_follow_me/tools/tune_ui`:
+  - `tune_server.py` 는 PC 웹 서버다(표준 라이브러리, http://localhost:8765).
+  - `tune_agent.py` 는 로봇에서 도는 중계다(rclpy, stdin/stdout JSON). 서버가 `--agent-cmd` 로 띄운다(로컬 또는 SSH). 로봇에 포트를 열지 않는다.
+  - 화면 기능: 파라미터 슬라이더(범위·기본값 표시, 한꺼번에 적용), 시작·정지·비상정지, 실시간 상태와 30 s 그래프(사람 거리, 명령·실제 속도, 상태).
+  - 기록 기능: 프리셋 저장·불러오기, 변경 이력 CSV, 현재 값 YAML 내보내기(덮어쓰기 파일에 붙여 다음 실행 기본값으로).
+
 ## 7. 안전 사양 v0 (임시)
 
 | # | 항목 | 값 · 동작 | 결과 상태 |

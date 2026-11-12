@@ -54,6 +54,7 @@ class SafetyGate {
   double minRadius(const ObstacleSet& set) const;
 
   const CorridorParams& params() const { return p_; }
+  void setParams(const CorridorParams& p) { p_ = p; }  // 실행 중 조정
 
  private:
   CorridorParams p_;

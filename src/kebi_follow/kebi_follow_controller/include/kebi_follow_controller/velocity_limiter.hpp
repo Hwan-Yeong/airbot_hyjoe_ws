@@ -35,6 +35,8 @@ class VelocityLimiter {
   double w() const { return w_; }
   double linearAccel() const { return a_; }
   const LimiterParams& params() const { return p_; }
+  // 실행 중 조정: 현재 속도 상태는 그대로 두고 상한·가감속만 바꾼다
+  void setParams(const LimiterParams& p) { p_ = p; }
 
  private:
   LimiterParams p_;
