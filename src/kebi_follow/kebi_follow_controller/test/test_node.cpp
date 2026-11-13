@@ -409,7 +409,8 @@ TEST_F(NodeTest, BottomIrTimeout0_2s) {
       waitFor([&]() { return !cmds_.empty() && cmds_.back().v == 0.0; }, 1.0));
   const double dt = cmds_.back().t - t_stop;
   EXPECT_GT(dt, 0.15);
-  EXPECT_LT(dt, 0.4);
+  // 타임아웃 0.2 s + 출발 직후 낮은 속도에서 단호 S 곡선 정지 (기본 1.2 m/s^2·5 m/s^3: 2√(v/j) ≈ 0.3~0.4 s)
+  EXPECT_LT(dt, 0.7);
   spinFor(0.3);
   EXPECT_EQ(fsm(), FollowState::FSM_WAITING);
   EXPECT_TRUE(state_.stop_reasons & FollowState::STOP_SENSOR_TIMEOUT);

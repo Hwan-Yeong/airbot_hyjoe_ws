@@ -65,6 +65,16 @@ struct Harness {
     ASSERT_NEAR(last.v, 0.5, 1e-6);
   }
 
+  // 단호 S 곡선으로 v 에서 0 까지 걸리는 시간 + 두 주기 (감속 a 가 jerk j 로 차오르고 끝에서 다시 줄어든다)
+  double firmStopBound(double v) const {
+    const auto& L = core.params().limiter;
+    const double a = std::max(L.firm_linear_decel, L.max_linear_decel);
+    const double j = std::max(L.firm_linear_jerk, L.max_linear_jerk);
+    const double t = (j <= 0.0) ? v / a : (v >= a * a / j ? v / a + a / j : 2.0 * std::sqrt(v / j));
+    return t + 2.0 * kDt;
+  }
+  double traveled{0.0};  // 마지막 단호 정지·감속 동안 간 거리 [m] (출력 v·dt 합)
+
   // 단호 정지 (S 곡선, 즉시 0 아님): 첫 출력 o 부터 v 가 늘지 않고, 후진 없고,
   // 감속은 단호 한계 안이며 max_s 안에 선다. 선 데 걸린 시간을 돌려준다
   double expectFirmStop(const CycleOutput& first, double v_before, double max_s,
@@ -74,7 +84,9 @@ struct Harness {
     double prev = v_before;
     CycleOutput o = first;
     double took = kDt;
+    traveled = 0.0;
     for (int i = 0; i < 400; ++i) {
+      traveled += o.v * kDt;
       EXPECT_LE(o.v, prev + 1e-9) << what;
       EXPECT_GE(o.v, 0.0) << what;
       EXPECT_LE(prev - o.v, dmax) << what;
@@ -100,7 +112,9 @@ struct Harness {
     double prev = v_before;
     CycleOutput o = first;
     double took = kDt;
+    traveled = 0.0;
     for (int i = 0; i < 400; ++i) {
+      traveled += o.v * kDt;
       EXPECT_LE(o.v, prev + 1e-9) << what;
       EXPECT_GE(o.v, 0.0) << what;
       EXPECT_LE(prev - o.v, dmax) << what;
@@ -298,7 +312,7 @@ TEST(Core, AmbiguousWaitsAndReportsRecognized) {
 }
 
 TEST(Core, SensorTimeoutsStopFirmly) {
-  // 2026-11-13: 즉시 0 대신 단호 정지 (1.5 m/s^2, S 곡선). 0.5 m/s 에서 0.6 s 안에 선다
+  // 2026-11-13: 즉시 0 대신 단호 정지 (S 곡선). 0.5 m/s 에서 firmStopBound 안에 선다 (1.2·5 기본값 0.76 s)
   for (int which = 0; which < 4; ++which) {
     Harness h;
     h.cruise();
@@ -313,7 +327,7 @@ TEST(Core, SensorTimeoutsStopFirmly) {
     const auto o = h.step();
     EXPECT_EQ(o.state, FsmState::kWaiting) << which;
     EXPECT_TRUE(o.stop_reasons & stop_reason::kSensorTimeout) << which;
-    h.expectFirmStop(o, 0.5, 0.6, "sensor timeout");
+    h.expectFirmStop(o, 0.5, h.firmStopBound(0.5), "sensor timeout");
   }
 }
 
@@ -374,7 +388,7 @@ TEST(Core, TooCloseStopsFirmlyAndNeverReverses) {
   auto o = h.step();
   EXPECT_EQ(o.state, FsmState::kFollowing);
   EXPECT_TRUE(o.stop_reasons & stop_reason::kTooClose);
-  h.expectFirmStop(o, 0.5, 0.6, "too close");
+  h.expectFirmStop(o, 0.5, h.firmStopBound(0.5), "too close");
   // 사람이 계속 다가와도 물러서지 않고 다시 나아가지 않는다
   for (double r = 0.75; r > 0.3; r -= 0.02) {
     h.target(r, 0.0, TargetStatus::kLocked, -0.5);
@@ -392,9 +406,9 @@ TEST(Core, ObstacleInsideBrakingDistanceStopsFirmly) {
   EXPECT_EQ(o.state, FsmState::kFollowing);
   EXPECT_TRUE(o.stop_reasons & stop_reason::kObstacle);
   EXPECT_NEAR(o.scan_obstacle_distance, 0.38, 1e-9);
-  // 단호 감속 동안 간 거리 (≈ v·t) 는 0.38 m 보다 충분히 작다
-  const double took = h.expectFirmSlowdownToCap(o, 0.5, 0.6, "obstacle");
-  EXPECT_LT(0.5 * took, 0.2);
+  // 단호 감속 동안 간 거리는 장애물(0.38 m)보다 0.1 m 이상 짧다
+  h.expectFirmSlowdownToCap(o, 0.5, h.firmStopBound(0.5), "obstacle");
+  EXPECT_LT(h.traveled, 0.38 - 0.1);
 }
 
 TEST(Core, ObstacleSlowdownZone) {
@@ -422,7 +436,7 @@ TEST(Core, DepthObstacleUsesLargerMargin) {
   auto o = h.step();
   EXPECT_NEAR(o.depth_obstacle_distance, 0.55, 1e-9);
   EXPECT_TRUE(o.stop_reasons & stop_reason::kObstacle);  // 0.156 + 0.5 안
-  h.expectFirmSlowdownToCap(o, 0.5, 0.6, "depth obstacle");
+  h.expectFirmSlowdownToCap(o, 0.5, h.firmStopBound(0.5), "depth obstacle");
   // 같은 거리라도 camera 가 꺼져 있으면 depth 점은 쓰지 않는다 (대신 0.3 상한)
   Harness g;
   g.cruise();
@@ -740,7 +754,7 @@ TEST(Core, TooCloseStopsFirmlyInWaitingToo) {
   o = h.step();
   EXPECT_EQ(o.state, FsmState::kWaiting);
   EXPECT_TRUE(o.stop_reasons & stop_reason::kTooClose);
-  h.expectFirmStop(o, v_amb, 0.6, "too close in waiting");
+  h.expectFirmStop(o, v_amb, h.firmStopBound(v_amb), "too close in waiting");
   // 가림(측정 없는 시간 0.7 s 초과)으로 WAITING 이어도 예측 위치가 가까우면 즉시 0
   Harness g;
   g.cruise();
@@ -753,7 +767,7 @@ TEST(Core, TooCloseStopsFirmlyInWaitingToo) {
   g.in.target.position = {0.7, 0.05};
   o = g.step();
   EXPECT_TRUE(o.stop_reasons & stop_reason::kTooClose);
-  g.expectFirmStop(o, v_occ, 0.6, "too close occluded");
+  g.expectFirmStop(o, v_occ, g.firmStopBound(v_occ), "too close occluded");
 }
 
 TEST(Core, CappedSpeedPathIsAlsoChecked) {
@@ -801,7 +815,7 @@ TEST(Core, LiftedOrFallDownStaleIsSensorTimeout) {
     const auto o = h.step();
     EXPECT_EQ(o.state, FsmState::kWaiting);
     EXPECT_TRUE(o.stop_reasons & stop_reason::kSensorTimeout);
-    h.expectFirmStop(o, 0.5, 0.6, "lifted/fall_down stale");
+    h.expectFirmStop(o, 0.5, h.firmStopBound(0.5), "lifted/fall_down stale");
   }
 }
 
@@ -814,7 +828,7 @@ TEST(Core, DegradedDepthCapsSpeedButKeepsPoints) {
   h.depth = {{0.22 + 0.55, 0.0}};
   const auto o = h.step();
   EXPECT_NEAR(o.depth_obstacle_distance, 0.55, 1e-9);
-  h.expectFirmSlowdownToCap(o, 0.5, 0.6, "degraded depth points");  // depth 점 (0.156 + 0.5 안)
+  h.expectFirmSlowdownToCap(o, 0.5, h.firmStopBound(0.5), "degraded depth points");  // depth 점 (0.156 + 0.5 안)
   Harness g;
   g.cruise();
   g.in.sensors.camera_ok = false;

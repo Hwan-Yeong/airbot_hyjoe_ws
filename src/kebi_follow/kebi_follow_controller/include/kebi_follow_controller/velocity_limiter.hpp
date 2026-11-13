@@ -23,8 +23,8 @@ struct LimiterParams {
   double max_angular_accel{1.5};  // [rad/s^2]
   double max_angular_decel{1.5};  // [rad/s^2]
   double max_angular_jerk{0.0};   // [rad/s^3], 0 이하면 끔
-  double firm_linear_decel{1.5};  // [m/s^2] 단호 정지 (편안 값보다 작으면 편안 값을 쓴다)
-  double firm_linear_jerk{20.0};  // [m/s^3]
+  double firm_linear_decel{1.2};  // [m/s^2] 단호 정지 (편안 값보다 작으면 편안 값을 쓴다). 기본값은 config 와 같게
+  double firm_linear_jerk{5.0};   // [m/s^3]
   double firm_angular_decel{4.0};  // [rad/s^2]
   double firm_angular_jerk{40.0};  // [rad/s^3]
 };

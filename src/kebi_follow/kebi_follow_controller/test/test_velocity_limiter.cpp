@@ -159,7 +159,10 @@ TEST(Limiter, FirmStopIsFasterButContinuous) {
     ++n_firm;
   }
   EXPECT_LT(n_firm, n_comfort);
-  EXPECT_LE(n_firm * kDt, 0.6);  // 0.5 m/s 에서 0.6 s 안
+  // 0.5 m/s 에서 단호 S 곡선 정지 시간 (v/a + a/j) + 두 주기 안 (기본값 1.2·5: 0.66 s)
+  const double a = p.firm_linear_decel;
+  const double j = p.firm_linear_jerk;
+  EXPECT_LE(n_firm * kDt, 0.5 / a + a / j + 2.0 * kDt);
 }
 
 TEST(Limiter, LoweringCapAtRuntimeDeceleratesSmoothly) {
