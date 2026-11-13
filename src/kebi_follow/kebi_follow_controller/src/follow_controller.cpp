@@ -752,6 +752,10 @@ class FollowController : public rclcpp::Node {
       if (core_->onStop(t)) {
         publishCmd(0.0, 0.0);
       }
+      if (core_->stopPending()) {
+        RCLCPP_INFO(get_logger(), "STOP(cmd %u): %s, moving %.2f m/s -> firm S-curve stop, then IDLE",
+                    static_cast<unsigned>(m.cmd), toString(before), core_->limiter().v());
+      }
       if (before != core_->state()) {
         RCLCPP_INFO(get_logger(), "STOP(cmd %u): %s -> IDLE",
                     static_cast<unsigned>(m.cmd), toString(before));

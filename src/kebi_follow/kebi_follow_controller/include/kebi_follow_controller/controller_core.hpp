@@ -149,12 +149,15 @@ class ControllerCore {
 
   // 이벤트. 반환값이 true 면 노드는 지금 바로 0 을 한 번 발행한다
   bool onStart(double now);
+  // STOP: 움직이는 중(FOLLOWING·WAITING)이면 단호 S 곡선으로 세운 뒤 IDLE (stopPending 동안 HALT·안전 검사 그대로).
+  // 서 있거나 그 밖의 상태면 바로 IDLE. HALT 는 늘 즉시 0 (사용자 2026-11-13: MCU 도 0 으로 제한)
   bool onStop(double now);
   bool onHalt(double now, uint32_t reasons);
 
   CycleOutput step(const CycleInput& in);
 
   FsmState state() const { return fsm_.state(); }
+  bool stopPending() const { return stop_pending_; }
   const ControllerParams& params() const { return p_; }
   const VelocityLimiter& limiter() const { return limiter_; }  // 시험·진단용 (현재 속도·가속도)
   // 실행 중 조정: FSM·속도·회전 상태는 유지하고 파라미터만 바꾼다 (다음 step 부터 적용)
@@ -178,6 +181,8 @@ class ControllerCore {
   bool too_close_latched_{false};  // S2 근접 히스테리시스
   bool cap_active_{false};  // 안전 상한 감속(kCap) 중: 상한에 닿을 때까지 유지 (중간에 편안으로 바꾸면 출렁인다)
   double vp_f_{0.0};  // 제동 상한용 사람 전방 속도 저역 통과 [m/s]
+  bool stop_pending_{false};  // STOP 을 받아 단호 S 곡선으로 서는 중 (서면 IDLE)
+  bool brake_active_{false};  // 사람 앞 제동 격상 중 (편안 S 곡선으로는 사람 앞 여유 안까지 들어갈 참이었다)
 };
 
 }  // namespace kebi_follow

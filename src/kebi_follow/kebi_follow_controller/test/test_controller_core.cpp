@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "kebi_follow_controller/controller_core.hpp"
+#include "kebi_follow_controller/tunables.hpp"
 
 using namespace kebi_follow;
 
@@ -225,10 +226,19 @@ TEST(Core, UpdateParamsKeepsStateAndAppliesNewCaps) {
   EXPECT_DOUBLE_EQ(h.core.params().limiter.max_linear_speed, 0.2);
 }
 
-TEST(Core, StopGivesThreeZerosThenSilence) {
+TEST(Core, StopWhileMovingUsesFirmSCurveThenThreeZerosThenSilence) {
+  // 2026-11-13 사용자 요구: STOP 명령도 S 곡선으로 선다 (즉시 0 은 바퀴가 미끄러졌다). HALT 는 즉시 0 그대로
   Harness h;
   h.cruise();
-  EXPECT_TRUE(h.stop());  // 노드가 바로 0 을 1 번 낸다
+  EXPECT_FALSE(h.stop());  // 바로 0 을 내지 않는다
+  EXPECT_TRUE(h.core.stopPending());
+  auto first = h.step();
+  EXPECT_EQ(first.state, FsmState::kFollowing);  // 서는 동안 활성 상태 (HALT·안전 검사 그대로)
+  const double took = h.expectFirmStop(first, 0.5, h.firmStopBound(0.5), "stop command");
+  EXPECT_GT(took, 0.3);  // 즉시 0 이 아니다
+  EXPECT_EQ(h.last.state, FsmState::kIdle);  // 선 주기에 IDLE, 0 을 낸다
+  EXPECT_TRUE(h.last.publish);
+  EXPECT_FALSE(h.core.stopPending());
   int zeros = 1;
   for (int i = 0; i < 40; ++i) {
     const auto o = h.step();
@@ -241,6 +251,47 @@ TEST(Core, StopGivesThreeZerosThenSilence) {
     }
   }
   EXPECT_EQ(zeros, 3);
+}
+
+TEST(Core, StopWhileNotMovingGoesIdleAtOnce) {
+  Harness h;
+  h.target(3.0, 0.0);
+  h.start();  // ACQUIRING: 움직이지 않는다
+  EXPECT_TRUE(h.stop());  // 바로 IDLE, 노드가 0 을 한 번 낸다
+  EXPECT_EQ(h.core.state(), FsmState::kIdle);
+  EXPECT_FALSE(h.core.stopPending());
+}
+
+TEST(Core, HaltDuringStopCommandIsImmediateAndEndsIdle) {
+  for (int level = 0; level < 2; ++level) {
+    Harness h;
+    h.cruise();
+    h.stop();
+    h.step();
+    ASSERT_GT(h.last.v, 0.1);
+    if (level == 0) {
+      EXPECT_TRUE(h.core.onHalt(h.t, stop_reason::kCliff));  // 이벤트: 노드가 바로 0
+    } else {
+      h.in.halt_active = stop_reason::kCliff;  // 레벨 신호: 다음 주기
+    }
+    const auto o = h.step();
+    EXPECT_EQ(o.v, 0.0);
+    EXPECT_EQ(o.w, 0.0);
+    EXPECT_EQ(o.state, FsmState::kIdle);  // STOP 요청대로 IDLE (HALTED 로 남아 0 을 계속 내지 않는다)
+    EXPECT_FALSE(h.core.stopPending());
+  }
+}
+
+TEST(Core, StartDuringStopCommandCancelsIt) {
+  Harness h;
+  h.cruise();
+  h.stop();
+  h.step();
+  EXPECT_FALSE(h.start());  // FSM 은 아직 활성: 정지만 거둔다
+  EXPECT_FALSE(h.core.stopPending());
+  const auto o = h.run(3.0);
+  EXPECT_EQ(o.state, FsmState::kFollowing);
+  EXPECT_NEAR(o.v, 0.5, 1e-6);
 }
 
 TEST(Core, AcquireTimeoutEndsWithZerosAndDetectZero) {
@@ -592,6 +643,99 @@ TEST(Core, OutputBoundsUnderRandomInputs) {
     EXPECT_LE(o.v - v_prev, 0.4 * kDt + 0.002 + 1e-9);
     v_prev = o.publish ? o.v : 0.0;
   }
+}
+
+namespace {
+// config/follow_controller.yaml 의 실차 기본값 (2026-11-13)
+ControllerParams yamlLikeParams() {
+  ControllerParams p;
+  p.limiter.max_linear_speed = 1.2;
+  p.limiter.max_linear_accel = 0.8;
+  p.limiter.max_linear_decel = 0.8;
+  p.limiter.max_linear_jerk = 1.0;
+  p.limiter.firm_linear_decel = 1.2;
+  p.limiter.firm_linear_jerk = 5.0;
+  p.law.follow_distance = 1.0;
+  p.law.stop_distance = 0.5;
+  p.law.approach_margin = 0.3;
+  p.law.reaction_time = 0.2;
+  p.law.k_v = 0.8;
+  p.v_filter_s = 0.45;
+  p.w_filter_s = 0.3;
+  syncDerived(&p);
+  return p;
+}
+
+// 1차원 걷기: 사람이 서 있다가 1.5 m/s^2 로 v_walk 까지 걷고, t_stop 에 decel 로 선다. 사람까지 최소 거리 [m]
+double walkAndStop(double v_walk, double t_stop, double decel, double* max_robot_decel = nullptr,
+                   double r0 = 1.3, double t_walk = 0.5) {
+  Harness h(yamlLikeParams());
+  double xp = r0;
+  double xr = 0.0;
+  double vp = 0.0;
+  h.target(xp - xr, 0.0);
+  h.start();
+  double r_min = 10.0;
+  double v_prev = 0.0;
+  double dec_max = 0.0;
+  for (int i = 0; i < 400; ++i) {
+    const double T = i * kDt;
+    if (T < t_walk) {
+      vp = 0.0;
+    } else if (T < t_stop) {
+      vp = std::min(v_walk, vp + 1.5 * kDt);
+    } else {
+      vp = std::max(0.0, vp - decel * kDt);
+    }
+    xp += vp * kDt;
+    h.target(xp - xr, 0.0, TargetStatus::kLocked, vp);
+    const auto o = h.step();
+    xr += o.v * kDt;
+    r_min = std::min(r_min, xp - xr);
+    dec_max = std::max(dec_max, (v_prev - o.v) / kDt);
+    v_prev = o.v;
+  }
+  if (max_robot_decel != nullptr) {
+    *max_robot_decel = dec_max;
+  }
+  return r_min;
+}
+}  // namespace
+
+TEST(Core, PersonStopsWhileRobotCatchesUpKeepsMargin) {
+  // 2026-11-13 실차 E2: 따라잡느라 가속하던 중 사람이 서면 편안 S 곡선만으로는 0.54 m 까지 다가갔다.
+  // 가속을 미리 멈추고(1단), 그래도 모자라면 단호 S 곡선(2단)으로 stop_distance + margin/2 (0.65 m) 밖에서 선다
+  const ControllerParams p = yamlLikeParams();
+  const double keep = p.law.stop_distance + 0.5 * p.law.approach_margin;
+  for (double t_stop : {1.5, 2.0, 2.5, 3.0, 4.0, 6.0}) {
+    for (double v_walk : {0.8, 1.2}) {
+      const double r_min = walkAndStop(v_walk, t_stop, 3.0);
+      std::printf("walk %.1f m/s, stop at %.1f s -> min %.2f m\n", v_walk, t_stop, r_min);
+      EXPECT_GT(r_min, keep - 0.03) << "walk " << v_walk << " stop " << t_stop;
+    }
+  }
+}
+
+TEST(Core, PersonStopsWhileRobotClosesLargeGapKeepsMargin) {
+  // 2026-11-13 실차 E2 14 s 장면: 사람이 2 m 앞에서 천천히(0.3~0.5 m/s) 걷고 로봇은 간격을 좁히려 서 있다가
+  // 가속하던 중 사람이 섰다 → 0.54 m. 가속 중인 것까지 넣은 정지 예측으로 0.65 m 밖에서 선다
+  const ControllerParams p = yamlLikeParams();
+  const double keep = p.law.stop_distance + 0.5 * p.law.approach_margin;
+  for (double t_stop : {1.0, 1.5, 2.0, 2.5, 3.0}) {
+    for (double v_walk : {0.3, 0.5}) {
+      const double r_min = walkAndStop(v_walk, t_stop, 3.0, nullptr, 2.0, 0.0);
+      std::printf("gap 2.0 m, walk %.1f m/s, stop at %.1f s -> min %.2f m\n", v_walk, t_stop, r_min);
+      EXPECT_GT(r_min, keep - 0.03) << "walk " << v_walk << " stop " << t_stop;
+    }
+  }
+}
+
+TEST(Core, SteadyWalkUsesOnlyComfortDeceleration) {
+  // 보통 걸음(1.0 m/s)을 이어서 따라가는 동안 단호 감속은 쓰지 않는다 (사람이 늦게 설 때만)
+  const ControllerParams p = yamlLikeParams();
+  double dec = 0.0;
+  walkAndStop(1.0, 100.0, 3.0, &dec);  // 20 s 동안 서지 않는다
+  EXPECT_LE(dec, p.limiter.max_linear_decel + 0.02);
 }
 
 TEST(Core, ApproachingPersonNeverMakesRobotAdvanceInsideStopDistance) {

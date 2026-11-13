@@ -420,16 +420,20 @@ TEST_F(NodeTest, IdleSilenceIncludingAfterStopAndHalt) {
   startNode();
   spinFor(1.0);
   EXPECT_TRUE(cmds_.empty()) << "IDLE published /cmd_vel";
-  // STOP 뒤: 0 을 3 번 낸 뒤 침묵 (STOP 처리 전에 이미 나간 명령 1 개는 허용)
-  auto checkStopBurst = [&](double t_stop) {
-    spinFor(1.5);
+  // STOP 뒤: 0 을 3 번 낸 뒤 침묵 (STOP 처리 전에 이미 나간 명령 1 개는 허용).
+  // 움직이던 중이면 그 앞에 단호 S 곡선으로 줄어드는 명령들이 온다 (2026-11-13, 1 s 안)
+  auto checkStopBurst = [&](double t_stop, bool was_moving) {
+    spinFor(2.0);
     std::vector<Cmd> after;
     for (const auto& c : cmds_) {
       if (c.t >= t_stop)
         after.push_back(c);
     }
     EXPECT_GE(after.size(), 3u);
-    EXPECT_LE(after.size(), 4u);
+    EXPECT_LE(after.size(), was_moving ? 3u + 20u : 4u);
+    for (std::size_t i = 1; i < after.size(); ++i) {
+      EXPECT_LE(after[i].v, after[i - 1].v + 1e-6) << "speed rose after STOP";
+    }
     for (std::size_t i = after.size() >= 3 ? after.size() - 3 : 0;
          i < after.size(); ++i) {
       EXPECT_EQ(after[i].v, 0.0);
@@ -443,8 +447,8 @@ TEST_F(NodeTest, IdleSilenceIncludingAfterStopAndHalt) {
   ui(1);
   ASSERT_TRUE(followingAndMoving());
   ui(3);
-  checkStopBurst(wallNow());
-  // START → HALT → STOP: HALTED 에서 나갈 때도 같다
+  checkStopBurst(wallNow(), true);
+  // START → HALT → STOP: HALTED 에서 나갈 때도 같다 (HALT 로 이미 0, 바로 IDLE)
   ui(1);
   ASSERT_TRUE(followingAndMoving());
   robot_custom_msgs::msg::AbnormalEventData e;
@@ -453,7 +457,7 @@ TEST_F(NodeTest, IdleSilenceIncludingAfterStopAndHalt) {
   ASSERT_TRUE(waitFor([&]() { return fsm() == FollowState::FSM_HALTED; }, 1.0));
   spinFor(0.3);
   ui(3);
-  checkStopBurst(wallNow());
+  checkStopBurst(wallNow(), false);
 }
 
 TEST_F(NodeTest, AnyOtherCmdIsStop) {

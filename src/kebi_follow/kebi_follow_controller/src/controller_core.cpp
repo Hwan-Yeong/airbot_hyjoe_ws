@@ -15,6 +15,29 @@ constexpr uint32_t kFirmAngularWaitMask =
     stop_reason::kSensorTimeout | stop_reason::kRotationBlocked;
 // 이보다 느리면 "서 있다"로 본다 (출발 문턱 판단) [m/s]
 constexpr double kStoppedSpeed = 0.02;
+// STOP 을 받았을 때 이보다 빠르면(선 [m/s] 또는 각 [rad/s]) S 곡선으로 세운 뒤 IDLE, 아니면 바로 IDLE
+constexpr double kStopMovingEps = 1e-3;
+// 사람 앞 제동 격상: 편안 S 곡선으로 서면 사람 앞 stop_distance + 이 비율 × approach_margin 안까지 들어갈 참이면 단호 S 곡선
+constexpr double kBrakeMarginFrac = 0.5;
+// 사람이 로봇 쪽으로 오는 속도 중 이만큼은 다리 흔들림 잡음으로 보고 뺀다 [m/s]
+constexpr double kApproachNoise = 0.2;
+// 정지 예측: 제어 주기와 같은 이산 S 곡선으로 앞질러 본다 (최대 10 s)
+constexpr double kPredictDt = 0.05;
+constexpr int kPredictMaxSteps = 200;
+
+// 지금 선속도 v·가속도 a 에서 S 곡선(가속 상한 a_up, 감속 a_dn, jerk j)으로 0 까지 가는 거리 [m]·시간 [s]
+void predictStop(double v, double a, double a_up, double a_dn, double j, double* dist,
+                 double* time) {
+  double d = 0.0;
+  double t = 0.0;
+  for (int i = 0; i < kPredictMaxSteps && v > 1e-3; ++i) {
+    sCurveStep(0.0, a_up, a_dn, j, kPredictDt, &v, &a);
+    d += std::max(0.0, v) * kPredictDt;
+    t += kPredictDt;
+  }
+  *dist = d;
+  *time = t;
+}
 // 근접 정지가 풀리는 여유 [m]
 constexpr double kTooCloseHysteresis = 0.05;
 // 카메라·depth 이상 상한이 나머지 목표보다 이만큼 낮아야 "그 상한이 걸렸다"로 본다 [m/s]
@@ -82,10 +105,16 @@ void ControllerCore::resetMotion() {
   law_f_init_ = false;
   too_close_latched_ = false;
   cap_active_ = false;
+  brake_active_ = false;
   vp_f_ = 0.0;
 }
 
 bool ControllerCore::onStart(double now) {
+  if (stop_pending_) {
+    // STOP 으로 서는 중에 START 가 다시 오면 정지를 거두고 그대로 따라간다 (FSM 은 아직 활성)
+    stop_pending_ = false;
+    return false;
+  }
   if (!fsm_.start(now)) {
     return false;
   }
@@ -94,6 +123,14 @@ bool ControllerCore::onStart(double now) {
 }
 
 bool ControllerCore::onStop(double now) {
+  const FsmState s = fsm_.state();
+  const bool moving = std::abs(limiter_.v()) > kStopMovingEps ||
+                      std::abs(limiter_.w()) > kStopMovingEps;
+  if ((s == FsmState::kFollowing || s == FsmState::kWaiting) && moving) {
+    stop_pending_ = true;  // 다음 주기부터 단호 S 곡선으로 줄이고, 서면 IDLE (step)
+    return false;
+  }
+  stop_pending_ = false;
   if (!fsm_.stop(now)) {
     return false;
   }
@@ -106,6 +143,11 @@ bool ControllerCore::onHalt(double now, uint32_t reasons) {
     return false;  // 비활성 상태이거나 이미 HALTED
   }
   resetMotion();
+  if (stop_pending_) {
+    // STOP 으로 서는 중 HALT: 즉시 0 으로 서고 요청대로 IDLE (HALTED 로 남아 0 을 계속 내지 않게)
+    stop_pending_ = false;
+    fsm_.stop(now);
+  }
   return true;
 }
 
@@ -118,6 +160,10 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
   // 레벨 신호(예: lifted 가 계속 true)도 활성 상태면 HALTED
   if (in.halt_active != 0 && fsm_.halt(now, in.halt_active)) {
     resetMotion();
+    if (stop_pending_) {  // onHalt 와 같다
+      stop_pending_ = false;
+      fsm_.stop(now);
+    }
   }
 
   // --- 타깃 ---
@@ -300,7 +346,7 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
     // 락은 됐지만 바로 움직일 수 없으면 같은 주기에 WAITING
     fsm_.update(now, fi);
   }
-  const FsmState s = fsm_.state();
+  FsmState s = fsm_.state();  // STOP 의 S 곡선 정지가 이번 주기에 끝나면 IDLE 로 바뀐다 (아래 보고에 반영)
   out.state_changed = (s != prev);
   if (out.state_changed && s != FsmState::kFollowing &&
       s != FsmState::kWaiting) {
@@ -311,7 +357,45 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
   double v = 0.0;
   double w = 0.0;
   bool publish = false;
-  switch (s) {
+  // 사람 앞 제동 여유 (2026-11-13 실차 E2): 제동 상한은 로봇이 이미 가속 중인 것을 모른다. 사람을 따라잡느라
+  // 0.85 m/s 로 가속하던 중 사람이 서자, 편안 S 곡선은 가속을 되돌리고 감속을 채우는 데만 1 s 남짓 걸려
+  // 사람 앞 0.54 m 까지 다가갔다 (설계 0.8 m). 지금 (v, a) 에서 편안 S 곡선으로 서면 사람까지 남을 거리를
+  // 앞질러 계산한다. 사람이 다가오는 속도(잡음 문턱 넘는 만큼)도 넣는다
+  double brake_gap = kInf;
+  if (tracked && limiter_.v() > kStoppedSpeed) {
+    const LimiterParams& L = p_.limiter;
+    double d_stop = 0.0;
+    double t_stop = 0.0;
+    predictStop(limiter_.v(), limiter_.linearAccel(), L.max_linear_accel, L.max_linear_decel,
+                L.max_linear_jerk, &d_stop, &t_stop);
+    const double v_close = std::max(0.0, -t.velocity.x - kApproachNoise);
+    const double t_r = p_.law.reaction_time;
+    brake_gap = range - limiter_.v() * t_r - d_stop - v_close * (t_r + t_stop);
+  }
+  const double stop_point = p_.law.stop_distance + p_.law.approach_margin;  // 편안 정지가 서야 할 곳
+  // 1단: 편안 정지가 stop_point 를 넘을 참이면 더 가속하지 않는다 (편안 S 곡선으로 가속을 줄인다)
+  const bool hold_accel = brake_gap < stop_point;
+  // 2단: 편안 정지로는 stop_distance + approach_margin/2 안까지 들어갈 참이면 단호 S 곡선으로 줄인다
+  const bool brake_need =
+      brake_gap < p_.law.stop_distance + kBrakeMarginFrac * p_.law.approach_margin;
+  const bool stopping = stop_pending_ && (s == FsmState::kFollowing || s == FsmState::kWaiting);
+  if (stopping) {
+    // STOP 명령: 선·각 모두 단호 S 곡선으로 0 까지 (HALT 는 위에서 즉시 0). 서면 IDLE (0 몇 번 뒤 침묵)
+    limiter_.step(0.0, 0.0, dt, StopProfile::kFirm, StopProfile::kFirm);
+    v = limiter_.v();
+    w = limiter_.w();
+    publish = true;
+    if (std::abs(v) <= kStopMovingEps && std::abs(w) <= kStopMovingEps) {
+      stop_pending_ = false;
+      fsm_.stop(now);
+      resetMotion();
+      v = 0.0;
+      w = 0.0;
+      publish = fsm_.consumeZeroBurst();  // IDLE 진입 때와 같은 0 세 번 중 첫 번째
+      out.state_changed = true;
+      s = fsm_.state();
+    }
+  } else switch (s) {
     case FsmState::kIdle:
     case FsmState::kEnded:
       limiter_.reset();
@@ -325,7 +409,7 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
     case FsmState::kWaiting: {
       // 놓침·모호·회전 상한은 편안 정지, 센서 끊김·회전 금지·근접·장애물은 단호 정지 (S 곡선, 즉시 0 아님)
       const bool firm_v = (wait & kFirmLinearWaitMask) != 0 || obs_emergency ||
-                          too_close;
+                          too_close || brake_need;
       const bool firm_w = (wait & kFirmAngularWaitMask) != 0;
       limiter_.step(0.0, 0.0, dt,
                     firm_v ? StopProfile::kFirm : StopProfile::kComfort,
@@ -358,8 +442,20 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
       } else if (v_peak > v_t + kCapOverrunTol) {
         cap_active_ = true;
       }
+      if (hold_accel) {
+        v_t = std::min(v_t, limiter_.v());
+      }
+      // 2단은 한 번 걸리면 여유가 stop_point 로 돌아오거나 설 때까지 단호 S 곡선으로 줄인다 (중간에 바꾸면 출렁인다)
+      if (brake_need) {
+        brake_active_ = true;
+      } else if (brake_gap >= stop_point || limiter_.v() <= kStoppedSpeed) {
+        brake_active_ = false;
+      }
+      if (brake_active_) {
+        v_t = 0.0;
+      }
       limiter_.step(v_t, w_des, dt,
-                    firm_v ? StopProfile::kFirm
+                    (firm_v || brake_active_) ? StopProfile::kFirm
                            : (cap_active_ ? StopProfile::kCap : StopProfile::kComfort),
                     StopProfile::kComfort);
       v = limiter_.v();

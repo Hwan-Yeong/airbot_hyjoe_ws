@@ -42,7 +42,7 @@ follow_controller:
     follow_distance: 1.0          # 사용자 결정 2026-11-13. 빠를수록 제동 상한 때문에 늘어난다 (0.5 m/s 약 1.3 m, 0.8 m/s 약 1.7 m)
     stop_distance: 0.5            # 이 거리 이내면 단호 정지 (풀릴 때는 +0.05 m), 사람이 다가와도 물러서지 않음
     approach_margin: 0.3          # 사람이 갑자기 서도 stop_distance + 이 값(0.8 m) 앞에서 편안 S 곡선으로 서는 속도로 제한
-    reaction_time: 0.2            # 위 제한 계산용 측정·명령 지연 (감속이 jerk 로 차오르는 시간 a/2j 는 따로 더한다)
+    reaction_time: 0.2            # 위 제한 계산용 측정·명령 지연 (감속이 jerk 로 차오르는 시간 a/2j 는 따로 더한다). 실차 E2: 타깃 86 ms(중앙) + 명령→odom 50 ms + 제어 주기 50 ms
     person_stop_decel: 0.0        # 사람이 서는 감속 가정 [m/s^2] (0: 바로 선다고 봄). 켜면 더 붙지만 속도 추정 지연 때문에 단호 정지가 는다 (시뮬레이터)
     k_v: 0.8                      # v = k_v (range - follow_distance) + v_ff
     k_w: 1.2                      # w = k_w (bearing - 불감대)
