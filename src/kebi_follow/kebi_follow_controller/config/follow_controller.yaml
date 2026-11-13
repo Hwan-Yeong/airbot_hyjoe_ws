@@ -25,11 +25,11 @@ follow_controller:
 
     # S1 속도·가감속 (후진 없음). 2026-11-13 야간 튜닝: S 곡선(가속·감속 모두 jerk 제한)
     # 근거·시뮬레이터 비교: SPEC 6.3 "부드러운 모션", tools/follow_core_sim + tools/sim_tune.py
-    max_linear_speed: 0.8         # 사용자 결정 (편안함: 고령자 평상 보행 0.8~0.9 m/s)
+    max_linear_speed: 1.2         # 사용자 결정 2026-11-13 (0.8 은 보통 걸음 1.0~1.4 m/s 를 못 따라가 답답했다)
     max_angular_speed: 1.5        # 사용자 결정 (약 86°/s)
-    max_linear_accel: 0.5
-    max_linear_decel: 0.8         # 편안 정지 (놓침·모호). 근접·장애물·센서 끊김은 단호 정지, HALT 만 즉시 0
-    max_linear_jerk: 0.6          # 가속·감속 모두 (S 곡선). 0 이면 끔
+    max_linear_accel: 0.8         # 사람이 걷기 시작하면 빨리 따라붙게 (S 곡선이라 출발도 부드럽다)
+    max_linear_decel: 0.8         # 편안 정지 (사람 앞 제동·장애물 상한도 이 값으로 계산 — 1.0 이면 장애물 비상 판정이 늦어 낮은 상자에 0.35 m 까지 갔다). 근접·장애물·센서 끊김은 단호 정지, HALT 만 즉시 0
+    max_linear_jerk: 1.0          # 가속·감속 모두 (S 곡선). 사용자 요구로 낮게: 감속 0.8 까지 0.8 s 에 차오른다. 0 이면 끔
     max_angular_accel: 1.5
     max_angular_decel: 2.0
     max_angular_jerk: 2.0         # [rad/s^3] 0 이면 끔
@@ -39,15 +39,16 @@ follow_controller:
     firm_angular_jerk: 40.0
 
     # 추종 법칙 (6.3, S2)
-    follow_distance: 1.2          # 개인/사회 공간 경계. 빠를수록 제동 상한 때문에 늘어난다 (0.5 m/s 약 1.5 m, 0.8 m/s 약 2.0 m)
-    stop_distance: 0.8            # 이 거리 이내면 단호 정지 (풀릴 때는 +0.05 m), 사람이 다가와도 물러서지 않음
-    approach_margin: 0.15         # 사람이 갑자기 서도 stop_distance + 이 값 앞에서 서는 속도로 제한
+    follow_distance: 1.0          # 사용자 결정 2026-11-13. 빠를수록 제동 상한 때문에 늘어난다 (0.5 m/s 약 1.3 m, 0.8 m/s 약 1.7 m)
+    stop_distance: 0.5            # 이 거리 이내면 단호 정지 (풀릴 때는 +0.05 m), 사람이 다가와도 물러서지 않음
+    approach_margin: 0.3          # 사람이 갑자기 서도 stop_distance + 이 값(0.8 m) 앞에서 편안 S 곡선으로 서는 속도로 제한
     reaction_time: 0.2            # 위 제한 계산용 측정·명령 지연 (감속이 jerk 로 차오르는 시간 a/2j 는 따로 더한다)
+    person_stop_decel: 0.0        # 사람이 서는 감속 가정 [m/s^2] (0: 바로 선다고 봄). 켜면 더 붙지만 속도 추정 지연 때문에 단호 정지가 는다 (시뮬레이터)
     k_v: 0.8                      # v = k_v (range - follow_distance) + v_ff
     k_w: 1.2                      # w = k_w (bearing - 불감대)
     ff_gain: 1.0                  # v_ff = ff_gain * 타깃 지면 속도의 전방 성분 (0 이상만)
     ff_min_target_speed: 0.1      # v_ff 를 0.05 m/s 에서 0, 0.15 m/s 에서 전부가 되도록 섞는다 (계단 아님)
-    v_filter_s: 0.6               # 추종 선속도 요구 저역 통과 [s] (다리 흔들림·속도 추정 잡음). 안전 상한은 필터 뒤
+    v_filter_s: 0.45              # 추종 선속도 요구 저역 통과 [s] (다리 흔들림·속도 추정 잡음). 안전 상한은 필터 뒤
     w_filter_s: 0.3               # 추종 각속도 요구 저역 통과 [s]
     start_speed: 0.0              # 서 있을 때 이보다 작은 요구로는 출발 안 함 [m/s] (0: 끔)
     bearing_deadband: 0.05        # [rad]
@@ -64,7 +65,7 @@ follow_controller:
     corridor_max_curvature: 2.0   # [1/m]
     curvature_min_speed: 0.05     # 이보다 느리면 직진 경로만
     target_exclusion_radius: 0.4  # 타깃 주변 점은 장애물로 보지 않음
-    slow_distance: 1.6            # 여기부터 감속 (선속도 상한 0.8 의 2 배)
+    slow_distance: 2.3            # 여기부터 감속 (선속도 1.2 에서도 예전과 같은 기울기)
     stop_margin: 0.25             # 제동거리 + 이 값 이내 정지 (라이다)
     obstacle_reaction_time: 0.25  # 감속·정지 계산의 지연: 명령→실제 0.09~0.13 s(실측) + 스캔 주기 0.1 s
     depth_stop_margin: 0.5        # depth 로 본 점의 정지 여유: 카메라 근거리 사각(약 0.45 m) 전에 선다

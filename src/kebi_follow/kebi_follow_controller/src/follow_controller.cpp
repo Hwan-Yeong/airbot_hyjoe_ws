@@ -412,6 +412,7 @@ class FollowController : public rclcpp::Node {
     law.stop_distance = param("stop_distance", law.stop_distance);
     law.approach_margin = param("approach_margin", law.approach_margin);
     law.reaction_time = param("reaction_time", law.reaction_time);
+    law.person_stop_decel = param("person_stop_decel", law.person_stop_decel);
     law.k_v = param("k_v", law.k_v);
     law.k_w = param("k_w", law.k_w);
     law.ff_gain = param("ff_gain", law.ff_gain);

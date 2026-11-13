@@ -713,8 +713,8 @@ TEST_F(NodeTest, TunableParametersApplyAtRuntime) {
   startNode();
   // 범위 밖, 서로 모순, 엉뚱한 타입은 거부하고 값은 그대로
   EXPECT_FALSE(
-      ctrl_->set_parameter(rclcpp::Parameter("max_linear_speed", 1.5))
-          .successful);
+      ctrl_->set_parameter(rclcpp::Parameter("max_linear_speed", 1.6))
+          .successful);  // 범위 0~1.5 밖
   EXPECT_FALSE(ctrl_->set_parameter(rclcpp::Parameter("stop_distance", 0.95))
                    .successful);  // 기본 follow 1.0: 0.95 + 0.1 > 1.0
   EXPECT_FALSE(

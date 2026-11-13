@@ -3,7 +3,8 @@
 
 점수(낮을수록 좋음) = 시나리오 합:
   RMS jerk + 0.25·각 RMS jerk + 0.15·이동 중 최대 jerk + 0.03·최대 각 jerk
-  + 1.5·출발-정지 반복 + 2·단호 정지 + 추종 거리 벌점(1.1~1.6 m 밖) + 안전 벌점(사람 0.75 m, 벽 0.2 m)
+  + 1.5·출발-정지 반복 + 2·단호 정지 + 추종 거리 벌점(follow_distance −0.1~+0.4 m 밖)
+  + 안전 벌점(사람 stop_distance −0.05 m, 벽 0.2 m). 기본(1.2/0.8)이면 예전 1.1~1.6 m, 0.75 m 와 같다
 usage:
   sim_tune.py --sim BIN [--yaml follow_controller.yaml] [--set k=v ...] [--seeds 3]           # 한 설정 평가
   sim_tune.py --sim BIN ... --grid k=v1,v2 --grid k2=... [--top 10]                             # 격자 탐색
@@ -32,8 +33,13 @@ def yaml_params(path):
     return {k: float(v) for k, v in p.items() if k in names and isinstance(v, (int, float)) and not isinstance(v, bool)}
 
 
+PERSON_ACCEL = None  # --person-accel (사람 급정지 최악 확인용)
+
+
 def run(sim, params, seed, out=None, scenario=None):
     cmd = [sim, "--quiet", "--seed", str(seed)]
+    if PERSON_ACCEL is not None:
+        cmd += ["--person-accel", str(PERSON_ACCEL)]
     for k, v in params.items():
         cmd += ["--set", f"{k}={v}"]
     if out:
@@ -47,17 +53,20 @@ def run(sim, params, seed, out=None, scenario=None):
     return json.loads(r.stdout)["results"]
 
 
-def score_one(m):
+def score_one(m, p=None):
+    p = p or {}
+    fd = p.get("follow_distance", 1.2)
+    sd = p.get("stop_distance", 0.8)
     s = m["rms_jerk_cmd"] + 0.25 * m["rms_wjerk_cmd"] + 0.15 * m["max_jerk_moving"] + 0.03 * m["max_wjerk_cmd"]
     s += 1.5 * m["stop_go"] + 2.0 * m["firm"]
     if m["scenario"] in WALKING:
-        s += 2.0 * max(0.0, m["mean_dist"] - 1.6) + 2.0 * max(0.0, 1.1 - m["mean_dist"])
-    if m["scenario"] != "approach_back" and m["min_dist"] < 0.75:
+        s += 2.0 * max(0.0, m["mean_dist"] - (fd + 0.4)) + 2.0 * max(0.0, (fd - 0.1) - m["mean_dist"])
+    if m["scenario"] != "approach_back" and m["min_dist"] < sd - 0.05:
         s += 20.0
     if m["min_wall"] < 0.2:
         s += 20.0
     if m["scenario"] == "fast_walk":
-        s += 1.0 * max(0.0, m["mean_dist"] - 2.6)
+        s += 1.0 * max(0.0, m["mean_dist"] - (fd + 1.4))
     # 반응성: 사람이 출발한 뒤 0.8 s 넘게 서 있거나, 사람 쪽 방향 오차가 30° 를 자주 넘으면 벌점
     s += 2.0 * max(0.0, m["start_lag"] - 0.8)
     if m["scenario"] not in ("side_step", "circle_around"):
@@ -74,7 +83,7 @@ def evaluate(sim, params, seeds):
     for name, ms in per.items():
         avg = {k: sum(x[k] for x in ms) / len(ms) for k in ms[0] if k != "scenario"}
         avg["scenario"] = name
-        avg["score"] = sum(score_one(x) for x in ms) / len(ms)
+        avg["score"] = sum(score_one(x, params) for x in ms) / len(ms)
         total += avg["score"]
         rows[name] = avg
     return total, rows
@@ -95,9 +104,12 @@ def main():
     ap.add_argument("--set", action="append", default=[])
     ap.add_argument("--grid", action="append", default=[])
     ap.add_argument("--seeds", type=int, default=3)
+    ap.add_argument("--person-accel", type=float, default=None, help="시뮬레이터 사람 가감속 [m/s^2] (기본 1.0)")
     ap.add_argument("--top", type=int, default=8)
     ap.add_argument("--json", default="")
     a = ap.parse_args()
+    global PERSON_ACCEL
+    PERSON_ACCEL = a.person_accel
     base = yaml_params(a.yaml)
     for kv in a.set:
         k, v = kv.split("=", 1)

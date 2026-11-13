@@ -99,3 +99,26 @@ TEST(FollowLaw, BearingSlowdownAndTurnInPlace) {
   EXPECT_TRUE(at90.in_place);
   EXPECT_FALSE(law.compute(3.0, degToRad(10.0), 0.0).in_place);
 }
+
+TEST(FollowLaw, PersonStopDecelExtendsBrakingCap) {
+  // 걷던 사람은 바로 서지 못한다: 사람 정지 거리 v²/(2a) 만큼 제동 상한에 여유를 더한다 (0 이면 끔)
+  FollowLawParams p;
+  p.follow_distance = 1.0;
+  p.stop_distance = 0.5;
+  p.approach_margin = 0.3;
+  p.reaction_time = 0.2;
+  p.brake_decel = 1.0;
+  p.brake_jerk = 1.0;  // + a/2j = 0.5 s
+  p.max_linear_speed = 1.5;
+  const double t_r = 0.2 + 0.5;
+  FollowLaw off(p);
+  EXPECT_NEAR(off.compute(1.5, 0.0, 1.0).v_cap, stoppingSpeed(1.5 - 0.8, 1.0, t_r), 1e-12);
+  p.person_stop_decel = 1.5;
+  FollowLaw on(p);
+  const double extra = 1.0 * 1.0 / (2.0 * 1.5);
+  EXPECT_NEAR(on.compute(1.5, 0.0, 1.0).v_cap, stoppingSpeed(1.5 - 0.8 + extra, 1.0, t_r), 1e-12);
+  // 호출한 쪽이 넘긴 (걸러진·보수적) 속도를 쓴다
+  EXPECT_NEAR(on.compute(1.5, 0.0, 1.0, 0.0).v_cap, off.compute(1.5, 0.0, 1.0).v_cap, 1e-12);
+  // 사람이 서 있으면 차이 없음
+  EXPECT_NEAR(on.compute(1.5, 0.0, 0.0).v_cap, off.compute(1.5, 0.0, 0.0).v_cap, 1e-12);
+}

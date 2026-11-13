@@ -23,7 +23,7 @@ constexpr double kMinStopToFollowGap = 0.1;  // stop_distance + 이 값 <= follo
 
 inline const TunableSpec kTunables[] = {
     // S1 속도·가감속
-    {"max_linear_speed", 0.0, 1.0, "선속도 상한 [m/s]",
+    {"max_linear_speed", 0.0, 1.5, "선속도 상한 [m/s]",
      [](const ControllerParams& p) { return p.limiter.max_linear_speed; },
      [](ControllerParams& p, double v) { p.limiter.max_linear_speed = v; }},
     {"max_angular_speed", 0.0, 2.0, "각속도 상한 [rad/s]",
@@ -60,10 +60,10 @@ inline const TunableSpec kTunables[] = {
      [](const ControllerParams& p) { return p.limiter.firm_angular_jerk; },
      [](ControllerParams& p, double v) { p.limiter.firm_angular_jerk = v; }},
     // S2 추종 법칙
-    {"follow_distance", 0.8, 2.5, "추종 거리 [m]",
+    {"follow_distance", 0.6, 2.5, "추종 거리 [m]",
      [](const ControllerParams& p) { return p.law.follow_distance; },
      [](ControllerParams& p, double v) { p.law.follow_distance = v; }},
-    {"stop_distance", 0.5, 1.5, "이 거리 이내면 단호 정지 [m]",
+    {"stop_distance", 0.4, 1.5, "이 거리 이내면 단호 정지 [m]",
      [](const ControllerParams& p) { return p.law.stop_distance; },
      [](ControllerParams& p, double v) { p.law.stop_distance = v; }},
     {"approach_margin", 0.0, 0.5, "사람이 갑자기 서도 정지 거리 + 이 값 앞에서 선다 [m]",
@@ -72,6 +72,9 @@ inline const TunableSpec kTunables[] = {
     {"reaction_time", 0.0, 0.5, "사람 앞 제동 상한 계산 지연 [s]",
      [](const ControllerParams& p) { return p.law.reaction_time; },
      [](ControllerParams& p, double v) { p.law.reaction_time = v; }},
+    {"person_stop_decel", 0.0, 4.0, "사람 앞 제동: 걷던 사람이 서는 감속 가정 [m/s^2] (0: 바로 선다고 봄)",
+     [](const ControllerParams& p) { return p.law.person_stop_decel; },
+     [](ControllerParams& p, double v) { p.law.person_stop_decel = v; }},
     {"k_v", 0.1, 3.0, "거리 오차 → 선속도 게인 [1/s]",
      [](const ControllerParams& p) { return p.law.k_v; },
      [](ControllerParams& p, double v) { p.law.k_v = v; }},

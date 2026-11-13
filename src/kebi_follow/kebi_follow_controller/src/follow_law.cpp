@@ -19,7 +19,8 @@ double stoppingSpeed(double D, double decel, double reaction_time) {
 }
 
 FollowCommand FollowLaw::compute(double range, double bearing,
-                                 double target_forward_speed) const {
+                                 double target_forward_speed,
+                                 double brake_person_speed) const {
   FollowCommand c;
 
   // 각속도: 불감대만큼 빼서 연속으로 만든다 (경계 떨림 방지)
@@ -47,11 +48,15 @@ FollowCommand FollowLaw::compute(double range, double bearing,
   const double v_ff = p_.ff_gain * s * blend;
   double v = std::max(0.0, p_.k_v * e + v_ff);
 
-  // 사람이 지금 멈춰도 stop_distance + approach_margin 앞에서 설 수 있는 속도까지만.
-  // 감속이 jerk 제한으로 차오르는 동안(a/2j 만큼) 반응이 늦은 것으로 본다
+  // 사람이 지금 서기 시작해도 stop_distance + approach_margin 앞에서 설 수 있는 속도까지만.
+  // 감속이 jerk 제한으로 차오르는 동안(a/2j 만큼) 반응이 늦은 것으로 본다.
+  // 걷던 사람은 person_stop_decel 로 서므로 그 정지 거리만큼 더 쓸 수 있다 (0 이면 바로 선다고 봄)
   const double t_jerk =
       (p_.brake_jerk > 0.0) ? p_.brake_decel / (2.0 * p_.brake_jerk) : 0.0;
-  c.v_cap = stoppingSpeed(range - p_.stop_distance - p_.approach_margin,
+  const double vp = (brake_person_speed >= 0.0) ? brake_person_speed : s;
+  const double person_stop =
+      (p_.person_stop_decel > 0.0) ? vp * vp / (2.0 * p_.person_stop_decel) : 0.0;
+  c.v_cap = stoppingSpeed(range - p_.stop_distance - p_.approach_margin + person_stop,
                           p_.brake_decel, p_.reaction_time + t_jerk);
   v = std::min({v, c.v_cap, p_.max_linear_speed});
 

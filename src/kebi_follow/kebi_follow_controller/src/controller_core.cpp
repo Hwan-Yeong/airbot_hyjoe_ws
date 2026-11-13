@@ -82,6 +82,7 @@ void ControllerCore::resetMotion() {
   law_f_init_ = false;
   too_close_latched_ = false;
   cap_active_ = false;
+  vp_f_ = 0.0;
 }
 
 bool ControllerCore::onStart(double now) {
@@ -140,7 +141,15 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
 
   FollowCommand law_cmd;
   if (tracked) {
-    law_cmd = law_.compute(range, bearing, t.velocity.x);
+    // 제동 상한에 넣는 사람 속도: 신선한 측정일 때만, 걸러진 값과 지금 값 중 작은 쪽
+    // (속도 추정 잡음·급가속에 늘지 않고, 사람이 느려지면 바로 줄어든다. 가림 중에는 0 = 바로 선다고 봄)
+    const double vp_now = std::max(0.0, t.velocity.x);
+    const double avp = (p_.v_filter_s > 0.0) ? dt / (p_.v_filter_s + dt) : 1.0;
+    vp_f_ += avp * (vp_now - vp_f_);
+    const double brake_vp = fresh_lock ? std::min(vp_now, vp_f_) : 0.0;
+    law_cmd = law_.compute(range, bearing, t.velocity.x, brake_vp);
+  } else {
+    vp_f_ = 0.0;
   }
   // 추종 법칙 출력 저역 통과 (다리 흔들림·속도 추정 잡음이 가가속도로 번지지 않게).
   // 사람 앞 제동 상한은 걸러진 값 뒤에 다시 건다 (안전 상한은 늦추지 않는다)

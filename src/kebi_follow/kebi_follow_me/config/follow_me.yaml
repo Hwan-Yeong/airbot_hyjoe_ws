@@ -1,5 +1,5 @@
 # 로봇·시험 단계별 덮어쓰기. 기본값은 각 모듈 패키지 config/*.yaml 에 있다.
-# 속도 상한은 follow_controller 기본값(선속도 0.8 m/s, 각속도 1.5 rad/s, 근거는 SPEC 6.3)을 쓴다.
+# 속도 상한은 follow_controller 기본값(선속도 1.2 m/s, 각속도 1.5 rad/s, 근거는 SPEC 6.3)을 쓴다.
 # 시험 단계에서 낮출 때만 여기서 덮어쓴다 (예: T3 는 max_linear_speed 0.2).
 follow_controller:
   ros__parameters:

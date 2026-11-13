@@ -177,6 +177,7 @@ class ControllerCore {
   bool law_f_init_{false};
   bool too_close_latched_{false};  // S2 근접 히스테리시스
   bool cap_active_{false};  // 안전 상한 감속(kCap) 중: 상한에 닿을 때까지 유지 (중간에 편안으로 바꾸면 출렁인다)
+  double vp_f_{0.0};  // 제동 상한용 사람 전방 속도 저역 통과 [m/s]
 };
 
 }  // namespace kebi_follow

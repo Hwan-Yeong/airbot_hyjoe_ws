@@ -10,6 +10,7 @@
 // - 라이다: 벽 선분과 사람 다리 원(반경 6 cm)에 0.9° 광선. 0.2~4 m 점만 넘긴다 (노드와 같음)
 //
 // usage: follow_core_sim [--scenario NAME|all] [--set name=value]... [--out DIR] [--seed N] [--quiet]
+//                        [--person-accel A]   (사람 가감속 [m/s^2], 기본 1.0. 급정지 최악 확인은 2.5~3)
 //   --set 은 tunables.hpp 의 이름 (예: max_linear_jerk=1.5)
 #include <algorithm>
 #include <cmath>
@@ -78,6 +79,8 @@ bool inside(const std::vector<Window>& ws, double t) {
   return false;
 }
 
+double g_person_accel = 1.0;  // 사람 가감속 [m/s^2] (--person-accel)
+
 struct Person {
   double x, y, vx{0}, vy{0}, heading{0}, phase{0};
   // speed < 0 인 경유점: 로봇 쪽으로 |speed| 로 다가와 로봇 중심 0.6 m 앞에서 선다
@@ -97,13 +100,13 @@ struct Person {
       }
       const double dx = gx - x, dy = gy - y, d = std::hypot(dx, dy);
       if (d > 0.02) {
-        const double sp = std::min(sp_max, std::sqrt(2.0 * 1.0 * d));
+        const double sp = std::min(sp_max, std::sqrt(2.0 * g_person_accel * d));
         tvx = dx / d * sp;
         tvy = dy / d * sp;
       }
     }
     double ax = tvx - vx, ay = tvy - vy;
-    const double n = std::hypot(ax, ay), lim = 1.0 * dt;
+    const double n = std::hypot(ax, ay), lim = g_person_accel * dt;
     if (n > lim) {
       ax *= lim / n;
       ay *= lim / n;
@@ -532,6 +535,8 @@ int main(int argc, char** argv) {
       out = argv[++i];
     } else if (a == "--seed" && i + 1 < argc) {
       seed = static_cast<unsigned>(std::atoi(argv[++i]));
+    } else if (a == "--person-accel" && i + 1 < argc) {
+      g_person_accel = std::atof(argv[++i]);
     } else if (a == "--quiet") {
       quiet = true;
     } else if (a == "--set" && i + 1 < argc) {
@@ -543,7 +548,7 @@ int main(int argc, char** argv) {
       }
       sets.push_back({kv.substr(0, eq), std::atof(kv.c_str() + eq + 1)});
     } else {
-      std::fprintf(stderr, "usage: %s [--scenario NAME|all] [--set name=value]... [--out DIR] [--seed N] [--quiet]\n", argv[0]);
+      std::fprintf(stderr, "usage: %s [--scenario NAME|all] [--set name=value]... [--out DIR] [--seed N] [--quiet] [--person-accel A]\n", argv[0]);
       return 2;
     }
   }
