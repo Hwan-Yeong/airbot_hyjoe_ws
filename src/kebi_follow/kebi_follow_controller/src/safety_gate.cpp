@@ -103,6 +103,32 @@ double SafetyGate::minRadius(const ObstacleSet& set) const {
   return best;
 }
 
+double SafetyGate::segmentClearance(const ObstacleSet& set, const Vec2& a, const Vec2& b,
+                                    const Vec2& excl_center, double excl_radius) const {
+  double best = kInf;
+  if (set.points == nullptr) {
+    return best;
+  }
+  const double ux = b.x - a.x;
+  const double uy = b.y - a.y;
+  const double len2 = ux * ux + uy * uy;
+  const double ex2 = excl_radius * excl_radius;
+  for (std::size_t i = 0; i < set.count; ++i) {
+    const Vec2 q = transformPoint(set.to_now, set.points[i]);
+    const double ex = q.x - excl_center.x;
+    const double ey = q.y - excl_center.y;
+    if (ex * ex + ey * ey < ex2) {
+      continue;
+    }
+    double s = 0.0;
+    if (len2 > 0.0) {
+      s = std::clamp(((q.x - a.x) * ux + (q.y - a.y) * uy) / len2, 0.0, 1.0);
+    }
+    best = std::min(best, std::hypot(q.x - (a.x + s * ux), q.y - (a.y + s * uy)));
+  }
+  return best;
+}
+
 double pathCurvature(double v, double w, double min_speed,
                      double max_curvature) {
   if (v < min_speed) {

@@ -70,6 +70,8 @@ static_assert(FollowStateMsg::STOP_AMBIGUOUS == stop_reason::kAmbiguous);
 static_assert(FollowStateMsg::STOP_ROBOT_STATE == stop_reason::kRobotState);
 static_assert(FollowStateMsg::STOP_ROTATION_LIMIT ==
               stop_reason::kRotationLimit);
+static_assert(FollowStateMsg::STEER_DIRECT == static_cast<uint8_t>(SteerMode::kDirect));
+static_assert(FollowStateMsg::STEER_TRAIL == static_cast<uint8_t>(SteerMode::kTrail));
 static_assert(FollowModeMsg::TRACK == static_cast<uint8_t>(ModeValue::kTrack));
 static_assert(FollowTargetMsg::STATUS_OCCLUDED ==
               static_cast<uint8_t>(TargetStatus::kOccluded));
@@ -1152,6 +1154,8 @@ class FollowController : public rclcpp::Node {
                         pose_now, in.target, &in.depth_exclusion);
     in.halt_active = activeHalts(t);
     in.measured_speed = odom_speed_;
+    in.odom_pose = pose_now;
+    in.odom_pose_ok = pose_ok;
 
     const FsmState before = core_->state();
     const CycleOutput out = core_->step(in);
@@ -1335,6 +1339,7 @@ class FollowController : public rclcpp::Node {
     msg.obstacle_distance = finiteOr(o.obstacle_distance, kFarDistance);
     msg.target_range = static_cast<float>(o.target_range);
     msg.target_bearing = static_cast<float>(o.target_bearing);
+    msg.steer_mode = static_cast<uint8_t>(o.steer_mode);
     msg.scan_obstacle_distance =
         finiteOr(o.scan_obstacle_distance, kFarDistance);
     msg.depth_obstacle_distance =

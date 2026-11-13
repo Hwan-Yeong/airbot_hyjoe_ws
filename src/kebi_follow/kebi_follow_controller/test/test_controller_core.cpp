@@ -738,6 +738,104 @@ TEST(Core, SteadyWalkUsesOnlyComfortDeceleration) {
   EXPECT_LE(dec, p.limiter.max_linear_decel + 0.02);
 }
 
+namespace {
+// 2차원 걷기 (odom): 사람이 꺾은선 path 를 speed 로 걷고, 로봇은 명령을 그대로 적분한다. 장애물은 원 기둥들.
+// 로봇이 기둥 표면에 가장 가까이 간 거리, 마지막 로봇 위치, 발자취 조향 주기 수를 돌려준다
+struct Walk2D {
+  double min_clear{1e9};
+  double x{0.0};
+  double y{0.0};
+  int trail_cycles{0};
+  double min_range{1e9};
+};
+Walk2D walk2D(const std::vector<Vec2>& path, double speed, const std::vector<std::pair<Vec2, double>>& pillars,
+              double seconds) {
+  Harness h(yamlLikeParams());
+  Walk2D r;
+  double rx = 0.0, ry = 0.0, th = 0.0;
+  Vec2 pp = path.front();
+  std::size_t seg = 0;
+  auto toBase = [&](const Vec2& q) {
+    const double dx = q.x - rx, dy = q.y - ry;
+    return Vec2{std::cos(th) * dx + std::sin(th) * dy, -std::sin(th) * dx + std::cos(th) * dy};
+  };
+  std::vector<Vec2> pts;
+  for (const auto& pl : pillars) {
+    for (int k = 0; k < 24; ++k) {
+      const double a = 2.0 * M_PI * k / 24.0;
+      pts.push_back({pl.first.x + pl.second * std::cos(a), pl.first.y + pl.second * std::sin(a)});
+    }
+  }
+  h.in.odom_pose_ok = true;
+  h.target(toBase(pp).x, toBase(pp).y);
+  h.start();
+  const int n = static_cast<int>(seconds / kDt);
+  for (int i = 0; i < n; ++i) {
+    const double T = i * kDt;
+    Vec2 vel{0.0, 0.0};
+    if (T > 0.5 && seg + 1 < path.size()) {
+      double step = speed * kDt;
+      while (step > 0.0 && seg + 1 < path.size()) {
+        const Vec2 d{path[seg + 1].x - pp.x, path[seg + 1].y - pp.y};
+        const double L = norm(d);
+        if (L <= step) {
+          pp = path[seg + 1];
+          ++seg;
+          step -= L;
+        } else {
+          pp = {pp.x + d.x / L * step, pp.y + d.y / L * step};
+          vel = {d.x / L * speed, d.y / L * speed};
+          step = 0.0;
+        }
+      }
+    }
+    h.scan.clear();
+    for (const auto& q : pts) {
+      h.scan.push_back(toBase(q));
+    }
+    const Vec2 pb = toBase(pp);
+    h.target(pb.x, pb.y, TargetStatus::kLocked, std::cos(th) * vel.x + std::sin(th) * vel.y);
+    h.in.target.velocity = {std::cos(th) * vel.x + std::sin(th) * vel.y, -std::sin(th) * vel.x + std::cos(th) * vel.y};
+    h.in.odom_pose = Pose2D{rx, ry, th};
+    const auto o = h.step();
+    if (o.steer_mode == SteerMode::kTrail) {
+      ++r.trail_cycles;
+    }
+    rx += o.v * std::cos(th) * kDt;
+    ry += o.v * std::sin(th) * kDt;
+    th += o.w * kDt;
+    for (const auto& pl : pillars) {
+      r.min_clear = std::min(r.min_clear, std::hypot(rx - pl.first.x, ry - pl.first.y) - pl.second - 0.22);
+    }
+    r.min_range = std::min(r.min_range, std::hypot(pp.x - rx, pp.y - ry));
+  }
+  r.x = rx;
+  r.y = ry;
+  return r;
+}
+}  // namespace
+
+TEST(Core, FollowsPersonTrailAroundPillarInsteadOfWaiting) {
+  // 2026-11-13 실차 E2: 사람이 기둥을 돌아가면 사람에게 곧장 가는 직선이 기둥에 막혀 로봇이 기다리기만 했다.
+  // 발자취 따라가기: 직선이 막히면 사람이 지나간 길로 돌아가서 다시 따라간다
+  const std::vector<Vec2> path = {{1.3, 0.0}, {1.7, 0.65}, {2.7, 0.65}, {3.3, 0.0}, {6.0, 0.0}};
+  const auto r = walk2D(path, 0.8, {{{2.2, 0.0}, 0.15}}, 25.0);
+  std::printf("pillar detour: robot end (%.2f, %.2f), min clearance %.2f m, trail cycles %d, min range %.2f\n",
+              r.x, r.y, r.min_clear, r.trail_cycles, r.min_range);
+  EXPECT_GT(r.trail_cycles, 0);
+  EXPECT_GT(r.x, 3.5);            // 기둥(2.2 m)을 지나 사람 쪽으로 갔다
+  EXPECT_GT(r.min_clear, 0.05);   // 기둥에 닿지 않는다
+  EXPECT_GT(r.min_range, 0.5 - 0.05);
+}
+
+TEST(Core, OpenFloorStaysDirect) {
+  // 막힌 것이 없으면 발자취를 쓰지 않는다 (예전과 같은 직선 추종)
+  const std::vector<Vec2> path = {{1.3, 0.0}, {2.0, 0.8}, {5.0, 0.8}};
+  const auto r = walk2D(path, 0.8, {}, 15.0);
+  EXPECT_EQ(r.trail_cycles, 0);
+  EXPECT_GT(r.x, 3.0);
+}
+
 TEST(Core, ApproachingPersonNeverMakesRobotAdvanceInsideStopDistance) {
   Harness h;
   h.cruise(2.0);

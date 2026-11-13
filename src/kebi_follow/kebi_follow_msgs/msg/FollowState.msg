@@ -37,3 +37,10 @@ float32 depth_proc_ms           # 최근 depth 프레임 처리 시간 [ms]
 float32 cycle_ms                # 최근 제어 주기 계산 시간 [ms]
 uint8 floor_source              # depth 바닥: 0 없음(degraded), 1 이번 추정, 2 직전 추정(hold 안), 3 오래된 추정(degraded)
 float32 depth_valid_ratio       # 로봇 앞 가까운 영역(0.6~1.2 m) 표본 중 유효 depth 비율
+# 조향 목표 (2026-11-13 갇힘 개선): 0 사람에게 곧장, 1 직선이 막혀 사람 발자취 위 앞쪽 점,
+# 2 막혀서 국소 회피, 3 벽에 붙어 지나온 길로 짧게 후진
+uint8 STEER_DIRECT=0
+uint8 STEER_TRAIL=1
+uint8 STEER_AVOID=2
+uint8 STEER_REVERSE=3
+uint8 steer_mode

@@ -53,6 +53,11 @@ class SafetyGate {
   // 로봇 중심에서 가장 가까운 점까지 거리 (S4 회전 여유)
   double minRadius(const ObstacleSet& set) const;
 
+  // 선분 a-b (현재 base 좌표) 에서 가장 가까운 장애물 점까지 거리. 원 (excl_center, excl_radius) 안 점은 뺀다.
+  // 발자취 따라가기의 시야 검사: 이 값이 통로 반폭보다 작으면 그 직선으로는 못 간다
+  double segmentClearance(const ObstacleSet& set, const Vec2& a, const Vec2& b,
+                          const Vec2& excl_center, double excl_radius) const;
+
   const CorridorParams& params() const { return p_; }
   void setParams(const CorridorParams& p) { p_ = p; }  // 실행 중 조정
 

@@ -21,6 +21,13 @@ constexpr double kStopMovingEps = 1e-3;
 constexpr double kBrakeMarginFrac = 0.5;
 // 사람이 로봇 쪽으로 오는 속도 중 이만큼은 다리 흔들림 잡음으로 보고 뺀다 [m/s]
 constexpr double kApproachNoise = 0.2;
+// 사람 발자취 (2026-11-13 실차 E2 갇힘): 기록 간격 [m], 최대 점 수 (약 30 m), 앞쪽 점을 찾는 발자취 길이 [m],
+// 로봇에서 이보다 가까운 점은 목표로 안 잡는다 [m], 직선으로 돌아갈 때 시야 여유 히스테리시스 [m]
+constexpr double kTrailSpacing = 0.1;
+constexpr std::size_t kTrailMaxPoints = 300;
+constexpr double kTrailLookahead = 1.2;
+constexpr double kTrailMinCarrot = 0.3;
+constexpr double kLosHysteresis = 0.05;
 // 정지 예측: 제어 주기와 같은 이산 S 곡선으로 앞질러 본다 (최대 10 s)
 constexpr double kPredictDt = 0.05;
 constexpr int kPredictMaxSteps = 200;
@@ -107,6 +114,8 @@ void ControllerCore::resetMotion() {
   cap_active_ = false;
   brake_active_ = false;
   vp_f_ = 0.0;
+  trail_.reset();
+  trail_active_ = false;
 }
 
 bool ControllerCore::onStart(double now) {
@@ -185,6 +194,69 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
   const double range = norm(t.position);
   const double bearing = std::atan2(t.position.y, t.position.x);
 
+  // --- 사람 발자취·조향 목표 (2026-11-13 실차 E2 갇힘) ---
+  // 사람에게 곧장 가는 직선이 기둥·벽에 막히면 사람이 이미 지나간 길 위 앞쪽 점을 향한다.
+  // 속도(거리 법칙)는 그대로 사람까지 거리로 정하고, 장애물 게이트·정지 프로파일이 최종 권한을 가진다
+  if (in.odom_pose_ok && fresh_lock && !t.ambiguous) {
+    trail_.add(transformPoint(in.odom_pose, t.position), kTrailSpacing, kTrailMaxPoints);
+  }
+  if (in.odom_pose_ok) {
+    trail_.pruneBehind(Vec2{in.odom_pose.x, in.odom_pose.y});
+  }
+  const double excl_r = p_.corridor.target_exclusion_radius;
+  auto losClearance = [&](const Vec2& goal) {
+    double c = gate_.segmentClearance(in.scan, Vec2{0.0, 0.0}, goal, t.position, excl_r);
+    if (in.sensors.depth_points_ok) {
+      c = std::min(c, gate_.segmentClearance(in.depth, Vec2{0.0, 0.0}, goal, t.position, excl_r));
+    }
+    return c;
+  };
+  double steer_bearing = bearing;
+  SteerMode steer = SteerMode::kDirect;
+  if (tracked && in.odom_pose_ok && !trail_.empty() && range > p_.law.follow_distance) {
+    const double need = p_.corridor.half_width + (trail_active_ ? kLosHysteresis : 0.0);
+    if (losClearance(t.position) < need) {
+      // 발자취 위 앞쪽 점: 가장 가까운 점부터 발자취를 따라 kTrailLookahead 안에서, 로봇에서 직선 시야가
+      // 비어 있는 가장 먼 점. 그런 점이 없으면 kTrailMinCarrot 넘게 떨어진 첫 점
+      const Pose2D to_base = inverse(in.odom_pose);
+      const auto& tp = trail_.points();
+      double s = 0.0;
+      bool have = false;
+      bool have_first = false;
+      Vec2 carrot{};
+      Vec2 first{};
+      for (std::size_t i = 0; i < tp.size(); ++i) {
+        if (i > 0) {
+          s += norm({tp[i].x - tp[i - 1].x, tp[i].y - tp[i - 1].y});
+        }
+        if (s > kTrailLookahead) {
+          break;
+        }
+        const Vec2 q = transformPoint(to_base, tp[i]);
+        if (norm(q) < kTrailMinCarrot) {
+          continue;
+        }
+        if (!have_first) {
+          first = q;
+          have_first = true;
+        }
+        if (losClearance(q) >= p_.corridor.half_width) {
+          carrot = q;
+          have = true;
+        }
+      }
+      if (!have && have_first) {
+        carrot = first;
+        have = true;
+      }
+      if (have) {
+        steer_bearing = std::atan2(carrot.y, carrot.x);
+        steer = SteerMode::kTrail;
+      }
+    }
+  }
+  trail_active_ = (steer == SteerMode::kTrail);
+
   FollowCommand law_cmd;
   if (tracked) {
     // 제동 상한에 넣는 사람 속도: 신선한 측정일 때만, 걸러진 값과 지금 값 중 작은 쪽
@@ -193,7 +265,7 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
     const double avp = (p_.v_filter_s > 0.0) ? dt / (p_.v_filter_s + dt) : 1.0;
     vp_f_ += avp * (vp_now - vp_f_);
     const double brake_vp = fresh_lock ? std::min(vp_now, vp_f_) : 0.0;
-    law_cmd = law_.compute(range, bearing, t.velocity.x, brake_vp);
+    law_cmd = law_.compute(range, steer_bearing, t.velocity.x, brake_vp);
   } else {
     vp_f_ = 0.0;
   }
@@ -491,6 +563,7 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
   out.w = w;
   out.state = s;
   out.mode = modeOf(s);
+  out.steer_mode = steer;
 
   // --- 상태 보고 ---
   uint32_t reasons = 0;

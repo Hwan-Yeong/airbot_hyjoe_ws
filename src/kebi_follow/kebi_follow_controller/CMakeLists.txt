@@ -23,6 +23,7 @@ add_library(${PROJECT_NAME}_core STATIC
   src/safety_gate.cpp
   src/depth_obstacle_checker.cpp
   src/controller_core.cpp
+  src/person_trail.cpp
 )
 set_target_properties(${PROJECT_NAME}_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(${PROJECT_NAME}_core PUBLIC

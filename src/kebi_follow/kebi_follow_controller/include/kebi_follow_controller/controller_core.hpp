@@ -6,6 +6,7 @@
 
 #include "kebi_follow_controller/follow_fsm.hpp"
 #include "kebi_follow_controller/follow_law.hpp"
+#include "kebi_follow_controller/person_trail.hpp"
 #include "kebi_follow_controller/safety_gate.hpp"
 #include "kebi_follow_controller/types.hpp"
 #include "kebi_follow_controller/velocity_limiter.hpp"
@@ -80,6 +81,12 @@ struct SensorStatus {
   bool depth_points_ok{false};
 };
 
+// 조향 목표를 무엇으로 잡았나 (FollowState.steer_mode 와 같은 값)
+enum class SteerMode : uint8_t {
+  kDirect = 0,  // 사람에게 곧장
+  kTrail = 1,   // 직선이 막혀 사람 발자취 위 앞쪽 점으로
+};
+
 struct CycleInput {
   double now{0.0};
   double dt{0.0};
@@ -92,6 +99,8 @@ struct CycleInput {
   Exclusion depth_exclusion;
   uint32_t halt_active{0};  // 지금 켜져 있는 HALT 사유 (레벨 신호)
   double measured_speed{0.0};  // odom 선속도 [m/s]
+  Pose2D odom_pose;            // 지금 로봇 자세 (odom). 발자취 기록·조향에 쓴다
+  bool odom_pose_ok{false};
 };
 
 struct CycleOutput {
@@ -109,6 +118,7 @@ struct CycleOutput {
   double target_range{-1.0};
   double target_bearing{0.0};
   int16_t detect_user{detect_user::kNone};
+  SteerMode steer_mode{SteerMode::kDirect};
 };
 
 // 1·2·3 사이 잦은 변화를 누른다. 0(종료)·없음(-1)으로/에서의 변화는 바로 반영
@@ -183,6 +193,8 @@ class ControllerCore {
   double vp_f_{0.0};  // 제동 상한용 사람 전방 속도 저역 통과 [m/s]
   bool stop_pending_{false};  // STOP 을 받아 단호 S 곡선으로 서는 중 (서면 IDLE)
   bool brake_active_{false};  // 사람 앞 제동 격상 중 (편안 S 곡선으로는 사람 앞 여유 안까지 들어갈 참이었다)
+  PersonTrail trail_;          // 사람 발자취 (odom)
+  bool trail_active_{false};   // 지난 주기에 발자취로 조향했다 (직선으로 돌아갈 때 히스테리시스)
 };
 
 }  // namespace kebi_follow
