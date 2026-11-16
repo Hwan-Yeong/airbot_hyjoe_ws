@@ -303,7 +303,9 @@ TEST(DepthFusion, NoDepthNoPosition)
 TEST(DepthFusion, AppearanceHistogram)
 {
   Scene s;
-  DepthFusion f;
+  FusionConfig cfg;
+  cfg.appearance = true;  // 기본 꺼짐 (2026-11-16), 켜면 이렇게 나온다
+  DepthFusion f(cfg);
   f.set_geometry(s.rgb, s.depth, s.rgb_from_depth, s.base_from_rgb);
   const cv::Mat color(480, 640, CV_8UC3, cv::Scalar(200, 60, 30));  // BGR blue trousers
   const auto est = f.fuse(s.render_depth(), color, true, {s.detection(true)});

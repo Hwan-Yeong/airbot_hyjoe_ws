@@ -7,8 +7,9 @@ cam_leg_detector:
     min_box_height_px: 30.0
     keypoint_vis_threshold: 0.5
     # 카메라 보정: 실제 숙임과 depth 지연
-    camera_pitch_correction_deg: 10.5  # URDF pitch 0° 대비 실제 아래 숙임 (+ = 아래), 도킹 bag 바닥 추정 10.5 ± 0.45°
-    camera_min_latency_s: 0.10       # SPEC 3: depth 내용이 라이다보다 약 0.1 s 늦다 (첫 bag)
+    camera_pitch_correction_deg: 9.0   # URDF pitch 0° 대비 실제 아래 숙임 (+ = 아래). launch 는 kebi_follow_me/config/robot.yaml 값을 넣는다 (실측 8.3~9.5°)
+    camera_latency_s: 0.10     # depth 내용이 라이다보다 늦는 시간 (SPEC 3). launch 는 robot.yaml 값을 넣는다
+    robot_radius: 0.22         # 몸체 점 제외 = 이 값 + 0.08 m. launch 는 robot.yaml 값을 넣는다
 
     # ================================================================ 배관 (모델·런타임·좌표계)
     # 모델·런타임 파일은 레포에 없다. model_path 는 덮어쓰기 파일이나 launch 에서 준다.

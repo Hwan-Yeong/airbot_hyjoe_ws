@@ -56,7 +56,7 @@ follow_controller:
     lost_end_timeout_s: 30.0      # WAITING 지속 → ENDED
 
     # ================================================================ 안전 (바꾸기 전에 SPEC 확인)
-    robot_radius: 0.22
+    robot_radius: 0.22            # launch 는 kebi_follow_me/config/robot.yaml 값을 넣는다. 라이다 몸체 필터 = 이 값, depth 몸체 = 이 값 + 0.03
     corridor_lookahead: 2.5
     target_exclusion_radius: 0.4  # 타깃 주변 점은 장애물로 보지 않음
     rotation_clearance: 0.30      # 중심에서 이 안에 물체가 있으면 제자리 회전 금지 → WAITING (S4)
@@ -84,7 +84,7 @@ follow_controller:
       # e-stop·cliff_detected 의 마지막 값이 true 인 동안 START 는 거부된다
       event_topics_reliable: true
     # depth 장애물 (S3). 카메라 TF 는 pitch 0 이고 실제 숙임은 약 9°: 아래 보정 + 프레임마다 바닥 평면 추정
-    camera_pitch_correction_deg: 9.0   # TF 위에 더하는 숙임 (+ 아래). URDF 가 실제 숙임을 갖게 되면 0 으로
+    camera_pitch_correction_deg: 9.0   # TF 위에 더하는 숙임 (+ 아래). launch 는 robot.yaml 값을 넣는다 (실측 8.3~9.5°). URDF 가 실제 숙임을 갖게 되면 0 으로
     # depth 영상 내용 지연: fm_data1 보행 구간에서 라이다 대비 약 +0.1 s (+0.02..+0.26)
     camera_latency_s: 0.1         # depth 점을 (수신 - 이 값) 시점 odom 자세에서 현재로 옮긴다 (크면 보수적)
     depth:
@@ -92,7 +92,6 @@ follow_controller:
       max_obstacle_distance: 2.0  # base 중심 수평 거리
       min_obstacle_height: 0.05   # 이 높이 이상 물체를 장애물로 (점 문턱 = 이 값 - height_tolerance)
       max_obstacle_height: 1.2
-      body_exclusion_radius: 0.25
       floor_hold_s: 2.0               # 받은 평면을 healthy 로 쓰는 시간 (넘으면 degraded: v<=0.3)
       min_near_valid_ratio: 0.15      # 이보다 적으면 degraded (렌즈 가림·무효 프레임)
 

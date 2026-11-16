@@ -41,7 +41,8 @@
 | 오도메트리 | `/odom` | | 100 Hz |
 
 - 카메라 TF(`base_link→카메라`)는 Jetson URDF 값을 쓴다: z 0.26 m, pitch 0°.
-- 실제 숙임은 약 9~10.5°(아래)다. 도킹 위치 bag 에서 바닥 추정치는 10.5 ± 0.45° 였고, 세션마다 달라진다. 높이를 쓰는 계산은 바닥 평면 추정이나 `camera_pitch_correction_deg` 파라미터로 보정한다.
+- 실제 숙임은 약 8~10.5°(아래)다. 도킹 위치 bag 에서 바닥 추정치는 10.5 ± 0.45° 였고, 주행 시험(T1·T3·T4·E2a)의 controller 바닥 추정은 세션마다 8.3~9.5° (평균 약 8.8°)였다. 높이를 쓰는 계산은 바닥 평면 추정이나 `camera_pitch_correction_deg` 로 보정한다.
+  - 2026-11-16: 두 노드의 보정값이 달랐다 (controller 9.0°, detector 10.5°). 로봇 공통 값 `kebi_follow_me/config/robot.yaml` 의 `camera_pitch_deg` 9.0° 하나로 합치고 launch 가 두 노드에 넣는다. 카메라 지연(`camera_latency_s`)과 로봇 반경도 같은 파일이다.
 - RGB 아래쪽 약 30%(행 330 이후)에는 로봇 자기 몸체가 찍힌다.
 - 계산상 1 m 앞 사람은 허벅지 아래(약 0.7 m)까지만 보인다. 1.5 m 이면 엉덩이, 2 m 이면 허리까지 보인다.
 
@@ -51,7 +52,7 @@
 - AMR 시계는 설계상 epoch 가 +9 h(약 32400 s)다. `/scan`, `/odom`, TF stamp 는 AMR 시계를 쓴다.
 - `cam_leg_detector` 는 출력 stamp 를 AMR 시간축으로 바꿔서 낸다.
   - offset 추정: 최근 수 초 동안 "영상 수신 순간의 최신 `/odom` stamp − 영상 stamp" 를 모아 최솟값을 쓴다.
-  - 변환: `stamp_out = stamp_cam + offset − camera_min_latency_s`. 기본 `camera_min_latency_s` 는 0.10 s.
+  - 변환: `stamp_out = stamp_cam + offset − camera_latency_s`. 기본 `camera_latency_s` 는 0.10 s.
   - 실측 (2026-11-06, 첫 데이터 bag): depth 내용은 라이다보다 약 0.1 s 늦다. 걷는 구간 상호상관 +0.04~0.10 s, 방향 전환 시점 차 +0.02~0.26 s.
   - 같은 bag 에서 시계 차(AMR − Jetson)는 32396.5 s 였다. 9 h 와 다르고 부팅마다 달라질 수 있으니 고정값을 쓰지 않는다.
 - 이 방식은 실시간과 bag 재생(`--clock`) 양쪽에서 같게 동작한다.

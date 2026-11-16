@@ -6,7 +6,6 @@ follow_controller:
     # 경로·통로 계산
     corridor_max_curvature: 2.0   # [1/m] 원호 곡률 상한
     curvature_min_speed: 0.05     # 이보다 느리면 직진 경로만
-    body_filter_radius: 0.20      # 라이다 점 중 이 안은 로봇 자기 몸체로 보고 버림
     scan_max_range: 4.0
     in_place_linear_eps: 0.01
     in_place_angular_eps: 0.05

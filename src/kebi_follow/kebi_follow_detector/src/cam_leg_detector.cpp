@@ -51,6 +51,12 @@
 namespace kebi_follow
 {
 
+namespace {
+// 카메라 depth 점 중 로봇 몸체로 보고 버리는 반경 = robot_radius + 이 여유 [m]
+constexpr double kCameraBodyMargin = 0.08;
+}  // namespace
+
+
 namespace
 {
 
@@ -229,11 +235,11 @@ private:
 
     ignore_mode_ = declare_parameter<bool>("ignore_mode", false);
     base_frame_ = declare_parameter<std::string>("base_frame", "base_link");
-    camera_min_latency_s_ = declare_parameter<double>("camera_min_latency_s", 0.10);
+    camera_min_latency_s_ = declare_parameter<double>("camera_latency_s", 0.10);  // controller 와 같은 이름 (robot.yaml)
     offset_window_s_ = declare_parameter<double>("time_offset_window_s", 5.0);
     odom_max_age_s_ = declare_parameter<double>("odom_max_age_s", 0.5);
     depth_max_dt_s_ = declare_parameter<double>("depth_max_dt_s", 0.1);
-    pitch_correction_rad_ = declare_parameter<double>("camera_pitch_correction_deg", 10.5) * M_PI / 180.0;
+    pitch_correction_rad_ = declare_parameter<double>("camera_pitch_correction_deg", 9.0) * M_PI / 180.0;
     tf_fallback_base_to_rgb_ =
       declare_parameter<std::vector<double>>("tf_fallback.base_to_rgb", std::vector<double>{});
     tf_fallback_rgb_to_depth_ =
@@ -246,8 +252,8 @@ private:
     f.depth_max_m = declare_parameter<double>("depth.max_m", f.depth_max_m);
     f.floor_height_m = declare_parameter<double>("fusion.floor_height_m", f.floor_height_m);
     f.max_height_m = declare_parameter<double>("fusion.max_height_m", f.max_height_m);
-    f.robot_exclusion_radius_m =
-      declare_parameter<double>("fusion.robot_exclusion_radius_m", f.robot_exclusion_radius_m);
+    // 로봇 몸체 점 제외 = 로봇 반경(robot.yaml) + 카메라 쪽 여유 0.08 m (예전 fusion.robot_exclusion_radius_m 0.30 과 같다)
+    f.robot_exclusion_radius_m = declare_parameter<double>("robot_radius", 0.22) + kCameraBodyMargin;
     f.leg_region_fraction = declare_parameter<double>("fusion.leg_region_fraction", f.leg_region_fraction);
     f.leg_region_width_fraction =
       declare_parameter<double>("fusion.leg_region_width_fraction", f.leg_region_width_fraction);
@@ -266,14 +272,8 @@ private:
     f.person_cluster_extent_m =
       declare_parameter<double>("fusion.person_cluster_extent_m", f.person_cluster_extent_m);
     f.leg_cluster_extent_m = declare_parameter<double>("fusion.leg_cluster_extent_m", f.leg_cluster_extent_m);
-    f.depth_noise_k = declare_parameter<double>("fusion.depth_noise_k", f.depth_noise_k);
-    f.spread_gain = declare_parameter<double>("fusion.spread_gain", f.spread_gain);
-    f.position_std_min_m = declare_parameter<double>("fusion.position_std_min_m", f.position_std_min_m);
-    f.position_std_max_m = declare_parameter<double>("fusion.position_std_max_m", f.position_std_max_m);
-    f.appearance = declare_parameter<bool>("appearance.enable", f.appearance);
-    f.hue_bins = static_cast<int>(declare_parameter<int64_t>("appearance.hue_bins", f.hue_bins));
-    f.sat_bins = static_cast<int>(declare_parameter<int64_t>("appearance.sat_bins", f.sat_bins));
-    f.gray_bins = static_cast<int>(declare_parameter<int64_t>("appearance.gray_bins", f.gray_bins));
+    // position_std 계수·appearance 는 파라미터에서 뺐다 (2026-11-16 감사: 읽는 노드가 없다. position_std 는 표식 크기에만,
+    // appearance 히스토그램은 CPU 만 썼다 → 끔). FusionConfig 기본값을 그대로 쓴다
     fusion_ = DepthFusion(fusion_config_);
     time_offset_ = CameraTimeOffset(offset_window_s_);
 

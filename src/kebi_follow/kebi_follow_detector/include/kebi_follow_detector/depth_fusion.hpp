@@ -78,7 +78,7 @@ struct FusionConfig
   double spread_gain{0.5};              // weight of the point spread in position_std
   double position_std_min_m{0.05};
   double position_std_max_m{0.5};
-  bool appearance{true};
+  bool appearance{false};  // 사람 영역 색 히스토그램 (읽는 노드가 없어 기본 끔, 2026-11-16)
   int hue_bins{8};
   int sat_bins{4};
   int gray_bins{4};

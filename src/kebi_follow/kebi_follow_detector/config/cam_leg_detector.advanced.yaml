@@ -18,7 +18,6 @@ cam_leg_detector:
     fusion:
       floor_height_m: 0.05     # base_link z 가 이보다 낮으면 바닥
       max_height_m: 2.0
-      robot_exclusion_radius_m: 0.30   # base_link 원점에서 이보다 가까운 점은 로봇 몸체
       leg_region_fraction: 0.5         # keypoint 가 없을 때 bbox 아래쪽 비율
       leg_region_width_fraction: 0.8
       keypoint_margin_ratio: 0.15
@@ -30,12 +29,3 @@ cam_leg_detector:
       cluster_min_fraction: 0.05
       person_cluster_extent_m: 0.45
       leg_cluster_extent_m: 0.25
-      depth_noise_k: 0.01              # depth 잡음 std = k * r^2
-      spread_gain: 0.5
-      position_std_min_m: 0.05         # bag fm_data1: 오차 중앙값 약 0.05 m
-      position_std_max_m: 0.5
-    appearance:
-      enable: true             # 사람 영역의 정규화 HSV 히스토그램 (8x4 색 + 4 무채색 = 36)
-      hue_bins: 8
-      sat_bins: 4
-      gray_bins: 4

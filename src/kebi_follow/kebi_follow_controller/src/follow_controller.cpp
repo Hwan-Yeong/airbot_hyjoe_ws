@@ -47,6 +47,8 @@
 namespace kebi_follow {
 
 namespace {
+// depth 점 중 로봇 몸체로 보고 버리는 반경 = robot_radius + 이 여유 [m] (2026-11-16 몸체 반경 하나로)
+constexpr double kDepthBodyMargin = 0.03;
 
 using FollowStateMsg = kebi_follow_msgs::msg::FollowState;
 using FollowModeMsg = kebi_follow_msgs::msg::FollowMode;
@@ -442,7 +444,8 @@ class FollowController : public rclcpp::Node {
     cp_.depth_stop_margin = param("depth_stop_margin", cp_.depth_stop_margin);
     cp_.curvature_min_speed =
         param("curvature_min_speed", cp_.curvature_min_speed);
-    body_filter_radius_ = param("body_filter_radius", 0.20);
+    // 라이다 몸체 필터 = 로봇 반경 (예전 body_filter_radius 0.20 은 반경 0.22 보다 작아 0.20~0.22 m 점이 거리 0 장애물로 남을 수 있었다)
+    body_filter_radius_ = cor.robot_radius;
     scan_max_range_ = param("scan_max_range", 4.0);
 
     // S4 회전, S10
@@ -538,8 +541,7 @@ class FollowController : public rclcpp::Node {
         param("depth.max_obstacle_height", dp_.max_obstacle_height);
     dp_.height_tolerance =
         param("depth.height_tolerance", dp_.height_tolerance);
-    dp_.body_exclusion_radius =
-        param("depth.body_exclusion_radius", dp_.body_exclusion_radius);
+    dp_.body_exclusion_radius = cp_.corridor.robot_radius + kDepthBodyMargin;  // 0.25 (예전 파라미터와 같은 값)
     dp_.bin_deg = param("depth.bin_deg", dp_.bin_deg);
     dp_.min_points_per_bin =
         paramInt("depth.min_points_per_bin", dp_.min_points_per_bin);

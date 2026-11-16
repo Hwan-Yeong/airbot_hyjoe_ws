@@ -4,9 +4,11 @@ ros2 launch kebi_follow_me follow_me.launch.py [shadow:=true] [use_detector:=tru
 - shadow:=true 면 /cmd_vel 대신 /kebi_follow/cmd_vel_shadow 로만 발행한다 (실차 1단계 시험용).
 - use_sim_time:=true 는 bag 재생(--clock)용이다.
 - 파라미터는 각 모듈 패키지의 config/<노드>.advanced.yaml(알고리즘 내부값) → config/<노드>.yaml(핵심·동작·안전·배관)
-  → params(덮어쓰기) 순서로 얹는다 (뒤가 이긴다).
+  → kebi_follow_me/config/robot.yaml(로봇 공통 물리 값: 카메라 숙임·지연, 로봇 반경) → params(덮어쓰기) 순서로 얹는다 (뒤가 이긴다).
 """
 import os
+
+import yaml
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -30,9 +32,21 @@ def _setup(context):
     use_detector = _as_bool(LaunchConfiguration('use_detector').perform(context))
     sim_time = {'use_sim_time': _as_bool(LaunchConfiguration('use_sim_time').perform(context))}
 
+    # 로봇 공통 물리 값 (config/robot.yaml): 노드마다 같은 뜻의 파라미터로 넣는다
+    with open(_share('kebi_follow_me', 'config', 'robot.yaml')) as f:
+        robot = yaml.safe_load(f)
+    shared = {
+        'cam_leg_detector': {'camera_pitch_correction_deg': robot['camera_pitch_deg'],
+                             'camera_latency_s': robot['camera_latency_s'], 'robot_radius': robot['robot_radius']},
+        'leg_tracker': {'scan.robot_radius': robot['robot_radius']},
+        'follow_controller': {'camera_pitch_correction_deg': robot['camera_pitch_deg'],
+                              'camera_latency_s': robot['camera_latency_s'], 'robot_radius': robot['robot_radius']},
+    }
+
     def params(pkg, yaml_name):
-        advanced = _share(pkg, 'config', yaml_name.replace('.yaml', '.advanced.yaml'))
-        files = ([advanced] if os.path.exists(advanced) else []) + [_share(pkg, 'config', yaml_name)]
+        node = yaml_name.replace('.yaml', '')
+        advanced = _share(pkg, 'config', node + '.advanced.yaml')
+        files = ([advanced] if os.path.exists(advanced) else []) + [_share(pkg, 'config', yaml_name), shared[node]]
         if override:
             files.append(override)
         return files + [sim_time]
