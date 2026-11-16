@@ -15,6 +15,10 @@
 #include <thread>
 #include <vector>
 
+#include <map>
+#include <set>
+
+#include <rclcpp/parameter_map.hpp>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <follow_msgs/msg/detect.hpp>
 #include <follow_msgs/msg/ui_client.hpp>
@@ -721,11 +725,11 @@ TEST_F(NodeTest, TunableParametersApplyAtRuntime) {
       ctrl_->set_parameter(rclcpp::Parameter("max_linear_speed", 1.6))
           .successful);  // 범위 0~1.5 밖
   EXPECT_FALSE(ctrl_->set_parameter(rclcpp::Parameter("stop_distance", 0.95))
-                   .successful);  // 기본 follow 1.0: 0.95 + 0.1 > 1.0
+                   .successful);  // 기본 follow 1.0: 0.95 + approach_margin 0.3 > 1.0
   EXPECT_FALSE(
       ctrl_->set_parameter(rclcpp::Parameter("max_linear_speed", "fast"))
           .successful);
-  EXPECT_DOUBLE_EQ(ctrl_->get_parameter("stop_distance").as_double(), 0.8);
+  EXPECT_DOUBLE_EQ(ctrl_->get_parameter("stop_distance").as_double(), 0.5);  // config 기본값
   // 한꺼번에 바꾸면 서로 맞는지 같이 본다
   EXPECT_TRUE(ctrl_
                   ->set_parameters_atomically(
@@ -754,6 +758,46 @@ TEST_F(NodeTest, TunableParametersApplyAtRuntime) {
     }
   }
   EXPECT_EQ(fsm(), FollowState::FSM_FOLLOWING);
+}
+
+TEST(Config, YamlEqualsCodeDefaults) {
+  // config/follow_controller.yaml + follow_controller.advanced.yaml 의 값 = 노드 코드 기본값.
+  // 노드가 선언한 값은 두 파일 중 정확히 한 곳에 있다 (2026-11-16 기본값 한 곳으로)
+  rclcpp::NodeOptions opts;
+  auto node = kebi_follow::createFollowController(opts);
+  std::map<std::string, rclcpp::Parameter> yaml;
+  for (const char* f : {KEBI_CONTROLLER_CONFIG, KEBI_CONTROLLER_ADVANCED}) {
+    const auto pm = rclcpp::parameter_map_from_yaml_file(f);
+    ASSERT_TRUE(pm.count("/follow_controller")) << f;
+    for (const auto& p : pm.at("/follow_controller")) {
+      EXPECT_FALSE(yaml.count(p.get_name())) << "in both files: " << p.get_name();
+      yaml.emplace(p.get_name(), p);
+    }
+  }
+  const std::set<std::string> launch_only = {"use_sim_time", "shadow_mode"};
+  const auto names = node->list_parameters({}, 0).names;
+  for (const auto& n : names) {
+    if (launch_only.count(n) || n.rfind("qos_overrides.", 0) == 0) {
+      continue;
+    }
+    ASSERT_TRUE(yaml.count(n)) << "declared but not in yaml: " << n;
+    const rclcpp::Parameter code = node->get_parameter(n);
+    const rclcpp::Parameter& y = yaml.at(n);
+    using T = rclcpp::ParameterType;
+    const auto num = [](const rclcpp::Parameter& p) {
+      return p.get_type() == T::PARAMETER_INTEGER ? static_cast<double>(p.as_int()) : p.as_double();
+    };
+    const bool code_num = code.get_type() == T::PARAMETER_DOUBLE || code.get_type() == T::PARAMETER_INTEGER;
+    const bool y_num = y.get_type() == T::PARAMETER_DOUBLE || y.get_type() == T::PARAMETER_INTEGER;
+    if (code_num && y_num) {
+      EXPECT_DOUBLE_EQ(num(code), num(y)) << n;
+    } else {
+      EXPECT_EQ(code.value_to_string(), y.value_to_string()) << n;
+    }
+  }
+  for (const auto& kv : yaml) {
+    EXPECT_TRUE(node->has_parameter(kv.first)) << "unknown key in yaml: " << kv.first;
+  }
 }
 
 int main(int argc, char** argv) {

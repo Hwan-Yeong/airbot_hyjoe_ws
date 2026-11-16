@@ -14,16 +14,17 @@ namespace kebi_follow {
 
 enum class StopProfile { kComfort, kFirm, kCap };
 
+// 기본값 = config/follow_controller.yaml (test_config 가 확인, 2026-11-16 기본값 한 곳으로)
 struct LimiterParams {
-  double max_linear_speed{0.5};   // [m/s]
-  double max_angular_speed{0.8};  // [rad/s]
-  double max_linear_accel{0.4};   // [m/s^2]
+  double max_linear_speed{1.2};   // [m/s]
+  double max_angular_speed{1.5};  // [rad/s]
+  double max_linear_accel{0.8};   // [m/s^2]
   double max_linear_decel{0.8};   // [m/s^2] 편안 정지
-  double max_linear_jerk{2.0};    // [m/s^3] 가속·감속 모두, 0 이하면 끔
+  double max_linear_jerk{1.0};    // [m/s^3] 가속·감속 모두, 0 이하면 끔
   double max_angular_accel{1.5};  // [rad/s^2]
-  double max_angular_decel{1.5};  // [rad/s^2]
-  double max_angular_jerk{0.0};   // [rad/s^3], 0 이하면 끔
-  double firm_linear_decel{1.2};  // [m/s^2] 단호 정지 (편안 값보다 작으면 편안 값을 쓴다). 기본값은 config 와 같게
+  double max_angular_decel{2.0};  // [rad/s^2]
+  double max_angular_jerk{2.0};   // [rad/s^3], 0 이하면 끔
+  double firm_linear_decel{1.2};  // [m/s^2] 단호 정지 (편안 값보다 작으면 편안 값을 쓴다)
   double firm_linear_jerk{5.0};   // [m/s^3]
   double firm_angular_decel{4.0};  // [rad/s^2]
   double firm_angular_jerk{40.0};  // [rad/s^3]

@@ -5,13 +5,14 @@
 
 namespace kebi_follow {
 
+// 기본값 = config/follow_controller.yaml. max_*_speed·brake_* 는 limiter 값을 syncDerived 가 복사한다
 struct FollowLawParams {
   double follow_distance{1.0};  // 목표 거리 [m]
-  double stop_distance{0.8};    // 이 거리 이내면 정지 (S2) [m]
+  double stop_distance{0.5};    // 이 거리 이내면 정지 (S2) [m]
   // 사람이 갑자기 서도 stop_distance+이 값 앞에서 서도록 [m]
-  double approach_margin{0.1};
+  double approach_margin{0.3};
   double reaction_time{0.2};  // 측정·명령 지연 [s] (제동 상한 계산용)
-  double k_v{1.0};            // 거리 오차 이득 [1/s]
+  double k_v{0.8};            // 거리 오차 이득 [1/s]
   double k_w{1.2};            // 방위 이득 [1/s]
   double ff_gain{1.0};        // 타깃 전방 속도 feed-forward 이득
   // 타깃 속도 feed-forward 는 이 값의 0.5 배에서 0, 1.5 배에서 전부가 되도록 부드럽게 섞는다
@@ -21,10 +22,10 @@ struct FollowLawParams {
   double slow_bearing{degToRad(15.0)};  // 여기서부터 v 감소 [rad]
   // 여기서 v=0, 넘으면 제자리 회전 [rad]
   double turn_in_place_bearing{degToRad(45.0)};
-  double max_linear_speed{0.5};   // [m/s]
-  double max_angular_speed{0.8};  // [rad/s]
+  double max_linear_speed{1.2};   // [m/s]
+  double max_angular_speed{1.5};  // [rad/s]
   double brake_decel{0.8};        // 제동 상한 계산용 감속 [m/s^2]
-  double brake_jerk{0.0};  // 제동 상한 계산용 jerk [m/s^3] (감속이 차오르는 시간만큼 반응이 늦다), 0 이하 끔
+  double brake_jerk{1.0};  // 제동 상한 계산용 jerk [m/s^3] (감속이 차오르는 시간만큼 반응이 늦다), 0 이하 끔
   // 제동 상한에서 사람이 서는 감속 가정 [m/s^2]. 걷던 사람은 바로 서지 못하고 v²/(2a) 를 더 간다
   // (RSS 의 앞차 제동과 같은 생각). 그만큼 가까이 따라간다. 0 이하면 끔 (사람이 그 자리에 바로 선다고 봄)
   double person_stop_decel{0.0};

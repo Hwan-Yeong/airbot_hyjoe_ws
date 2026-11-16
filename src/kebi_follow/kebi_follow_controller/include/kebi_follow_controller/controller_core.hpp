@@ -19,7 +19,7 @@ struct ControllerParams {
   CorridorParams corridor;
   FsmParams fsm;
   // S3 장애물 (거리는 로봇 앞면 기준)
-  double slow_distance{1.0};  // 이 거리부터 감속 [m]
+  double slow_distance{2.3};  // 이 거리부터 감속 [m]
   double stop_margin{0.25};   // 제동거리 + 이 값 이내 정지 [m]
   // 장애물 감속·정지 계산에 넣는 지연: 스캔 주기·처리·명령 주기·베이스 응답 [s]
   double obstacle_reaction_time{0.25};
@@ -40,8 +40,8 @@ struct ControllerParams {
   double start_speed{0.0};
   // 추종 법칙 출력 저역 통과 시간 상수 [s] (0: 끔). 다리 흔들림·속도 추정 잡음이 가가속도로 번지지 않게.
   // 안전 상한(사람 앞 제동·장애물·근접)은 걸러진 값 뒤에 그대로 건다
-  double v_filter_s{0.0};
-  double w_filter_s{0.0};
+  double v_filter_s{0.45};
+  double w_filter_s{0.3};
   // S6 센서
   double camera_missing_speed_cap{0.3};  // depth 가 없을 때 선속도 상한 [m/s]
   // S7 타깃

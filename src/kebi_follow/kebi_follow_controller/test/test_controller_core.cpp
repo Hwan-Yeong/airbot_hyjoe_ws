@@ -15,8 +15,31 @@ namespace {
 
 constexpr double kDt = 0.05;  // 20 Hz
 
+// 2026-11-16 전 구조체 기본값 (Harness 시험들이 이 값을 전제로 쓰였다: 정속 0.5 m/s 등).
+// 제품 기본값(config yaml = 구조체 기본값)은 yamlLikeParams()
+ControllerParams legacyParams() {
+  ControllerParams p;
+  p.limiter.max_linear_speed = 0.5;
+  p.limiter.max_angular_speed = 0.8;
+  p.limiter.max_linear_accel = 0.4;
+  p.limiter.max_linear_jerk = 2.0;
+  p.limiter.max_angular_decel = 1.5;
+  p.limiter.max_angular_jerk = 0.0;
+  p.law.stop_distance = 0.8;
+  p.law.approach_margin = 0.1;
+  p.law.k_v = 1.0;
+  p.law.max_linear_speed = 0.5;
+  p.law.max_angular_speed = 0.8;
+  p.law.brake_jerk = 0.0;
+  p.slow_distance = 1.0;
+  p.v_filter_s = 0.0;
+  p.w_filter_s = 0.0;
+  return p;
+}
+
+
 struct Harness {
-  explicit Harness(const ControllerParams& p = ControllerParams{}) : core(p) {
+  explicit Harness(const ControllerParams& p = legacyParams()) : core(p) {
     in.sensors.scan_ok = true;
     in.sensors.odom_ok = true;
     in.sensors.tf_ok = true;
@@ -859,7 +882,7 @@ TEST(Core, ApproachingPersonNeverMakesRobotAdvanceInsideStopDistance) {
 namespace {
 // 야간 기본값의 선속도 제한 (jerk 0.6: 리뷰가 지적한 지나침이 생기는 값)
 ControllerParams nightLimiterParams() {
-  ControllerParams p;
+  ControllerParams p = legacyParams();
   p.limiter.max_linear_speed = 0.5;
   p.limiter.max_linear_accel = 0.5;
   p.limiter.max_linear_decel = 0.8;
@@ -1014,7 +1037,7 @@ TEST(Core, TooCloseStopsFirmlyInWaitingToo) {
 
 TEST(Core, CappedSpeedPathIsAlsoChecked) {
   // m2: 상한으로 v 가 줄면 같은 w 의 경로가 더 휜다 → 그 원호도 본다
-  ControllerParams p;
+  ControllerParams p = legacyParams();
   SafetyGate gate(p.corridor);
   const double bearing = degToRad(12.0);
   const Vec2 tgt{3.0 * std::cos(bearing), 3.0 * std::sin(bearing)};

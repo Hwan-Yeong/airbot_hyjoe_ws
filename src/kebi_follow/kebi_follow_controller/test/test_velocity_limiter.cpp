@@ -9,12 +9,23 @@
 using namespace kebi_follow;
 
 namespace {
+// 2026-11-16 전 구조체 기본값 (시험들이 이 값을 전제로 쓰였다). 제품 기본값은 config yaml = 구조체 기본값
+LimiterParams legacyLimiter() {
+  LimiterParams p;
+  p.max_linear_speed = 0.5;
+  p.max_angular_speed = 0.8;
+  p.max_linear_accel = 0.4;
+  p.max_linear_jerk = 2.0;
+  p.max_angular_decel = 1.5;
+  p.max_angular_jerk = 0.0;
+  return p;
+}
 constexpr double kDt = 0.05;  // 20 Hz
 constexpr double kTol = 1e-9;
 }  // namespace
 
 TEST(Limiter, AccelLimitWithoutJerk) {
-  LimiterParams p;
+  LimiterParams p = legacyLimiter();
   p.max_linear_jerk = 0.0;
   VelocityLimiter lim(p);
   for (int i = 0; i < 10; ++i)
@@ -26,7 +37,7 @@ TEST(Limiter, AccelLimitWithoutJerk) {
 }
 
 TEST(Limiter, DecelLimitWithoutJerk) {
-  LimiterParams p;
+  LimiterParams p = legacyLimiter();
   p.max_linear_jerk = 0.0;  // jerk 끔: 사다리꼴 (예전 감속 동작)
   VelocityLimiter lim(p);
   for (int i = 0; i < 200; ++i)
@@ -43,7 +54,7 @@ TEST(Limiter, DecelLimitWithoutJerk) {
 }
 
 TEST(Limiter, JerkLimitedAccelerationNoOvershoot) {
-  LimiterParams p;  // jerk 2.0 m/s^3
+  LimiterParams p = legacyLimiter();  // jerk 2.0 m/s^3
   VelocityLimiter lim(p);
   double a_prev = 0.0;
   double v_prev = 0.0;
@@ -63,7 +74,7 @@ TEST(Limiter, JerkLimitedAccelerationNoOvershoot) {
 }
 
 TEST(Limiter, JerkRampsAccelerationFromRest) {
-  LimiterParams p;
+  LimiterParams p = legacyLimiter();
   VelocityLimiter lim(p);
   lim.step(0.5, 0.0, kDt);
   EXPECT_NEAR(lim.linearAccel(), p.max_linear_jerk * kDt, kTol);  // 0.1 m/s^2
@@ -72,7 +83,7 @@ TEST(Limiter, JerkRampsAccelerationFromRest) {
 }
 
 TEST(Limiter, NoReverseAndSpeedClamp) {
-  VelocityLimiter lim;
+  VelocityLimiter lim(legacyLimiter());
   for (int i = 0; i < 100; ++i)
     lim.step(-1.0, 0.0, kDt);
   EXPECT_DOUBLE_EQ(lim.v(), 0.0);
@@ -83,7 +94,7 @@ TEST(Limiter, NoReverseAndSpeedClamp) {
 }
 
 TEST(Limiter, AngularAccelAndDecel) {
-  VelocityLimiter lim;
+  VelocityLimiter lim(legacyLimiter());
   lim.step(0.0, 0.8, kDt);
   EXPECT_NEAR(lim.w(), 1.5 * kDt, kTol);
   for (int i = 0; i < 20; ++i)
@@ -94,7 +105,7 @@ TEST(Limiter, AngularAccelAndDecel) {
 }
 
 TEST(Limiter, ImmediateStops) {
-  VelocityLimiter lim;
+  VelocityLimiter lim(legacyLimiter());
   for (int i = 0; i < 100; ++i)
     lim.step(0.5, 0.5, kDt);
   lim.stopLinear();
@@ -106,7 +117,7 @@ TEST(Limiter, ImmediateStops) {
 }
 
 TEST(Limiter, ZeroOrNegativeDtIgnored) {
-  VelocityLimiter lim;
+  VelocityLimiter lim(legacyLimiter());
   lim.step(0.5, 0.5, 0.0);
   lim.step(0.5, 0.5, -1.0);
   EXPECT_DOUBLE_EQ(lim.v(), 0.0);
@@ -115,7 +126,7 @@ TEST(Limiter, ZeroOrNegativeDtIgnored) {
 
 TEST(Limiter, SCurveDecelerationBothWays) {
   // 2026-11-13: 감속도 jerk 제한 (S 곡선). 가속도 변화 <= jerk·dt, 목표 아래로 내려가지 않고 0 에서 선다
-  LimiterParams p;  // jerk 2.0, 감속 0.8
+  LimiterParams p = legacyLimiter();  // jerk 2.0, 감속 0.8
   VelocityLimiter lim(p);
   for (int i = 0; i < 200; ++i)
     lim.step(0.5, 0.0, kDt);
@@ -140,7 +151,7 @@ TEST(Limiter, SCurveDecelerationBothWays) {
 }
 
 TEST(Limiter, FirmStopIsFasterButContinuous) {
-  LimiterParams p;
+  LimiterParams p = legacyLimiter();
   VelocityLimiter comfort(p), firm(p);
   for (int i = 0; i < 200; ++i) {
     comfort.step(0.5, 0.0, kDt);
@@ -167,7 +178,7 @@ TEST(Limiter, FirmStopIsFasterButContinuous) {
 
 TEST(Limiter, LoweringCapAtRuntimeDeceleratesSmoothly) {
   // 실행 중 상한을 낮추면 잘라 내지 않고 S 곡선으로 내려간다
-  LimiterParams p;
+  LimiterParams p = legacyLimiter();
   VelocityLimiter lim(p);
   for (int i = 0; i < 200; ++i)
     lim.step(0.5, 0.0, kDt);
@@ -181,7 +192,7 @@ TEST(Limiter, LoweringCapAtRuntimeDeceleratesSmoothly) {
 }
 
 TEST(Limiter, AngularSCurve) {
-  LimiterParams p;
+  LimiterParams p = legacyLimiter();
   p.max_angular_jerk = 4.0;
   VelocityLimiter lim(p);
   double al_prev = 0.0;
@@ -200,7 +211,7 @@ TEST(Limiter, AngularSCurve) {
 namespace {
 // 2026-11-12 밤 기본값 (지금 config 와 다르다, 리뷰 지적 재현용): 선 0.8 m/s, 가속 0.5, 감속 0.8, jerk 0.6, 단호 jerk 15
 LimiterParams nightParams() {
-  LimiterParams p;
+  LimiterParams p = legacyLimiter();
   p.max_linear_speed = 0.8;
   p.max_linear_accel = 0.5;
   p.max_linear_decel = 0.8;

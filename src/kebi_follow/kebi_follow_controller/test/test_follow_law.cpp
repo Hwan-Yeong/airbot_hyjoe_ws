@@ -7,8 +7,22 @@
 
 using namespace kebi_follow;
 
+namespace {
+// 2026-11-16 전 구조체 기본값 (시험들이 이 값을 전제로 쓰였다). 제품 기본값은 config yaml = 구조체 기본값
+FollowLawParams legacyLaw() {
+  FollowLawParams p;
+  p.stop_distance = 0.8;
+  p.approach_margin = 0.1;
+  p.k_v = 1.0;
+  p.max_linear_speed = 0.5;
+  p.max_angular_speed = 0.8;
+  p.brake_jerk = 0.0;
+  return p;
+}
+}  // namespace
+
 TEST(FollowLaw, StationaryTargetAtFollowDistance) {
-  FollowLaw law;
+  FollowLaw law(legacyLaw());
   const auto c = law.compute(1.0, 0.0, 0.0);
   EXPECT_DOUBLE_EQ(c.v, 0.0);
   EXPECT_DOUBLE_EQ(c.w, 0.0);
@@ -16,7 +30,7 @@ TEST(FollowLaw, StationaryTargetAtFollowDistance) {
 }
 
 TEST(FollowLaw, FarTargetCappedAtMaxSpeed) {
-  FollowLaw law;
+  FollowLaw law(legacyLaw());
   const auto c = law.compute(3.0, 0.0, 0.0);
   EXPECT_DOUBLE_EQ(c.v, 0.5);
   EXPECT_GT(law.compute(1.3, 0.0, 0.0).v, 0.0);
@@ -24,7 +38,7 @@ TEST(FollowLaw, FarTargetCappedAtMaxSpeed) {
 }
 
 TEST(FollowLaw, NeverReverses) {
-  FollowLaw law;
+  FollowLaw law(legacyLaw());
   for (double r : {0.3, 0.79, 0.85, 0.95, 1.0}) {
     for (double vt : {-1.0, -0.3, 0.0}) {
       EXPECT_GE(law.compute(r, 0.0, vt).v, 0.0) << r << " " << vt;
@@ -34,7 +48,7 @@ TEST(FollowLaw, NeverReverses) {
 }
 
 TEST(FollowLaw, TooCloseStopsButMayTurn) {
-  FollowLaw law;
+  FollowLaw law(legacyLaw());
   const auto c = law.compute(0.8, 0.5, 1.0);
   EXPECT_TRUE(c.too_close);
   EXPECT_DOUBLE_EQ(c.v, 0.0);
@@ -44,7 +58,7 @@ TEST(FollowLaw, TooCloseStopsButMayTurn) {
 }
 
 TEST(FollowLaw, FeedForwardWithDeadband) {
-  FollowLaw law;
+  FollowLaw law(legacyLaw());
   // 목표 거리 1.0 m 보다 0.15 m 멀 때, 타깃이 0.2 m/s 로 멀어지면 v = k_v e + v_ff
   const auto c = law.compute(1.15, 0.0, 0.2);
   EXPECT_NEAR(c.v, 1.0 * 0.15 + 0.2, 1e-9);
@@ -57,7 +71,7 @@ TEST(FollowLaw, FeedForwardWithDeadband) {
 }
 
 TEST(FollowLaw, BrakingCapKeepsStopDistance) {
-  FollowLaw law;
+  FollowLaw law(legacyLaw());
   // 사람이 1 m 에서 빠르게 걸어도 지금 멈추면 0.9 m 앞에서 설 수 있는 속도까지만
   const auto c = law.compute(1.0, 0.0, 1.0);
   const double D = 1.0 - 0.8 - 0.1;
@@ -75,7 +89,7 @@ TEST(FollowLaw, StoppingSpeedFormula) {
 }
 
 TEST(FollowLaw, BearingDeadbandContinuous) {
-  FollowLaw law;
+  FollowLaw law(legacyLaw());
   EXPECT_DOUBLE_EQ(law.compute(2.0, 0.04, 0.0).w, 0.0);
   EXPECT_DOUBLE_EQ(law.compute(2.0, -0.05, 0.0).w, 0.0);
   EXPECT_NEAR(law.compute(2.0, 0.06, 0.0).w, 1.2 * 0.01, 1e-12);
@@ -86,7 +100,7 @@ TEST(FollowLaw, BearingDeadbandContinuous) {
 }
 
 TEST(FollowLaw, BearingSlowdownAndTurnInPlace) {
-  FollowLaw law;
+  FollowLaw law(legacyLaw());
   const double v0 = law.compute(3.0, degToRad(15.0), 0.0).v;
   EXPECT_DOUBLE_EQ(v0, 0.5);
   EXPECT_NEAR(law.compute(3.0, degToRad(30.0), 0.0).v, 0.25, 1e-9);
@@ -102,7 +116,7 @@ TEST(FollowLaw, BearingSlowdownAndTurnInPlace) {
 
 TEST(FollowLaw, PersonStopDecelExtendsBrakingCap) {
   // 걷던 사람은 바로 서지 못한다: 사람 정지 거리 v²/(2a) 만큼 제동 상한에 여유를 더한다 (0 이면 끔)
-  FollowLawParams p;
+  FollowLawParams p = legacyLaw();
   p.follow_distance = 1.0;
   p.stop_distance = 0.5;
   p.approach_margin = 0.3;

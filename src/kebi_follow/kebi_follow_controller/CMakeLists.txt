@@ -66,6 +66,9 @@ if(BUILD_TESTING)
   # 노드 단위 시험: 실제 노드를 같은 프로세스에 띄운다 (도메인·DDS 격리는 시험 main 이 한다)
   ament_add_gtest(test_node test/test_node.cpp TIMEOUT 300)
   target_link_libraries(test_node ${PROJECT_NAME}_component ${PROJECT_NAME}_core)
+  target_compile_definitions(test_node PRIVATE
+    KEBI_CONTROLLER_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/config/follow_controller.yaml"
+    KEBI_CONTROLLER_ADVANCED="${CMAKE_CURRENT_SOURCE_DIR}/config/follow_controller.advanced.yaml")
   ament_target_dependencies(test_node ${DEPS})
 endif()
 
