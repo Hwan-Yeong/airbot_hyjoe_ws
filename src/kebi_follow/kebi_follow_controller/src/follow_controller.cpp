@@ -423,9 +423,6 @@ class FollowController : public rclcpp::Node {
     law.bearing_deadband = param("bearing_deadband", law.bearing_deadband);
     law.slow_bearing = degToRad(param("slow_bearing_deg", 15.0));
     law.turn_in_place_bearing = degToRad(param("turn_in_place_deg", 45.0));
-    law.max_linear_speed = lim.max_linear_speed;
-    law.max_angular_speed = lim.max_angular_speed;
-    law.brake_decel = lim.max_linear_decel;
     max_extrapolation_s_ = param("max_extrapolation_s", 0.5);
     target_max_range_ = param("target_max_range", 8.0);
     target_max_speed_ = param("target_max_speed", 3.0);

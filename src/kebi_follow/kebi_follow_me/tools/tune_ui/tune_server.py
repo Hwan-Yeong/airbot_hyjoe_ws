@@ -49,8 +49,12 @@ def load_defaults(path, tracker_path=None):
     except ImportError:
         return {}
     out = {}
-    if path and os.path.exists(path):
-        with open(path) as f:
+    # <노드>.advanced.yaml 이 옆에 있으면 먼저 읽는다 (launch 와 같은 순서, 2026-11-16 파라미터 분리)
+    paths = [path.replace(".yaml", ".advanced.yaml"), path] if path else []
+    for cpath in paths:
+        if not os.path.exists(cpath):
+            continue
+        with open(cpath) as f:
             doc = yaml.safe_load(f) or {}
         p = (doc.get("follow_controller") or {}).get("ros__parameters") or {}
         out.update({k: float(v) for k, v in p.items() if _is_number(v)})

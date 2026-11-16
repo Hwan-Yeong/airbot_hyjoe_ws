@@ -1,0 +1,60 @@
+# follow_controller advanced: 알고리즘 내부값. 시험·bag·시나리오로 맞춰 둔 값이라 보통은 건드리지 않는다
+# launch 가 follow_controller.yaml 보다 먼저 읽는다 (같은 이름이면 follow_controller.yaml·덮어쓰기 파일이 이긴다)
+# 코드 기본값과 같아야 한다 (test_config 가 확인)
+follow_controller:
+  ros__parameters:
+    # 경로·통로 계산
+    corridor_max_curvature: 2.0   # [1/m] 원호 곡률 상한
+    curvature_min_speed: 0.05     # 이보다 느리면 직진 경로만
+    body_filter_radius: 0.20      # 라이다 점 중 이 안은 로봇 자기 몸체로 보고 버림
+    scan_max_range: 4.0
+    in_place_linear_eps: 0.01
+    in_place_angular_eps: 0.05
+    rotation_creep_speed: 0.002   # 제자리 회전 중 선속도: 베이스 워치독(|v|>0.001)이 걸리게 (모터 불감대 0.01 미만)
+
+    # 타깃 입력 가드
+    max_extrapolation_s: 0.5      # 타깃 stamp 이후 외삽 상한 (stamp 가 이보다 오래면 "측정 있음" 아님)
+    target_max_range: 8.0         # 위치가 이보다 멀거나 NaN/Inf 면 타깃 없음으로 본다
+    target_max_speed: 3.0         # 타깃 속도가 이보다 크거나 NaN/Inf 면 속도 0 으로
+    target_fresh_s: 0.3           # 이 나이 안의 LOCKED 메시지만 "측정 있음"
+    depth_exclusion_margin_s: 0.2 # depth 타깃 제외: (수신 - 지연 - 이 값) 이후 타깃 경로 + 현재 위치
+
+    # 상태기계·보고 세부
+    halt_restart_holdoff_s: 1.0   # 마지막 HALT 사유 뒤 이 시간 안의 START 는 무시 (START 반복 대비)
+    zero_burst_count: 3           # IDLE·ENDED 진입 시 0 발행 횟수
+    moving_linear: 0.02           # /follow/detectuser: |v| > 이 값이면 3(이동 중)
+    moving_angular: 0.05          # |w| > 이 값이면 3
+    detect_debounce_s: 0.3        # 1·2·3 사이 변화는 이 시간 유지돼야 보고 (0 은 즉시)
+
+    # depth 장애물·바닥 평면 추정
+    depth:
+      frame_convention: auto      # auto | optical | body
+      stride: 4                   # 픽셀 간격 (848x480 → 212x120 표본)
+      max_row: -1                 # [기본 꺼짐] 이 행부터 아래는 안 봄 (<0: 전부)
+      depth_scale: 0.001          # 16UC1 [mm]
+      min_depth: 0.25
+      max_depth: 4.0
+      height_tolerance: 0.015
+      bin_deg: 1.0
+      min_points_per_bin: 3       # bin 마다 이 순번째로 가까운 점을 씀 (잡음 점 2 개까지 무시)
+      floor_fit: true
+      floor_band: 0.10
+      floor_min_distance: 0.6
+      floor_max_distance: 3.0
+      floor_inlier_threshold: 0.015
+      floor_iterations: 40
+      floor_max_samples: 1500
+      floor_min_inliers: 150
+      floor_max_tilt_deg: 3.0         # 시작·복구 때 기준 자세 대비 (세션마다 숙임 8.6~10.5°)
+      floor_max_offset: 0.03
+      floor_max_tilt_change_deg: 1.0  # 추적 중 고정 anchor 대비
+      floor_max_offset_change: 0.015
+      floor_rate_tilt_deg: 0.5        # 출력 평면 프레임당 변화 제한
+      floor_rate_offset: 0.005
+      floor_near_min: 0.6             # 가까운 띠 (로봇 앞 x): 가설은 여기 점에서만, inlier 최소 개수
+      floor_near_max: 1.0
+      floor_near_min_inliers: 40
+      floor_bootstrap_frames: 3       # 시작·복구 때 연속으로 맞아야 anchor 로 받음
+      near_region_min: 0.6            # 유효 depth 비율을 보는 가까운 바닥 영역 (로봇 앞 x, |y|)
+      near_region_max: 1.2
+      near_region_half_width: 0.8

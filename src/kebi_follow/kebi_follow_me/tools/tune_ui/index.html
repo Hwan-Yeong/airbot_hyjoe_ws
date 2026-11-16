@@ -136,19 +136,21 @@ input[type=text] { font: inherit; padding: 5px 8px; border: 1px solid var(--line
 <div id="toast"></div>
 <script>
 const GROUPS = [
-  ["속도·가감속 (S 곡선)", ["max_linear_speed", "max_angular_speed", "max_linear_accel", "max_linear_decel", "max_linear_jerk",
-                  "max_angular_accel", "max_angular_decel", "max_angular_jerk"]],
-  ["부드러움 (필터·출발)", ["v_filter_s", "w_filter_s", "start_speed", "ff_min_target_speed"]],
-  ["거리·추종", ["follow_distance", "stop_distance", "approach_margin", "reaction_time", "person_stop_decel", "k_v", "k_w", "ff_gain",
-               "bearing_deadband", "slow_bearing_deg", "turn_in_place_deg"]],
-  ["단호 정지 (근접·장애물·센서)", ["firm_linear_decel", "firm_linear_jerk", "firm_angular_decel", "firm_angular_jerk"]],
-  ["장애물", ["slow_distance", "stop_margin", "depth_stop_margin", "obstacle_reaction_time"]],
-  ["회전·놓침", ["rotation_limit_s", "rotation_rearm_s", "target_lost_s", "occluded_speed_factor", "camera_missing_speed_cap"]],
-  ["추적기: 모호(다른 사람 근접)·사람 판정", ["leg_tracker/ambiguity.radius", "leg_tracker/ambiguity.min_person_score",
-                  "leg_tracker/ambiguity.lost_s", "leg_tracker/camera.gate", "leg_tracker/camera.person_weight"]],
-  ["추적기: 처음 고정·놓침·재획득", ["leg_tracker/acquire.min_range", "leg_tracker/acquire.max_range",
-                  "leg_tracker/acquire.max_bearing_deg", "leg_tracker/acquire.confirm_s", "leg_tracker/target.lost_s",
-                  "leg_tracker/target.reacquire_radius", "leg_tracker/target.reacquire_confirm_s", "leg_tracker/target.camera_lost_s"]],
+  // 핵심 (SPEC 6.3 "파라미터 구성과 핵심 값"): 추종 거동을 정하는 값을 맨 위에 둔다 (2026-11-16)
+  ["핵심: 거리·속도·정지", ["follow_distance", "k_v", "ff_gain", "stop_distance", "approach_margin", "reaction_time",
+                  "max_linear_speed", "max_linear_accel", "max_linear_jerk", "max_linear_decel", "firm_linear_decel",
+                  "firm_linear_jerk", "stop_margin", "depth_stop_margin", "leg_tracker/ambiguity.radius",
+                  "leg_tracker/acquire.confirm_s"]],
+  ["회전", ["max_angular_speed", "max_angular_accel", "max_angular_decel", "max_angular_jerk", "firm_angular_decel",
+          "firm_angular_jerk", "k_w", "bearing_deadband", "slow_bearing_deg", "turn_in_place_deg", "rotation_limit_s",
+          "rotation_rearm_s"]],
+  ["부드러움 (필터·출발, 실험 포함)", ["v_filter_s", "w_filter_s", "ff_min_target_speed", "start_speed", "person_stop_decel"]],
+  ["장애물·놓침", ["slow_distance", "obstacle_reaction_time", "target_lost_s", "occluded_speed_factor", "camera_missing_speed_cap"]],
+  ["추적기: 모호·사람 판정", ["leg_tracker/ambiguity.min_person_score", "leg_tracker/ambiguity.lost_s",
+                  "leg_tracker/camera.gate", "leg_tracker/camera.person_weight"]],
+  ["추적기: 고정·놓침·재획득", ["leg_tracker/acquire.min_range", "leg_tracker/acquire.max_range",
+                  "leg_tracker/acquire.max_bearing_deg", "leg_tracker/target.lost_s", "leg_tracker/target.reacquire_radius",
+                  "leg_tracker/target.reacquire_confirm_s", "leg_tracker/target.camera_lost_s"]],
 ];
 const FSM = {0: ["대기", "#8c959f"], 1: ["찾는 중", "#bf8700"], 2: ["따라가는 중", "#1a7f37"], 3: ["일시 정지", "#cf222e"],
              4: ["비상 정지", "#8250df"], 5: ["종료", "#0969da"]};

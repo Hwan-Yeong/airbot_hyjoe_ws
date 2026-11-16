@@ -198,7 +198,7 @@ TEST(Limiter, AngularSCurve) {
 }
 
 namespace {
-// 야간 기본값 (follow_controller.yaml): 선 0.8 m/s, 가속 0.5, 감속 0.8, jerk 0.6, 단호 jerk 15
+// 2026-11-12 밤 기본값 (지금 config 와 다르다, 리뷰 지적 재현용): 선 0.8 m/s, 가속 0.5, 감속 0.8, jerk 0.6, 단호 jerk 15
 LimiterParams nightParams() {
   LimiterParams p;
   p.max_linear_speed = 0.8;

@@ -55,8 +55,8 @@ def run(sim, params, seed, out=None, scenario=None):
 
 def score_one(m, p=None):
     p = p or {}
-    fd = p.get("follow_distance", 1.2)
-    sd = p.get("stop_distance", 0.8)
+    fd = p.get("follow_distance", 1.0)  # config 기본값 (2026-11-13)
+    sd = p.get("stop_distance", 0.5)
     s = m["rms_jerk_cmd"] + 0.25 * m["rms_wjerk_cmd"] + 0.15 * m["max_jerk_moving"] + 0.03 * m["max_wjerk_cmd"]
     s += 1.5 * m["stop_go"] + 2.0 * m["firm"]
     if m["scenario"] in WALKING:

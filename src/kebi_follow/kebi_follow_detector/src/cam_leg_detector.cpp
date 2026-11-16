@@ -282,6 +282,13 @@ private:
     jpeg_quality_ = static_cast<int>(declare_parameter<int64_t>("debug_jpeg_quality", 70));
     publish_markers_ = declare_parameter<bool>("publish_markers", false);
     stats_period_s_ = declare_parameter<double>("stats_period_s", 10.0);
+    // 모든 값은 기동 때만 읽는다. 실행 중 set 은 받아 놓고 반영하지 않았으므로 거부한다 (2026-11-16 파라미터 감사)
+    param_cb_ = add_on_set_parameters_callback([](const std::vector<rclcpp::Parameter> &) {
+      rcl_interfaces::msg::SetParametersResult r;
+      r.successful = false;
+      r.reason = "cam_leg_detector parameters are read at startup only (restart to change)";
+      return r;
+    });
   }
 
   // ------------------------------------------------------------------------- mode / subscriptions
@@ -805,6 +812,7 @@ private:
   FusionConfig fusion_config_;
   double min_box_height_px_{30.0};
   bool ignore_mode_{false};
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_;
   std::string base_frame_;
   double camera_min_latency_s_{0.10};
   double offset_window_s_{5.0};

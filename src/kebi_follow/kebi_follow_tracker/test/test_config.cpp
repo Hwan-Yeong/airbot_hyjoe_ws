@@ -1,4 +1,4 @@
-// config/leg_tracker.yaml 이 코드 기본값(params.hpp)과 같은지 확인한다
+// config/leg_tracker.yaml + leg_tracker.advanced.yaml 이 코드 기본값(params.hpp)과 같은지 확인한다
 #include <gtest/gtest.h>
 
 #include <cstdlib>
@@ -14,8 +14,8 @@
 
 namespace kt = kebi_follow::tracker;
 
-#ifndef KEBI_TRACKER_CONFIG
-#error "KEBI_TRACKER_CONFIG must point to config/leg_tracker.yaml"
+#if !defined(KEBI_TRACKER_CONFIG) || !defined(KEBI_TRACKER_ADVANCED)
+#error "KEBI_TRACKER_CONFIG/ADVANCED must point to config/leg_tracker(.advanced).yaml"
 #endif
 
 namespace {
@@ -74,8 +74,15 @@ std::map<std::string, std::string> readNested(const std::string& path) {
 }  // namespace
 
 TEST(Config, YamlMatchesCodeDefaults) {
-  const auto yaml = readNested(KEBI_TRACKER_CONFIG);
+  // 두 파일을 합친다. 같은 이름이 두 파일에 다 있으면 어느 쪽이 이기는지 헷갈리므로 금지
+  auto yaml = readNested(KEBI_TRACKER_CONFIG);
+  const auto advanced = readNested(KEBI_TRACKER_ADVANCED);
   ASSERT_FALSE(yaml.empty());
+  ASSERT_FALSE(advanced.empty());
+  for (const auto& kv : advanced) {
+    EXPECT_FALSE(yaml.count(kv.first)) << "in both files: " << kv.first;
+    yaml[kv.first] = kv.second;
+  }
   kt::TrackerParams defaults;
   std::set<std::string> names;
   kt::visitParams(defaults, [&](const char* name, auto& field) {

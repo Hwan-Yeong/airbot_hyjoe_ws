@@ -69,7 +69,8 @@ if(BUILD_TESTING)
   ament_add_gtest(test_config test/test_config.cpp)
   target_link_libraries(test_config ${PROJECT_NAME}_core)
   target_compile_definitions(test_config PRIVATE
-    KEBI_TRACKER_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/config/leg_tracker.yaml")
+    KEBI_TRACKER_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/config/leg_tracker.yaml"
+    KEBI_TRACKER_ADVANCED="${CMAKE_CURRENT_SOURCE_DIR}/config/leg_tracker.advanced.yaml")
 
   # 시나리오 평가 도구 (지표 표·CSV 출력, 설치하지 않음)
   add_executable(scenario_eval test/tools/scenario_eval.cpp)
