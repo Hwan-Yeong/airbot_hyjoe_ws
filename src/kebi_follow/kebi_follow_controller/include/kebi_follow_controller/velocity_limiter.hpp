@@ -57,6 +57,9 @@ class VelocityLimiter {
   const LimiterParams& params() const { return p_; }
   // 실행 중 조정: 현재 속도 상태는 그대로 두고 상한·가감속만 바꾼다
   void setParams(const LimiterParams& p) { p_ = p; }
+  // 후진 허용 (기본 끔). 켜면 음의 선속도 목표를 S 곡선으로 따른다. 끈 뒤 남은 후진 속도는 S 곡선으로 0 까지 돌아온다
+  // (2026-11-16 벽에 붙었을 때 지나온 길로 짧게 후진하는 경우에만 controller 가 켠다)
+  void setAllowReverse(bool on) { allow_reverse_ = on; }
 
  private:
   LimiterParams p_;
@@ -64,6 +67,7 @@ class VelocityLimiter {
   double w_{0.0};
   double a_{0.0};      // 선가속도 [m/s^2]
   double alpha_{0.0};  // 각가속도 [rad/s^2]
+  bool allow_reverse_{false};
 };
 
 // 한 축 S 곡선 한 걸음 (시험·시뮬레이터에서도 쓴다).

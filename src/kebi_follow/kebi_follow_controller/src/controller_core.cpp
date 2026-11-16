@@ -28,6 +28,81 @@ constexpr std::size_t kTrailMaxPoints = 300;
 constexpr double kTrailLookahead = 1.2;
 constexpr double kTrailMinCarrot = 0.3;
 constexpr double kLosHysteresis = 0.05;
+// 막혔을 때 중간 목표점 (2026-11-16 갇힘 개선 3단계): 살펴보는 방향 수(전 방위), 그 방향 통로가 이만큼은 비어야 후보 [m],
+// 중간 목표점까지 거리 상한 [m]·통로 끝에서 남길 여유 [m], 사람에게 이만큼은 다가가야 후보 [m],
+// 회전량 벌점 [m/rad], 도착 판정 [m], 한 목표점을 쫓는 시간 상한 [s], 회피 중 선속도 상한 [m/s]
+constexpr int kSubHeadings = 24;
+constexpr double kSubMinFree = 0.6;
+constexpr double kSubMaxDist = 1.0;
+constexpr double kSubEndMargin = 0.3;
+constexpr double kSubMinProgress = 0.05;
+constexpr double kSubTurnWeight = 0.1;
+constexpr double kSubReach = 0.25;
+constexpr double kSubTimeoutS = 5.0;
+constexpr double kAvoidSpeed = 0.3;
+constexpr double kAvoidWantSpeed = 0.1;
+constexpr double kAvoidBlockedSpeed = 0.05;
+// depth 로만 보이는 물체(라이다 아래 낮은 물체)는 가까워지면 카메라 근거리 사각(약 0.45 m)에서 사라져 길이 빈 것처럼 보인다.
+// 그런 물체를 이 거리 안에서 본 뒤 이 시간 동안은 막힘 탈출(중간 목표점·후진)을 쓰지 않고 기다린다 [m], [s]
+// (2026-11-17 ROS 시뮬레이터 low_box_depth: 탈출이 상자 쪽을 골라 0.31 → 0.17 m)
+constexpr double kDepthOnlyNear = 1.5;
+constexpr double kDepthOnlyHoldS = 3.0;
+// 벽에 붙었을 때 지나온 길 후진 (4단계): 지나온 길 기록 간격 [m]·최대 점 수, 기록하는 최소 전진 속도 [m/s],
+// 막힌 채 이만큼 지나야 후진 [s], 한 번 갇혔을 때 후진 총량 [m], 후진 속도 [m/s], 되짚을 목표점까지 거리 [m],
+// 뒤 통로가 이만큼 남아야 후진 [m], 이만큼 앞으로 가야 후진 총량을 다시 채움 [m]
+constexpr double kOwnPathSpacing = 0.05;
+constexpr std::size_t kOwnPathMaxPoints = 80;
+constexpr double kOwnPathMinSpeed = 0.02;
+constexpr double kReverseAfterS = 1.0;
+constexpr double kReverseBudget = 0.3;
+constexpr double kReverseSpeed = 0.1;
+constexpr double kReverseLookBack = 0.2;
+constexpr double kReverseRearClear = 0.1;
+constexpr double kReverseRearmForward = 0.5;
+
+// 막혔을 때 중간 목표점: 전 방위 kSubHeadings 방향마다 직진 통로가 비어 있는 길이를 재고, 그 끝 가까이의 점 중
+// 사람(goal, 현재 base)에게 가장 많이 다가가는 점. 회전량이 클수록 조금 벌점. 없으면 false
+bool pickSubgoal(const SafetyGate& gate, const ObstacleSet& scan, const ObstacleSet& depth, bool use_depth,
+                 const Exclusion& scan_excl, const Exclusion& depth_excl, const Vec2& goal, Vec2* sub) {
+  double best = -kInf;
+  for (int i = 0; i < kSubHeadings; ++i) {
+    const double psi = -M_PI + 2.0 * M_PI * i / kSubHeadings;
+    // psi 방향을 앞으로 보는 좌표로 점을 돌려 직진 통로 거리를 잰다 (제외 구역도 같이 돌린다)
+    const Pose2D rot{0.0, 0.0, -psi};
+    ObstacleSet sc = scan;
+    sc.to_now = compose(rot, scan.to_now);
+    std::vector<Vec2> ex_s;
+    for (std::size_t k = 0; k < scan_excl.count; ++k) {
+      ex_s.push_back(transformPoint(rot, scan_excl.points[k]));
+    }
+    double free = gate.corridorDistance(sc, 0.0, true, Exclusion{ex_s.data(), ex_s.size()});
+    if (use_depth) {
+      ObstacleSet dp = depth;
+      dp.to_now = compose(rot, depth.to_now);
+      std::vector<Vec2> ex_d;
+      for (std::size_t k = 0; k < depth_excl.count; ++k) {
+        ex_d.push_back(transformPoint(rot, depth_excl.points[k]));
+      }
+      free = std::min(free, gate.corridorDistance(dp, 0.0, true, Exclusion{ex_d.data(), ex_d.size()}));
+    }
+    if (free < kSubMinFree) {
+      continue;
+    }
+    const double d = std::min(free - kSubEndMargin, kSubMaxDist);
+    const Vec2 q{d * std::cos(psi), d * std::sin(psi)};
+    const double progress = norm(goal) - norm({goal.x - q.x, goal.y - q.y});
+    if (progress < kSubMinProgress) {
+      continue;
+    }
+    const double score = progress - kSubTurnWeight * std::abs(psi);
+    if (score > best) {
+      best = score;
+      *sub = q;
+    }
+  }
+  return best > -kInf;
+}
+
 // 정지 예측: 제어 주기와 같은 이산 S 곡선으로 앞질러 본다 (최대 10 s)
 constexpr double kPredictDt = 0.05;
 constexpr int kPredictMaxSteps = 200;
@@ -116,6 +191,14 @@ void ControllerCore::resetMotion() {
   vp_f_ = 0.0;
   trail_.reset();
   trail_active_ = false;
+  own_path_.clear();
+  sub_active_ = false;
+  blocked_prev_ = false;
+  depth_only_until_ = -1.0;
+  reversing_ = false;
+  reverse_left_ = kReverseBudget;
+  forward_since_reverse_ = 0.0;
+  stuck_since_ = -1.0;
 }
 
 bool ControllerCore::onStart(double now) {
@@ -212,8 +295,9 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
     return c;
   };
   double steer_bearing = bearing;
+  Vec2 steer_goal = t.position;  // 조향 목표 (현재 base): 사람 또는 발자취 위 앞쪽 점
   SteerMode steer = SteerMode::kDirect;
-  if (tracked && in.odom_pose_ok && !trail_.empty() && range > p_.law.follow_distance) {
+  if (p_.steer_policy >= 0.5 && tracked && in.odom_pose_ok && !trail_.empty() && range > p_.law.follow_distance) {
     const double need = p_.corridor.half_width + (trail_active_ ? kLosHysteresis : 0.0);
     if (losClearance(t.position) < need) {
       // 발자취 위 앞쪽 점: 가장 가까운 점부터 발자취를 따라 kTrailLookahead 안에서, 로봇에서 직선 시야가
@@ -251,11 +335,41 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
       }
       if (have) {
         steer_bearing = std::atan2(carrot.y, carrot.x);
+        steer_goal = carrot;
         steer = SteerMode::kTrail;
       }
     }
   }
   trail_active_ = (steer == SteerMode::kTrail);
+
+  // --- 막혔을 때 중간 목표점 (2026-11-16 갇힘 개선 3단계) ---
+  // 지난 주기에 사람에게 가려는 경로가 막혔으면(blocked_prev_), 전 방위에서 직진 통로가 비어 있고 사람에게 다가가는
+  // 점을 골라 그쪽으로 (멀면 제자리에서 돌고) 간다. 도착·5 s·사람이 다시 보이면 끝. 속도·간격은 그대로 사람 기준
+  const bool person_far_pre = tracked && !t.ambiguous && range > p_.law.follow_distance + 0.1;
+  if (sub_active_) {
+    const Vec2 sb = in.odom_pose_ok ? transformPoint(inverse(in.odom_pose), sub_odom_) : Vec2{0.0, 0.0};
+    const bool visible = losClearance(t.position) >= p_.corridor.half_width + kLosHysteresis;
+    if (!in.odom_pose_ok || !person_far_pre || norm(sb) < kSubReach || now - sub_since_ > kSubTimeoutS || visible) {
+      sub_active_ = false;
+    }
+  }
+  if (p_.steer_policy >= 1.5 && !sub_active_ && blocked_prev_ && !reversing_ && person_far_pre && in.odom_pose_ok &&
+      fsm_.state() == FsmState::kFollowing) {
+    Vec2 sb{};
+    const Exclusion se = has_geom ? Exclusion{&t.position, 1} : Exclusion{};
+    const Exclusion de = (has_geom && in.depth_exclusion.count > 0) ? in.depth_exclusion : se;
+    if (pickSubgoal(gate_, in.scan, in.depth, in.sensors.depth_points_ok, se, de, t.position, &sb)) {
+      sub_active_ = true;
+      sub_since_ = now;
+      sub_odom_ = transformPoint(in.odom_pose, sb);
+    }
+  }
+  if (sub_active_) {
+    const Vec2 sb = transformPoint(inverse(in.odom_pose), sub_odom_);
+    steer_goal = sb;
+    steer_bearing = std::atan2(sb.y, sb.x);
+    steer = SteerMode::kAvoid;
+  }
 
   FollowCommand law_cmd;
   if (tracked) {
@@ -372,7 +486,102 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
   if (obs_emergency || too_close) {
     v_des = 0.0;
   }
-  const double w_des = law_w;
+  double w_des = law_w;
+
+  // --- 막힘 판정·지나온 길 후진 (2026-11-16 갇힘 개선 3·4단계) ---
+  // 사람이 멀리 있는데(따라갈 거리 + 0.1 m 넘게) 앞으로 가려는 경로가 막혔거나, 돌아서야 하는데 회전이 막혔다.
+  // 다음 주기 중간 목표점을 고르는 데 쓴다. 회전도 막혔으면(벽에 붙음) 로봇이 이미 지나온 길만 거꾸로 되짚는다
+  // (한 번 갇힐 때 0.3 m 까지, 0.1 m/s, 뒤 통로 확인. 직전에 지나온 바닥이라 낭떠러지가 없다)
+  const FsmState s_pre = fsm_.state();
+  if (in.odom_pose_ok && limiter_.v() > kOwnPathMinSpeed) {
+    const Vec2 here{in.odom_pose.x, in.odom_pose.y};
+    if (own_path_.empty() || norm({here.x - own_path_.back().x, here.y - own_path_.back().y}) >= kOwnPathSpacing) {
+      if (!own_path_.empty()) {
+        forward_since_reverse_ += norm({here.x - own_path_.back().x, here.y - own_path_.back().y});
+      }
+      own_path_.push_back(here);
+      if (own_path_.size() > kOwnPathMaxPoints) {
+        own_path_.erase(own_path_.begin());
+      }
+    }
+    if (forward_since_reverse_ >= kReverseRearmForward) {
+      reverse_left_ = kReverseBudget;
+    }
+  }
+  const bool person_far = tracked && !t.ambiguous && !too_close && range > p_.law.follow_distance + 0.1;
+  const bool fwd_blocked = law_cmd.v > kAvoidWantSpeed && (cap_obs < kAvoidBlockedSpeed || obs_emergency);
+  const bool turn_blocked = (law_cmd.in_place || law_v <= p_.in_place_linear_eps) &&
+                            std::abs(law_w) > p_.in_place_angular_eps && r_min <= p_.rotation_clearance;
+  const bool blocked = person_far && (fwd_blocked || turn_blocked);
+  // depth 로만 보이는 가까운 물체 (라이다보다 depth 가 더 가깝게 본다)
+  if (use_depth && d_depth < kDepthOnlyNear && d_depth + 0.05 < d_scan) {
+    depth_only_until_ = now + kDepthOnlyHoldS;
+  }
+  const bool depth_hold = now < depth_only_until_;
+  if (depth_hold) {
+    sub_active_ = false;  // 이미 쫓던 중간 목표점도 버린다 (그 물체 쪽일 수 있다)
+  }
+  blocked_prev_ = blocked && !sub_active_ && !depth_hold;
+  if (steer == SteerMode::kAvoid) {
+    v_des = std::min(v_des, kAvoidSpeed);  // 중간 목표점으로는 천천히
+  }
+  bool reverse = false;
+  double reverse_kappa = 0.0;
+  if (p_.steer_policy >= 1.5 && s_pre == FsmState::kFollowing && in.odom_pose_ok && !depth_hold &&
+      ((blocked && r_min <= p_.rotation_clearance) || reversing_)) {
+    if (stuck_since_ < 0.0) {
+      stuck_since_ = now;
+    }
+    // 되짚을 목표: 지나온 길에서 지금 위치로부터 kReverseLookBack 뒤의 점 (현재 base)
+    const Pose2D to_base = inverse(in.odom_pose);
+    Vec2 back{};
+    bool have_back = false;
+    double acc = 0.0;
+    for (std::size_t i = own_path_.size(); i-- > 1;) {
+      acc += norm({own_path_[i].x - own_path_[i - 1].x, own_path_[i].y - own_path_[i - 1].y});
+      if (acc >= kReverseLookBack) {
+        back = transformPoint(to_base, own_path_[i - 1]);
+        have_back = true;
+        break;
+      }
+    }
+    if (have_back && back.x < -0.05 && reverse_left_ > 0.0 && (reversing_ || now - stuck_since_ >= kReverseAfterS)) {
+      // pure pursuit (뒤로): 목표점을 지나는 원호 곡률. 뒤 통로는 π 돌린 좌표에서 곡률 −kappa 로 앞처럼 잰다
+      reverse_kappa = 2.0 * back.y / std::max(1e-6, back.x * back.x + back.y * back.y);
+      reverse_kappa = std::clamp(reverse_kappa, -p_.corridor.max_curvature, p_.corridor.max_curvature);
+      ObstacleSet rear_scan = in.scan;
+      rear_scan.to_now = compose(Pose2D{0.0, 0.0, M_PI}, in.scan.to_now);
+      double d_rear = gate_.corridorDistance(rear_scan, -reverse_kappa, true, Exclusion{});
+      if (use_depth) {
+        ObstacleSet rear_depth = in.depth;
+        rear_depth.to_now = compose(Pose2D{0.0, 0.0, M_PI}, in.depth.to_now);
+        d_rear = std::min(d_rear, gate_.corridorDistance(rear_depth, -reverse_kappa, true, Exclusion{}));
+      }
+      reverse = d_rear >= std::min(reverse_left_, kReverseLookBack) + kReverseRearClear;
+    }
+  } else if (!blocked) {
+    stuck_since_ = -1.0;
+  }
+  if (reverse) {
+    if (!reversing_) {
+      forward_since_reverse_ = 0.0;
+      sub_active_ = false;  // 되짚은 뒤 새로 고른다
+    }
+    reversing_ = true;
+    reverse_left_ -= std::abs(limiter_.v()) * dt;
+    v_des = -kReverseSpeed;
+    w_des = std::clamp(v_des * reverse_kappa, -p_.limiter.max_angular_speed, p_.limiter.max_angular_speed);
+    // 회전할 자리가 생겼거나 총량을 다 쓰면 끝 (다음 주기부터 중간 목표점·제자리 회전으로)
+    if (reverse_left_ <= 0.0 || r_min > p_.rotation_clearance + 0.05) {
+      reversing_ = false;
+      stuck_since_ = -1.0;
+      blocked_prev_ = true;
+    }
+    steer = SteerMode::kReverse;
+  } else {
+    reversing_ = false;
+  }
+  const bool avoid = (steer == SteerMode::kAvoid);
 
   // --- 회전 (S4) ---
   // 제자리 회전 요청: 명령 선속도가 거의 0 이거나, 법칙이 제자리 회전을 요구할 때 (걸러진 선속도가
@@ -380,7 +589,7 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
   const bool in_place_req =
       tracked && (v_des <= p_.in_place_linear_eps || law_cmd.in_place) &&
       std::abs(w_des) > p_.in_place_angular_eps;
-  const bool rot_blocked = in_place_req && r_min <= p_.rotation_clearance;
+  const bool rot_blocked = in_place_req && r_min <= p_.rotation_clearance && !avoid && !reverse;
   if (rotation_latched_ && (now - rotation_latched_at_ >= p_.rotation_rearm_s ||
                             (tracked && !in_place_req))) {
     rotation_latched_ = false;
@@ -446,11 +655,13 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
   }
   const double stop_point = p_.law.stop_distance + p_.law.approach_margin;  // 편안 정지가 서야 할 곳
   // 1단: 편안 정지가 stop_point 를 넘을 참이면 더 가속하지 않는다 (편안 S 곡선으로 가속을 줄인다)
-  const bool hold_accel = brake_gap < stop_point;
+  const bool hold_accel = p_.brake_margin >= 0.5 && brake_gap < stop_point;
   // 2단: 편안 정지로는 stop_distance + approach_margin/2 안까지 들어갈 참이면 단호 S 곡선으로 줄인다
-  const bool brake_need =
+  const bool brake_need = p_.brake_margin >= 0.5 &&
       brake_gap < p_.law.stop_distance + kBrakeMarginFrac * p_.law.approach_margin;
   const bool stopping = stop_pending_ && (s == FsmState::kFollowing || s == FsmState::kWaiting);
+  // 후진은 지나온 길 되짚기(4단계)를 고른 FOLLOWING 주기에만. 그 밖에는 남은 후진 속도가 S 곡선으로 0 으로 돌아온다
+  limiter_.setAllowReverse(reverse && s == FsmState::kFollowing && !stopping);
   if (stopping) {
     // STOP 명령: 선·각 모두 단호 S 곡선으로 0 까지 (HALT 는 위에서 즉시 0). 서면 IDLE (0 몇 번 뒤 침묵)
     limiter_.step(0.0, 0.0, dt, StopProfile::kFirm, StopProfile::kFirm);
@@ -494,11 +705,12 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
     case FsmState::kFollowing: {
       double v_t = v_des;
       // 서 있을 때 아주 작은 출발 요구는 무시한다 (사람이 거의 그대로면 덜컥 출발·정지를 반복하지 않게)
-      if (limiter_.v() < kStoppedSpeed && v_t < p_.start_speed) {
+      if (v_t >= 0.0 && limiter_.v() < kStoppedSpeed && v_t < p_.start_speed) {
         v_t = 0.0;
       }
       // S2·S3: 단호 정지 (S 곡선)
-      const bool firm_v = too_close || obs_emergency;
+      // 국소 회피·후진 중의 장애물 비상은 법칙 경로(막힌 쪽) 판정이라 쓰지 않는다 (원호·뒤 통로는 따로 확인했다)
+      const bool firm_v = too_close || (obs_emergency && !avoid && !reverse);
       // 카메라·depth 이상 상한(S6, 0.3 m/s)은 뒤를 받치는 단호 정지가 없다(낮은 장애물이 안 보인다).
       // 그 상한이 걸렸는데 편안 S 곡선으로는 kCapOverrunTol 넘게 지나칠 참이면 kCap (리뷰 2026-11-13).
       // 사람 앞 제동·장애물 상한은 근접(S2)·장애물 비상(S3) 단호 정지가 받치므로 편안 S 곡선 그대로 둔다
@@ -539,7 +751,7 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
 
   // S4: 제자리 회전 연속 상한
   if (s == FsmState::kFollowing && std::abs(w) > p_.in_place_angular_eps &&
-      v <= p_.in_place_linear_eps) {
+      std::abs(v) <= p_.in_place_linear_eps) {
     if (rotation_since_ < 0.0) {
       rotation_since_ = now;
     }
@@ -554,7 +766,7 @@ CycleOutput ControllerCore::step(const CycleInput& in) {
   }
 
   // S10: 제자리 회전에도 베이스 워치독(|v|>0.001)이 걸리도록 아주 작은 선속도
-  if (publish && std::abs(w) > kZeroAngular && v < p_.rotation_creep_speed) {
+  if (publish && std::abs(w) > kZeroAngular && v >= 0.0 && v < p_.rotation_creep_speed) {
     v = p_.rotation_creep_speed;
   }
 

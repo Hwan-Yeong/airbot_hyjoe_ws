@@ -62,7 +62,7 @@ void VelocityLimiter::step(double v_target, double w_target, double dt,
   if (!(dt > 0.0)) {
     return;
   }
-  v_target = std::clamp(v_target, 0.0, p_.max_linear_speed);
+  v_target = std::clamp(v_target, allow_reverse_ ? -p_.max_linear_speed : 0.0, p_.max_linear_speed);
   w_target = std::clamp(w_target, -p_.max_angular_speed, p_.max_angular_speed);
 
   // 선속도
@@ -75,10 +75,14 @@ void VelocityLimiter::step(double v_target, double w_target, double dt,
     j_v = std::max(p_.firm_linear_jerk, j_v);
   }
   const bool v_within = v_ <= p_.max_linear_speed + 1e-9;
+  const bool was_reverse = v_ < 0.0;
   sCurveStep(v_target, p_.max_linear_accel, v_dn, j_v, dt, &v_, &a_);
-  if (v_ < 0.0) {  // 후진 없음
+  if (!allow_reverse_ && !was_reverse && v_ < 0.0) {  // 후진 없음 (서다가 살짝 지나친 것)
     v_ = 0.0;
     a_ = std::max(a_, 0.0);
+  } else if (was_reverse && v_ > 0.0 && v_target <= 0.0) {  // 후진에서 0 으로 돌아오다 넘친 것
+    v_ = 0.0;
+    a_ = 0.0;
   } else if (v_within && v_ > p_.max_linear_speed) {
     // 상한 안에서 가속하다 살짝 넘친 것만 자른다 (실행 중 상한을 낮춘 경우는 S 곡선으로 내려간다)
     v_ = p_.max_linear_speed;

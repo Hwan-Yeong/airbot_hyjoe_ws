@@ -74,6 +74,8 @@ static_assert(FollowStateMsg::STOP_ROTATION_LIMIT ==
               stop_reason::kRotationLimit);
 static_assert(FollowStateMsg::STEER_DIRECT == static_cast<uint8_t>(SteerMode::kDirect));
 static_assert(FollowStateMsg::STEER_TRAIL == static_cast<uint8_t>(SteerMode::kTrail));
+static_assert(FollowStateMsg::STEER_AVOID == static_cast<uint8_t>(SteerMode::kAvoid));
+static_assert(FollowStateMsg::STEER_REVERSE == static_cast<uint8_t>(SteerMode::kReverse));
 static_assert(FollowModeMsg::TRACK == static_cast<uint8_t>(ModeValue::kTrack));
 static_assert(FollowTargetMsg::STATUS_OCCLUDED ==
               static_cast<uint8_t>(TargetStatus::kOccluded));
@@ -474,6 +476,8 @@ class FollowController : public rclcpp::Node {
     depth_exclusion_margin_s_ = param("depth_exclusion_margin_s", 0.2);
     cp_.camera_missing_speed_cap =
         param("camera_missing_speed_cap", cp_.camera_missing_speed_cap);
+    cp_.steer_policy = param("steer_policy", cp_.steer_policy);
+    cp_.brake_margin = param("brake_margin", cp_.brake_margin);
 
     // S7 타깃
     cp_.target_lost_s = param("target_lost_s", cp_.target_lost_s);

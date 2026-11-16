@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <vector>
 
 #include "kebi_follow_controller/controller_core.hpp"
@@ -857,6 +858,176 @@ TEST(Core, OpenFloorStaysDirect) {
   const auto r = walk2D(path, 0.8, {}, 15.0);
   EXPECT_EQ(r.trail_cycles, 0);
   EXPECT_GT(r.x, 3.0);
+}
+
+namespace {
+// 2차원 세계 (odom): 원 기둥 + 선분 벽(0.05 m 간격 점). 벽은 appear_s 뒤에 생길 수 있다 (문이 닫히거나 사람이 막아섬).
+// 사람은 path 를 speed 로 걷고 (t_walk 뒤), jump_s 에 jump_to 로 옮겨 간다 (로봇 기준 상대 위치).
+struct World2D {
+  std::vector<Vec2> path;
+  double speed{0.8};
+  double t_walk{0.5};
+  std::vector<std::pair<Vec2, double>> pillars;
+  std::vector<std::pair<Vec2, Vec2>> walls;
+  double appear_s{-1.0};           // >= 0 이면 이 시각에 로봇 앞 appear_ahead 에 가로 벽이 생긴다
+  double appear_ahead{0.28};       // 로봇 중심에서 벽까지 [m]
+  double jump_s{-1.0};             // >= 0 이면 이 시각에 사람이 로봇 기준 jump_rel 로 옮겨 감
+  Vec2 jump_rel{0.0, 0.0};
+  double seconds{20.0};
+};
+struct Run2D {
+  double min_clear{1e9};
+  double x{0.0}, y{0.0};
+  int trail{0}, avoid{0}, reverse{0};
+  double reverse_dist{0.0};       // 뒤로 간 거리 합
+  double min_range{1e9};
+  double final_range{0.0};
+};
+Run2D run2D(World2D w) {
+  Harness h(yamlLikeParams());
+  Run2D r;
+  double rx = 0.0, ry = 0.0, th = 0.0;
+  Vec2 pp = w.path.front();
+  std::size_t seg = 0;
+  bool jumped = false;
+  auto toBase = [&](const Vec2& q) {
+    const double dx = q.x - rx, dy = q.y - ry;
+    return Vec2{std::cos(th) * dx + std::sin(th) * dy, -std::sin(th) * dx + std::cos(th) * dy};
+  };
+  std::vector<Vec2> pts;
+  auto addWall = [&](const Vec2& a, const Vec2& b) {
+    const double L = std::hypot(b.x - a.x, b.y - a.y);
+    const int n = std::max(1, static_cast<int>(L / 0.05));
+    for (int k = 0; k <= n; ++k) {
+      pts.push_back({a.x + (b.x - a.x) * k / n, a.y + (b.y - a.y) * k / n});
+    }
+  };
+  for (const auto& pl : w.pillars) {
+    for (int k = 0; k < 24; ++k) {
+      const double a = 2.0 * M_PI * k / 24.0;
+      pts.push_back({pl.first.x + pl.second * std::cos(a), pl.first.y + pl.second * std::sin(a)});
+    }
+  }
+  for (const auto& wl : w.walls) {
+    addWall(wl.first, wl.second);
+  }
+  h.in.odom_pose_ok = true;
+  h.target(toBase(pp).x, toBase(pp).y);
+  h.start();
+  const int n = static_cast<int>(w.seconds / kDt);
+  bool appeared = false;
+  for (int i = 0; i < n; ++i) {
+    const double T = i * kDt;
+    if (w.appear_s >= 0.0 && !appeared && T >= w.appear_s) {
+      appeared = true;
+      const Vec2 c{rx + w.appear_ahead * std::cos(th), ry + w.appear_ahead * std::sin(th)};
+      const Vec2 side{-std::sin(th), std::cos(th)};
+      addWall({c.x - side.x, c.y - side.y}, {c.x + side.x, c.y + side.y});
+    }
+    if (w.jump_s >= 0.0 && !jumped && T >= w.jump_s) {
+      jumped = true;
+      pp = {rx + std::cos(th) * w.jump_rel.x - std::sin(th) * w.jump_rel.y,
+            ry + std::sin(th) * w.jump_rel.x + std::cos(th) * w.jump_rel.y};
+      w.path = {pp};
+      seg = 0;
+    }
+    Vec2 vel{0.0, 0.0};
+    if (T > w.t_walk && seg + 1 < w.path.size()) {
+      double step = w.speed * kDt;
+      while (step > 0.0 && seg + 1 < w.path.size()) {
+        const Vec2 d{w.path[seg + 1].x - pp.x, w.path[seg + 1].y - pp.y};
+        const double L = norm(d);
+        if (L <= step) {
+          pp = w.path[seg + 1];
+          ++seg;
+          step -= L;
+        } else {
+          pp = {pp.x + d.x / L * step, pp.y + d.y / L * step};
+          vel = {d.x / L * w.speed, d.y / L * w.speed};
+          step = 0.0;
+        }
+      }
+    }
+    h.scan.clear();
+    for (const auto& q : pts) {
+      h.scan.push_back(toBase(q));
+    }
+    const Vec2 pb = toBase(pp);
+    h.target(pb.x, pb.y);
+    h.in.target.velocity = {std::cos(th) * vel.x + std::sin(th) * vel.y, -std::sin(th) * vel.x + std::cos(th) * vel.y};
+    h.in.odom_pose = Pose2D{rx, ry, th};
+    const auto o = h.step();
+    if (std::getenv("RUN2D_DEBUG") != nullptr && i % 5 == 0) {
+      std::printf("T %5.2f st %d steer %d v %+.2f w %+.2f reasons 0x%03x range %.2f pos (%.2f %.2f %.0f)\n", T,
+                  static_cast<int>(o.state), static_cast<int>(o.steer_mode), o.v, o.w, o.stop_reasons, o.target_range,
+                  rx, ry, th * 180.0 / M_PI);
+    }
+    r.trail += (o.steer_mode == SteerMode::kTrail);
+    r.avoid += (o.steer_mode == SteerMode::kAvoid);
+    r.reverse += (o.steer_mode == SteerMode::kReverse);
+    if (o.v < 0.0) {
+      r.reverse_dist += -o.v * kDt;
+    }
+    rx += o.v * std::cos(th) * kDt;
+    ry += o.v * std::sin(th) * kDt;
+    th += o.w * kDt;
+    for (const auto& q : pts) {
+      r.min_clear = std::min(r.min_clear, std::hypot(rx - q.x, ry - q.y) - 0.22);
+    }
+    r.min_range = std::min(r.min_range, std::hypot(pp.x - rx, pp.y - ry));
+  }
+  r.x = rx;
+  r.y = ry;
+  r.final_range = std::hypot(pp.x - rx, pp.y - ry);
+  return r;
+}
+}  // namespace
+
+TEST(Core, BlockedStraightPathAvoidsAroundBoxTowardStandingPerson) {
+  // 3단계 국소 회피: 사람이 3 m 앞에 서 있고 그 사이에 상자(반경 0.25 m)가 있다. 발자취가 없어 직선만 보면 상자 앞에서
+  // 기다리기만 했다. 비어 있는 짧은 원호로 상자를 돌아 사람 앞까지 간다
+  World2D w;
+  w.path = {{3.0, 0.0}};
+  w.pillars = {{{1.5, 0.0}, 0.25}};
+  w.seconds = 25.0;
+  const auto r = run2D(w);
+  std::printf("box avoid: end (%.2f, %.2f), avoid %d cycles, min clearance %.2f m, final range %.2f\n", r.x, r.y,
+              r.avoid, r.min_clear, r.final_range);
+  EXPECT_GT(r.avoid, 0);
+  EXPECT_GT(r.min_clear, 0.05);
+  EXPECT_LT(r.final_range, 1.6);  // 상자를 지나 사람 앞 (따라갈 거리 1.0 m + 상한)
+  EXPECT_EQ(r.reverse, 0);
+}
+
+TEST(Core, WedgedAgainstWallReversesOnlyAlongOwnPathThenTurns) {
+  // 4단계 지나온 길 후진: 앞으로 1 m 남짓 따라간 뒤 바로 앞(중심 0.28 m)에 벽이 생기고 사람은 왼쪽 뒤로 갔다.
+  // 원호도(앞이 막힘) 제자리 회전도(회전 여유 0.30 m) 안 된다 → 지나온 길로 0.3 m 안에서 되짚은 뒤 돌아선다
+  World2D w;
+  w.path = {{2.0, 0.0}, {3.0, 0.0}};
+  w.speed = 0.4;
+  w.t_walk = 0.5;
+  w.appear_s = 6.0;
+  w.jump_s = 6.0;
+  w.jump_rel = {-0.6, 1.8};
+  w.seconds = 16.0;
+  const auto r = run2D(w);
+  std::printf("wedge reverse: end (%.2f, %.2f), reverse %d cycles %.2f m, min clearance %.2f m, final range %.2f\n", r.x,
+              r.y, r.reverse, r.reverse_dist, r.min_clear, r.final_range);
+  EXPECT_GT(r.reverse, 0);
+  EXPECT_LE(r.reverse_dist, 0.3 + 0.03);
+  EXPECT_GT(r.min_clear, 0.0);
+  EXPECT_LT(r.final_range, 1.6);  // 돌아서서 사람 쪽으로 갔다
+}
+
+TEST(Core, NeverReversesWithoutOwnPath) {
+  // 지나온 길이 없으면(제자리에서 막 시작) 벽에 붙어도 후진하지 않는다 (바닥을 모르는 곳으로 가지 않는다)
+  World2D w;
+  w.path = {{0.0, 1.8}};
+  w.walls = {{{0.28, -1.0}, {0.28, 1.0}}};
+  w.seconds = 6.0;
+  const auto r = run2D(w);
+  EXPECT_EQ(r.reverse, 0);
+  EXPECT_DOUBLE_EQ(r.reverse_dist, 0.0);
 }
 
 TEST(Core, ApproachingPersonNeverMakesRobotAdvanceInsideStopDistance) {

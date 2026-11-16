@@ -22,6 +22,13 @@ struct TunableSpec {
 constexpr double kMinStopToFollowGap = 0.1;  // stop_distance + 이 값 <= follow_distance [m]
 
 inline const TunableSpec kTunables[] = {
+    // [실험] 비교군 전환 (논문 실험 2026-11-17, 재시작 없이)
+    {"steer_policy", 0.0, 2.0, "[실험] 조향: 0 직선만, 1 +발자취, 2 +막힘 탈출 (중간 목표점·지나온 길 후진)",
+     [](const ControllerParams& p) { return p.steer_policy; },
+     [](ControllerParams& p, double v) { p.steer_policy = v; }},
+    {"brake_margin", 0.0, 1.0, "[실험] 가속 반영 제동 여유: 1 켬, 0 끔 (제동 상한만)",
+     [](const ControllerParams& p) { return p.brake_margin; },
+     [](ControllerParams& p, double v) { p.brake_margin = v; }},
     // S1 속도·가감속
     {"max_linear_speed", 0.0, 1.5, "선속도 상한 [m/s]",
      [](const ControllerParams& p) { return p.limiter.max_linear_speed; },

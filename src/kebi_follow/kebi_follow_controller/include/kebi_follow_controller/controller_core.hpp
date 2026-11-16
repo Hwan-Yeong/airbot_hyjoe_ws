@@ -44,6 +44,10 @@ struct ControllerParams {
   double w_filter_s{0.3};
   // S6 센서
   double camera_missing_speed_cap{0.3};  // depth 가 없을 때 선속도 상한 [m/s]
+  // [실험] 비교군 전환 (논문 실험, 2026-11-17). 조향: 0 사람에게 직선만, 1 + 발자취, 2 + 막힘 탈출(중간 목표점·지나온 길 후진)
+  double steer_policy{2.0};
+  // [실험] 가속 반영 제동 여유: 1 켬, 0 끔 (제동 상한만)
+  double brake_margin{1.0};
   // S7 타깃
   double target_lost_s{0.7};  // 측정 없는 시간이 이를 넘으면 정지 → WAITING [s]
   double occluded_speed_factor{0.5};  // 측정 없는 동안 선속도 배율
@@ -85,6 +89,8 @@ struct SensorStatus {
 enum class SteerMode : uint8_t {
   kDirect = 0,  // 사람에게 곧장
   kTrail = 1,   // 직선이 막혀 사람 발자취 위 앞쪽 점으로
+  kAvoid = 2,   // 막혀서 직진 통로가 비어 있는 방향의 중간 목표점으로 (국소 회피)
+  kReverse = 3, // 벽에 붙어 원호도 회전도 안 돼 로봇이 지나온 길을 짧게 되짚음
 };
 
 struct CycleInput {
@@ -195,6 +201,16 @@ class ControllerCore {
   bool brake_active_{false};  // 사람 앞 제동 격상 중 (편안 S 곡선으로는 사람 앞 여유 안까지 들어갈 참이었다)
   PersonTrail trail_;          // 사람 발자취 (odom)
   bool trail_active_{false};   // 지난 주기에 발자취로 조향했다 (직선으로 돌아갈 때 히스테리시스)
+  std::vector<Vec2> own_path_;  // 로봇이 앞으로 지나온 길 (odom, 후진은 이 길로만)
+  bool sub_active_{false};      // 막혀서 중간 목표점을 쫓는 중
+  Vec2 sub_odom_{};             // 그 점 (odom)
+  double sub_since_{-1.0};      // 그 점을 고른 시각
+  bool blocked_prev_{false};    // 지난 주기에 사람에게 가려는 경로가 막혔다
+  double depth_only_until_{-1.0};  // 이 시각까지 막힘 탈출 금지 (depth 로만 보이는 낮은 물체를 봤다)
+  bool reversing_{false};       // 지나온 길 되짚는 중
+  double reverse_left_{0.3};    // 이번 갇힘에서 남은 후진 거리 [m]
+  double forward_since_reverse_{0.0};  // 마지막 후진 뒤 앞으로 간 거리 [m]
+  double stuck_since_{-1.0};    // 원호도 회전도 안 되는 상태가 시작된 시각
 };
 
 }  // namespace kebi_follow

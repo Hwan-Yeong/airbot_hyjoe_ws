@@ -1,6 +1,6 @@
 # follow_controller 파라미터 (SPEC 5, 6.3, 7절). 시험 단계별 덮어쓰기는 kebi_follow_me/config/follow_me.yaml
 # 단위: 거리 [m], 속도 [m/s], 각속도 [rad/s], 시간 [s]. 실수 자리에 정수(0)를 써도 된다
-# tunables.hpp 의 36개는 실행 중 ros2 param set 으로 바꿀 수 있고(튜닝 화면), 나머지는 기동 때만 읽는다
+# tunables.hpp 의 38개는 실행 중 ros2 param set 으로 바꿀 수 있고(튜닝 화면), 나머지는 기동 때만 읽는다
 # 알고리즘 내부값(바닥 평면 추정, 경계 가드, 상태기계 세부 등)은 follow_controller.advanced.yaml 에 따로 있다 (launch 가 먼저 읽는다)
 # /follow/ui/client: cmd 1 = START, 그 밖의 값은 모두 STOP (state_manager 버전별 2·3·4·5 포함)
 follow_controller:
@@ -54,6 +54,9 @@ follow_controller:
     acquire_timeout_s: 30.0       # ACQUIRING 이 이만큼 이어지면 ENDED
     resume_confirm_s: 0.5         # WAITING 사유가 이만큼 풀려 있어야 다시 FOLLOWING
     lost_end_timeout_s: 30.0      # WAITING 지속 → ENDED
+    # [실험] 비교군 전환 (논문 실험 2026-11-17, 실행 중 바꿀 수 있음). 제품 기본은 모두 켬
+    steer_policy: 2.0             # 조향: 0 사람에게 직선만, 1 + 발자취(직선이 막히면 사람이 지나간 길), 2 + 막힘 탈출(중간 목표점·지나온 길 0.3 m 후진)
+    brake_margin: 1.0             # 가속 반영 제동 여유: 1 켬, 0 끔 (제동 상한만, 실차 E2a 의 0.54 m 상황)
 
     # ================================================================ 안전 (바꾸기 전에 SPEC 확인)
     robot_radius: 0.22            # launch 는 kebi_follow_me/config/robot.yaml 값을 넣는다. 라이다 몸체 필터 = 이 값, depth 몸체 = 이 값 + 0.03
