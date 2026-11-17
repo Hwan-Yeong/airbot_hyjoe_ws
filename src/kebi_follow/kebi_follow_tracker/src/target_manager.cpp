@@ -8,6 +8,11 @@ namespace kebi_follow {
 namespace tracker {
 
 namespace {
+// 모호 경쟁자로 셀 트랙이 카메라 사람 확인을 받은 뒤 이 시간 안이어야 한다 [s] (카메라 시야를 잠깐 벗어난 진짜 사람도 센다)
+constexpr double kCompetitorCameraMemoryS = 5.0;
+}  // namespace
+
+namespace {
 constexpr double kHoldEpsilonS = 1e-3;  // [s] 유지 시간 비교의 시각 오차 허용
 // 미확정 트랙을 경쟁자로 세는 최소 관측 수 (한 번 스친 조각 제외)
 constexpr int kMinTentativeHits = 2;
@@ -337,8 +342,18 @@ bool TargetManager::computeAmbiguity(double t, const PersonTrack& target,
                                      const PeopleTracker& tracker) const {
   const AmbiguityParams& ap = params_.ambiguity;
   const Vec2 p = target.kf.position();
+  // 경쟁자: 사람 같은 트랙. 카메라가 살아 있으면 최근 카메라로 사람 확인을 받은 트랙만 (벽·기둥 조각 제외, 2026-11-17)
+  const bool need_camera =
+      ap.require_camera && t - tracker.lastCameraFrame() <= params_.camera.alive_s;
+  auto competitor = [&](const PersonTrack& tr) {
+    if (!isPersonLike(t, tr)) {
+      return false;
+    }
+    return !need_camera ||
+           (tr.has_camera && t - tr.last_camera_time <= kCompetitorCameraMemoryS);
+  };
   for (const auto& tr : tracker.tracks()) {
-    if (tr.id != target.id && isPersonLike(t, tr) &&
+    if (tr.id != target.id && competitor(tr) &&
         distance(tr.kf.position(), p) < ap.radius) {
       return true;
     }
@@ -357,10 +372,10 @@ bool TargetManager::computeAmbiguity(double t, const PersonTrack& target,
     bool person_like = false;
     if (cand.track_id >= 0) {
       const PersonTrack* other = tracker.findTrack(cand.track_id);
-      person_like =
-          other != nullptr && other->id != target.id && isPersonLike(t, *other);
+      person_like = other != nullptr && other->id != target.id && competitor(*other);
     } else {
-      person_like = cand.kind != CandidateKind::SINGLE;
+      // 트랙이 없는 새 측정은 카메라 확인이 있을 수 없다: 카메라가 살아 있으면 세지 않는다
+      person_like = !need_camera && cand.kind != CandidateKind::SINGLE;
     }
     if (!person_like) {
       continue;

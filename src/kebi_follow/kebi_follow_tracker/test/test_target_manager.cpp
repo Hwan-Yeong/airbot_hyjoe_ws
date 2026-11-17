@@ -210,6 +210,46 @@ TEST(TargetManager, AmbiguousWhenAnotherPersonComesClose) {
             0.1);  // 타깃은 그대로
 }
 
+// 2026-11-17: 카메라가 살아 있으면 카메라로 사람 확인을 받은 트랙만 모호 경쟁자. 카메라가 타깃만 볼 때
+// 옆에 다가온 다리 같은 물체(벽·문틀 조각 모사)로는 모호가 뜨지 않고, 카메라가 둘 다 보면 뜬다
+namespace {
+bool ambiguousWithCamera(const std::vector<int>& camera_on) {
+  ks::Harness h(stateParams());
+  h.world.walkers.emplace_back(ks::standingPerson({1.2, 0.0}));
+  for (int k = 0; k < 5; ++k) {
+    h.scan();
+    h.camera({0});
+  }
+  h.core.setMode(Mode::ACQUIRE);
+  for (int k = 0; k < 15 && h.core.target().status != TargetStatus::LOCKED; ++k) {
+    h.scan();
+    h.camera({0});
+  }
+  EXPECT_EQ(h.core.target().status, TargetStatus::LOCKED);
+  h.core.setMode(Mode::TRACK);
+  ks::WalkerSpec other;
+  other.start = {1.3, 2.0};
+  other.heading = -kt::kPi / 2.0;
+  other.path = {{{1.3, 0.45}, 0.8, 5.0}};  // 타깃 옆 0.45 m 에 와서 선다
+  h.world.walkers.emplace_back(other);
+  bool seen = false;
+  for (int k = 0; k < 40; ++k) {
+    h.scan();
+    h.camera(camera_on);
+    seen = seen || h.core.target().ambiguous;
+  }
+  return seen;
+}
+}  // namespace
+
+TEST(TargetManager, CameraOnlySeesTargetNoFalseAmbiguity) {
+  EXPECT_FALSE(ambiguousWithCamera({0}));
+}
+
+TEST(TargetManager, CameraConfirmedNeighborIsAmbiguous) {
+  EXPECT_TRUE(ambiguousWithCamera({0, 1}));
+}
+
 TEST(TargetManager, ModeOffReleasesAndAcquireRestarts) {
   ks::Harness h(stateParams());
   addPerson(h, {1.0, 0.0});

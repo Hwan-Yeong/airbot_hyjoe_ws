@@ -1,6 +1,7 @@
 # 로봇 한 대의 물리 값: 여러 노드가 같은 뜻으로 쓰는 값을 한 곳에 둔다 (2026-11-16 파라미터 정리 C).
 # launch 가 각 노드의 해당 파라미터로 넣는다 (모듈 기본값 위, 덮어쓰기 파일 아래). 노드 이름 없는 평범한 yaml.
-camera_pitch_deg: 9.0     # 카메라 실제 아래 숙임 [deg] (URDF pitch 0 대비). 실측 바닥 추정 8.3~9.5° (E2a·T1·T3·T4, 세션마다 다름)
+camera_pitch_deg: 0.5     # 카메라 실제 아래 숙임 [deg] (URDF pitch 0 대비). 2026-11-17 카메라를 다시 끼운 뒤 depth 바닥 평면 실측 0.48° (0.37~0.68).
+                          # 그 전 8.3~10.5° (E2a·T1·T3·T4, 세션마다 다름)는 카메라가 빠져 아래로 처진 상태였다. 바닥 자동 추정은 이 값 ±3° 만 받는다
                           # → controller·cam_leg_detector camera_pitch_correction_deg (검출기는 예전에 10.5 였다)
 camera_latency_s: 0.1     # depth 내용이 라이다보다 늦는 시간 [s] (fm_data1 보행 구간 +0.1 s) → controller·cam_leg_detector camera_latency_s
 robot_radius: 0.22        # 로봇 반경 [m] → controller robot_radius (라이다 몸체 필터 = 반경, depth 몸체 = 반경 + 0.03),

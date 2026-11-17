@@ -102,6 +102,7 @@ void visitParams(TrackerParams& p, Visitor&& visit) {
   visit("ambiguity.radius", p.ambiguity.radius);
   visit("ambiguity.cost_margin", p.ambiguity.cost_margin);
   visit("ambiguity.min_person_score", p.ambiguity.min_person_score);
+  visit("ambiguity.require_camera", p.ambiguity.require_camera);
   visit("ambiguity.lost_s", p.ambiguity.lost_s);
 }
 

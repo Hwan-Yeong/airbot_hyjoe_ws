@@ -160,6 +160,9 @@ struct AmbiguityParams {
   double radius{0.6};  // [m] 타깃 주변의 다른 사람 트랙
   double cost_margin{2.0};  // 연관 비용 차이가 이보다 작으면 비슷하다고 본다
   double min_person_score{0.5};  // "사람"으로 셀 트랙의 person_score 하한
+  // 카메라가 살아 있으면 최근 kCompetitorCameraMemoryS 안에 카메라로 사람 확인을 받은 트랙만 경쟁자로 센다.
+  // 벽·문틀·기둥 모서리의 라이다 조각이 다리처럼 보여 거짓 모호로 서던 문제 (실차 E2a·E2b, 2026-11-17). 카메라가 꺼지면 예전 규칙
+  bool require_camera{true};
   // 모호가 이 시간 넘게 계속되면 LOST 로 바꾸고 재획득은 모호 시작 직전 타깃 위치에서 한다 (0: 끔).
   // 가까이 지나간 다른 사람에게 타깃이 끌려갔을 때를 위한 선택 기능. 가구 옆 거짓 모호에서도 LOST 가
   // 되므로 기본은 끈다 (합성 시험: 가구 사이 추종 커버리지 1.0 → 0.55)
